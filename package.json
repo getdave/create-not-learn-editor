@@ -1,0 +1,39 @@
+{
+	"name": "create-not-learn-editor",
+	"version": "0.1.0",
+	"description": "A standalone experimental WordPress site editor plugin.",
+	"private": true,
+	"license": "GPL-2.0-or-later",
+	"files": [
+		"build",
+		"create-not-learn-editor.php",
+		"includes",
+		"README.md"
+	],
+	"scripts": {
+		"build": "wp-scripts build",
+		"dev": "wp-scripts start",
+		"start": "wp-scripts start",
+		"lint:js": "wp-scripts lint-js",
+		"lint:css": "wp-scripts lint-style",
+		"plugin-zip": "wp-scripts plugin-zip",
+		"wp-env": "wp-env"
+	},
+	"dependencies": {
+		"@wordpress/api-fetch": "^7.23.0",
+		"@wordpress/boot": "^0.17.0",
+		"@wordpress/components": "^36.1.0",
+		"@wordpress/data": "^10.50.0",
+		"@wordpress/element": "^8.2.0",
+		"@wordpress/html-entities": "^4.50.0",
+		"@wordpress/i18n": "^6.23.0",
+		"@wordpress/icons": "^15.1.0",
+		"@wordpress/route": "^0.16.0",
+		"@wordpress/url": "^4.50.0"
+	},
+	"devDependencies": {
+		"@wordpress/dependency-extraction-webpack-plugin": "^6.50.0",
+		"@wordpress/env": "^11.10.0",
+		"@wordpress/scripts": "^32.6.0"
+	}
+}
