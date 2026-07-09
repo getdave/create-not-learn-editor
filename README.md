@@ -86,8 +86,10 @@ npm install
 Start the local WordPress environment:
 
 ```sh
-npm run wp-env start
+WP_ENV_PORT="<dev-port>" WP_ENV_TESTS_PORT="<test-port>" npm run wp-env start
 ```
+
+Use available non-default local ports for `WP_ENV_PORT` and `WP_ENV_TESTS_PORT`.
 
 The local environment uses WordPress 7.0 and installs Gutenberg 23.5.1 from the released plugin zip.
 
@@ -132,16 +134,10 @@ npm run lint:css
 find . -path ./node_modules -prune -o -path ./build -prune -o -name '*.php' -print | xargs -n1 php -l
 ```
 
-When checking runtime behavior, start wp-env and visit:
+When checking runtime behavior, start `wp-env` with explicit local ports and visit:
 
 ```text
-http://localhost:8888/wp-admin/admin.php?page=create-not-learn-editor
-```
-
-The default wp-env login is usually:
-
-```text
-admin / password
+http://localhost:<dev-port>/wp-admin/admin.php?page=create-not-learn-editor
 ```
 
 ## Repository Shape

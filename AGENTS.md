@@ -37,10 +37,11 @@ npm run build
 npm run lint:js
 npm run lint:css
 npm run plugin-zip
-npm run wp-env start
+WP_ENV_PORT="<dev-port>" WP_ENV_TESTS_PORT="<test-port>" npm run wp-env start
 ```
 
 `npm run dev` is the watch build. Stop it before finishing unless the user explicitly wants it left running.
+Replace `<dev-port>` and `<test-port>` with available non-default local ports when starting `wp-env`.
 
 ## Verification Expectations
 
@@ -56,16 +57,14 @@ find . -path ./node_modules -prune -o -path ./build -prune -o -name '*.php' -pri
 For runtime checks, use wp-env:
 
 ```sh
-npm run wp-env start
+WP_ENV_PORT="<dev-port>" WP_ENV_TESTS_PORT="<test-port>" npm run wp-env start
 ```
 
 Then inspect:
 
 ```text
-http://localhost:8888/wp-admin/admin.php?page=create-not-learn-editor
+http://localhost:<dev-port>/wp-admin/admin.php?page=create-not-learn-editor
 ```
-
-The default local credentials are normally `admin / password`.
 
 ## Editor Architecture
 
