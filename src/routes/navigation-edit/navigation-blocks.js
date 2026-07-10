@@ -2,6 +2,7 @@
  * WordPress dependencies
  */
 import { parse } from '@wordpress/block-serialization-default-parser';
+import { createBlock } from '@wordpress/blocks';
 import { decodeEntities } from '@wordpress/html-entities';
 
 const EMPTY_ARRAY = [];
@@ -208,6 +209,47 @@ function appendNavigationBlocksToContent( content, blocksToAppend ) {
 	] );
 }
 
+function getNavigationContentFromEditedRecord( record ) {
+	const content = record?.content;
+	const blocks = Array.isArray( record?.blocks )
+		? record.blocks
+		: EMPTY_ARRAY;
+
+	if ( typeof content === 'string' ) {
+		return content;
+	}
+
+	if ( typeof content === 'function' ) {
+		try {
+			const serializedContent = content( { blocks } );
+
+			if ( typeof serializedContent === 'string' ) {
+				return serializedContent;
+			}
+		} catch {
+			// Fall through to the other persisted shapes.
+		}
+	}
+
+	if ( typeof content?.raw === 'string' ) {
+		return content.raw;
+	}
+
+	if ( blocks.length ) {
+		return serializeNavigationBlocks( blocks );
+	}
+
+	return '';
+}
+
+function getNavigationBlocksFromEditedRecord( record ) {
+	if ( Array.isArray( record?.blocks ) ) {
+		return record.blocks;
+	}
+
+	return getParsedBlocks( getNavigationContentFromEditedRecord( record ) );
+}
+
 function isAutoMenuContent( content ) {
 	const meaningfulBlocks = getParsedBlocks( content ).filter(
 		( block ) => getBlockName( block ) || block.innerHTML?.trim()
@@ -225,8 +267,31 @@ function createManualNavigationContentFromPages( pages ) {
 	);
 }
 
+function createEditorBlockFromNavigationBlock( block ) {
+	const blockName = getBlockName( block );
+
+	if ( ! blockName ) {
+		return null;
+	}
+
+	return createBlock(
+		blockName,
+		getBlockAttributes( block ),
+		( block.innerBlocks || EMPTY_ARRAY )
+			.map( createEditorBlockFromNavigationBlock )
+			.filter( Boolean )
+	);
+}
+
+function createEditorBlocksFromNavigationBlocks( blocks ) {
+	return ( blocks || EMPTY_ARRAY )
+		.map( createEditorBlockFromNavigationBlock )
+		.filter( Boolean );
+}
+
 export {
 	appendNavigationBlocksToContent,
+	createEditorBlocksFromNavigationBlocks,
 	createManualNavigationContentFromPages,
 	createNavigationLinkBlock,
 	createNavigationLinkBlockFromPage,
@@ -235,6 +300,8 @@ export {
 	getBlockAttributes,
 	getBlockName,
 	getManualNavigationItems,
+	getNavigationBlocksFromEditedRecord,
+	getNavigationContentFromEditedRecord,
 	getNavigationItemLabel,
 	getNavigationPageTitle,
 	getParsedBlocks,

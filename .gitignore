@@ -1,10 +1,11 @@
 # Dependencies.
 node_modules/
-vendor/
+/vendor/
 
 # Local environment overrides and generated state.
 .wp-env.override.json
 .wp-env/
+.tmp-list-view-*/
 
 # Build/package artifacts.
 build/

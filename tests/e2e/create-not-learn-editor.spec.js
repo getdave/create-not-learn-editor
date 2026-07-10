@@ -693,7 +693,6 @@ test.describe( 'Create Not Learn Editor', () => {
 		page,
 	} ) => {
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
-		const existingPage = await createPreviewTestPage( page );
 
 		const previewCanvas = page.locator( '.cnl-editor-preview-canvas' );
 		await previewCanvas
@@ -865,82 +864,29 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect(
 			page.getByRole( 'button', { name: /Review \d+ change/ } )
 		).toBeVisible();
-		await page.getByRole( 'button', { name: 'Add menu item' } ).click();
+		const navigationTree = page.getByRole( 'treegrid', {
+			name: 'Block navigation structure',
+		} );
+		await expect( navigationTree ).toBeVisible();
 		await expect(
-			page.getByRole( 'menuitem', { name: 'Add existing page' } )
+			page.getByRole( 'button', { name: 'Add link to menu' } )
 		).toBeVisible();
 		await expect(
-			page.getByRole( 'menuitem', { name: 'Custom link' } )
-		).toBeVisible();
+			page.getByRole( 'button', { name: 'Add menu item' } )
+		).toHaveCount( 0 );
+		await page.getByRole( 'button', { name: 'Add link to menu' } ).click();
 		await expect(
-			page.getByRole( 'menuitem', { name: 'Submenu' } )
+			page.getByRole( 'combobox', { name: 'Search or type URL' } )
 		).toBeVisible();
+		await page.keyboard.press( 'Escape' );
+		await expect(
+			page.getByRole( 'combobox', { name: 'Search or type URL' } )
+		).toHaveCount( 0 );
 
 		await page
-			.getByRole( 'menuitem', { name: 'Add existing page' } )
+			.getByRole( 'button', { name: 'Navigation menu options' } )
 			.click();
-		const addPageDialog = page.getByRole( 'dialog', {
-			name: 'Add existing page',
-		} );
-		await expect( addPageDialog ).toBeVisible();
-		await addPageDialog
-			.getByLabel( 'Page' )
-			.selectOption( { label: existingPage.title } );
-		await addPageDialog.getByRole( 'button', { name: 'Add page' } ).click();
-		await expectSnackbar(
-			page,
-			'Page added to menu. Review and save changes when you are ready.'
-		);
-		await expect(
-			page.getByText( existingPage.title ).first()
-		).toBeVisible();
-
-		const customLinkLabel = `Custom nav ${ Date.now() }`;
-		await page.getByRole( 'button', { name: 'Add menu item' } ).click();
-		await page.getByRole( 'menuitem', { name: 'Custom link' } ).click();
-		const customLinkDialog = page.getByRole( 'dialog', {
-			name: 'Custom link',
-		} );
-		await expect( customLinkDialog ).toBeVisible();
-		await customLinkDialog.getByLabel( 'Label' ).fill( customLinkLabel );
-		await customLinkDialog
-			.getByLabel( 'URL' )
-			.fill( 'https://example.com/navigation-test/' );
-		await customLinkDialog
-			.getByRole( 'button', { name: 'Add link' } )
-			.click();
-		await expectSnackbar(
-			page,
-			'Link added to menu. Review and save changes when you are ready.'
-		);
-		await expect( page.getByText( customLinkLabel ) ).toBeVisible();
-
-		const submenuLabel = `Submenu ${ Date.now() }`;
-		await page.getByRole( 'button', { name: 'Add menu item' } ).click();
-		await page.getByRole( 'menuitem', { name: 'Submenu' } ).click();
-		await expect(
-			page.getByRole( 'menuitem', { name: 'Existing page' } )
-		).toBeVisible();
-		await expect(
-			page.getByRole( 'menuitem', { name: 'Label only' } )
-		).toBeVisible();
-		await page.getByRole( 'menuitem', { name: 'Label only' } ).click();
-		const submenuDialog = page.getByRole( 'dialog', {
-			name: 'Label only submenu',
-		} );
-		await expect( submenuDialog ).toBeVisible();
-		await submenuDialog.getByLabel( 'Submenu label' ).fill( submenuLabel );
-		await submenuDialog
-			.getByRole( 'button', { name: 'Add drop-down' } )
-			.click();
-		await expectSnackbar(
-			page,
-			'Submenu added to menu. Review and save changes when you are ready.'
-		);
-		await expect( page.getByText( submenuLabel ) ).toBeVisible();
-
-		await page.getByRole( 'button', { name: 'Add menu item' } ).click();
-		await page.getByRole( 'menuitem', { name: 'More…' } ).click();
+		await page.getByRole( 'menuitem', { name: 'Add menu items' } ).click();
 		const moreDialog = page.getByRole( 'dialog', {
 			name: 'Add menu items',
 		} );
@@ -951,9 +897,22 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect(
 			moreDialog.locator( '.navigation-add-items-modal__picker-scroll' )
 		).toBeVisible();
-		await page.keyboard.press( 'Escape' );
+		await moreDialog.getByRole( 'button', { name: 'More' } ).click();
+		await moreDialog.getByRole( 'tab', { name: 'Custom link' } ).click();
+		const modalLinkLabel = `Modal nav ${ Date.now() }`;
+		await moreDialog
+			.getByLabel( 'URL' )
+			.fill( 'https://example.com/modal-navigation-test/' );
+		await moreDialog.getByLabel( 'Link text' ).fill( modalLinkLabel );
+		await moreDialog.getByRole( 'button', { name: 'Add to menu' } ).click();
+		await expectSnackbar(
+			page,
+			'Menu items added. Review and save changes when you are ready.'
+		);
+		await expect(
+			navigationTree.getByText( modalLinkLabel )
+		).toBeVisible();
 
-		await page.keyboard.press( 'Escape' );
 		await page
 			.getByRole( 'button', { name: 'Navigation menu options' } )
 			.click();

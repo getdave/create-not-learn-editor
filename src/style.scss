@@ -1,4 +1,5 @@
 @use "@wordpress/dataviews/build-style/style.css" as dataviews;
+@use "./vendor/gutenberg/list-view/style" as list-view;
 
 .cnl-editor-page {
 
@@ -1648,8 +1649,28 @@
 }
 
 .routes-navigation-edit {
+	min-height: 0;
 	overflow: hidden;
 	padding: 0;
+
+	> [class*="__header"] > [class*="__header-content"],
+	> [class*="__header"] > [class*="__header-content"] > *:first-child {
+		min-width: 0;
+	}
+
+	> [class*="__header"] > [class*="__header-content"] > *:first-child {
+		flex: 1 1 auto;
+	}
+
+	> [class*="__header"] > [class*="__header-content"] > [class*="__header-actions"] {
+		flex: 0 0 auto;
+	}
+
+	nav[aria-label="Breadcrumbs"],
+	nav[aria-label="Breadcrumbs"] ul,
+	nav[aria-label="Breadcrumbs"] li:last-child {
+		min-width: 0;
+	}
 }
 
 .routes-navigation-edit__header {
@@ -1691,13 +1712,24 @@
 	}
 }
 
+.routes-navigation-edit__content {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+}
+
 .routes-navigation-edit__body {
 	box-sizing: border-box;
 	display: flex;
+	flex: 1 1 auto;
 	flex-direction: column;
 	align-items: flex-start;
-	min-height: 360px;
+	min-height: 0;
+	overflow: auto;
 	padding: 32px 56px;
+	width: 100%;
 }
 
 .routes-navigation-edit__body.is-empty-manual {
@@ -1787,6 +1819,35 @@
 
 .routes-navigation-edit__item-icon {
 	flex: 0 0 auto;
+}
+
+.routes-navigation-edit-list-view {
+	width: min(100%, 480px);
+	text-align: start;
+}
+
+.routes-navigation-edit-list-view__loading {
+	display: flex;
+	justify-content: center;
+	width: 100%;
+	padding: 16px;
+}
+
+.routes-navigation-edit-list-view__helper-block-editor {
+	display: none;
+}
+
+.routes-navigation-edit-list-view__appender.components-button {
+	justify-content: center;
+	width: 32px;
+	min-width: 32px;
+	height: 32px;
+	min-height: 32px;
+	padding: 0;
+}
+
+.routes-navigation-edit-list-view__link-ui-popover {
+	z-index: 1000001;
 }
 
 .routes-navigation-edit__add-button.components-button {

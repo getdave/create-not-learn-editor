@@ -10,7 +10,6 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  */
 import { cnlEditorStore, getErrorMessage, getTitleText } from '../../records';
 import {
-	addSubmenuIcon,
 	archiveIcon,
 	blockDefaultIcon,
 	blocksStore,
@@ -19,7 +18,6 @@ import {
 	categoryIcon,
 	CheckboxControl,
 	chevronDownIcon,
-	chevronLeftIcon,
 	compassIcon,
 	coreDataStore,
 	customLinkIcon,
@@ -33,7 +31,6 @@ import {
 	filterSortAndPaginate,
 	imageIcon,
 	layoutIcon,
-	linkIcon,
 	MenuGroup,
 	MenuItem,
 	Modal,
@@ -41,8 +38,8 @@ import {
 	noticesStore,
 	Notice,
 	pageIcon,
+	parseBlocks,
 	pencilIcon,
-	plusIcon,
 	postCategoriesIcon,
 	postListIcon,
 	Page,
@@ -63,15 +60,19 @@ import {
 } from '../../wordpress-packages';
 import {
 	appendNavigationBlocksToContent,
+	createEditorBlocksFromNavigationBlocks,
 	createManualNavigationContentFromPages,
 	createNavigationLinkBlock,
 	createNavigationLinkBlockFromPage,
 	createNavigationSubmenuBlock,
 	createNavigationSubmenuBlockFromPage,
 	getManualNavigationItems,
+	getNavigationBlocksFromEditedRecord,
+	getNavigationContentFromEditedRecord,
 	getNavigationPageTitle,
 	getParsedBlocks,
 	isAutoMenuContent,
+	serializeNavigationBlocks,
 } from './navigation-blocks';
 import {
 	assignNavigationMenuToFirstBlock,
@@ -84,6 +85,7 @@ import {
 	removeNavigationMenuFromFirstBlock,
 	templatePartHasNavigationBlock,
 } from '../navigation/navigation-locations';
+import NavigationEditListView from './list-view';
 
 const NAVIGATION_POST_TYPE = 'wp_navigation';
 const PAGE_QUERY = {
@@ -121,14 +123,6 @@ function ensureCoreBlocksRegistered() {
 
 ensureCoreBlocksRegistered();
 
-function getMenuContent( menu ) {
-	if ( typeof menu?.content === 'string' ) {
-		return menu.content;
-	}
-
-	return menu?.content?.raw || '';
-}
-
 function getMenuTitle( menu ) {
 	return getTitleText( menu?.title ) || __( 'Navigation' );
 }
@@ -155,6 +149,60 @@ function getMenuLocationsDescription( count ) {
 		: __(
 				'Choose where this menu should appear, such as your header or footer.'
 		  );
+}
+
+function getBlockName( block ) {
+	return block?.name || block?.blockName;
+}
+
+function getBlockAttributes( block ) {
+	return block?.attributes || block?.attrs || {};
+}
+
+function injectNavigationMenuPreviewBlocks( blocks, navigationId, menuBlocks ) {
+	return ( blocks || EMPTY_ARRAY ).map( ( block ) => {
+		const innerBlocks = injectNavigationMenuPreviewBlocks(
+			block.innerBlocks,
+			navigationId,
+			menuBlocks
+		);
+
+		if ( getBlockName( block ) !== 'core/navigation' ) {
+			return {
+				...block,
+				innerBlocks,
+			};
+		}
+
+		const attributes = { ...getBlockAttributes( block ) };
+		const hasExplicitRef =
+			attributes.ref !== undefined && attributes.ref !== null;
+
+		if ( hasExplicitRef && Number( attributes.ref ) !== navigationId ) {
+			return {
+				...block,
+				innerBlocks,
+			};
+		}
+
+		delete attributes.ref;
+
+		return {
+			...block,
+			attributes,
+			innerBlocks: menuBlocks,
+		};
+	} );
+}
+
+function getTemplatePartPreviewBlocks( part, navigationId, menuBlocks ) {
+	return injectNavigationMenuPreviewBlocks(
+		parseBlocks( getTemplatePartRawContent( part ), {
+			__unstableSkipMigrationLogs: true,
+		} ),
+		navigationId,
+		menuBlocks
+	);
 }
 
 function NavigationLocationsEmptyState( { disabled, onChooseLocation } ) {
@@ -218,173 +266,6 @@ function NavigationLocationsUnavailableEmptyState() {
 
 function getPageTitle( page ) {
 	return getNavigationPageTitle( page ) || __( '(no title)' );
-}
-
-function NavigationItemsList( { items } ) {
-	if ( ! items.length ) {
-		return el(
-			'p',
-			{ className: 'routes-navigation-edit__empty-list' },
-			__( 'No menu items yet.' )
-		);
-	}
-
-	return el(
-		'ul',
-		{ className: 'routes-navigation-edit__items' },
-		items.map( ( item ) =>
-			el(
-				'li',
-				{
-					className: 'routes-navigation-edit__item',
-					key: item.id,
-					style: { '--navigation-edit-depth': item.depth },
-				},
-				el( Icon, {
-					className: 'routes-navigation-edit__item-icon',
-					icon: item.isSubmenu ? postListIcon : pageIcon,
-				} ),
-				el( 'span', null, item.label )
-			)
-		)
-	);
-}
-
-function closeDropdownThen( onClose, callback ) {
-	onClose?.();
-	callback();
-}
-
-function AddMenuItemDropdown( { onChooseMode } ) {
-	const [ isChoosingSubmenuType, setIsChoosingSubmenuType ] =
-		useState( false );
-
-	return el(
-		DropdownMenu,
-		{
-			icon: plusIcon,
-			label: __( 'Add menu item' ),
-			popoverProps: { placement: 'bottom-start' },
-			onToggle: ( isOpen ) => {
-				if ( ! isOpen ) {
-					setIsChoosingSubmenuType( false );
-				}
-			},
-			toggleProps: {
-				className: 'routes-navigation-edit__add-button',
-				variant: 'primary',
-			},
-		},
-		( { onClose } ) => {
-			return el(
-				'div',
-				{ className: 'routes-navigation-edit__add-menu' },
-				isChoosingSubmenuType &&
-					el(
-						MenuGroup,
-						null,
-						el(
-							MenuItem,
-							{
-								icon: chevronLeftIcon,
-								onClick: () =>
-									setIsChoosingSubmenuType( false ),
-							},
-							__( 'Back' )
-						)
-					),
-				isChoosingSubmenuType &&
-					el(
-						MenuGroup,
-						null,
-						el(
-							MenuItem,
-							{
-								icon: pageIcon,
-								onClick: () =>
-									closeDropdownThen( onClose, () =>
-										onChooseMode( 'submenu-page' )
-									),
-							},
-							__( 'Existing page' )
-						),
-						el(
-							MenuItem,
-							{
-								icon: linkIcon,
-								onClick: () =>
-									closeDropdownThen( onClose, () =>
-										onChooseMode( 'submenu-custom' )
-									),
-							},
-							__( 'Custom link' )
-						),
-						el(
-							MenuItem,
-							{
-								icon: addSubmenuIcon,
-								onClick: () =>
-									closeDropdownThen( onClose, () =>
-										onChooseMode( 'submenu-label' )
-									),
-							},
-							__( 'Label only' )
-						)
-					),
-				! isChoosingSubmenuType &&
-					el(
-						MenuGroup,
-						null,
-						el(
-							MenuItem,
-							{
-								icon: pageIcon,
-								onClick: () =>
-									closeDropdownThen( onClose, () =>
-										onChooseMode( 'existing-page' )
-									),
-							},
-							__( 'Add existing page' )
-						),
-						el(
-							MenuItem,
-							{
-								icon: linkIcon,
-								onClick: () =>
-									closeDropdownThen( onClose, () =>
-										onChooseMode( 'custom-link' )
-									),
-							},
-							__( 'Custom link' )
-						),
-						el(
-							MenuItem,
-							{
-								icon: addSubmenuIcon,
-								onClick: () => setIsChoosingSubmenuType( true ),
-							},
-							__( 'Submenu' )
-						)
-					),
-				! isChoosingSubmenuType &&
-					el(
-						MenuGroup,
-						null,
-						el(
-							MenuItem,
-							{
-								icon: postCategoriesIcon,
-								onClick: () =>
-									closeDropdownThen( onClose, () =>
-										onChooseMode( 'more' )
-									),
-							},
-							__( 'More…' )
-						)
-					)
-			);
-		}
-	);
 }
 
 function PageSelectModal( {
@@ -1435,6 +1316,12 @@ function NavigationEditStage() {
 	const [ addMode, setAddMode ] = useState( null );
 	const [ isRenaming, setIsRenaming ] = useState( false );
 	const [ isDeleting, setIsDeleting ] = useState( false );
+	const [ insertionParentClientId, setInsertionParentClientId ] =
+		useState( null );
+	const [ isNavigationListViewReady, setIsNavigationListViewReady ] =
+		useState( false );
+	const [ listViewBlocks, setListViewBlocks ] = useState( null );
+	const [ pendingInsertion, setPendingInsertion ] = useState( null );
 	const [ renameTitle, setRenameTitle ] = useState( '' );
 	const { deleteEntityRecord, editEntityRecord } =
 		useDispatch( coreDataStore );
@@ -1469,21 +1356,21 @@ function NavigationEditStage() {
 		},
 		[ navigationId ]
 	);
-	const content = getMenuContent( menu );
+	const menuBlocks = useMemo(
+		() => listViewBlocks || getNavigationBlocksFromEditedRecord( menu ),
+		[ listViewBlocks, menu ]
+	);
+	const content = useMemo(
+		() =>
+			listViewBlocks
+				? serializeNavigationBlocks( listViewBlocks )
+				: getNavigationContentFromEditedRecord( menu ),
+		[ listViewBlocks, menu ]
+	);
 	const isAutoMenu = isAutoMenuContent( content );
 	const manualItems = useMemo(
-		() => getManualNavigationItems( getParsedBlocks( content ) ),
-		[ content ]
-	);
-	const autoMenuItems = useMemo(
-		() =>
-			pages.map( ( page ) => ( {
-				depth: 0,
-				id: page.id,
-				isSubmenu: false,
-				label: getPageTitle( page ),
-			} ) ),
-		[ pages ]
+		() => getManualNavigationItems( menuBlocks ),
+		[ menuBlocks ]
 	);
 
 	const editNavigationMenu = ( edits ) =>
@@ -1494,17 +1381,59 @@ function NavigationEditStage() {
 			edits
 		);
 
+	useEffect( () => {
+		setListViewBlocks( null );
+	}, [ navigationId ] );
+
+	const completePendingInsertion = ( insertion, error ) => {
+		setPendingInsertion( ( currentInsertion ) =>
+			currentInsertion?.id === insertion.id ? null : currentInsertion
+		);
+		setIsSaving( false );
+
+		if ( error ) {
+			createErrorNotice(
+				sprintf(
+					/* translators: %s: error message. */
+					__( 'Unable to update navigation menu (%s).' ),
+					getErrorMessage( error )
+				),
+				{ type: 'snackbar' }
+			);
+			return;
+		}
+
+		setAddMode( null );
+		createSuccessNotice( insertion.successMessage, {
+			type: 'snackbar',
+		} );
+	};
+
 	const addNavigationBlocks = async ( blocks, successMessage ) => {
-		if ( ! blocks.length ) {
+		const editorBlocks = createEditorBlocksFromNavigationBlocks( blocks );
+		let waitsForPendingInsertion = false;
+
+		if ( ! editorBlocks.length ) {
 			return false;
 		}
 
 		setIsSaving( true );
 
 		try {
-			editNavigationMenu( {
-				content: appendNavigationBlocksToContent( content, blocks ),
-			} );
+			if ( isEmptyManualMenu || ! isNavigationListViewReady ) {
+				editNavigationMenu( {
+					content: appendNavigationBlocksToContent( content, blocks ),
+				} );
+			} else {
+				waitsForPendingInsertion = true;
+				setPendingInsertion( {
+					blocks: editorBlocks,
+					id: window.crypto?.randomUUID?.() || String( Date.now() ),
+					parentClientId: insertionParentClientId,
+					successMessage,
+				} );
+				return true;
+			}
 			setAddMode( null );
 			createSuccessNotice( successMessage, { type: 'snackbar' } );
 			return true;
@@ -1519,7 +1448,9 @@ function NavigationEditStage() {
 			);
 			return false;
 		} finally {
-			setIsSaving( false );
+			if ( ! waitsForPendingInsertion ) {
+				setIsSaving( false );
+			}
 		}
 	};
 
@@ -1620,8 +1551,7 @@ function NavigationEditStage() {
 
 	const isMenuReady = ! isLoadingMenu && !! menu;
 	const menuTitle = isMenuReady ? getMenuTitle( menu ) : __( 'Navigation' );
-	const listItems = isAutoMenu ? autoMenuItems : manualItems;
-	const isEmptyManualMenu = ! isAutoMenu && listItems.length === 0;
+	const isEmptyManualMenu = ! isAutoMenu && manualItems.length === 0;
 
 	const openRenameModal = () => {
 		setRenameTitle( menuTitle );
@@ -1723,6 +1653,7 @@ function NavigationEditStage() {
 							el(
 								MenuItem,
 								{
+									disabled: ! isNavigationListViewReady,
 									icon: postCategoriesIcon,
 									onClick: () => {
 										setAddMode( 'more' );
@@ -1881,7 +1812,9 @@ function NavigationEditStage() {
 									Button,
 									{
 										__next40pxDefaultSize: true,
-										disabled: isSaving,
+										disabled:
+											isSaving ||
+											! isNavigationListViewReady,
 										onClick: () => setAddMode( 'more' ),
 										variant: 'primary',
 									},
@@ -1889,13 +1822,16 @@ function NavigationEditStage() {
 								)
 							)
 						),
-					( isAutoMenu || ! isEmptyManualMenu ) &&
-						el( NavigationItemsList, { items: listItems } ),
-					! isAutoMenu &&
-						! isEmptyManualMenu &&
-						el( AddMenuItemDropdown, {
-							onChooseMode: setAddMode,
-						} )
+					el( NavigationEditListView, {
+						isAutoMenu,
+						menuTitle,
+						navigationId,
+						onBlocksChange: setListViewBlocks,
+						onInsertionTargetChange: setInsertionParentClientId,
+						onPendingInsertionComplete: completePendingInsertion,
+						onReadyChange: setIsNavigationListViewReady,
+						pendingInsertion,
+					} )
 				),
 				isConfirmingCustomize &&
 					el(
@@ -2356,6 +2292,10 @@ function NavigationEditCanvas() {
 		[ locations ]
 	);
 	const menuTitle = menu ? getMenuTitle( menu ) : __( 'Navigation' );
+	const menuBlocks = useMemo(
+		() => getNavigationBlocksFromEditedRecord( menu ),
+		[ menu ]
+	);
 
 	const editTemplatePartContent = ( part, content ) =>
 		editEntityRecord( 'postType', 'wp_template_part', part.id, {
@@ -2578,8 +2518,10 @@ function NavigationEditCanvas() {
 											'routes-navigation-locations-canvas__preview',
 									},
 									el( LazyEditorPreview, {
-										content: getTemplatePartRawContent(
-											location.part
+										blocks: getTemplatePartPreviewBlocks(
+											location.part,
+											navigationId,
+											menuBlocks
 										),
 										description: location.label,
 									} )

@@ -7,8 +7,8 @@ function getBaseURL() {
 		return process.env.WP_BASE_URL;
 	}
 
-	if ( process.env.WP_ENV_PORT ) {
-		return `http://localhost:${ process.env.WP_ENV_PORT }`;
+	if ( process.env.WP_ENV_TESTS_PORT ) {
+		return `http://localhost:${ process.env.WP_ENV_TESTS_PORT }`;
 	}
 
 	try {
@@ -23,18 +23,20 @@ function getBaseURL() {
 			encoding: 'utf8',
 		} );
 		const status = JSON.parse( output );
-		const port = status?.ports?.development;
+		const port = status?.ports?.tests;
 
 		if ( port ) {
 			return `http://localhost:${ port }`;
 		}
 	} catch ( error ) {
 		throw new Error(
-			`Unable to determine the WordPress base URL. Set WP_BASE_URL explicitly. ${ error.message }`
+			`Unable to determine the WordPress tests base URL. Start the wp-env tests environment or set WP_BASE_URL explicitly. ${ error.message }`
 		);
 	}
 
-	throw new Error( 'Unable to determine the WordPress base URL.' );
+	throw new Error(
+		'Unable to determine the WordPress tests base URL. Start the wp-env tests environment or set WP_BASE_URL explicitly.'
+	);
 }
 
 module.exports = defineConfig( {

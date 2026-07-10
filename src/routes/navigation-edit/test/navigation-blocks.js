@@ -1,14 +1,26 @@
+jest.mock( '@wordpress/blocks', () => ( {
+	createBlock: ( name, attributes = {}, innerBlocks = [] ) => ( {
+		attributes,
+		clientId: `mock-client-id-${ name }`,
+		innerBlocks,
+		name,
+	} ),
+} ) );
+
 /**
  * Internal dependencies
  */
 import {
 	appendNavigationBlocksToContent,
+	createEditorBlocksFromNavigationBlocks,
 	createManualNavigationContentFromPages,
 	createNavigationLinkBlock,
 	createNavigationLinkBlockFromPage,
 	createNavigationSubmenuBlock,
 	createNavigationSubmenuBlockFromPage,
 	getManualNavigationItems,
+	getNavigationBlocksFromEditedRecord,
+	getNavigationContentFromEditedRecord,
 	getParsedBlocks,
 	isAutoMenuContent,
 	serializeNavigationBlocks,
@@ -148,5 +160,56 @@ describe( 'navigation edit block helpers', () => {
 				name: 'core/navigation-link',
 			}
 		);
+	} );
+
+	test( 'creates editor blocks for block-editor insertion', () => {
+		const blocks = createEditorBlocksFromNavigationBlocks( [
+			createNavigationSubmenuBlock( {
+				innerBlocks: [
+					createNavigationLinkBlock( {
+						label: 'Child',
+						url: '/child/',
+					} ),
+				],
+				label: 'Parent',
+				url: '#',
+			} ),
+		] );
+
+		expect( blocks ).toHaveLength( 1 );
+		expect( blocks[ 0 ] ).toMatchObject( {
+			attributes: {
+				label: 'Parent',
+				url: '#',
+			},
+			name: 'core/navigation-submenu',
+		} );
+		expect( blocks[ 0 ].clientId ).toEqual( expect.any( String ) );
+		expect( blocks[ 0 ].innerBlocks[ 0 ] ).toMatchObject( {
+			attributes: {
+				label: 'Child',
+				url: '/child/',
+			},
+			name: 'core/navigation-link',
+		} );
+	} );
+
+	test( 'reads lazy edited navigation content from staged blocks', () => {
+		const blocks = [
+			createNavigationLinkBlock( {
+				label: 'Staged',
+				url: '/staged/',
+			} ),
+		];
+		const record = {
+			blocks,
+			content: ( { blocks: blocksForSerialization } ) =>
+				serializeNavigationBlocks( blocksForSerialization ),
+		};
+
+		const content = getNavigationContentFromEditedRecord( record );
+
+		expect( content ).toContain( '"label":"Staged"' );
+		expect( getNavigationBlocksFromEditedRecord( record ) ).toBe( blocks );
 	} );
 } );

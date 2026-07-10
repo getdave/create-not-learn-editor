@@ -4,7 +4,22 @@
 import apiFetch from '@wordpress/api-fetch';
 import { Breadcrumbs, Page } from '@wordpress/admin-ui';
 import { registerCoreBlocks } from '@wordpress/block-library';
-import { store as blocksStore } from '@wordpress/blocks';
+import {
+	createBlock,
+	hasBlockSupport,
+	parse as parseBlocks,
+	serialize,
+	store as blocksStore,
+} from '@wordpress/blocks';
+import {
+	BlockEditorProvider,
+	BlockList,
+	BlockTitle,
+	LinkControl,
+	store as blockEditorStore,
+	useBlockBindingsUtils,
+	useBlockEditingMode,
+} from '@wordpress/block-editor';
 import {
 	Button,
 	CheckboxControl,
@@ -14,6 +29,7 @@ import {
 	MenuItem,
 	Modal,
 	Notice,
+	Popover,
 	SelectControl,
 	Spinner,
 	TextControl,
@@ -22,7 +38,10 @@ import {
 	__experimentalVStack as VStack,
 	/* eslint-enable @wordpress/no-unsafe-wp-apis */
 } from '@wordpress/components';
-import { store as coreDataStore } from '@wordpress/core-data';
+import {
+	store as coreDataStore,
+	useEntityBlockEditor,
+} from '@wordpress/core-data';
 import {
 	createReduxStore,
 	dispatch,
@@ -36,11 +55,13 @@ import { DataViewsPicker, filterSortAndPaginate } from '@wordpress/dataviews';
 import { DataViews } from '@wordpress/dataviews/wp';
 import {
 	createElement as el,
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
 	useState,
 } from '@wordpress/element';
+import { escapeHTML } from '@wordpress/escape-html';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import {
@@ -51,6 +72,7 @@ import {
 	chevronLeft,
 	chevronDown,
 	chevronRight,
+	chevronUp,
 	customLink,
 	file,
 	image,
@@ -67,18 +89,23 @@ import {
 	seen,
 	update,
 } from '@wordpress/icons';
+import { useEditorAssets, useEditorSettings } from '@wordpress/lazy-editor';
 import { MediaUpload } from '@wordpress/media-utils';
 import { store as noticesStore } from '@wordpress/notices';
 import { EmptyState, Tabs } from '@wordpress/ui';
-import { addQueryArgs } from '@wordpress/url';
+import { addQueryArgs, getPath, safeDecodeURI } from '@wordpress/url';
 
 export {
 	addSubmenu as addSubmenuIcon,
 	addQueryArgs,
 	apiFetch,
 	archive as archiveIcon,
+	blockEditorStore,
+	BlockEditorProvider,
 	blockDefault as blockDefaultIcon,
+	BlockList,
 	blocksStore,
+	BlockTitle,
 	Breadcrumbs,
 	Button,
 	category as categoryIcon,
@@ -86,7 +113,9 @@ export {
 	CheckboxControl,
 	chevronLeft as chevronLeftIcon,
 	chevronRight as chevronRightIcon,
+	chevronUp as chevronUpIcon,
 	coreDataStore,
+	createBlock,
 	createReduxStore,
 	DataViews,
 	DataViewsPicker,
@@ -95,11 +124,15 @@ export {
 	DropdownMenu,
 	el,
 	EmptyState,
+	escapeHTML,
 	file as fileIcon,
 	filterSortAndPaginate,
+	getPath,
+	hasBlockSupport,
 	Icon,
 	image as imageIcon,
 	layout as layoutIcon,
+	LinkControl,
 	link as linkIcon,
 	customLink as customLinkIcon,
 	HStack,
@@ -112,24 +145,34 @@ export {
 	noticesStore,
 	Notice,
 	page as pageIcon,
+	parseBlocks,
 	pencil as pencilIcon,
 	plus as plusIcon,
+	Popover,
 	postCategories as postCategoriesIcon,
 	Page,
 	postList as postListIcon,
 	register,
 	registerCoreBlocks,
 	resolveSelect,
+	safeDecodeURI,
 	SelectControl,
 	seen as seenIcon,
 	select,
+	serialize,
 	Spinner,
 	sprintf,
 	Tabs,
 	TextControl,
 	trash as trashIcon,
 	update as updateIcon,
+	useBlockBindingsUtils,
+	useBlockEditingMode,
+	useCallback,
 	useDispatch,
+	useEditorAssets,
+	useEditorSettings,
+	useEntityBlockEditor,
 	useEffect,
 	useMemo,
 	useRef,
