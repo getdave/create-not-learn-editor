@@ -631,6 +631,30 @@ test.describe( 'Create Not Learn Editor', () => {
 			designDialog,
 			'choose-page-design-picker.png'
 		);
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-card.is-start-blank' )
+		).toHaveCount( 0 );
+		const nextDesignsButton = designDialog.getByRole( 'button', {
+			name: 'Next designs',
+		} );
+		if ( await nextDesignsButton.count() ) {
+			while ( await nextDesignsButton.isEnabled() ) {
+				await nextDesignsButton.click();
+			}
+		}
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-card.is-start-blank' )
+		).toBeVisible();
+		await expect(
+			designDialog.locator(
+				'.cnl-add-page-layout-card.is-start-blank .cnl-add-page-layout-card__preview'
+			)
+		).toHaveCSS( 'border-top-style', 'dashed' );
+		await expect(
+			designDialog
+				.locator( '.cnl-add-page-layout-card.is-start-blank' )
+				.getByText( 'Create a blank page and add sections as you go.' )
+		).toBeVisible();
 		await designDialog
 			.locator( '.cnl-add-page-layout-card' )
 			.first()
@@ -640,9 +664,23 @@ test.describe( 'Create Not Learn Editor', () => {
 				'Your page will be visible to visitors immediately.'
 			)
 		).toBeVisible();
-		await expect( addPageDialog.getByLabel( 'Page Template' ) ).toHaveCount(
-			0
+		await expect(
+			addPageDialog.getByLabel( 'Page Template' )
+		).toBeVisible();
+		const pageTemplateOptionLabels = await addPageDialog
+			.getByLabel( 'Page Template' )
+			.locator( 'option' )
+			.allTextContents();
+		expect( pageTemplateOptionLabels ).not.toContain( 'Page' );
+		await addPageDialog.getByLabel( 'Page Template' ).selectOption( {
+			index: 0,
+		} );
+		await expect( addPageDialog.getByLabel( 'Page Template' ) ).toHaveValue(
+			''
 		);
+		await expect(
+			addPageDialog.getByLabel( 'Page Template' )
+		).toContainText( 'Default template' );
 		const backButtonBox = await addPageDialog
 			.getByRole( 'button', { name: 'Back to options' } )
 			.boundingBox();

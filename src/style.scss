@@ -864,6 +864,10 @@
 	}
 }
 
+.cnl-add-page-layout-card.components-button.is-start-blank {
+	background: #fff;
+}
+
 .cnl-add-page-layout-card__preview {
 	display: flex;
 	align-items: stretch;
@@ -874,6 +878,21 @@
 	border: 1px solid #dcdcde;
 	border-radius: 2px;
 	background: #fff;
+}
+
+.cnl-add-page-layout-card__preview--empty {
+	align-items: center;
+	padding: 24px;
+	background: #f6f7f7;
+}
+
+.cnl-add-page-layout-card.components-button.is-start-blank .cnl-add-page-layout-card__preview {
+	border-style: dashed;
+}
+
+.cnl-add-page-layout-empty-state {
+	width: 100%;
+	margin: auto;
 }
 
 .cnl-add-page-layout-preview-page {

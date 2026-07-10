@@ -576,6 +576,50 @@ function PageLayoutCard( { onSelect, pageTemplateContent, pattern } ) {
 	);
 }
 
+function PageLayoutStartBlankCard( { onSelect } ) {
+	return el(
+		Button,
+		{
+			__next40pxDefaultSize: true,
+			className: 'cnl-add-page-layout-card is-start-blank',
+			onClick: onSelect,
+			variant: 'secondary',
+		},
+		el(
+			'div',
+			{
+				className:
+					'cnl-add-page-layout-card__preview cnl-add-page-layout-card__preview--empty',
+			},
+			el(
+				EmptyState.Root,
+				{ className: 'cnl-add-page-layout-empty-state' },
+				el( EmptyState.Icon, { icon: plusIcon } ),
+				el( EmptyState.Title, null, __( 'Start blank' ) ),
+				el(
+					EmptyState.Description,
+					null,
+					__( 'Create a blank page and add sections as you go.' )
+				)
+			)
+		),
+		el(
+			'span',
+			{ className: 'cnl-add-page-layout-card__content' },
+			el(
+				'span',
+				{ className: 'cnl-add-page-layout-card__title' },
+				__( 'Start blank' )
+			),
+			el(
+				'span',
+				{ className: 'cnl-add-page-layout-card__description' },
+				__( 'Create a blank page' )
+			)
+		)
+	);
+}
+
 function AddPageFlow( { onClose, templates } ) {
 	const navigate = useNavigate();
 	const { saveEntityRecord } = useDispatch( coreDataStore );
@@ -625,6 +669,7 @@ function AddPageFlow( { onClose, templates } ) {
 		( currentPageLayoutPage - 1 ) * PAGE_LAYOUTS_PER_PAGE,
 		currentPageLayoutPage * PAGE_LAYOUTS_PER_PAGE
 	);
+	const shouldShowStartBlankLayoutCard = visiblePageLayouts.length === 1;
 	const firstVisiblePageLayoutIndex =
 		( currentPageLayoutPage - 1 ) * PAGE_LAYOUTS_PER_PAGE + 1;
 	const lastVisiblePageLayoutIndex = Math.min(
@@ -690,6 +735,21 @@ function AddPageFlow( { onClose, templates } ) {
 		setPageTitle( getPatternTitle( pattern ) );
 		setValidationError( undefined );
 	};
+	const visiblePageLayoutCards = [
+		...visiblePageLayouts.map( ( pattern ) =>
+			el( PageLayoutCard, {
+				key: pattern.name,
+				onSelect: handleSelectLayout,
+				pageTemplateContent,
+				pattern,
+			} )
+		),
+		shouldShowStartBlankLayoutCard &&
+			el( PageLayoutStartBlankCard, {
+				key: 'start-blank',
+				onSelect: handleStartBlank,
+			} ),
+	].filter( Boolean );
 	const createPage = async () => {
 		const trimmedTitle = pageTitle.trim();
 
@@ -1014,14 +1074,7 @@ function AddPageFlow( { onClose, templates } ) {
 							el(
 								'div',
 								{ className: 'cnl-add-page-layout-grid' },
-								visiblePageLayouts.map( ( pattern ) =>
-									el( PageLayoutCard, {
-										key: pattern.name,
-										onSelect: handleSelectLayout,
-										pageTemplateContent,
-										pattern,
-									} )
-								)
+								visiblePageLayoutCards
 							)
 					)
 				),
@@ -1093,8 +1146,7 @@ function AddPageFlow( { onClose, templates } ) {
 								)
 							)
 						),
-						! selectedLayout &&
-							pageTemplateOptions.length > 1 &&
+						pageTemplateOptions.length > 1 &&
 							el( SelectControl, {
 								__next40pxDefaultSize: true,
 								disabled: isBusy,
