@@ -1141,11 +1141,36 @@ test.describe( 'Create Not Learn Editor', () => {
 				.locator( '.routes-navigation-locations-canvas__card-header' )
 				.first()
 		).toBeVisible();
+		await expect
+			.poll(
+				async () => {
+					const box = await canvas
+						.locator(
+							'.routes-navigation-locations-canvas__card-header'
+						)
+						.first()
+						.boundingBox();
+
+					return box?.height || 0;
+				},
+				{ timeout: 15000 }
+			)
+			.toBeLessThanOrEqual( 64 );
 		await expect(
 			canvas
 				.locator( '.routes-navigation-locations-canvas__preview' )
 				.first()
 		).toBeVisible();
+		await expect
+			.poll(
+				() =>
+					getNavigationLocationPreviewFrameTexts( page ).then(
+						( texts ) =>
+							texts.some( ( text ) => text.trim().length )
+					),
+				{ timeout: 15000 }
+			)
+			.toBe( true );
 	} );
 
 	test( 'renames and deletes a navigation menu from the selected-menu route', async ( {

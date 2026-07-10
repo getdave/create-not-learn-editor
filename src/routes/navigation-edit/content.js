@@ -29,6 +29,7 @@ import {
 	Icon,
 	fileIcon,
 	filterSortAndPaginate,
+	getBlockType as getRegisteredBlockType,
 	imageIcon,
 	layoutIcon,
 	MenuGroup,
@@ -117,7 +118,10 @@ function ensureCoreBlocksRegistered() {
 		return;
 	}
 
-	registerCoreBlocks();
+	if ( ! getRegisteredBlockType( 'core/paragraph' ) ) {
+		registerCoreBlocks();
+	}
+
 	didRegisterCoreBlocks = true;
 }
 
@@ -2299,7 +2303,10 @@ function NavigationEditCanvas() {
 	);
 	const menuTitle = menu ? getMenuTitle( menu ) : __( 'Navigation' );
 	const menuBlocks = useMemo(
-		() => getNavigationBlocksFromEditedRecord( menu ),
+		() =>
+			createEditorBlocksFromNavigationBlocks(
+				getNavigationBlocksFromEditedRecord( menu )
+			),
 		[ menu ]
 	);
 

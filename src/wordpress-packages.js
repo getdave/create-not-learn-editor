@@ -6,6 +6,7 @@ import { Breadcrumbs, Page } from '@wordpress/admin-ui';
 import { registerCoreBlocks } from '@wordpress/block-library';
 import {
 	createBlock,
+	getBlockType,
 	hasBlockSupport,
 	parse as parseBlocks,
 	serialize,
@@ -131,6 +132,7 @@ export {
 	file as fileIcon,
 	filterSortAndPaginate,
 	fetchLinkSuggestions,
+	getBlockType,
 	getPath,
 	hasBlockSupport,
 	Icon,
