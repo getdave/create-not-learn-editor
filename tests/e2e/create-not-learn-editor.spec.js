@@ -72,20 +72,23 @@ async function navigateToNavigationMenus( page ) {
 	await page.getByRole( 'link', { name: 'Navigation Menus' } ).click();
 }
 
-async function createPreviewTestPage( page ) {
+async function createPreviewTestPage( page, options = {} ) {
 	const timestamp = Date.now();
-	const title = `Preview parity ${ timestamp }`;
-	const body = `Preview parity body ${ timestamp }`;
+	const title = options.title || `Preview parity ${ timestamp }`;
+	const body = options.body || `Preview parity body ${ timestamp }`;
+	const content =
+		options.content ||
+		`<!-- wp:paragraph --><p>${ body }</p><!-- /wp:paragraph -->`;
 
 	await page.waitForFunction( () =>
 		Boolean( window.createNotLearnEditor?.nonce )
 	);
 
 	const createdPage = await page.evaluate(
-		async ( { body: pageBody, title: pageTitle } ) => {
+		async ( { content: pageContent, title: pageTitle } ) => {
 			const response = await window.fetch( '/wp-json/wp/v2/pages', {
 				body: JSON.stringify( {
-					content: `<!-- wp:paragraph --><p>${ pageBody }</p><!-- /wp:paragraph -->`,
+					content: pageContent,
 					status: 'publish',
 					title: pageTitle,
 				} ),
@@ -102,12 +105,13 @@ async function createPreviewTestPage( page ) {
 
 			return response.json();
 		},
-		{ body, title }
+		{ body, content, title }
 	);
 
 	return {
 		body,
 		id: createdPage.id,
+		link: createdPage.link,
 		title,
 	};
 }
@@ -333,6 +337,9 @@ test.describe( 'Create Not Learn Editor', () => {
 		page,
 	} ) => {
 		await page.setViewportSize( { height: 1003, width: 2048 } );
+		await page.goto( '/' );
+		await expect( page.locator( '#wpadminbar' ) ).toBeVisible();
+
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
 		const previewCanvas = page.locator( '.cnl-editor-preview-canvas' );
@@ -343,12 +350,18 @@ test.describe( 'Create Not Learn Editor', () => {
 			'.cnl-editor-preview-canvas__frame-wrap'
 		);
 		const toolbar = previewCanvas.locator( '.cnl-editor-homepage-toolbar' );
+		const documentBar = toolbar.locator( '.cnl-editor-homepage-document' );
 
 		await expect( previewFrame ).toBeVisible();
 		await expect( previewFrame ).toHaveAttribute(
 			'src',
 			/cnl-editor-preview=1/
 		);
+		const frameHandle = await previewFrame.elementHandle();
+		const previewContentFrame = await frameHandle.contentFrame();
+		await expect(
+			previewContentFrame.locator( '#wpadminbar' )
+		).toHaveCount( 0 );
 		await expect(
 			toolbar.getByRole( 'button', { name: 'Back in preview' } )
 		).toBeDisabled();
@@ -358,6 +371,9 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect(
 			toolbar.getByRole( 'link', { name: 'View site in new tab' } )
 		).toHaveAttribute( 'target', '_blank' );
+		await expect(
+			documentBar.locator( '.cnl-editor-homepage-document__icon' )
+		).toHaveCount( 1 );
 
 		await writeHomepageParityScreenshot(
 			page.locator( '.boot-layout' ),
@@ -418,6 +434,73 @@ test.describe( 'Create Not Learn Editor', () => {
 				)
 				.first()
 		).toBeVisible();
+	} );
+
+	test( 'updates homepage document details when the preview iframe navigates', async ( {
+		page,
+	} ) => {
+		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
+		const targetPage = await createPreviewTestPage( page, {
+			title: `Preview target ${ Date.now() }`,
+		} );
+		const previewPage = await createPreviewTestPage( page, {
+			content: `<!-- wp:paragraph --><p><a href="${ targetPage.link }">Preview target link</a></p><!-- /wp:paragraph -->`,
+			title: `Preview source ${ Date.now() }`,
+		} );
+		const previewCanvas = page.locator( '.cnl-editor-preview-canvas' );
+		const previewFrame = previewCanvas.locator(
+			'iframe[title="Homepage preview"]'
+		);
+		const documentBar = previewCanvas.locator(
+			'.cnl-editor-homepage-document'
+		);
+
+		await expect( previewFrame ).toBeVisible();
+
+		const previewUrl = new URL( previewPage.link );
+		previewUrl.searchParams.set( 'cnl-editor-preview', '1' );
+		previewUrl.searchParams.set( 'cnl-editor-preview-refresh', 'dynamic' );
+
+		await previewFrame.evaluate( ( iframe, src ) => {
+			iframe.src = src;
+		}, previewUrl.href );
+
+		await expect(
+			documentBar.locator( '.cnl-editor-homepage-document__title' )
+		).toHaveText( previewPage.title, { timeout: 15000 } );
+		await expect(
+			documentBar.locator( '.cnl-editor-homepage-document__status' )
+		).toHaveAttribute( 'aria-label', 'Published' );
+		await expect(
+			documentBar.locator( '.cnl-editor-homepage-document__icon' )
+		).toHaveCount( 0 );
+		await expect(
+			documentBar.getByRole( 'button', { name: 'Page Options' } )
+		).toHaveCount( 0 );
+
+		const frameHandle = await previewFrame.elementHandle();
+		const previewContentFrame = await frameHandle.contentFrame();
+		await previewContentFrame
+			.getByRole( 'link', { name: 'Preview target link' } )
+			.click();
+
+		await page.waitForFunction(
+			( iframe ) =>
+				iframe.contentWindow.location.href.includes(
+					'cnl-editor-preview=1'
+				),
+			await previewFrame.elementHandle(),
+			{ timeout: 15000 }
+		);
+		await expect(
+			documentBar.locator( '.cnl-editor-homepage-document__title' )
+		).toHaveText( targetPage.title, { timeout: 15000 } );
+		const navigatedFrame = await (
+			await previewFrame.elementHandle()
+		).contentFrame();
+		await expect( navigatedFrame.locator( '#wpadminbar' ) ).toHaveCount(
+			0
+		);
 	} );
 
 	test( 'opens the Add Page flow and creates a blank page in the block editor canvas', async ( {

@@ -10,10 +10,14 @@ import { namespace, settings } from '../../settings';
 import { cnlEditorStore, getErrorMessage } from '../../records';
 import {
 	DEFAULT_HOMEPAGE_DEVICE,
+	getHomepageDocumentIconStatus,
 	getHomepageDevice,
+	getHomepagePreviewNavigationUrl,
+	getHomepagePreviewContextUrl,
 	getHomepagePreviewUrl,
 	getHomepageStatusTone,
 	getPreviewHistoryState,
+	isHomepagePreviewNavigationUrl,
 } from './preview';
 import {
 	Button,
@@ -33,6 +37,7 @@ import {
 	homeIcon,
 	mobileIcon,
 	pencilIcon,
+	postListIcon,
 	settingsIcon,
 	tabletIcon,
 	useCallback,
@@ -45,6 +50,11 @@ import {
 
 const HOMEPAGE_CONFIGURED_EVENT = 'cnl-editor-homepage-configured';
 const EMPTY_OBJECT = {};
+const DOCUMENT_ICON_BY_STATUS = {
+	'home-latest-posts': homeIcon,
+	'home-static': homeIcon,
+	'posts-page': postListIcon,
+};
 
 function getDeviceOptions() {
 	return [
@@ -82,7 +92,15 @@ function DeviceButton( { currentDevice, icon, label, setDevice, value } ) {
 	} );
 }
 
-function PageOptionsDropdown( { isBusy, onConfigureHomepage } ) {
+function PageOptionsDropdown( {
+	hasHomepageOptions,
+	isBusy,
+	onConfigureHomepage,
+} ) {
+	if ( ! hasHomepageOptions ) {
+		return null;
+	}
+
 	return el( Dropdown, {
 		className: 'cnl-editor-homepage-options',
 		contentClassName: 'cnl-editor-homepage-options__content',
@@ -164,6 +182,14 @@ function EmptyPreview() {
 	);
 }
 
+function getFrameUrl( frameWindow, fallbackUrl ) {
+	try {
+		return frameWindow?.location?.href || fallbackUrl;
+	} catch {
+		return fallbackUrl;
+	}
+}
+
 function Canvas() {
 	const navigate = useNavigate();
 	const { invalidatePreviewContext, setupDefaults } =
@@ -177,44 +203,61 @@ function Canvas() {
 	const [ isConfiguringHomepage, setIsConfiguringHomepage ] =
 		useState( false );
 	const [ refreshKey, setRefreshKey ] = useState( '' );
+	const [ previewContextUrl, setPreviewContextUrl ] = useState(
+		getHomepagePreviewContextUrl( settings.homeUrl )
+	);
 	const previewHistoryRef = useRef( {
 		currentUrl: '',
 		maxPosition: 0,
 		pendingDirection: null,
 		position: 0,
 	} );
+	const homePreviewContextUrl = getHomepagePreviewContextUrl(
+		settings.homeUrl
+	);
 	const previewUrl = getHomepagePreviewUrl( settings.homeUrl, refreshKey );
+	const currentPreviewContextUrl = previewContextUrl || homePreviewContextUrl;
 	const { isLoadingContext, previewContext, previewContextError } = useSelect(
 		( select ) => {
 			const store = select( cnlEditorStore );
-			const resolverArgs = [ settings.homeUrl, namespace ];
+			const resolverArgs = [ currentPreviewContextUrl, namespace ];
 
 			return {
 				isLoadingContext:
-					store.isFetchingPreviewContext( settings.homeUrl ) ||
-					( Boolean( settings.homeUrl ) &&
+					store.isFetchingPreviewContext(
+						currentPreviewContextUrl
+					) ||
+					( Boolean( currentPreviewContextUrl ) &&
 						! store.hasFinishedResolution(
 							'getPreviewContext',
 							resolverArgs
 						) ),
 				previewContext:
-					store.getPreviewContext( settings.homeUrl, namespace ) ||
-					EMPTY_OBJECT,
+					store.getPreviewContext(
+						currentPreviewContextUrl,
+						namespace
+					) || EMPTY_OBJECT,
 				previewContextError: store.getPreviewContextError(
-					settings.homeUrl
+					currentPreviewContextUrl
 				),
 			};
 		},
-		[]
+		[ currentPreviewContextUrl ]
 	);
 	const previewError =
 		localPreviewError ||
 		( previewContextError ? getErrorMessage( previewContextError ) : null );
 	const previewLabel = previewContext?.previewLabel || __( 'Home' );
-	const previewStatus = previewContext?.previewStatus || 'homepage';
+	const previewStatus = previewContext?.previewStatus || 'preview';
 	const previewStatusLabel = isLoadingContext
 		? __( 'Loading preview details' )
 		: previewContext?.previewStatusLabel || __( 'Preview' );
+	const documentIcon =
+		DOCUMENT_ICON_BY_STATUS[
+			getHomepageDocumentIconStatus(
+				previewContext?.previewDocumentStatus
+			)
+		];
 	const editLink = previewContext?.editLink;
 	const canEditPreview = Boolean(
 		editLink && previewContext?.previewCanEdit !== false
@@ -234,13 +277,7 @@ function Canvas() {
 	const syncPreviewHistory = useCallback(
 		( nextWindow ) => {
 			const history = previewHistoryRef.current;
-			let nextUrl = previewUrl;
-
-			try {
-				nextUrl = nextWindow?.location?.href || previewUrl;
-			} catch {
-				nextUrl = previewUrl;
-			}
+			const nextUrl = getFrameUrl( nextWindow, previewUrl );
 
 			if ( ! history.currentUrl ) {
 				history.currentUrl = nextUrl;
@@ -261,6 +298,9 @@ function Canvas() {
 			}
 
 			history.pendingDirection = null;
+			setPreviewContextUrl(
+				getHomepagePreviewContextUrl( nextUrl, settings.homeUrl )
+			);
 			setPreviewHistoryState(
 				getPreviewHistoryState( history.position, history.maxPosition )
 			);
@@ -268,9 +308,73 @@ function Canvas() {
 		[ previewUrl ]
 	);
 
+	const keepPreviewNavigationScoped = useCallback(
+		( iframe, nextWindow ) => {
+			const nextUrl = getFrameUrl( nextWindow, previewUrl );
+			const previewNavigationUrl = getHomepagePreviewNavigationUrl(
+				nextUrl,
+				previewUrl
+			);
+
+			if (
+				previewNavigationUrl &&
+				previewNavigationUrl !== nextUrl &&
+				! isHomepagePreviewNavigationUrl( nextUrl, previewUrl )
+			) {
+				iframe.src = previewNavigationUrl;
+				return false;
+			}
+
+			try {
+				const frameDocument = nextWindow?.document;
+				frameDocument?.addEventListener(
+					'click',
+					( event ) => {
+						if (
+							event.defaultPrevented ||
+							event.metaKey ||
+							event.ctrlKey ||
+							event.shiftKey ||
+							event.altKey
+						) {
+							return;
+						}
+
+						const anchor = event.target?.closest?.( 'a[href]' );
+						if (
+							! anchor ||
+							anchor.hasAttribute( 'download' ) ||
+							( anchor.target && anchor.target !== '_self' )
+						) {
+							return;
+						}
+
+						const guardedHref = getHomepagePreviewNavigationUrl(
+							anchor.href,
+							nextUrl
+						);
+						if ( guardedHref ) {
+							anchor.href = guardedHref;
+						}
+					},
+					true
+				);
+			} catch {
+				return true;
+			}
+
+			return true;
+		},
+		[ previewUrl ]
+	);
+
 	useEffect( () => {
 		const refreshPreview = () => {
 			invalidatePreviewContext( settings.homeUrl, namespace );
+			if ( currentPreviewContextUrl !== homePreviewContextUrl ) {
+				invalidatePreviewContext( currentPreviewContextUrl, namespace );
+			}
+			setPreviewContextUrl( homePreviewContextUrl );
 			setRefreshKey( String( Date.now() ) );
 		};
 
@@ -282,7 +386,11 @@ function Canvas() {
 				refreshPreview
 			);
 		};
-	}, [ invalidatePreviewContext ] );
+	}, [
+		currentPreviewContextUrl,
+		homePreviewContextUrl,
+		invalidatePreviewContext,
+	] );
 
 	useEffect( () => {
 		resetPreviewHistory();
@@ -324,6 +432,12 @@ function Canvas() {
 			.then( ( result ) => {
 				if ( result?.success ) {
 					invalidatePreviewContext( settings.homeUrl, namespace );
+					if ( currentPreviewContextUrl !== homePreviewContextUrl ) {
+						invalidatePreviewContext(
+							currentPreviewContextUrl,
+							namespace
+						);
+					}
 					window.dispatchEvent(
 						new CustomEvent( HOMEPAGE_CONFIGURED_EVENT )
 					);
@@ -402,16 +516,19 @@ function Canvas() {
 					{
 						className: 'cnl-editor-homepage-document',
 					},
-					el( Icon, {
-						className: 'cnl-editor-homepage-document__icon',
-						icon: homeIcon,
-					} ),
+					documentIcon &&
+						el( Icon, {
+							className: 'cnl-editor-homepage-document__icon',
+							icon: documentIcon,
+						} ),
 					el(
 						'h1',
 						{ className: 'cnl-editor-homepage-document__title' },
 						previewLabel
 					),
 					el( PageOptionsDropdown, {
+						hasHomepageOptions:
+							previewContext?.previewStatus === 'homepage',
 						isBusy: isConfiguringHomepage,
 						onConfigureHomepage: configureHomepage,
 					} ),
@@ -481,7 +598,13 @@ function Canvas() {
 				el( 'iframe', {
 					className: 'cnl-editor-canvas__frame',
 					onLoad: ( event ) => {
+						const iframe = event.currentTarget;
 						const nextWindow = event.currentTarget.contentWindow;
+						if (
+							! keepPreviewNavigationScoped( iframe, nextWindow )
+						) {
+							return;
+						}
 						setFrameWindow( nextWindow );
 						syncPreviewHistory( nextWindow );
 					},
