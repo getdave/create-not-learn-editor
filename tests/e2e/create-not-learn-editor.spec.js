@@ -554,6 +554,9 @@ test.describe( 'Create Not Learn Editor', () => {
 			stage.locator( '.routes-navigation-list__dataviews-toolbar' )
 		).toBeVisible( { timeout: 10000 } );
 		await expect(
+			page.getByRole( 'heading', { name: 'Navigation Menus' } )
+		).toBeVisible();
+		await expect(
 			stage.getByText( 'Manage menus for the site.' )
 		).toBeVisible();
 
@@ -655,6 +658,9 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect(
 			stage.locator( '.routes-navigation-list__dataviews-toolbar' )
 		).toBeVisible( { timeout: 10000 } );
+		await expect(
+			stage.getByRole( 'button', { name: 'Edit' } ).first()
+		).toBeVisible( { timeout: 10000 } );
 		const rowActionsMenu = stage.getByRole( 'button', {
 			name: 'Actions',
 		} );
@@ -662,6 +668,18 @@ test.describe( 'Create Not Learn Editor', () => {
 			timeout: 10000,
 		} );
 		await rowActionsMenu.first().click();
+		await expect(
+			page.getByRole( 'menuitem', { name: 'Edit' } )
+		).toBeVisible();
+		await expect(
+			page.getByRole( 'menuitem', { name: 'Rename' } )
+		).toBeVisible();
+		await expect(
+			page.getByRole( 'menuitem', { name: 'Duplicate' } )
+		).toBeVisible();
+		await expect(
+			page.getByRole( 'menuitem', { name: 'Delete' } )
+		).toBeVisible();
 		await Promise.all( [
 			page.waitForURL( /p=.*%2Fnavigation%2Fedit%2F\d+/ ),
 			page.getByRole( 'menuitem', { name: 'Edit' } ).click(),
@@ -684,7 +702,7 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		await expect( page ).toHaveURL( /p=.*%2Fnavigation/ );
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation' } ).first()
+			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
 		).toBeVisible();
 
 		const stage = page.locator( '.cnl-editor-stage' );
@@ -980,7 +998,7 @@ test.describe( 'Create Not Learn Editor', () => {
 			.getByRole( 'button', { name: 'Customize navigation' } )
 			.click();
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation' } ).first()
+			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
 		).toBeVisible();
 
 		const stage = page.locator( '.cnl-editor-stage' );
@@ -997,7 +1015,7 @@ test.describe( 'Create Not Learn Editor', () => {
 			) }`
 		);
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation' } ).first()
+			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
 		).toBeVisible();
 		await expect(
 			canvas.getByRole( 'heading', {
@@ -1121,7 +1139,7 @@ test.describe( 'Create Not Learn Editor', () => {
 			.getByRole( 'button', { name: 'Customize navigation' } )
 			.click();
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation' } ).first()
+			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
 		).toBeVisible();
 
 		const stage = page.locator( '.cnl-editor-stage' );
@@ -1185,7 +1203,7 @@ test.describe( 'Create Not Learn Editor', () => {
 			} )
 			.toBe( '/navigation' );
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation' } ).first()
+			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
 		).toBeVisible();
 		await expect( page.getByText( renamedMenuTitle ) ).toHaveCount( 0 );
 	} );

@@ -57,6 +57,7 @@ import {
 } from './navigation-locations';
 
 const NAVIGATION_MENUS_CHANGED_EVENT = 'cnl-editor-navigation-menus-changed';
+const NAVIGATION_POST_TYPE = 'wp_navigation';
 const EMPTY_ARRAY = [];
 const PAGE_LIST_BLOCK_CONTENT = '<!-- wp:page-list /-->';
 const TEMPLATE_PARTS_QUERY = {
@@ -79,6 +80,14 @@ const DEFAULT_NAVIGATION_VIEW = {
 
 function getMenuTitle( menu ) {
 	return getTitleText( menu?.title ) || __( 'Untitled menu' );
+}
+
+function getMenuContent( menu ) {
+	if ( typeof menu?.content === 'string' ) {
+		return menu.content;
+	}
+
+	return menu?.content?.raw || '';
 }
 
 function getMenuStatusLabel( menu ) {
@@ -322,18 +331,44 @@ function getNavigationFields( {
 	];
 }
 
-function getNavigationActions( navigate ) {
+function getNavigationActions( {
+	isBusy,
+	onDelete,
+	onDuplicate,
+	onEdit,
+	onRename,
+} ) {
 	return [
 		{
 			callback: ( items ) => {
 				const item = items[ 0 ];
-				window.setTimeout(
-					() => navigateToNavigationEditRoute( navigate, item ),
-					0
-				);
+				window.setTimeout( () => onEdit( item ), 0 );
 			},
+			disabled: isBusy,
 			id: 'edit',
+			isPrimary: true,
 			label: __( 'Edit' ),
+			supportsBulk: false,
+		},
+		{
+			callback: ( items ) => onRename( items[ 0 ] ),
+			disabled: isBusy,
+			id: 'rename',
+			label: __( 'Rename' ),
+			supportsBulk: false,
+		},
+		{
+			callback: ( items ) => onDuplicate( items[ 0 ] ),
+			disabled: isBusy,
+			id: 'duplicate',
+			label: __( 'Duplicate' ),
+			supportsBulk: false,
+		},
+		{
+			callback: ( items ) => onDelete( items[ 0 ] ),
+			disabled: isBusy,
+			id: 'delete',
+			label: __( 'Delete' ),
 			supportsBulk: false,
 		},
 	];
@@ -370,6 +405,108 @@ function NavigationListDataViewsLayout() {
 			{ className: 'routes-navigation-list__dataviews-scroll' },
 			el( DataViews.Layout ),
 			el( DataViews.Pagination )
+		)
+	);
+}
+
+function RenameNavigationMenuModal( {
+	isSaving,
+	menuTitle,
+	onChangeTitle,
+	onClose,
+	onSave,
+	title,
+} ) {
+	return el(
+		Modal,
+		{
+			className: 'routes-navigation-edit__item-modal',
+			onRequestClose: onClose,
+			title: __( 'Rename navigation menu' ),
+		},
+		el( TextControl, {
+			__next40pxDefaultSize: true,
+			disabled: isSaving,
+			label: __( 'Name' ),
+			onChange: onChangeTitle,
+			value: title,
+		} ),
+		el(
+			'div',
+			{ className: 'routes-navigation-edit__modal-actions' },
+			el(
+				Button,
+				{
+					disabled: isSaving,
+					onClick: onClose,
+					variant: 'tertiary',
+				},
+				__( 'Cancel' )
+			),
+			el(
+				Button,
+				{
+					disabled:
+						isSaving ||
+						! title.trim() ||
+						title.trim() === menuTitle,
+					isBusy: isSaving,
+					onClick: onSave,
+					variant: 'primary',
+				},
+				__( 'Save' )
+			)
+		)
+	);
+}
+
+function DeleteNavigationMenuModal( {
+	isSaving,
+	menuTitle,
+	onClose,
+	onDelete,
+} ) {
+	return el(
+		Modal,
+		{
+			className: 'routes-navigation-edit__item-modal',
+			onRequestClose: onClose,
+			title: __( 'Delete navigation menu' ),
+		},
+		el(
+			'p',
+			null,
+			sprintf(
+				/* translators: %s: navigation menu title. */
+				__(
+					'Are you sure you want to delete "%s"? This cannot be undone.'
+				),
+				menuTitle
+			)
+		),
+		el(
+			'div',
+			{ className: 'routes-navigation-edit__modal-actions' },
+			el(
+				Button,
+				{
+					disabled: isSaving,
+					onClick: onClose,
+					variant: 'tertiary',
+				},
+				__( 'Cancel' )
+			),
+			el(
+				Button,
+				{
+					disabled: isSaving,
+					isBusy: isSaving,
+					isDestructive: true,
+					onClick: onDelete,
+					variant: 'primary',
+				},
+				__( 'Delete' )
+			)
 		)
 	);
 }
@@ -499,7 +636,7 @@ function AddNavigationModal( { onClose } ) {
 		try {
 			const savedRecord = await saveEntityRecord(
 				'postType',
-				'wp_navigation',
+				NAVIGATION_POST_TYPE,
 				{
 					...( autoSyncWithPages
 						? { content: PAGE_LIST_BLOCK_CONTENT }
@@ -832,6 +969,11 @@ function ChooseLocationModal( {
 function Stage() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
+	const { deleteEntityRecord, saveEntityRecord } =
+		useDispatch( coreDataStore );
+	const { invalidateNavigationMenus } = useDispatch( cnlEditorStore );
+	const { createErrorNotice, createSuccessNotice } =
+		useDispatch( noticesStore );
 	const {
 		error,
 		isLoading,
@@ -845,6 +987,10 @@ function Stage() {
 	);
 	const [ isAddNavigationModalOpen, setIsAddNavigationModalOpen ] =
 		useState( false );
+	const [ menuToRename, setMenuToRename ] = useState( null );
+	const [ menuToDelete, setMenuToDelete ] = useState( null );
+	const [ rowActionMenuTitle, setRowActionMenuTitle ] = useState( '' );
+	const [ isRowActionSaving, setIsRowActionSaving ] = useState( false );
 	const onSelectMenu = ( nextSelectedId ) => {
 		navigate( {
 			search: {
@@ -856,12 +1002,166 @@ function Stage() {
 			to: '/navigation',
 		} );
 	};
+	const refreshNavigationMenus = () => {
+		invalidateNavigationMenus();
+		window.dispatchEvent(
+			new CustomEvent( NAVIGATION_MENUS_CHANGED_EVENT )
+		);
+	};
+	const closeRenameModal = () => {
+		if ( ! isRowActionSaving ) {
+			setMenuToRename( null );
+		}
+	};
+	const closeDeleteModal = () => {
+		if ( ! isRowActionSaving ) {
+			setMenuToDelete( null );
+		}
+	};
+	const openRenameModal = ( menu ) => {
+		setRowActionMenuTitle( getMenuTitle( menu ) );
+		setMenuToRename( menu );
+	};
+	const openDeleteModal = ( menu ) => {
+		setMenuToDelete( menu );
+	};
+	const renameNavigationMenu = async () => {
+		const menuId = getNavigationMenuId( menuToRename );
+		const title = rowActionMenuTitle.trim();
+
+		if ( ! menuId || ! title ) {
+			return;
+		}
+
+		setIsRowActionSaving( true );
+
+		try {
+			await saveEntityRecord(
+				'postType',
+				NAVIGATION_POST_TYPE,
+				{
+					id: menuId,
+					title,
+				},
+				{ throwOnError: true }
+			);
+			refreshNavigationMenus();
+			setMenuToRename( null );
+			createSuccessNotice( __( 'Navigation menu renamed.' ), {
+				type: 'snackbar',
+			} );
+		} catch ( renameError ) {
+			createErrorNotice(
+				sprintf(
+					/* translators: %s: error message. */
+					__( 'Unable to rename navigation menu (%s).' ),
+					getErrorMessage( renameError )
+				),
+				{ type: 'snackbar' }
+			);
+		} finally {
+			setIsRowActionSaving( false );
+		}
+	};
+	const duplicateNavigationMenu = async ( menu ) => {
+		const menuTitle = getMenuTitle( menu );
+
+		setIsRowActionSaving( true );
+
+		try {
+			const savedRecord = await saveEntityRecord(
+				'postType',
+				NAVIGATION_POST_TYPE,
+				{
+					content: getMenuContent( menu ),
+					status: 'publish',
+					title: sprintf(
+						/* translators: %s: navigation menu title. */
+						__( '%s (Copy)' ),
+						menuTitle
+					),
+				},
+				{ throwOnError: true }
+			);
+
+			refreshNavigationMenus();
+			createSuccessNotice( __( 'Navigation menu duplicated.' ), {
+				type: 'snackbar',
+			} );
+
+			if ( savedRecord?.id ) {
+				navigateToNavigationEditRoute( navigate, savedRecord );
+			}
+		} catch ( duplicateError ) {
+			createErrorNotice(
+				sprintf(
+					/* translators: %s: error message. */
+					__( 'Unable to duplicate navigation menu (%s).' ),
+					getErrorMessage( duplicateError )
+				),
+				{ type: 'snackbar' }
+			);
+		} finally {
+			setIsRowActionSaving( false );
+		}
+	};
+	const deleteNavigationMenu = async () => {
+		const menuId = getNavigationMenuId( menuToDelete );
+
+		if ( ! menuId ) {
+			return;
+		}
+
+		setIsRowActionSaving( true );
+
+		try {
+			await deleteEntityRecord(
+				'postType',
+				NAVIGATION_POST_TYPE,
+				menuId,
+				{ force: true },
+				{ throwOnError: true }
+			);
+			refreshNavigationMenus();
+			setMenuToDelete( null );
+			createSuccessNotice( __( 'Navigation menu deleted.' ), {
+				type: 'snackbar',
+			} );
+
+			if ( getNavigationMenuId( searchParams.menuId ) === menuId ) {
+				navigate( {
+					search: {
+						...searchParams,
+						menuId: undefined,
+					},
+					to: '/navigation',
+				} );
+			}
+		} catch ( deleteError ) {
+			createErrorNotice(
+				sprintf(
+					/* translators: %s: error message. */
+					__( 'Unable to delete navigation menu (%s).' ),
+					getErrorMessage( deleteError )
+				),
+				{ type: 'snackbar' }
+			);
+		} finally {
+			setIsRowActionSaving( false );
+		}
+	};
 	const navigationFields = getNavigationFields( {
 		isResolvingLocations,
 		locationsMap,
 		onSelectMenu,
 	} );
-	const navigationActions = getNavigationActions( navigate );
+	const navigationActions = getNavigationActions( {
+		isBusy: isRowActionSaving,
+		onDelete: openDeleteModal,
+		onDuplicate: duplicateNavigationMenu,
+		onEdit: ( menu ) => navigateToNavigationEditRoute( navigate, menu ),
+		onRename: openRenameModal,
+	} );
 	const navigationEmpty = el(
 		'div',
 		{ className: 'cnl-editor-empty-state' },
@@ -924,7 +1224,7 @@ function Stage() {
 				headingLevel: 2,
 				key: 'navigation-page',
 				subTitle: __( 'Manage menus for the site.' ),
-				title: __( 'Navigation' ),
+				title: __( 'Navigation Menus' ),
 			},
 			( error || locationsError ) &&
 				el(
@@ -973,6 +1273,24 @@ function Stage() {
 			el( AddNavigationModal, {
 				key: 'add-navigation-modal',
 				onClose: () => setIsAddNavigationModalOpen( false ),
+			} ),
+		menuToRename &&
+			el( RenameNavigationMenuModal, {
+				isSaving: isRowActionSaving,
+				key: 'rename-navigation-menu-modal',
+				menuTitle: getMenuTitle( menuToRename ),
+				onChangeTitle: setRowActionMenuTitle,
+				onClose: closeRenameModal,
+				onSave: renameNavigationMenu,
+				title: rowActionMenuTitle,
+			} ),
+		menuToDelete &&
+			el( DeleteNavigationMenuModal, {
+				isSaving: isRowActionSaving,
+				key: 'delete-navigation-menu-modal',
+				menuTitle: getMenuTitle( menuToDelete ),
+				onClose: closeDeleteModal,
+				onDelete: deleteNavigationMenu,
 			} ),
 	];
 }
