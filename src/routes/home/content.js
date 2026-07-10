@@ -1,11 +1,43 @@
 /**
+ * WordPress dependencies
+ */
+import { useNavigate } from '@wordpress/route';
+
+/**
  * Internal dependencies
  */
-import { namespace, settings } from '../../settings';
-import { getErrorMessage, setupDefaults } from '../../records';
-import { Button, Notice, __, el, useState } from '../../wp-globals';
+import { addPreviewArgs, namespace, settings } from '../../settings';
+import { cnlEditorStore, getErrorMessage } from '../../records';
+import {
+	Button,
+	Notice,
+	Spinner,
+	__,
+	el,
+	useDispatch,
+	useEffect,
+	useSelect,
+	useState,
+} from '../../wordpress-packages';
+
+const HOMEPAGE_CONFIGURED_EVENT = 'cnl-editor-homepage-configured';
+const EMPTY_OBJECT = {};
+
+function getPreviewUrl( refreshKey ) {
+	const previewUrl = addPreviewArgs( settings.homeUrl );
+
+	if ( ! previewUrl || ! refreshKey ) {
+		return previewUrl;
+	}
+
+	const url = new URL( previewUrl, window.location.origin );
+	url.searchParams.set( 'cnl-editor-preview-refresh', refreshKey );
+
+	return url.href;
+}
 
 function Stage() {
+	const { setupDefaults } = useDispatch( cnlEditorStore );
 	const [ setupState, setSetupState ] = useState( null );
 	const [ isSettingUp, setIsSettingUp ] = useState( false );
 
@@ -14,7 +46,15 @@ function Stage() {
 		setSetupState( null );
 
 		setupDefaults( namespace )
-			.then( setSetupState )
+			.then( ( result ) => {
+				setSetupState( result );
+
+				if ( result?.success ) {
+					window.dispatchEvent(
+						new CustomEvent( HOMEPAGE_CONFIGURED_EVENT )
+					);
+				}
+			} )
 			.catch( ( error ) =>
 				setSetupState( {
 					success: false,
@@ -41,21 +81,19 @@ function Stage() {
 				el(
 					'p',
 					null,
-					__(
-						'Preview the current homepage and optionally create a basic Home page and navigation menu.'
-					)
+					__( 'Preview and configure the page visitors see first.' )
 				)
 			)
 		),
 		el(
 			'div',
 			{ className: 'cnl-editor-panel' },
-			el( 'h2', null, __( 'Site setup' ) ),
+			el( 'h2', null, __( 'Homepage configuration' ) ),
 			el(
 				'p',
 				null,
 				__(
-					'This action creates or reuses a published Home page, sets it as the static homepage, and creates a basic page-list navigation menu if none exists.'
+					'Create or reuse a published Home page, set it as the static homepage, and ensure a basic navigation menu exists.'
 				)
 			),
 			el(
@@ -65,7 +103,7 @@ function Stage() {
 					onClick: runSetup,
 					variant: 'secondary',
 				},
-				__( 'Set up defaults' )
+				__( 'Configure homepage' )
 			),
 			setupState &&
 				el(
@@ -76,17 +114,124 @@ function Stage() {
 						status: setupState.success ? 'success' : 'error',
 					},
 					setupState.success
-						? __( 'Defaults are ready.' )
+						? __( 'Homepage is configured.' )
 						: setupState.message || __( 'Setup failed.' )
 				)
 		)
 	);
 }
 
+function DeviceButton( { currentDevice, label, setDevice, value } ) {
+	return el(
+		Button,
+		{
+			'aria-pressed': currentDevice === value,
+			className: currentDevice === value ? 'is-selected' : undefined,
+			onClick: () => setDevice( value ),
+			variant: currentDevice === value ? 'secondary' : 'tertiary',
+		},
+		label
+	);
+}
+
 function Canvas() {
+	const navigate = useNavigate();
+	const { invalidatePreviewContext, setupDefaults } =
+		useDispatch( cnlEditorStore );
+	const [ device, setDevice ] = useState( 'desktop' );
+	const [ frameWindow, setFrameWindow ] = useState( null );
+	const [ localPreviewError, setLocalPreviewError ] = useState( null );
+	const [ isConfiguringHomepage, setIsConfiguringHomepage ] =
+		useState( false );
+	const [ isPageOptionsOpen, setIsPageOptionsOpen ] = useState( false );
+	const [ refreshKey, setRefreshKey ] = useState( '' );
+	const previewUrl = getPreviewUrl( refreshKey );
+	const { isLoadingContext, previewContext, previewContextError } = useSelect(
+		( select ) => {
+			const store = select( cnlEditorStore );
+			const resolverArgs = [ settings.homeUrl, namespace ];
+
+			return {
+				isLoadingContext:
+					store.isFetchingPreviewContext( settings.homeUrl ) ||
+					( Boolean( settings.homeUrl ) &&
+						! store.hasFinishedResolution(
+							'getPreviewContext',
+							resolverArgs
+						) ),
+				previewContext:
+					store.getPreviewContext( settings.homeUrl, namespace ) ||
+					EMPTY_OBJECT,
+				previewContextError: store.getPreviewContextError(
+					settings.homeUrl
+				),
+			};
+		},
+		[]
+	);
+	const previewError =
+		localPreviewError ||
+		( previewContextError ? getErrorMessage( previewContextError ) : null );
+	const previewLabel = previewContext?.previewLabel || __( 'Home' );
+	const previewStatus = previewContext?.previewStatusLabel || __( 'Preview' );
+	const editLink = previewContext?.editLink;
+
+	useEffect( () => {
+		const refreshPreview = () => {
+			invalidatePreviewContext( settings.homeUrl, namespace );
+			setRefreshKey( String( Date.now() ) );
+		};
+
+		window.addEventListener( HOMEPAGE_CONFIGURED_EVENT, refreshPreview );
+
+		return () => {
+			window.removeEventListener(
+				HOMEPAGE_CONFIGURED_EVENT,
+				refreshPreview
+			);
+		};
+	}, [ invalidatePreviewContext ] );
+
+	const movePreviewHistory = ( direction ) => {
+		try {
+			if ( direction === 'back' ) {
+				frameWindow?.history.back();
+			} else {
+				frameWindow?.history.forward();
+			}
+		} catch ( error ) {
+			setLocalPreviewError( getErrorMessage( error ) );
+		}
+	};
+
+	const configureHomepage = () => {
+		setIsConfiguringHomepage( true );
+		setIsPageOptionsOpen( false );
+		setLocalPreviewError( null );
+
+		setupDefaults( namespace )
+			.then( ( result ) => {
+				if ( result?.success ) {
+					invalidatePreviewContext( settings.homeUrl, namespace );
+					window.dispatchEvent(
+						new CustomEvent( HOMEPAGE_CONFIGURED_EVENT )
+					);
+					return;
+				}
+
+				setLocalPreviewError(
+					result?.message || __( 'Homepage configuration failed.' )
+				);
+			} )
+			.catch( ( error ) =>
+				setLocalPreviewError( getErrorMessage( error ) )
+			)
+			.finally( () => setIsConfiguringHomepage( false ) );
+	};
+
 	return el(
 		'section',
-		{ className: 'cnl-editor-canvas' },
+		{ className: 'cnl-editor-canvas cnl-editor-preview-canvas' },
 		el(
 			'header',
 			{ className: 'cnl-editor-canvas__toolbar' },
@@ -95,13 +240,59 @@ function Canvas() {
 				null,
 				el(
 					'div',
-					{ className: 'cnl-editor-canvas__label' },
-					__( 'Home' )
+					{ className: 'cnl-editor-canvas__document' },
+					el(
+						'div',
+						{ className: 'cnl-editor-canvas__label' },
+						previewLabel
+					),
+					previewContext?.previewStatus === 'homepage' &&
+						el(
+							'div',
+							{ className: 'cnl-editor-page-options' },
+							el(
+								Button,
+								{
+									'aria-expanded': isPageOptionsOpen,
+									'aria-haspopup': 'menu',
+									className:
+										'cnl-editor-page-options__toggle',
+									onClick: () =>
+										setIsPageOptionsOpen(
+											( isOpen ) => ! isOpen
+										),
+									variant: 'tertiary',
+								},
+								__( 'Page Options' )
+							),
+							isPageOptionsOpen &&
+								el(
+									'div',
+									{
+										className:
+											'cnl-editor-page-options__menu',
+										role: 'menu',
+									},
+									el(
+										'button',
+										{
+											className:
+												'cnl-editor-page-options__item',
+											onClick: configureHomepage,
+											role: 'menuitem',
+											type: 'button',
+										},
+										__( 'Configure Homepage' )
+									)
+								)
+						)
 				),
 				el(
 					'div',
 					{ className: 'cnl-editor-canvas__status' },
-					__( 'Placeholder canvas' )
+					isLoadingContext
+						? __( 'Loading preview details' )
+						: previewStatus
 				)
 			),
 			el(
@@ -110,39 +301,116 @@ function Canvas() {
 				el(
 					Button,
 					{
+						disabled: ! frameWindow,
+						label: __( 'Back in preview' ),
+						onClick: () => movePreviewHistory( 'back' ),
+						variant: 'tertiary',
+					},
+					__( 'Back' )
+				),
+				el(
+					Button,
+					{
+						disabled: ! frameWindow,
+						label: __( 'Forward in preview' ),
+						onClick: () => movePreviewHistory( 'forward' ),
+						variant: 'tertiary',
+					},
+					__( 'Forward' )
+				),
+				el(
+					Button,
+					{
+						isBusy: isConfiguringHomepage,
+						onClick: configureHomepage,
+						variant: 'secondary',
+					},
+					__( 'Configure homepage' )
+				),
+				el(
+					Button,
+					{
+						onClick: () => navigate( { to: '/navigation' } ),
+						variant: 'secondary',
+					},
+					__( 'Customize navigation' )
+				),
+				el(
+					Button,
+					{
+						disabled: ! editLink,
+						onClick: () => {
+							if ( editLink ) {
+								navigate( { to: editLink } );
+							}
+						},
+						variant: 'primary',
+					},
+					previewContext?.previewEditLabel || __( 'Edit page' )
+				),
+				el(
+					Button,
+					{
 						href: settings.homeUrl,
 						rel: 'noreferrer',
 						target: '_blank',
 						variant: 'tertiary',
 					},
-					__( 'Open preview' )
+					__( 'View site in new tab' )
 				)
 			)
 		),
+		previewError &&
+			el(
+				Notice,
+				{
+					className: 'cnl-editor-preview-canvas__notice',
+					isDismissible: false,
+					status: 'error',
+				},
+				previewError
+			),
 		el(
 			'div',
-			{ className: 'cnl-editor-canvas__frame-wrap' },
-			el(
-				'div',
-				{ className: 'cnl-editor-canvas-placeholder' },
-				el( 'span', {
-					'aria-hidden': true,
-					className:
-						'cnl-editor-canvas-placeholder__icon dashicons dashicons-admin-home',
-				} ),
+			{ className: 'cnl-editor-preview-canvas__device-switcher' },
+			el( DeviceButton, {
+				currentDevice: device,
+				label: __( 'Desktop view' ),
+				setDevice,
+				value: 'desktop',
+			} ),
+			el( DeviceButton, {
+				currentDevice: device,
+				label: __( 'Tablet view' ),
+				setDevice,
+				value: 'tablet',
+			} ),
+			el( DeviceButton, {
+				currentDevice: device,
+				label: __( 'Mobile view' ),
+				setDevice,
+				value: 'mobile',
+			} )
+		),
+		el(
+			'div',
+			{
+				className: `cnl-editor-canvas__frame-wrap cnl-editor-preview-canvas__frame-wrap is-${ device }`,
+			},
+			isLoadingContext &&
 				el(
-					'h2',
-					{ className: 'cnl-editor-canvas-placeholder__title' },
-					__( 'Homepage canvas' )
+					'div',
+					{ className: 'cnl-editor-preview-canvas__spinner' },
+					el( Spinner )
 				),
-				el(
-					'p',
-					{ className: 'cnl-editor-canvas-placeholder__description' },
-					__(
-						'The homepage preview and editing surface will render in this area.'
-					)
-				)
-			)
+			previewUrl &&
+				el( 'iframe', {
+					className: 'cnl-editor-canvas__frame',
+					onLoad: ( event ) =>
+						setFrameWindow( event.currentTarget.contentWindow ),
+					src: previewUrl,
+					title: __( 'Homepage preview' ),
+				} )
 		)
 	);
 }

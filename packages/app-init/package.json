@@ -1,0 +1,16 @@
+{
+	"name": "@create-not-learn-editor/app-init",
+	"version": "0.1.0",
+	"private": true,
+	"dependencies": {
+		"@wordpress/boot": "^0.17.0",
+		"@wordpress/data": "^10.50.0",
+		"@wordpress/icons": "^15.1.0"
+	},
+	"main": "src/script.js",
+	"wpScript": true,
+	"wpScriptModuleExports": "./src/index.js",
+	"wpStyleEntryPoints": [
+		"src/style.scss"
+	]
+}

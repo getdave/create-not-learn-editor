@@ -8,7 +8,12 @@ vendor/
 
 # Build/package artifacts.
 build/
+packages/*/build/
+packages/*/build-module/
+packages/*/build-style/
 *.zip
+playwright-report/
+test-results/
 
 # Logs.
 npm-debug.log*

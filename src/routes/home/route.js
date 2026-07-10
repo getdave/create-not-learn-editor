@@ -1,7 +1,7 @@
 /**
  * Internal dependencies
  */
-import { __ } from '../../wp-globals';
+import { __ } from '../../wordpress-packages';
 
 export const route = {
 	title: () => __( 'Homepage' ),

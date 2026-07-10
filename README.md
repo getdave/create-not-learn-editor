@@ -37,6 +37,7 @@ The shell mirrors Gutenberg's `site-editor-v2` experiment setup:
 - It avoids the normal wp-admin wrapper, sidebar, and footer.
 - It uses the Gutenberg `@wordpress/boot` package for the editor frame.
 - It uses `@wordpress/route` route modules for navigation.
+- It imports WordPress packages from `@wordpress/*` modules and relies on generated asset metadata for runtime dependencies.
 - It preserves extension points for route, menu, and boot dependency registration.
 
 The current routes are:
@@ -145,7 +146,8 @@ http://localhost:<dev-port>/wp-admin/admin.php?page=create-not-learn-editor
 - `create-not-learn-editor.php` is the plugin entry point.
 - `includes/` contains PHP bootstrap, dependency checks, admin page rendering, REST endpoints, and setup behavior.
 - `src/` contains JavaScript route modules, content surfaces, settings helpers, and styles.
-- `webpack.config.js` adapts `@wordpress/scripts` for Gutenberg script modules.
+- `routes/` contains thin `@wordpress/build` entry wrappers for the editor routes.
+- `@wordpress/build` creates the browser bundles and asset metadata under `build/`.
 - `.wp-env.json` defines the local WordPress and Gutenberg plugin environment.
 
 ## Current Design Constraints
@@ -153,6 +155,7 @@ http://localhost:<dev-port>/wp-admin/admin.php?page=create-not-learn-editor
 - Do not depend on a local Gutenberg repository checkout.
 - Do not copy source from Gutenberg into this plugin.
 - Use published `@wordpress/*` packages and runtime modules from the released Gutenberg plugin.
+- Import WordPress packages directly from `@wordpress/*`; do not access package APIs through `window.wp`.
 - Keep automatic site changes out of editor load.
 - Preserve PHP 7.4 compatibility.
 - Keep the plugin installable on the latest WordPress release once Gutenberg is installed and active.

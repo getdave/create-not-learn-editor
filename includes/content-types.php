@@ -37,7 +37,9 @@ function cnl_editor_get_content_post_types() {
 	$post_types = array_filter(
 		$post_types,
 		static function ( $post_type ) use ( $excluded_post_types ) {
-			return ! in_array( $post_type->name, $excluded_post_types, true );
+			return ! in_array( $post_type->name, $excluded_post_types, true ) &&
+				function_exists( 'use_block_editor_for_post_type' ) &&
+				use_block_editor_for_post_type( $post_type->name );
 		}
 	);
 
@@ -83,19 +85,83 @@ function cnl_editor_get_content_post_type_data() {
 	$data       = array();
 
 	foreach ( $post_types as $post_type ) {
-		$rest_base = $post_type->rest_base ? $post_type->rest_base : $post_type->name;
+		$data[] = cnl_editor_get_post_type_data( $post_type );
+	}
 
-		$data[] = array(
-			'name'       => $post_type->name,
-			'restBase'   => $rest_base,
-			'label'      => $post_type->label,
-			'menuName'   => $post_type->labels->menu_name ? $post_type->labels->menu_name : $post_type->label,
-			'singular'   => $post_type->labels->singular_name,
-			'canCreate'  => current_user_can( $post_type->cap->create_posts ),
-			'canEdit'    => current_user_can( $post_type->cap->edit_posts ),
-			'menuIcon'   => cnl_editor_get_content_post_type_icon( $post_type ),
-			'archiveUrl' => $post_type->has_archive ? get_post_type_archive_link( $post_type->name ) : null,
-		);
+	return $data;
+}
+
+/**
+ * Get JSON-ready post type data for the editor app.
+ *
+ * @param WP_Post_Type $post_type Post type object.
+ * @return array Post type data.
+ */
+function cnl_editor_get_post_type_data( $post_type ) {
+	$rest_base = $post_type->rest_base ? $post_type->rest_base : $post_type->name;
+
+	return array(
+		'name'       => $post_type->name,
+		'restBase'   => $rest_base,
+		'label'      => $post_type->label,
+		'menuName'   => $post_type->labels->menu_name ? $post_type->labels->menu_name : $post_type->label,
+		'singular'   => $post_type->labels->singular_name,
+		'canCreate'  => current_user_can( $post_type->cap->create_posts ),
+		'canEdit'     => current_user_can( $post_type->cap->edit_posts ),
+		'blockEditor' => function_exists( 'use_block_editor_for_post_type' ) &&
+			use_block_editor_for_post_type( $post_type->name ),
+		'menuIcon'    => cnl_editor_get_content_post_type_icon( $post_type ),
+		'archiveUrl'  => $post_type->has_archive ? get_post_type_archive_link( $post_type->name ) : null,
+	);
+}
+
+/**
+ * Get post types that can be opened in the editor canvas.
+ *
+ * @return array[] Editable post type data.
+ */
+function cnl_editor_get_editable_post_type_data() {
+	$post_types = cnl_editor_get_content_post_types();
+
+	$navigation_post_type = get_post_type_object( 'wp_navigation' );
+	if (
+		$navigation_post_type &&
+		! empty( $navigation_post_type->show_in_rest ) &&
+		! empty( $navigation_post_type->show_ui )
+	) {
+		$post_types[ $navigation_post_type->name ] = $navigation_post_type;
+	}
+
+	$template_post_type = get_post_type_object( 'wp_template' );
+	if (
+		$template_post_type &&
+		! empty( $template_post_type->show_in_rest ) &&
+		current_user_can( $template_post_type->cap->edit_posts )
+	) {
+		$post_types[ $template_post_type->name ] = $template_post_type;
+	}
+
+	$template_part_post_type = get_post_type_object( 'wp_template_part' );
+	if (
+		$template_part_post_type &&
+		! empty( $template_part_post_type->show_in_rest ) &&
+		current_user_can( $template_part_post_type->cap->edit_posts )
+	) {
+		$post_types[ $template_part_post_type->name ] = $template_part_post_type;
+	}
+
+	$pattern_post_type = get_post_type_object( 'wp_block' );
+	if (
+		$pattern_post_type &&
+		! empty( $pattern_post_type->show_in_rest ) &&
+		current_user_can( $pattern_post_type->cap->edit_posts )
+	) {
+		$post_types[ $pattern_post_type->name ] = $pattern_post_type;
+	}
+
+	$data = array();
+	foreach ( $post_types as $post_type ) {
+		$data[] = cnl_editor_get_post_type_data( $post_type );
 	}
 
 	return $data;

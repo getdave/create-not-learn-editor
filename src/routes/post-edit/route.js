@@ -3,17 +3,17 @@ import { notFound } from '@wordpress/route';
 /**
  * Internal dependencies
  */
-import { getPostType } from '../../settings';
-import { __, sprintf } from '../../wp-globals';
+import { getEditablePostType } from '../../settings';
+import { __, sprintf } from '../../wordpress-packages';
 
 export const route = {
 	beforeLoad: ( { params } ) => {
-		if ( ! getPostType( params.type ) || ! params.id ) {
+		if ( ! getEditablePostType( params.type ) || ! params.id ) {
 			throw notFound();
 		}
 	},
 	title: ( { params } ) => {
-		const type = getPostType( params.type );
+		const type = getEditablePostType( params.type );
 		return sprintf(
 			/* translators: %s: post type singular label. */
 			__( 'Edit %s' ),

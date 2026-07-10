@@ -6,28 +6,24 @@ export function getPostTypes() {
 	return settings.postTypes || [];
 }
 
+export function getEditablePostTypes() {
+	return settings.editablePostTypes || getPostTypes();
+}
+
 export function getPostType( name ) {
 	return getPostTypes().find( ( type ) => type.name === name );
+}
+
+export function getEditablePostType( name ) {
+	return getEditablePostTypes().find( ( type ) => type.name === name );
 }
 
 export function getFirstPostType() {
 	return getPostTypes()[ 0 ];
 }
 
-export function getAdminUrl( path, query = {} ) {
-	const base = `${ settings.adminUrl || '/wp-admin/' }${ path }`;
-	const url = new URL( base, window.location.origin );
-
-	Object.entries( {
-		...query,
-		cnl_editor_admin_bridge: '1',
-	} ).forEach( ( [ key, value ] ) => {
-		if ( value !== undefined && value !== null && value !== '' ) {
-			url.searchParams.set( key, value );
-		}
-	} );
-
-	return url.href;
+export function getNavigationRestBase() {
+	return settings.navigationRestBase || 'navigation';
 }
 
 export function addPreviewArgs( url ) {
