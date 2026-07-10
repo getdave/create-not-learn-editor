@@ -1728,7 +1728,7 @@
 	align-items: flex-start;
 	min-height: 0;
 	overflow: auto;
-	padding: 32px 56px;
+	padding: 2px 22px 22px;
 	width: 100%;
 }
 
@@ -1822,8 +1822,12 @@
 }
 
 .routes-navigation-edit-list-view {
-	width: min(100%, 480px);
+	width: 100%;
 	text-align: start;
+}
+
+.routes-navigation-edit-list-view .block-editor-list-view-tree {
+	width: 100%;
 }
 
 .routes-navigation-edit-list-view .block-editor-list-view-block__contents-container {
