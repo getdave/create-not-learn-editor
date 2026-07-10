@@ -6,16 +6,39 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
-import { addPreviewArgs, namespace, settings } from '../../settings';
+import { namespace, settings } from '../../settings';
 import { cnlEditorStore, getErrorMessage } from '../../records';
 import {
+	DEFAULT_HOMEPAGE_DEVICE,
+	getHomepageDevice,
+	getHomepagePreviewUrl,
+	getHomepageStatusTone,
+	getPreviewHistoryState,
+} from './preview';
+import {
 	Button,
+	Dropdown,
+	Icon,
+	MenuGroup,
+	MenuItem,
 	Notice,
 	Spinner,
 	__,
+	chevronDownIcon,
+	chevronLeftIcon,
+	chevronRightIcon,
+	desktopIcon,
 	el,
+	externalIcon,
+	homeIcon,
+	mobileIcon,
+	pencilIcon,
+	settingsIcon,
+	tabletIcon,
+	useCallback,
 	useDispatch,
 	useEffect,
+	useRef,
 	useSelect,
 	useState,
 } from '../../wordpress-packages';
@@ -23,114 +46,121 @@ import {
 const HOMEPAGE_CONFIGURED_EVENT = 'cnl-editor-homepage-configured';
 const EMPTY_OBJECT = {};
 
-function getPreviewUrl( refreshKey ) {
-	const previewUrl = addPreviewArgs( settings.homeUrl );
-
-	if ( ! previewUrl || ! refreshKey ) {
-		return previewUrl;
-	}
-
-	const url = new URL( previewUrl, window.location.origin );
-	url.searchParams.set( 'cnl-editor-preview-refresh', refreshKey );
-
-	return url.href;
+function getDeviceOptions() {
+	return [
+		{
+			icon: desktopIcon,
+			label: __( 'Desktop view' ),
+			value: 'desktop',
+		},
+		{
+			icon: tabletIcon,
+			label: __( 'Tablet view' ),
+			value: 'tablet',
+		},
+		{
+			icon: mobileIcon,
+			label: __( 'Mobile view' ),
+			value: 'mobile',
+		},
+	];
 }
 
-function Stage() {
-	const { setupDefaults } = useDispatch( cnlEditorStore );
-	const [ setupState, setSetupState ] = useState( null );
-	const [ isSettingUp, setIsSettingUp ] = useState( false );
+function DeviceButton( { currentDevice, icon, label, setDevice, value } ) {
+	const isSelected = currentDevice === value;
 
-	const runSetup = () => {
-		setIsSettingUp( true );
-		setSetupState( null );
+	return el( Button, {
+		'aria-pressed': isSelected,
+		className: `cnl-editor-homepage-device-switcher__button${
+			isSelected ? ' is-selected' : ''
+		}`,
+		icon,
+		label,
+		onClick: () => setDevice( value ),
+		showTooltip: true,
+		variant: 'tertiary',
+	} );
+}
 
-		setupDefaults( namespace )
-			.then( ( result ) => {
-				setSetupState( result );
+function PageOptionsDropdown( { isBusy, onConfigureHomepage } ) {
+	return el( Dropdown, {
+		className: 'cnl-editor-homepage-options',
+		contentClassName: 'cnl-editor-homepage-options__content',
+		popoverProps: {
+			placement: 'bottom',
+		},
+		renderContent: ( { onClose } ) =>
+			el(
+				MenuGroup,
+				{ className: 'cnl-editor-homepage-options__menu' },
+				el(
+					MenuItem,
+					{
+						disabled: isBusy,
+						icon: settingsIcon,
+						onClick: () => {
+							onClose();
+							onConfigureHomepage();
+						},
+					},
+					__( 'Configure Homepage' )
+				)
+			),
+		renderToggle: ( { isOpen, onToggle } ) =>
+			el( Button, {
+				'aria-expanded': isOpen,
+				className: 'cnl-editor-homepage-options__toggle',
+				icon: chevronDownIcon,
+				label: __( 'Page Options' ),
+				onClick: onToggle,
+				showTooltip: true,
+				variant: 'tertiary',
+			} ),
+	} );
+}
 
-				if ( result?.success ) {
-					window.dispatchEvent(
-						new CustomEvent( HOMEPAGE_CONFIGURED_EVENT )
-					);
-				}
-			} )
-			.catch( ( error ) =>
-				setSetupState( {
-					success: false,
-					message: getErrorMessage( error ),
-				} )
-			)
-			.finally( () => setIsSettingUp( false ) );
-	};
+function HistoryButton( { canMove, direction, icon, label, onMove } ) {
+	return el( Button, {
+		className: `cnl-editor-homepage-toolbar__history-button is-${ direction }`,
+		disabled: ! canMove,
+		icon,
+		label,
+		onClick: () => onMove( direction ),
+		showTooltip: true,
+		variant: 'tertiary',
+	} );
+}
 
+function HomepageStatusIndicator( { label, status } ) {
+	const tone = getHomepageStatusTone( status );
+
+	return el( 'span', {
+		'aria-label': label,
+		className: `cnl-editor-homepage-document__status is-${ tone }`,
+		role: 'status',
+		title: label,
+	} );
+}
+
+function EmptyPreview() {
 	return el(
 		'div',
-		{ className: 'cnl-editor-stage' },
+		{ className: 'cnl-editor-canvas-placeholder' },
+		el( 'span', {
+			'aria-hidden': true,
+			className:
+				'cnl-editor-canvas-placeholder__icon dashicons dashicons-admin-home',
+		} ),
 		el(
 			'div',
-			{ className: 'cnl-editor-stage__header' },
-			el( 'span', {
-				'aria-hidden': true,
-				className: 'dashicons dashicons-admin-home',
-			} ),
-			el(
-				'div',
-				null,
-				el( 'h1', null, __( 'Homepage' ) ),
-				el(
-					'p',
-					null,
-					__( 'Preview and configure the page visitors see first.' )
-				)
-			)
+			{ className: 'cnl-editor-canvas-placeholder__title' },
+			__( 'Homepage preview unavailable' )
 		),
 		el(
-			'div',
-			{ className: 'cnl-editor-panel' },
-			el( 'h2', null, __( 'Homepage configuration' ) ),
-			el(
-				'p',
-				null,
-				__(
-					'Create or reuse a published Home page, set it as the static homepage, and ensure a basic navigation menu exists.'
-				)
-			),
-			el(
-				Button,
-				{
-					isBusy: isSettingUp,
-					onClick: runSetup,
-					variant: 'secondary',
-				},
-				__( 'Configure homepage' )
-			),
-			setupState &&
-				el(
-					Notice,
-					{
-						className: 'cnl-editor-panel__notice',
-						isDismissible: false,
-						status: setupState.success ? 'success' : 'error',
-					},
-					setupState.success
-						? __( 'Homepage is configured.' )
-						: setupState.message || __( 'Setup failed.' )
-				)
+			'p',
+			{ className: 'cnl-editor-canvas-placeholder__description' },
+			__( 'Configure the site URL before previewing the homepage.' )
 		)
-	);
-}
-
-function DeviceButton( { currentDevice, label, setDevice, value } ) {
-	return el(
-		Button,
-		{
-			'aria-pressed': currentDevice === value,
-			className: currentDevice === value ? 'is-selected' : undefined,
-			onClick: () => setDevice( value ),
-			variant: currentDevice === value ? 'secondary' : 'tertiary',
-		},
-		label
 	);
 }
 
@@ -138,14 +168,22 @@ function Canvas() {
 	const navigate = useNavigate();
 	const { invalidatePreviewContext, setupDefaults } =
 		useDispatch( cnlEditorStore );
-	const [ device, setDevice ] = useState( 'desktop' );
+	const [ device, setDeviceState ] = useState( DEFAULT_HOMEPAGE_DEVICE );
 	const [ frameWindow, setFrameWindow ] = useState( null );
+	const [ previewHistoryState, setPreviewHistoryState ] = useState(
+		getPreviewHistoryState()
+	);
 	const [ localPreviewError, setLocalPreviewError ] = useState( null );
 	const [ isConfiguringHomepage, setIsConfiguringHomepage ] =
 		useState( false );
-	const [ isPageOptionsOpen, setIsPageOptionsOpen ] = useState( false );
 	const [ refreshKey, setRefreshKey ] = useState( '' );
-	const previewUrl = getPreviewUrl( refreshKey );
+	const previewHistoryRef = useRef( {
+		currentUrl: '',
+		maxPosition: 0,
+		pendingDirection: null,
+		position: 0,
+	} );
+	const previewUrl = getHomepagePreviewUrl( settings.homeUrl, refreshKey );
 	const { isLoadingContext, previewContext, previewContextError } = useSelect(
 		( select ) => {
 			const store = select( cnlEditorStore );
@@ -173,8 +211,62 @@ function Canvas() {
 		localPreviewError ||
 		( previewContextError ? getErrorMessage( previewContextError ) : null );
 	const previewLabel = previewContext?.previewLabel || __( 'Home' );
-	const previewStatus = previewContext?.previewStatusLabel || __( 'Preview' );
+	const previewStatus = previewContext?.previewStatus || 'homepage';
+	const previewStatusLabel = isLoadingContext
+		? __( 'Loading preview details' )
+		: previewContext?.previewStatusLabel || __( 'Preview' );
 	const editLink = previewContext?.editLink;
+	const canEditPreview = Boolean(
+		editLink && previewContext?.previewCanEdit !== false
+	);
+
+	const resetPreviewHistory = useCallback( () => {
+		previewHistoryRef.current = {
+			currentUrl: '',
+			maxPosition: 0,
+			pendingDirection: null,
+			position: 0,
+		};
+		setFrameWindow( null );
+		setPreviewHistoryState( getPreviewHistoryState() );
+	}, [] );
+
+	const syncPreviewHistory = useCallback(
+		( nextWindow ) => {
+			const history = previewHistoryRef.current;
+			let nextUrl = previewUrl;
+
+			try {
+				nextUrl = nextWindow?.location?.href || previewUrl;
+			} catch {
+				nextUrl = previewUrl;
+			}
+
+			if ( ! history.currentUrl ) {
+				history.currentUrl = nextUrl;
+			} else if ( nextUrl && nextUrl !== history.currentUrl ) {
+				if ( history.pendingDirection === 'back' ) {
+					history.position = Math.max( 0, history.position - 1 );
+				} else if ( history.pendingDirection === 'forward' ) {
+					history.position = Math.min(
+						history.maxPosition,
+						history.position + 1
+					);
+				} else {
+					history.position += 1;
+					history.maxPosition = history.position;
+				}
+
+				history.currentUrl = nextUrl;
+			}
+
+			history.pendingDirection = null;
+			setPreviewHistoryState(
+				getPreviewHistoryState( history.position, history.maxPosition )
+			);
+		},
+		[ previewUrl ]
+	);
 
 	useEffect( () => {
 		const refreshPreview = () => {
@@ -192,21 +284,40 @@ function Canvas() {
 		};
 	}, [ invalidatePreviewContext ] );
 
+	useEffect( () => {
+		resetPreviewHistory();
+	}, [ previewUrl, resetPreviewHistory ] );
+
+	const setDevice = ( value ) => {
+		setDeviceState( getHomepageDevice( value ) );
+	};
+
 	const movePreviewHistory = ( direction ) => {
+		const canMove =
+			direction === 'back'
+				? previewHistoryState.canGoBack
+				: previewHistoryState.canGoForward;
+
+		if ( ! frameWindow || ! canMove ) {
+			return;
+		}
+
 		try {
+			previewHistoryRef.current.pendingDirection = direction;
+
 			if ( direction === 'back' ) {
-				frameWindow?.history.back();
+				frameWindow.history.back();
 			} else {
-				frameWindow?.history.forward();
+				frameWindow.history.forward();
 			}
 		} catch ( error ) {
+			previewHistoryRef.current.pendingDirection = null;
 			setLocalPreviewError( getErrorMessage( error ) );
 		}
 	};
 
 	const configureHomepage = () => {
 		setIsConfiguringHomepage( true );
-		setIsPageOptionsOpen( false );
 		setLocalPreviewError( null );
 
 		setupDefaults( namespace )
@@ -229,135 +340,120 @@ function Canvas() {
 			.finally( () => setIsConfiguringHomepage( false ) );
 	};
 
+	const editHomepage = () => {
+		if ( canEditPreview ) {
+			navigate( { to: editLink } );
+		}
+	};
+
 	return el(
 		'section',
-		{ className: 'cnl-editor-canvas cnl-editor-preview-canvas' },
+		{
+			className: `cnl-editor-canvas cnl-editor-preview-canvas cnl-editor-homepage-preview is-${ device }`,
+		},
 		el(
 			'header',
-			{ className: 'cnl-editor-canvas__toolbar' },
+			{
+				className:
+					'cnl-editor-canvas__toolbar cnl-editor-homepage-toolbar',
+			},
 			el(
 				'div',
-				null,
-				el(
-					'div',
-					{ className: 'cnl-editor-canvas__document' },
-					el(
-						'div',
-						{ className: 'cnl-editor-canvas__label' },
-						previewLabel
-					),
-					previewContext?.previewStatus === 'homepage' &&
-						el(
-							'div',
-							{ className: 'cnl-editor-page-options' },
-							el(
-								Button,
-								{
-									'aria-expanded': isPageOptionsOpen,
-									'aria-haspopup': 'menu',
-									className:
-										'cnl-editor-page-options__toggle',
-									onClick: () =>
-										setIsPageOptionsOpen(
-											( isOpen ) => ! isOpen
-										),
-									variant: 'tertiary',
-								},
-								__( 'Page Options' )
-							),
-							isPageOptionsOpen &&
-								el(
-									'div',
-									{
-										className:
-											'cnl-editor-page-options__menu',
-										role: 'menu',
-									},
-									el(
-										'button',
-										{
-											className:
-												'cnl-editor-page-options__item',
-											onClick: configureHomepage,
-											role: 'menuitem',
-											type: 'button',
-										},
-										__( 'Configure Homepage' )
-									)
-								)
-						)
-				),
-				el(
-					'div',
-					{ className: 'cnl-editor-canvas__status' },
-					isLoadingContext
-						? __( 'Loading preview details' )
-						: previewStatus
-				)
-			),
-			el(
-				'div',
-				{ className: 'cnl-editor-canvas__actions' },
+				{ className: 'cnl-editor-homepage-toolbar__left' },
 				el(
 					Button,
 					{
-						disabled: ! frameWindow,
-						label: __( 'Back in preview' ),
-						onClick: () => movePreviewHistory( 'back' ),
-						variant: 'tertiary',
-					},
-					__( 'Back' )
-				),
-				el(
-					Button,
-					{
-						disabled: ! frameWindow,
-						label: __( 'Forward in preview' ),
-						onClick: () => movePreviewHistory( 'forward' ),
-						variant: 'tertiary',
-					},
-					__( 'Forward' )
-				),
-				el(
-					Button,
-					{
-						isBusy: isConfiguringHomepage,
-						onClick: configureHomepage,
-						variant: 'secondary',
-					},
-					__( 'Configure homepage' )
-				),
-				el(
-					Button,
-					{
-						onClick: () => navigate( { to: '/navigation' } ),
-						variant: 'secondary',
-					},
-					__( 'Customize navigation' )
-				),
-				el(
-					Button,
-					{
-						disabled: ! editLink,
-						onClick: () => {
-							if ( editLink ) {
-								navigate( { to: editLink } );
-							}
-						},
+						className: 'cnl-editor-homepage-toolbar__edit',
+						disabled: ! canEditPreview,
+						icon: pencilIcon,
+						onClick: editHomepage,
 						variant: 'primary',
 					},
 					previewContext?.previewEditLabel || __( 'Edit page' )
 				),
 				el(
-					Button,
+					'div',
 					{
-						href: settings.homeUrl,
-						rel: 'noreferrer',
-						target: '_blank',
-						variant: 'tertiary',
+						'aria-label': __( 'Preview history' ),
+						className: 'cnl-editor-homepage-toolbar__history',
+						role: 'group',
 					},
-					__( 'View site in new tab' )
+					el( HistoryButton, {
+						canMove: previewHistoryState.canGoBack,
+						direction: 'back',
+						icon: chevronLeftIcon,
+						label: __( 'Back in preview' ),
+						onMove: movePreviewHistory,
+					} ),
+					el( HistoryButton, {
+						canMove: previewHistoryState.canGoForward,
+						direction: 'forward',
+						icon: chevronRightIcon,
+						label: __( 'Forward in preview' ),
+						onMove: movePreviewHistory,
+					} )
 				)
+			),
+			el(
+				'div',
+				{ className: 'cnl-editor-homepage-toolbar__center' },
+				el(
+					'div',
+					{
+						className: 'cnl-editor-homepage-document',
+					},
+					el( Icon, {
+						className: 'cnl-editor-homepage-document__icon',
+						icon: homeIcon,
+					} ),
+					el(
+						'h1',
+						{ className: 'cnl-editor-homepage-document__title' },
+						previewLabel
+					),
+					el( PageOptionsDropdown, {
+						isBusy: isConfiguringHomepage,
+						onConfigureHomepage: configureHomepage,
+					} ),
+					el( HomepageStatusIndicator, {
+						label: previewStatusLabel,
+						status: previewStatus,
+					} )
+				)
+			),
+			el(
+				'div',
+				{ className: 'cnl-editor-homepage-toolbar__right' },
+				el(
+					'div',
+					{
+						'aria-label': __( 'Preview device' ),
+						className:
+							'cnl-editor-preview-canvas__device-switcher cnl-editor-homepage-device-switcher',
+						role: 'group',
+					},
+					getDeviceOptions().map( ( option ) =>
+						el( DeviceButton, {
+							currentDevice: device,
+							icon: option.icon,
+							key: option.value,
+							label: option.label,
+							setDevice,
+							value: option.value,
+						} )
+					)
+				),
+				el( Button, {
+					className: 'cnl-editor-homepage-toolbar__external',
+					disabled: ! settings.homeUrl,
+					href: settings.homeUrl || undefined,
+					icon: externalIcon,
+					label: __( 'View site in new tab' ),
+					rel: 'noreferrer',
+					showTooltip: true,
+					target: '_blank',
+					variant: 'tertiary',
+				} )
 			)
 		),
 		previewError &&
@@ -372,28 +468,6 @@ function Canvas() {
 			),
 		el(
 			'div',
-			{ className: 'cnl-editor-preview-canvas__device-switcher' },
-			el( DeviceButton, {
-				currentDevice: device,
-				label: __( 'Desktop view' ),
-				setDevice,
-				value: 'desktop',
-			} ),
-			el( DeviceButton, {
-				currentDevice: device,
-				label: __( 'Tablet view' ),
-				setDevice,
-				value: 'tablet',
-			} ),
-			el( DeviceButton, {
-				currentDevice: device,
-				label: __( 'Mobile view' ),
-				setDevice,
-				value: 'mobile',
-			} )
-		),
-		el(
-			'div',
 			{
 				className: `cnl-editor-canvas__frame-wrap cnl-editor-preview-canvas__frame-wrap is-${ device }`,
 			},
@@ -406,13 +480,19 @@ function Canvas() {
 			previewUrl &&
 				el( 'iframe', {
 					className: 'cnl-editor-canvas__frame',
-					onLoad: ( event ) =>
-						setFrameWindow( event.currentTarget.contentWindow ),
+					onLoad: ( event ) => {
+						const nextWindow = event.currentTarget.contentWindow;
+						setFrameWindow( nextWindow );
+						syncPreviewHistory( nextWindow );
+					},
 					src: previewUrl,
 					title: __( 'Homepage preview' ),
-				} )
+				} ),
+			! previewUrl && el( EmptyPreview )
 		)
 	);
 }
 
-export { Stage as stage, Canvas as canvas };
+const stage = undefined;
+
+export { stage, Canvas as canvas };

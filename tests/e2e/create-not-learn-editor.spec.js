@@ -1,7 +1,14 @@
+const fs = require( 'node:fs/promises' );
+const path = require( 'node:path' );
 const { expect, test } = require( '@playwright/test' );
 
 const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
 const ADMIN_PASSWORD = process.env.WP_ADMIN_PASSWORD || 'password';
+const HOMEPAGE_PARITY_DIR = path.join(
+	process.cwd(),
+	'.context',
+	'homepage-parity'
+);
 
 async function login( page ) {
 	await page.request.get( '/wp-login.php' );
@@ -51,6 +58,18 @@ async function expectSnackbar( page, message ) {
 	).toBeVisible( {
 		timeout: 15000,
 	} );
+}
+
+async function writeHomepageParityScreenshot( locator, name ) {
+	await fs.mkdir( HOMEPAGE_PARITY_DIR, { recursive: true } );
+	await locator.screenshot( {
+		animations: 'disabled',
+		path: path.join( HOMEPAGE_PARITY_DIR, name ),
+	} );
+}
+
+async function navigateToNavigationMenus( page ) {
+	await page.getByRole( 'link', { name: 'Navigation Menus' } ).click();
 }
 
 async function createPreviewTestPage( page ) {
@@ -313,6 +332,7 @@ test.describe( 'Create Not Learn Editor', () => {
 	test( 'previews and configures the homepage before editing it in the block editor', async ( {
 		page,
 	} ) => {
+		await page.setViewportSize( { height: 1003, width: 2048 } );
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
 		const previewCanvas = page.locator( '.cnl-editor-preview-canvas' );
@@ -322,11 +342,34 @@ test.describe( 'Create Not Learn Editor', () => {
 		const frameWrap = previewCanvas.locator(
 			'.cnl-editor-preview-canvas__frame-wrap'
 		);
+		const toolbar = previewCanvas.locator( '.cnl-editor-homepage-toolbar' );
 
 		await expect( previewFrame ).toBeVisible();
 		await expect( previewFrame ).toHaveAttribute(
 			'src',
 			/cnl-editor-preview=1/
+		);
+		await expect(
+			toolbar.getByRole( 'button', { name: 'Back in preview' } )
+		).toBeDisabled();
+		await expect(
+			toolbar.getByRole( 'button', { name: 'Forward in preview' } )
+		).toBeDisabled();
+		await expect(
+			toolbar.getByRole( 'link', { name: 'View site in new tab' } )
+		).toHaveAttribute( 'target', '_blank' );
+
+		await writeHomepageParityScreenshot(
+			page.locator( '.boot-layout' ),
+			'plugin-homepage-full.png'
+		);
+		await writeHomepageParityScreenshot(
+			toolbar.locator( '.cnl-editor-homepage-toolbar__left' ),
+			'plugin-homepage-left-controls.png'
+		);
+		await writeHomepageParityScreenshot(
+			toolbar.locator( '.cnl-editor-homepage-toolbar__right' ),
+			'plugin-homepage-device-controls.png'
 		);
 
 		await previewCanvas
@@ -337,7 +380,18 @@ test.describe( 'Create Not Learn Editor', () => {
 		await previewCanvas
 			.getByRole( 'button', { name: 'Page Options' } )
 			.click();
-		await previewCanvas
+		await expect(
+			page.getByRole( 'menuitem', { name: 'Configure Homepage' } )
+		).toBeVisible();
+		await writeHomepageParityScreenshot(
+			page.locator( '.cnl-editor-homepage-options__content' ),
+			'plugin-homepage-page-options-open.png'
+		);
+		await writeHomepageParityScreenshot(
+			toolbar.locator( '.cnl-editor-homepage-toolbar__center' ),
+			'plugin-homepage-title-controls.png'
+		);
+		await page
 			.getByRole( 'menuitem', { name: 'Configure Homepage' } )
 			.click();
 
@@ -686,7 +740,9 @@ test.describe( 'Create Not Learn Editor', () => {
 		] );
 		await expect(
 			page.getByRole( 'heading', { name: 'Auto-menu' } )
-		).toBeVisible( { timeout: 15000 } );
+		).toBeVisible( {
+			timeout: 15000,
+		} );
 	} );
 
 	test( 'opens navigation menus and edits a menu in the block editor canvas', async ( {
@@ -694,10 +750,7 @@ test.describe( 'Create Not Learn Editor', () => {
 	} ) => {
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
-		const previewCanvas = page.locator( '.cnl-editor-preview-canvas' );
-		await previewCanvas
-			.getByRole( 'button', { name: 'Customize navigation' } )
-			.click();
+		await navigateToNavigationMenus( page );
 
 		await expect( page ).toHaveURL( /p=.*%2Fnavigation/ );
 		await expect(
@@ -1014,10 +1067,7 @@ test.describe( 'Create Not Learn Editor', () => {
 			'No navigation-bearing template parts are available.'
 		);
 
-		await page
-			.locator( '.cnl-editor-preview-canvas' )
-			.getByRole( 'button', { name: 'Customize navigation' } )
-			.click();
+		await navigateToNavigationMenus( page );
 		await expect(
 			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
 		).toBeVisible();
@@ -1180,10 +1230,7 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
-		await page
-			.locator( '.cnl-editor-preview-canvas' )
-			.getByRole( 'button', { name: 'Customize navigation' } )
-			.click();
+		await navigateToNavigationMenus( page );
 		await expect(
 			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
 		).toBeVisible();

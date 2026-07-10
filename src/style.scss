@@ -1384,49 +1384,6 @@
 	justify-content: flex-end;
 }
 
-.cnl-editor-page-options {
-	position: relative;
-}
-
-.cnl-editor-page-options__toggle.components-button {
-	min-width: 0;
-	height: 28px;
-	padding: 0 8px;
-}
-
-.cnl-editor-page-options__menu {
-	position: absolute;
-	z-index: 20;
-	top: calc(100% + 4px);
-	left: 0;
-	min-width: 190px;
-	padding: 4px;
-	border: 1px solid #c3c4c7;
-	border-radius: 4px;
-	background: #fff;
-	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-}
-
-.cnl-editor-page-options__item {
-	display: block;
-	width: 100%;
-	min-height: 32px;
-	padding: 6px 8px;
-	border: 0;
-	border-radius: 2px;
-	background: transparent;
-	color: #1d2327;
-	cursor: pointer;
-	font: inherit;
-	text-align: left;
-
-	&:hover,
-	&:focus {
-		background: #f0f0f1;
-		outline: none;
-	}
-}
-
 .cnl-editor-canvas__frame-wrap {
 	min-height: 0;
 	padding: 20px;
@@ -1443,29 +1400,13 @@
 }
 
 .cnl-editor-preview-canvas {
-	grid-template-rows: auto auto minmax(0, 1fr);
+	grid-template-rows: auto minmax(0, 1fr);
 }
 
 .cnl-editor-preview-canvas__notice {
 	margin: 0;
 	border-right: 0;
 	border-left: 0;
-}
-
-.cnl-editor-preview-canvas__device-switcher {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	align-items: center;
-	justify-content: center;
-	min-height: 48px;
-	padding: 8px 12px;
-	border-bottom: 1px solid #dcdcde;
-	background: #fff;
-
-	.components-button.is-selected {
-		box-shadow: inset 0 0 0 1px #1d2327;
-	}
 }
 
 .cnl-editor-preview-canvas__frame-wrap {
@@ -1502,6 +1443,249 @@
 	border: 1px solid #dcdcde;
 	border-radius: 50%;
 	background: #fff;
+}
+
+.cnl-editor-homepage-preview {
+	height: 100%;
+	overflow: hidden;
+	background: #fff;
+}
+
+.cnl-editor-homepage-toolbar {
+	display: grid;
+	grid-template-columns: minmax(210px, 1fr) minmax(0, auto) minmax(190px, 1fr);
+	gap: 12px;
+	align-items: center;
+	box-sizing: border-box;
+	min-height: 56px;
+	padding: 8px 10px;
+}
+
+.cnl-editor-homepage-toolbar__left,
+.cnl-editor-homepage-toolbar__center,
+.cnl-editor-homepage-toolbar__right,
+.cnl-editor-homepage-toolbar__history {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+}
+
+.cnl-editor-homepage-toolbar__left {
+	gap: 14px;
+	justify-content: flex-start;
+}
+
+.cnl-editor-homepage-toolbar__center {
+	justify-content: center;
+}
+
+.cnl-editor-homepage-toolbar__right {
+	gap: 16px;
+	justify-content: flex-end;
+}
+
+.cnl-editor-homepage-toolbar__edit.components-button {
+	min-width: 0;
+	height: 40px;
+	padding: 0 12px;
+	border-radius: 2px;
+	font-weight: 500;
+	gap: 8px;
+	white-space: nowrap;
+}
+
+.cnl-editor-homepage-toolbar__history {
+	gap: 12px;
+}
+
+.cnl-editor-homepage-toolbar__history-button.components-button.has-icon {
+	width: 34px;
+	height: 34px;
+	min-width: 34px;
+	color: #757575;
+
+	&:disabled {
+		color: #c3c4c7;
+	}
+}
+
+.cnl-editor-homepage-document {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	justify-content: center;
+	max-width: min(460px, 100%);
+	min-width: 0;
+	color: #1e1e1e;
+}
+
+.cnl-editor-homepage-document__icon {
+	flex: 0 0 auto;
+	width: 24px;
+	height: 24px;
+}
+
+.cnl-editor-homepage-document__title {
+	overflow: hidden;
+	margin: 0;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 20px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cnl-editor-homepage-options {
+	flex: 0 0 auto;
+}
+
+.cnl-editor-homepage-options__toggle.components-button.has-icon {
+	width: 32px;
+	height: 32px;
+	min-width: 32px;
+	color: var(--wp-admin-theme-color);
+}
+
+.cnl-editor-homepage-options__content {
+	min-width: 240px;
+	padding: 4px;
+	border-radius: 4px;
+	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+}
+
+.cnl-editor-homepage-options__menu {
+	margin: 0;
+}
+
+.cnl-editor-homepage-options__menu .components-menu-item__button {
+	min-height: 40px;
+}
+
+.cnl-editor-homepage-document__status {
+	display: block;
+	flex: 0 0 auto;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #949494;
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+
+	&.is-success {
+		background: #46b450;
+	}
+
+	&.is-warning {
+		background: #dba617;
+	}
+
+	&.is-muted {
+		background: #949494;
+	}
+
+	&.is-neutral {
+		background: #72aee6;
+	}
+}
+
+.cnl-editor-homepage-device-switcher {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: stretch;
+	overflow: hidden;
+	border: 1px solid #dcdcde;
+	border-radius: 2px;
+	background: #fff;
+}
+
+.cnl-editor-homepage-device-switcher__button.components-button.has-icon {
+	position: relative;
+	width: 40px;
+	height: 40px;
+	min-width: 40px;
+	border-radius: 0;
+	background: #fff;
+	color: #50575e;
+	box-shadow: none;
+
+	& + & {
+		border-left: 1px solid #dcdcde;
+	}
+
+	&.is-selected,
+	&[aria-pressed="true"] {
+		z-index: 1;
+		background: #fff;
+		color: #1e1e1e;
+		box-shadow: inset 0 0 0 1px #1e1e1e;
+	}
+}
+
+.cnl-editor-homepage-toolbar__external.components-button.has-icon {
+	width: 40px;
+	height: 40px;
+	min-width: 40px;
+	color: var(--wp-admin-theme-color);
+}
+
+.cnl-editor-homepage-preview .cnl-editor-preview-canvas__frame-wrap {
+	align-items: stretch;
+	padding: 0;
+	background: #fff;
+}
+
+.cnl-editor-homepage-preview.cnl-editor-preview-canvas .cnl-editor-preview-canvas__frame-wrap .cnl-editor-canvas__frame {
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	border: 0;
+	border-radius: 0;
+}
+
+.cnl-editor-homepage-preview .cnl-editor-preview-canvas__frame-wrap.is-tablet,
+.cnl-editor-homepage-preview .cnl-editor-preview-canvas__frame-wrap.is-mobile {
+	align-items: flex-start;
+	padding: 24px;
+	background: #f0f0f1;
+}
+
+.cnl-editor-homepage-preview.cnl-editor-preview-canvas .cnl-editor-preview-canvas__frame-wrap.is-tablet .cnl-editor-canvas__frame,
+.cnl-editor-homepage-preview.cnl-editor-preview-canvas .cnl-editor-preview-canvas__frame-wrap.is-mobile .cnl-editor-canvas__frame {
+	height: 100%;
+	border: 1px solid #dcdcde;
+	background: #fff;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 1080px) {
+
+	.cnl-editor-homepage-toolbar {
+		grid-template-columns: minmax(0, 1fr) auto;
+		min-height: 96px;
+	}
+
+	.cnl-editor-homepage-toolbar__center {
+		order: 3;
+		grid-column: 1 / -1;
+	}
+}
+
+@media (max-width: 720px) {
+
+	.cnl-editor-homepage-toolbar {
+		grid-template-columns: 1fr;
+		min-height: 0;
+	}
+
+	.cnl-editor-homepage-toolbar__left,
+	.cnl-editor-homepage-toolbar__center,
+	.cnl-editor-homepage-toolbar__right {
+		justify-content: center;
+	}
+
+	.cnl-editor-homepage-toolbar__edit.components-button {
+		height: 44px;
+		font-size: 14px;
+	}
 }
 
 .cnl-editor-canvas-placeholder {
