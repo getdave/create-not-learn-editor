@@ -169,15 +169,21 @@
 
 .routes-navigation-list {
 	gap: 0;
+	overflow: hidden;
 	padding: 0;
 	background: #fff;
 }
 
 .routes-navigation-list__dataviews {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 	min-height: 0;
+	overflow: hidden;
 }
 
 .routes-navigation-list__dataviews-toolbar {
+	flex: 0 0 auto;
 	display: flex;
 	gap: 10px;
 	align-items: center;
@@ -203,20 +209,31 @@
 }
 
 .routes-navigation-list__dataviews-filters {
+	flex: 0 0 auto;
 	padding: 0 24px;
 }
 
 .routes-navigation-list__dataviews-scroll {
 	box-sizing: border-box;
+	flex: 1;
 	min-height: 0;
 	overflow: auto;
-	padding: 12px 24px 0;
+	padding: 12px 24px 24px;
 
 	.dataviews-view-list,
 	.dataviews-view-table,
 	.dataviews-view-grid {
 		padding-inline: 0;
 	}
+}
+
+.cnl-editor-stage .cnl-editor-empty-state {
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	box-sizing: border-box;
+	min-height: 0;
+	padding: 48px 24px 24px;
 }
 
 .routes-navigation-list__title {
@@ -1576,15 +1593,6 @@
 	margin: 48px auto 0;
 }
 
-.routes-navigation-locations-canvas__empty-state.cnl-editor-canvas-placeholder {
-	width: min(100%, 360px);
-	height: auto;
-	min-height: auto;
-	margin-block-start: 0;
-	border: 0;
-	background: transparent;
-}
-
 .routes-navigation-locations-canvas__previews {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
@@ -2216,25 +2224,8 @@
 }
 
 .routes-navigation-choose-location-modal__empty-state {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
 	min-height: 220px;
 	padding: 24px;
-	color: #646970;
-	text-align: center;
-
-	h3 {
-		margin: 12px 0 0;
-		color: #1d2327;
-		font-size: 16px;
-	}
-
-	p {
-		max-width: 420px;
-		margin: 8px 0 0;
-	}
 }
 
 .routes-navigation-choose-location-modal__grid {

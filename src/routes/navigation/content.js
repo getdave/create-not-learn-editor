@@ -209,6 +209,36 @@ function NavigationLocationsEmptyState( { disabled, onChooseLocation } ) {
 	);
 }
 
+function NavigationNoMenuSelectedEmptyState() {
+	return el(
+		EmptyState.Root,
+		{ className: 'routes-navigation-locations-canvas__empty-state' },
+		el( EmptyState.Icon, { icon: compassIcon } ),
+		el( EmptyState.Title, null, __( 'No menu selected' ) ),
+		el(
+			EmptyState.Description,
+			null,
+			__( 'Create or select a navigation menu to edit its structure.' )
+		)
+	);
+}
+
+function NavigationLocationsUnavailableEmptyState() {
+	return el(
+		EmptyState.Root,
+		{ className: 'routes-navigation-choose-location-modal__empty-state' },
+		el( EmptyState.Icon, { icon: layoutIcon } ),
+		el( EmptyState.Title, null, __( 'No menu locations found' ) ),
+		el(
+			EmptyState.Description,
+			null,
+			__(
+				'Add a menu space to a header, footer, or other site area before choosing a location here.'
+			)
+		)
+	);
+}
+
 function getInitialNavigationView( searchParams ) {
 	return {
 		...DEFAULT_NAVIGATION_VIEW,
@@ -694,22 +724,7 @@ function ChooseLocationModal( {
 				error
 			),
 		candidates.length === 0 &&
-			el(
-				'div',
-				{
-					className:
-						'routes-navigation-choose-location-modal__empty-state',
-				},
-				el( Icon, { icon: layoutIcon } ),
-				el( 'h3', null, __( 'No menu locations found' ) ),
-				el(
-					'p',
-					null,
-					__(
-						'Add a menu space to a header, footer, or other site area before choosing a location here.'
-					)
-				)
-			),
+			el( NavigationLocationsUnavailableEmptyState ),
 		candidates.length > 0 &&
 			el(
 				'div',
@@ -908,9 +923,7 @@ function Stage() {
 				hasPadding: false,
 				headingLevel: 2,
 				key: 'navigation-page',
-				subTitle: __(
-					'Manage the menus visitors use to move through the site.'
-				),
+				subTitle: __( 'Manage menus for the site.' ),
 				title: __( 'Navigation' ),
 			},
 			( error || locationsError ) &&
@@ -929,7 +942,6 @@ function Stage() {
 					actions: navigationActions,
 					data: menus,
 					defaultLayouts: {
-						grid: true,
 						list: true,
 						table: {},
 					},
@@ -1101,37 +1113,20 @@ function Canvas() {
 			},
 			( { onClose } ) =>
 				el(
-					'div',
-					null,
-					el(
-						MenuItem,
-						{
-							onClick: () => {
-								navigateToNavigationEditRoute(
-									navigate,
-									selectedMenu
-								);
-								onClose();
-							},
+					MenuItem,
+					{
+						onClick: () => {
+							setLocationModalMode(
+								selectedLocations.length > 0
+									? 'update'
+									: 'choose'
+							);
+							onClose();
 						},
-						__( 'Edit menu' )
-					),
-					el(
-						MenuItem,
-						{
-							onClick: () => {
-								setLocationModalMode(
-									selectedLocations.length > 0
-										? 'update'
-										: 'choose'
-								);
-								onClose();
-							},
-						},
-						selectedLocations.length > 0
-							? __( 'Update locations' )
-							: __( 'Choose location' )
-					)
+					},
+					selectedLocations.length > 0
+						? __( 'Update locations' )
+						: __( 'Choose location' )
 				)
 		);
 
@@ -1262,33 +1257,7 @@ function Canvas() {
 					className:
 						'routes-navigation-locations-canvas is-top-centered',
 				},
-				el(
-					'div',
-					{
-						className:
-							'cnl-editor-canvas-placeholder routes-navigation-locations-canvas__empty-state',
-					},
-					el( Icon, {
-						'aria-hidden': true,
-						className: 'cnl-editor-canvas-placeholder__icon',
-						icon: compassIcon,
-					} ),
-					el(
-						'h2',
-						{ className: 'cnl-editor-canvas-placeholder__title' },
-						__( 'No menu selected' )
-					),
-					el(
-						'p',
-						{
-							className:
-								'cnl-editor-canvas-placeholder__description',
-						},
-						__(
-							'Create or select a navigation menu to edit its structure.'
-						)
-					)
-				)
+				el( NavigationNoMenuSelectedEmptyState )
 			),
 		locationModalMode &&
 			selectedMenu?.id &&

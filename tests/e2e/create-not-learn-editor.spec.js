@@ -553,6 +553,9 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect(
 			stage.locator( '.routes-navigation-list__dataviews-toolbar' )
 		).toBeVisible( { timeout: 10000 } );
+		await expect(
+			stage.getByText( 'Manage menus for the site.' )
+		).toBeVisible();
 
 		if (
 			! ( await firstMenuTitleButton
@@ -634,15 +637,15 @@ test.describe( 'Create Not Learn Editor', () => {
 		await canvas
 			.getByRole( 'button', { name: 'Menu location options' } )
 			.click();
-		await Promise.all( [
-			page.waitForURL(
-				new RegExp( `p=.*%2Fnavigation%2Fedit%2F${ selectedMenuId }` )
-			),
-			page.getByRole( 'menuitem', { name: 'Edit menu' } ).click(),
-		] );
 		await expect(
-			page.getByRole( 'heading', { name: 'Auto-menu' } )
-		).toBeVisible( { timeout: 15000 } );
+			page.getByRole( 'menuitem', { name: 'Edit menu' } )
+		).toHaveCount( 0 );
+		await expect(
+			page.getByRole( 'menuitem', {
+				name: /^(Choose location|Update locations)$/,
+			} )
+		).toBeVisible();
+		await page.keyboard.press( 'Escape' );
 
 		await page.goto(
 			`/wp-admin/admin.php?page=create-not-learn-editor&p=${ encodeURIComponent(
