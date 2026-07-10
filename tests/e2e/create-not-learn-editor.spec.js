@@ -57,6 +57,10 @@ async function getNavigationLocationPreviewFrameTexts( page ) {
 	);
 }
 
+async function getAddPageFormPreviewFrameTexts( page ) {
+	return getPreviewFrameTexts( page, '.cnl-add-page-form__preview iframe' );
+}
+
 async function expectSnackbar( page, message ) {
 	await expect(
 		page.locator( '.components-snackbar' ).getByText( message )
@@ -664,6 +668,21 @@ test.describe( 'Create Not Learn Editor', () => {
 				'Your page will be visible to visitors immediately.'
 			)
 		).toBeVisible();
+		const customPreviewTitle = `Preview title ${ Date.now() }`;
+		await addPageDialog
+			.getByLabel( 'Page title' )
+			.fill( customPreviewTitle );
+		await expect
+			.poll(
+				() =>
+					getAddPageFormPreviewFrameTexts( page ).then( ( texts ) =>
+						texts.some( ( text ) =>
+							text.includes( customPreviewTitle )
+						)
+					),
+				{ timeout: 20000 }
+			)
+			.toBe( true );
 		await expect(
 			addPageDialog.getByLabel( 'Page Template' )
 		).toBeVisible();

@@ -28,6 +28,74 @@ export function getPatternContent( pattern ) {
 	return content?.raw || content?.rendered || '';
 }
 
+export function replacePreviewTitleInBlocks(
+	blocks,
+	title,
+	{ allowParagraph = false } = {}
+) {
+	const nextTitle = String( title || '' ).trim();
+
+	if ( ! nextTitle ) {
+		return { blocks, didReplace: false };
+	}
+
+	let didReplace = false;
+	const nextBlocks = blocks.map( ( block ) => {
+		if ( didReplace ) {
+			return block;
+		}
+
+		const innerBlocksResult = block.innerBlocks?.length
+			? replacePreviewTitleInBlocks( block.innerBlocks, nextTitle, {
+					allowParagraph,
+			  } )
+			: { blocks: block.innerBlocks, didReplace: false };
+
+		if ( innerBlocksResult.didReplace ) {
+			didReplace = true;
+			return {
+				...block,
+				innerBlocks: innerBlocksResult.blocks,
+			};
+		}
+
+		const isHeading = block.name === 'core/heading';
+		const isPostTitle = block.name === 'core/post-title';
+		const isParagraphFallback =
+			allowParagraph && block.name === 'core/paragraph';
+
+		if ( ! isPostTitle && ! isHeading && ! isParagraphFallback ) {
+			return block;
+		}
+
+		didReplace = true;
+
+		if ( isPostTitle ) {
+			const level = block.attributes?.level;
+
+			return {
+				...block,
+				attributes: {
+					align: block.attributes?.textAlign,
+					content: nextTitle,
+					level: level === 0 ? undefined : level,
+				},
+				name: level === 0 ? 'core/paragraph' : 'core/heading',
+			};
+		}
+
+		return {
+			...block,
+			attributes: {
+				...block.attributes,
+				content: nextTitle,
+			},
+		};
+	} );
+
+	return { blocks: nextBlocks, didReplace };
+}
+
 export function getPageLayoutTypes() {
 	return [
 		{ label: __( 'Homepages' ), slug: 'homepage' },
@@ -383,4 +451,32 @@ export function getPatternPreviewContent( pattern, templateContent ) {
 			},
 		}
 	);
+}
+
+export function getPatternPreviewContentWithTitle(
+	pattern,
+	templateContent,
+	pageTitle,
+	{ parseBlocks, serialize }
+) {
+	const previewContent = getPatternPreviewContent( pattern, templateContent );
+	const nextTitle = String( pageTitle || '' ).trim();
+
+	if ( ! previewContent || ! nextTitle || ! parseBlocks || ! serialize ) {
+		return previewContent;
+	}
+
+	try {
+		const blocks = parseBlocks( previewContent );
+		const headingResult = replacePreviewTitleInBlocks( blocks, nextTitle );
+		const result = headingResult.didReplace
+			? headingResult
+			: replacePreviewTitleInBlocks( blocks, nextTitle, {
+					allowParagraph: true,
+			  } );
+
+		return result.didReplace ? serialize( result.blocks ) : previewContent;
+	} catch {
+		return previewContent;
+	}
 }

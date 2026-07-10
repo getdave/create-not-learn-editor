@@ -8,6 +8,7 @@ import {
 	getPatternDescription,
 	getPatternTermSlugs,
 	getPatternPreviewContent,
+	getPatternPreviewContentWithTitle,
 	getPatternTitle,
 	getPreviewContent,
 	getPreviewTemplateForPost,
@@ -304,5 +305,95 @@ describe( 'content preview helpers', () => {
 		expect( result ).toContain( '<!-- wp:group -->' );
 		expect( result ).toContain( '<p>Pattern body</p>' );
 		expect( result ).not.toContain( 'wp:post-content' );
+	} );
+
+	test( 'updates heading text in pattern preview content from the page title', () => {
+		const result = getPatternPreviewContentWithTitle(
+			{
+				content:
+					'<!-- wp:heading --><h2>Pattern title</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->',
+			},
+			'',
+			'My custom page',
+			{
+				parseBlocks: () => [
+					{
+						attributes: { content: 'Pattern title' },
+						innerBlocks: [],
+						name: 'core/heading',
+					},
+					{
+						attributes: { content: 'Body' },
+						innerBlocks: [],
+						name: 'core/paragraph',
+					},
+				],
+				serialize: ( blocks ) =>
+					blocks
+						.map( ( block ) => block.attributes.content )
+						.join( '|' ),
+			}
+		);
+
+		expect( result ).toBe( 'My custom page|Body' );
+	} );
+
+	test( 'updates post title template blocks from the page title', () => {
+		const result = getPatternPreviewContentWithTitle(
+			{
+				content:
+					'<!-- wp:paragraph --><p>Pattern body</p><!-- /wp:paragraph -->',
+			},
+			'<!-- wp:post-title {"level":1,"textAlign":"center"} /--><!-- wp:post-content /-->',
+			'Template title',
+			{
+				parseBlocks: () => [
+					{
+						attributes: { level: 1, textAlign: 'center' },
+						innerBlocks: [],
+						name: 'core/post-title',
+					},
+					{
+						attributes: { content: 'Pattern body' },
+						innerBlocks: [],
+						name: 'core/paragraph',
+					},
+				],
+				serialize: ( blocks ) =>
+					blocks
+						.map(
+							( block ) =>
+								`${ block.name }:${ block.attributes.content }:${ block.attributes.level }:${ block.attributes.align }`
+						)
+						.join( '|' ),
+			}
+		);
+
+		expect( result ).toBe(
+			'core/heading:Template title:1:center|core/paragraph:Pattern body:undefined:undefined'
+		);
+	} );
+
+	test( 'falls back to the first paragraph when a preview has no heading', () => {
+		const result = getPatternPreviewContentWithTitle(
+			{
+				content:
+					'<!-- wp:paragraph --><p>Pattern intro</p><!-- /wp:paragraph -->',
+			},
+			'',
+			'Fallback page title',
+			{
+				parseBlocks: () => [
+					{
+						attributes: { content: 'Pattern intro' },
+						innerBlocks: [],
+						name: 'core/paragraph',
+					},
+				],
+				serialize: ( blocks ) => blocks[ 0 ].attributes.content,
+			}
+		);
+
+		expect( result ).toBe( 'Fallback page title' );
 	} );
 } );

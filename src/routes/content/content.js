@@ -19,6 +19,7 @@ import {
 	getPatternContent,
 	getPatternDescription,
 	getPatternPreviewContent,
+	getPatternPreviewContentWithTitle,
 	getPatternTitle,
 	getPreviewContent,
 	getPreviewTemplateForPost,
@@ -50,7 +51,9 @@ import {
 	pageIcon,
 	postListIcon,
 	Page,
+	parseBlocks,
 	sprintf,
+	serialize,
 	useEffect,
 	useDispatch,
 	useMemo,
@@ -109,6 +112,8 @@ const TEMPLATE_QUERY = {
 	_fields:
 		'id,slug,title,description,source,author,theme,type,status,content',
 };
+
+const PAGE_TITLE_PREVIEW_DEBOUNCE_MS = 700;
 
 function getActiveTab( searchParams ) {
 	return searchParams.content === 'templates' ? 'templates' : 'content';
@@ -629,6 +634,7 @@ function AddPageFlow( { onClose, templates } ) {
 	const [ selectedTemplateSlug, setSelectedTemplateSlug ] = useState( '' );
 	const [ pageLayoutPage, setPageLayoutPage ] = useState( 1 );
 	const [ pageTitle, setPageTitle ] = useState( '' );
+	const [ previewPageTitle, setPreviewPageTitle ] = useState( '' );
 	const [ publishImmediately, setPublishImmediately ] = useState( true );
 	const [ validationError, setValidationError ] = useState();
 	const [ isBusy, setIsBusy ] = useState( false );
@@ -684,6 +690,31 @@ function AddPageFlow( { onClose, templates } ) {
 	const pageTemplateContent = useMemo(
 		() => getSelectedTemplateContent( templates, selectedTemplateSlug ),
 		[ selectedTemplateSlug, templates ]
+	);
+	useEffect( () => {
+		if ( ! selectedLayout ) {
+			setPreviewPageTitle( pageTitle );
+			return undefined;
+		}
+
+		const timeoutId = window.setTimeout(
+			() => setPreviewPageTitle( pageTitle ),
+			PAGE_TITLE_PREVIEW_DEBOUNCE_MS
+		);
+
+		return () => window.clearTimeout( timeoutId );
+	}, [ pageTitle, selectedLayout ] );
+	const selectedLayoutPreviewContent = useMemo(
+		() =>
+			selectedLayout
+				? getPatternPreviewContentWithTitle(
+						selectedLayout,
+						pageTemplateContent,
+						previewPageTitle,
+						{ parseBlocks, serialize }
+				  )
+				: '',
+		[ pageTemplateContent, previewPageTitle, selectedLayout ]
 	);
 	const isChoosingLayout = selectedPath === 'layout' && ! selectedLayout;
 	const isShowingForm = selectedPath === 'scratch' || !! selectedLayout;
@@ -1103,10 +1134,7 @@ function AddPageFlow( { onClose, templates } ) {
 										'cnl-add-page-form__preview-page',
 								},
 								el( LazyEditorPreview, {
-									content: getPatternPreviewContent(
-										selectedLayout,
-										pageTemplateContent
-									),
+									content: selectedLayoutPreviewContent,
 									description:
 										getPatternTitle( selectedLayout ),
 								} )
