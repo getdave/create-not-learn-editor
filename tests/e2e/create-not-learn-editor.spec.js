@@ -182,6 +182,10 @@ async function getOrCreateUnusedNavigationMenuId( page ) {
 			'Content-Type': 'application/json',
 			'X-WP-Nonce': window.createNotLearnEditor.nonce,
 		};
+		const getMenuTitle = ( menu ) =>
+			typeof menu.title === 'string'
+				? menu.title
+				: menu.title?.rendered || menu.title?.raw || 'Navigation';
 		const getNavigationMenus = async () => {
 			const response = await window.fetch(
 				`/wp-json/wp/v2/${ navigationRestBase }?context=edit&per_page=100&status=publish,draft&_fields=id,content,title`,
@@ -268,7 +272,10 @@ async function getOrCreateUnusedNavigationMenuId( page ) {
 		);
 
 		if ( unusedMenu ) {
-			return unusedMenu.id;
+			return {
+				id: unusedMenu.id,
+				title: getMenuTitle( unusedMenu ),
+			};
 		}
 
 		const firstCreatedMenu = await createMenu();
@@ -277,7 +284,10 @@ async function getOrCreateUnusedNavigationMenuId( page ) {
 		referencedMenuIds = await getReferencedMenuIds( menus[ 0 ]?.id );
 
 		if ( ! referencedMenuIds.has( Number( firstCreatedMenu.id ) ) ) {
-			return firstCreatedMenu.id;
+			return {
+				id: firstCreatedMenu.id,
+				title: getMenuTitle( firstCreatedMenu ),
+			};
 		}
 
 		const nextUnusedMenu = menus.find(
@@ -288,7 +298,10 @@ async function getOrCreateUnusedNavigationMenuId( page ) {
 			throw new Error( 'Unable to create an unused navigation menu.' );
 		}
 
-		return nextUnusedMenu.id;
+		return {
+			id: nextUnusedMenu.id,
+			title: getMenuTitle( nextUnusedMenu ),
+		};
 	} );
 }
 
@@ -524,6 +537,137 @@ test.describe( 'Create Not Learn Editor', () => {
 		).toBeVisible( { timeout: 15000 } );
 	} );
 
+	test( 'selects a navigation menu preview and opens explicit edit actions', async ( {
+		page,
+	} ) => {
+		await page.goto(
+			'/wp-admin/admin.php?page=create-not-learn-editor&p=%2Fnavigation'
+		);
+
+		const stage = page.locator( '.cnl-editor-stage' );
+		const canvas = page.locator( '.cnl-editor-canvas' );
+		const firstMenuTitleButton = stage
+			.locator( '.routes-navigation-list__title' )
+			.first();
+
+		await expect(
+			stage.locator( '.routes-navigation-list__dataviews-toolbar' )
+		).toBeVisible( { timeout: 10000 } );
+
+		if (
+			! ( await firstMenuTitleButton
+				.isVisible( { timeout: 3000 } )
+				.catch( () => false ) )
+		) {
+			await stage.getByRole( 'button', { name: 'Add New' } ).click();
+			const addNavigationDialog = page.getByRole( 'dialog', {
+				name: 'Add New Navigation Menu',
+			} );
+			await expect( addNavigationDialog ).toBeVisible();
+			await addNavigationDialog
+				.getByLabel( 'Name' )
+				.fill( `Navigation edit action ${ Date.now() }` );
+			await addNavigationDialog
+				.getByLabel( 'Auto sync with site pages' )
+				.check();
+			await addNavigationDialog
+				.getByRole( 'button', { name: 'Create Menu' } )
+				.click();
+			await expect( page ).toHaveURL( /p=.*%2Fnavigation%2Fedit%2F\d+/, {
+				timeout: 20000,
+			} );
+			await page.goto(
+				'/wp-admin/admin.php?page=create-not-learn-editor&p=%2Fnavigation'
+			);
+			await expect(
+				stage.locator( '.routes-navigation-list__dataviews-toolbar' )
+			).toBeVisible( { timeout: 10000 } );
+		}
+
+		await expect( firstMenuTitleButton ).toBeVisible( { timeout: 10000 } );
+		const selectedMenuTitle = (
+			await firstMenuTitleButton.innerText()
+		).trim();
+		await firstMenuTitleButton.click();
+		await expect( page ).toHaveURL( /p=.*%2Fnavigation.*menuId%3D\d+/ );
+		const selectedRoute = new URL( page.url() ).searchParams.get( 'p' );
+		const selectedMenuId = selectedRoute?.match( /menuId=(\d+)/ )?.[ 1 ];
+
+		expect( selectedMenuId ).toBeTruthy();
+		await expect(
+			stage.locator( '.routes-navigation-list__dataviews-toolbar' )
+		).toBeVisible();
+		await expect( stage.getByText( /\d+ selected/ ) ).toHaveCount( 0 );
+		await expect(
+			canvas.getByRole( 'heading', {
+				name: `${ selectedMenuTitle } menu locations`,
+			} )
+		).toBeVisible( { timeout: 15000 } );
+		await expect( canvas ).toHaveCSS( 'padding', '0px' );
+		await expect(
+			canvas.locator( '.routes-navigation-locations-canvas' )
+		).toHaveCSS( 'border-radius', '0px' );
+		if (
+			await canvas
+				.getByRole( 'heading', {
+					name: 'This menu is not shown on your site yet',
+				} )
+				.isVisible()
+				.catch( () => false )
+		) {
+			await expect(
+				canvas.locator(
+					'.routes-navigation-locations-canvas .cnl-editor-canvas-placeholder'
+				)
+			).toHaveCount( 0 );
+			await expect(
+				canvas
+					.locator(
+						'.routes-navigation-locations-canvas__empty-state'
+					)
+					.getByText(
+						'Choose where this menu should appear, such as your header or footer.'
+					)
+			).toBeVisible();
+		}
+
+		await canvas
+			.getByRole( 'button', { name: 'Menu location options' } )
+			.click();
+		await Promise.all( [
+			page.waitForURL(
+				new RegExp( `p=.*%2Fnavigation%2Fedit%2F${ selectedMenuId }` )
+			),
+			page.getByRole( 'menuitem', { name: 'Edit menu' } ).click(),
+		] );
+		await expect(
+			page.getByRole( 'heading', { name: 'Auto-menu' } )
+		).toBeVisible( { timeout: 15000 } );
+
+		await page.goto(
+			`/wp-admin/admin.php?page=create-not-learn-editor&p=${ encodeURIComponent(
+				`/navigation?menuId=${ selectedMenuId }`
+			) }`
+		);
+		await expect(
+			stage.locator( '.routes-navigation-list__dataviews-toolbar' )
+		).toBeVisible( { timeout: 10000 } );
+		const rowActionsMenu = stage.getByRole( 'button', {
+			name: 'Actions',
+		} );
+		await expect( rowActionsMenu.first() ).toBeVisible( {
+			timeout: 10000,
+		} );
+		await rowActionsMenu.first().click();
+		await Promise.all( [
+			page.waitForURL( /p=.*%2Fnavigation%2Fedit%2F\d+/ ),
+			page.getByRole( 'menuitem', { name: 'Edit' } ).click(),
+		] );
+		await expect(
+			page.getByRole( 'heading', { name: 'Auto-menu' } )
+		).toBeVisible( { timeout: 15000 } );
+	} );
+
 	test( 'opens navigation menus and edits a menu in the block editor canvas', async ( {
 		page,
 	} ) => {
@@ -563,9 +707,13 @@ test.describe( 'Create Not Learn Editor', () => {
 		const firstNavigationMenuButton = stage
 			.locator( '.routes-navigation-list__title' )
 			.first();
+		let selectedNavigationMenuTitle = '';
 		if (
 			await firstNavigationMenuButton.isVisible().catch( () => false )
 		) {
+			selectedNavigationMenuTitle = (
+				await firstNavigationMenuButton.innerText()
+			).trim();
 			await firstNavigationMenuButton.click();
 			await expect( stage.getByText( /\d+ selected/ ) ).toHaveCount( 0 );
 		}
@@ -583,51 +731,61 @@ test.describe( 'Create Not Learn Editor', () => {
 				)
 				.first()
 		).toBeVisible( { timeout: 15000 } );
-		await expect(
-			canvas.getByRole( 'heading', { name: 'Menu locations' } ).or(
+		if ( selectedNavigationMenuTitle ) {
+			await expect(
 				canvas.getByRole( 'heading', {
-					name: 'This menu is not shown on your site yet',
+					name: `${ selectedNavigationMenuTitle } menu locations`,
 				} )
-			)
-		).toBeVisible();
-		if (
-			await canvas
-				.locator( '.routes-navigation-locations-canvas__title' )
-				.first()
-				.isVisible()
-				.catch( () => false )
-		) {
+			).toBeVisible();
 			await expect(
-				canvas.locator( '.routes-navigation-locations-canvas__title' )
-			).toHaveCSS( 'font-size', '22px' );
-		}
-
-		if (
-			await canvas
-				.getByRole( 'heading', { name: 'Menu locations' } )
-				.isVisible()
-				.catch( () => false )
-		) {
-			await expect(
-				canvas
-					.locator( '.routes-navigation-locations-canvas__preview' )
+				canvas.locator( '.routes-navigation-locations-canvas' )
+			).toHaveCSS( 'border-radius', '0px' );
+			if (
+				await canvas
+					.locator( '.routes-navigation-locations-canvas__card' )
 					.first()
-			).toBeVisible();
+					.isVisible()
+					.catch( () => false )
+			) {
+				await expect(
+					canvas
+						.locator(
+							'.routes-navigation-locations-canvas__preview'
+						)
+						.first()
+				).toBeVisible();
+				await expect(
+					canvas.getByRole( 'button', { name: 'Edit' } ).first()
+				).toBeVisible();
+				await expect
+					.poll(
+						() =>
+							getNavigationLocationPreviewFrameTexts( page ).then(
+								( texts ) =>
+									texts.some( ( text ) => text.trim().length )
+							),
+						{ timeout: 15000 }
+					)
+					.toBe( true );
+			} else {
+				await expect(
+					canvas.getByRole( 'heading', {
+						name: 'This menu is not shown on your site yet',
+					} )
+				).toBeVisible();
+				await expect(
+					canvas.locator(
+						'.routes-navigation-locations-canvas .cnl-editor-canvas-placeholder'
+					)
+				).toHaveCount( 0 );
+			}
+		} else {
 			await expect(
-				canvas.getByRole( 'button', { name: 'Edit' } ).first()
+				canvas.getByRole( 'heading', { name: 'No menu selected' } )
 			).toBeVisible();
-			await expect
-				.poll(
-					() =>
-						getNavigationLocationPreviewFrameTexts( page ).then(
-							( texts ) =>
-								texts.some( ( text ) => text.trim().length )
-						),
-					{ timeout: 15000 }
-				)
-				.toBe( true );
 		}
 
+		const autoNavigationTitle = `Auto navigation ${ Date.now() }`;
 		await Promise.all( [
 			page.waitForURL( /p=.*%2Fnavigation%2Fedit%2F\d+/ ),
 			( async () => {
@@ -638,7 +796,7 @@ test.describe( 'Create Not Learn Editor', () => {
 				await expect( addNavigationDialog ).toBeVisible();
 				await addNavigationDialog
 					.getByLabel( 'Name' )
-					.fill( `Auto navigation ${ Date.now() }` );
+					.fill( autoNavigationTitle );
 				await addNavigationDialog
 					.getByLabel( 'Auto sync with site pages' )
 					.check();
@@ -656,8 +814,15 @@ test.describe( 'Create Not Learn Editor', () => {
 			page.locator( '.routes-navigation-locations-canvas' )
 		).toBeVisible( { timeout: 15000 } );
 		await expect(
-			page.locator( '.routes-navigation-locations-canvas__title' )
-		).toHaveCSS( 'font-size', '22px' );
+			page.getByRole( 'heading', {
+				name: `${ autoNavigationTitle } menu locations`,
+			} )
+		).toBeVisible( { timeout: 15000 } );
+		await expect(
+			page.locator(
+				'.routes-navigation-locations-canvas .cnl-editor-canvas-placeholder'
+			)
+		).toHaveCount( 0 );
 		await expect(
 			page.getByText(
 				/This menu is kept in sync with your current Pages/
@@ -800,7 +965,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 		const navigationTemplateParts =
 			await getNavigationTemplatePartsSnapshot( page );
-		const unusedMenuId = await getOrCreateUnusedNavigationMenuId( page );
+		const unusedMenu = await getOrCreateUnusedNavigationMenuId( page );
 
 		test.skip(
 			navigationTemplateParts.length === 0,
@@ -824,19 +989,39 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect( stage.getByText( /\d+ selected/ ) ).toHaveCount( 0 );
 
 		await page.goto(
-			`/wp-admin/admin.php?page=create-not-learn-editor&p=%2Fnavigation&menuId=${ unusedMenuId }`
+			`/wp-admin/admin.php?page=create-not-learn-editor&p=${ encodeURIComponent(
+				`/navigation?menuId=${ unusedMenu.id }`
+			) }`
 		);
 		await expect(
 			page.getByRole( 'heading', { name: 'Navigation' } ).first()
 		).toBeVisible();
+		await expect(
+			canvas.getByRole( 'heading', {
+				name: `${ unusedMenu.title } menu locations`,
+			} )
+		).toBeVisible( { timeout: 15000 } );
+		await expect(
+			canvas
+				.getByText(
+					'Choose where this menu should appear, such as your header or footer.'
+				)
+				.first()
+		).toBeVisible();
+		await expect(
+			canvas.getByRole( 'heading', {
+				name: 'This menu is not shown on your site yet',
+			} )
+		).toBeVisible();
+		await expect(
+			canvas.locator(
+				'.routes-navigation-locations-canvas .cnl-editor-canvas-placeholder'
+			)
+		).toHaveCount( 0 );
 		const chooseLocationButton = canvas.getByRole( 'button', {
 			name: 'Choose location',
 		} );
-		await expect(
-			canvas.getByRole( 'button', {
-				name: /^(Choose location|Menu location options)$/,
-			} )
-		).toBeVisible( { timeout: 15000 } );
+		await expect( chooseLocationButton ).toBeVisible( { timeout: 15000 } );
 		const hasChooseLocation =
 			( await chooseLocationButton.count() ) > 0 &&
 			( await chooseLocationButton.isVisible() );
@@ -845,7 +1030,10 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		if ( hasChooseLocation ) {
 			const placeholderDescription = canvas
-				.locator( '.cnl-editor-canvas-placeholder__description' )
+				.locator( '.routes-navigation-locations-canvas__empty-state' )
+				.getByText(
+					'Choose where this menu should appear, such as your header or footer.'
+				)
 				.first();
 			const [ descriptionBox, buttonBox ] = await Promise.all( [
 				placeholderDescription.boundingBox(),
@@ -894,14 +1082,13 @@ test.describe( 'Create Not Learn Editor', () => {
 			canvas.getByRole( 'button', { name: 'Menu location options' } )
 		).toBeVisible();
 		await expect(
-			canvas.getByRole( 'heading', { name: 'Menu locations' } )
+			canvas.getByRole( 'heading', {
+				name: `${ unusedMenu.title } menu locations`,
+			} )
 		).toBeVisible();
 		await expect(
-			canvas.locator( '.routes-navigation-locations-canvas__toolbar' )
-		).toBeVisible();
-		await expect(
-			canvas.locator( '.routes-navigation-locations-canvas__title' )
-		).toHaveCSS( 'font-size', '22px' );
+			canvas.locator( '.routes-navigation-locations-canvas' )
+		).toHaveCSS( 'border-radius', '0px' );
 		await expect(
 			canvas
 				.locator( '.routes-navigation-locations-canvas__card' )
