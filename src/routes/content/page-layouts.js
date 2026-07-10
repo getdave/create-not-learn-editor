@@ -18,6 +18,16 @@ export function getPatternDescription( pattern ) {
 	return decodeEntities( pattern?.description || '' );
 }
 
+export function getPatternContent( pattern ) {
+	const content = pattern?.content;
+
+	if ( typeof content === 'string' ) {
+		return content;
+	}
+
+	return content?.raw || content?.rendered || '';
+}
+
 export function getPageLayoutTypes() {
 	return [
 		{ label: __( 'Homepages' ), slug: 'homepage' },
@@ -31,45 +41,103 @@ export function getPageLayoutTypes() {
 }
 
 export function normalizeLayoutText( value ) {
-	return decodeEntities( value || '' ).toLowerCase();
+	return decodeEntities( String( value || '' ) ).toLowerCase();
+}
+
+export function getPatternTermTexts( term ) {
+	if ( term === null || term === undefined ) {
+		return [];
+	}
+
+	if ( [ 'string', 'number', 'boolean' ].includes( typeof term ) ) {
+		return [ String( term ) ];
+	}
+
+	if ( Array.isArray( term ) ) {
+		return term.flatMap( getPatternTermTexts );
+	}
+
+	if ( typeof term !== 'object' ) {
+		return [];
+	}
+
+	const title = term.title;
+	const rawTerms = [
+		term.slug,
+		term.name,
+		term.label,
+		term.value,
+		term.id,
+		typeof title === 'object' ? title?.raw : title,
+		typeof title === 'object' ? title?.rendered : undefined,
+	];
+
+	return rawTerms
+		.filter( ( value ) => value !== null && value !== undefined )
+		.map( String );
+}
+
+export function normalizeLayoutSlug( value ) {
+	return normalizeLayoutText( value )
+		.trim()
+		.replace( /[_\s]+/g, '-' )
+		.replace( /[^a-z0-9/-]+/g, '' )
+		.replace( /\/+/g, '/' );
+}
+
+export function getPatternTermSlugs( terms ) {
+	return [
+		...new Set(
+			getPatternTermTexts( terms )
+				.flatMap( ( term ) => {
+					const normalized = normalizeLayoutSlug( term );
+					const parts = normalized.split( '/' ).filter( Boolean );
+
+					return [ normalized, parts.at( -1 ) ].filter( Boolean );
+				} )
+				.filter( Boolean )
+		),
+	];
 }
 
 export function getKnownPageLayoutType( slug ) {
-	switch ( slug ) {
-		case 'homepage':
-		case 'homepages':
-		case 'home':
-		case 'front-page':
-		case 'frontpage':
-			return 'homepage';
-		case 'landing-page':
-		case 'landing-pages':
-		case 'landing':
-			return 'landing-page';
-		case 'event':
-		case 'events':
-			return 'event';
-		case 'link-in-bio':
-		case 'linkinbio':
-		case 'link-in-bios':
-			return 'link-in-bio';
-		case 'personal':
-		case 'bio':
-		case 'cv':
-		case 'resume':
-			return 'personal';
-		case 'coming-soon':
-		case 'comingsoon':
-			return 'coming-soon';
-		case OTHER_PAGE_LAYOUT_TYPE:
-			return OTHER_PAGE_LAYOUT_TYPE;
-		default:
-			return null;
+	for ( const termSlug of getPatternTermSlugs( slug ) ) {
+		switch ( termSlug ) {
+			case 'homepage':
+			case 'homepages':
+			case 'home':
+			case 'front-page':
+			case 'frontpage':
+				return 'homepage';
+			case 'landing-page':
+			case 'landing-pages':
+			case 'landing':
+				return 'landing-page';
+			case 'event':
+			case 'events':
+				return 'event';
+			case 'link-in-bio':
+			case 'linkinbio':
+			case 'link-in-bios':
+				return 'link-in-bio';
+			case 'personal':
+			case 'bio':
+			case 'cv':
+			case 'resume':
+				return 'personal';
+			case 'coming-soon':
+			case 'comingsoon':
+				return 'coming-soon';
+			case OTHER_PAGE_LAYOUT_TYPE:
+				return OTHER_PAGE_LAYOUT_TYPE;
+		}
 	}
+
+	return null;
 }
 
 export function inferPageLayoutTypes( pattern ) {
-	const explicitTypes = ( pattern.pageTypes || [] )
+	const explicitTypes = getPatternTermTexts( pattern.pageTypes )
 		.map( getKnownPageLayoutType )
 		.filter( Boolean );
 
@@ -77,7 +145,7 @@ export function inferPageLayoutTypes( pattern ) {
 		return [ ...new Set( explicitTypes ) ];
 	}
 
-	const categoryTypes = ( pattern.categories || [] )
+	const categoryTypes = getPatternTermTexts( pattern.categories )
 		.map( getKnownPageLayoutType )
 		.filter( Boolean );
 
@@ -88,7 +156,7 @@ export function inferPageLayoutTypes( pattern ) {
 	const patternText = [
 		normalizeLayoutText( pattern.name ),
 		normalizeLayoutText( pattern.title ),
-		...( pattern.categories || [] ).map( normalizeLayoutText ),
+		...getPatternTermTexts( pattern.categories ).map( normalizeLayoutText ),
 	].join( ' ' );
 
 	if (
@@ -145,22 +213,30 @@ export function inferPageLayoutTypes( pattern ) {
 	return [ OTHER_PAGE_LAYOUT_TYPE ];
 }
 
+export function isPagePatternCategory( category ) {
+	return getPatternTermSlugs( category ).some( ( termSlug ) =>
+		[ 'page', 'pages' ].includes( termSlug )
+	);
+}
+
 export function isPageLayoutPattern( pattern ) {
-	if ( pattern.inserter === false || ! pattern.content ) {
+	if ( pattern.inserter === false ) {
 		return false;
 	}
 
-	if ( pattern.postTypes?.includes( 'page' ) ) {
+	if ( getPatternTermSlugs( pattern.postTypes ).includes( 'page' ) ) {
 		return true;
 	}
 
-	if ( pattern.blockTypes?.includes( 'core/post-content' ) ) {
+	if (
+		getPatternTermSlugs( pattern.blockTypes ).includes(
+			'core/post-content'
+		)
+	) {
 		return true;
 	}
 
-	return !! pattern.categories?.some( ( category ) =>
-		[ 'page', 'pages' ].includes( category )
-	);
+	return isPagePatternCategory( pattern.categories );
 }
 
 export function getPageLayoutGroups( patterns ) {
@@ -289,7 +365,7 @@ export function getSelectedTemplateContent( templates, selectedTemplateSlug ) {
 }
 
 export function getPatternPreviewContent( pattern, templateContent ) {
-	const patternContent = pattern?.content || '';
+	const patternContent = getPatternContent( pattern );
 
 	if ( ! templateContent ) {
 		return patternContent;

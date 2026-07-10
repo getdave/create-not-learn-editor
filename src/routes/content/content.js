@@ -16,6 +16,7 @@ import {
 	OTHER_PAGE_LAYOUT_TYPE,
 	PAGE_LAYOUTS_PER_PAGE,
 	getPageLayoutGroups,
+	getPatternContent,
 	getPatternDescription,
 	getPatternPreviewContent,
 	getPatternTitle,
@@ -425,6 +426,7 @@ function getPageTemplateOptions( templates ) {
 		},
 		...templates
 			.filter( ( template ) => !! template.content?.raw )
+			.filter( ( template ) => template.slug !== 'page' )
 			.map( ( template ) => ( {
 				label: getTemplateTitle( template ),
 				value: template.slug || String( template.id ),
@@ -456,6 +458,77 @@ function PageLayoutPreviewPlaceholder() {
 	);
 }
 
+function PageLayoutSidebarPlaceholder() {
+	return el(
+		'div',
+		{
+			'aria-hidden': true,
+			className: 'cnl-add-page-layout-categories-placeholder',
+		},
+		[ 0, 1, 2, 3, 4, 5 ].map( ( index ) =>
+			el(
+				'div',
+				{
+					className:
+						'cnl-add-page-layout-categories-placeholder__item',
+					key: index,
+				},
+				el( 'span', {
+					className:
+						'cnl-add-page-layout-categories-placeholder__label',
+				} ),
+				el( 'span', {
+					className:
+						'cnl-add-page-layout-categories-placeholder__count',
+				} )
+			)
+		)
+	);
+}
+
+function PageLayoutResultsPlaceholder() {
+	return el(
+		'div',
+		{
+			'aria-hidden': true,
+			className:
+				'cnl-add-page-layout-grid cnl-add-page-layout-grid--placeholder',
+		},
+		[ 0, 1 ].map( ( index ) =>
+			el(
+				'div',
+				{
+					className: 'cnl-add-page-layout-card-placeholder',
+					key: index,
+				},
+				el(
+					'div',
+					{ className: 'cnl-add-page-layout-card__preview' },
+					el( PageLayoutPreviewPlaceholder )
+				),
+				el(
+					'div',
+					{
+						className:
+							'cnl-add-page-layout-card-placeholder__content',
+					},
+					el( 'span', {
+						className:
+							'cnl-add-page-layout-card-placeholder__title',
+					} ),
+					el( 'span', {
+						className: 'cnl-add-page-layout-card-placeholder__line',
+					} ),
+					el( 'span', {
+						className:
+							'cnl-add-page-layout-card-placeholder__line is-short',
+					} )
+				)
+			)
+		)
+	);
+}
+
 function PageLayoutCard( { onSelect, pageTemplateContent, pattern } ) {
 	const previewContent = getPatternPreviewContent(
 		pattern,
@@ -473,13 +546,17 @@ function PageLayoutCard( { onSelect, pageTemplateContent, pattern } ) {
 		el(
 			'div',
 			{ className: 'cnl-add-page-layout-card__preview' },
-			previewContent
-				? el( LazyEditorPreview, {
-						content: previewContent,
-						description: getPatternTitle( pattern ),
-						placeholder: el( PageLayoutPreviewPlaceholder ),
-				  } )
-				: el( PageLayoutPreviewPlaceholder )
+			el(
+				'div',
+				{ className: 'cnl-add-page-layout-preview-page' },
+				previewContent
+					? el( LazyEditorPreview, {
+							content: previewContent,
+							description: getPatternTitle( pattern ),
+							placeholder: el( PageLayoutPreviewPlaceholder ),
+					  } )
+					: el( PageLayoutPreviewPlaceholder )
+			)
 		),
 		el(
 			'span',
@@ -516,6 +593,18 @@ function AddPageFlow( { onClose, templates } ) {
 		() => getPageLayoutGroups( patterns ),
 		[ patterns ]
 	);
+	const visiblePageLayoutGroups = useMemo( () => {
+		if ( pageLayoutGroups.length !== 1 ) {
+			return pageLayoutGroups;
+		}
+
+		return [
+			{
+				...pageLayoutGroups[ 0 ],
+				label: __( 'All designs' ),
+			},
+		];
+	}, [ pageLayoutGroups ] );
 	const activePageType =
 		selectedPageType ||
 		pageLayoutGroups[ 0 ]?.slug ||
@@ -542,6 +631,7 @@ function AddPageFlow( { onClose, templates } ) {
 		currentPageLayoutPage * PAGE_LAYOUTS_PER_PAGE,
 		activePageLayouts.length
 	);
+	const isLoadingPageLayouts = isResolving && ! pageLayoutGroups.length;
 	const pageTemplateOptions = useMemo(
 		() => getPageTemplateOptions( templates ),
 		[ templates ]
@@ -616,7 +706,9 @@ function AddPageFlow( { onClose, templates } ) {
 				'postType',
 				'page',
 				{
-					content: selectedLayout?.content || '',
+					content: selectedLayout
+						? getPatternContent( selectedLayout )
+						: '',
 					status: publishImmediately ? 'publish' : 'draft',
 					template: selectedTemplateSlug || undefined,
 					title: trimmedTitle,
@@ -783,39 +875,39 @@ function AddPageFlow( { onClose, templates } ) {
 							'aria-label': __( 'Page types' ),
 							className: 'cnl-add-page-layout-categories',
 						},
-						isResolving &&
-							! pageLayoutGroups.length &&
-							el( Spinner ),
-						pageLayoutGroups.map( ( group ) =>
-							el(
-								Button,
-								{
-									__next40pxDefaultSize: true,
-									'aria-current':
-										group.slug === activePageType
-											? 'true'
-											: undefined,
-									className: `cnl-add-page-layout-category${
-										group.slug === activePageType
-											? ' is-selected'
-											: ''
-									}`,
-									key: group.slug,
-									onClick: () =>
-										setSelectedPageType( group.slug ),
-									variant: 'tertiary',
-								},
-								el( 'span', null, group.label ),
+						isLoadingPageLayouts &&
+							el( PageLayoutSidebarPlaceholder ),
+						! isLoadingPageLayouts &&
+							visiblePageLayoutGroups.map( ( group ) =>
 								el(
-									'span',
+									Button,
 									{
-										className:
-											'cnl-add-page-layout-category__count',
+										__next40pxDefaultSize: true,
+										'aria-current':
+											group.slug === activePageType
+												? 'true'
+												: undefined,
+										className: `cnl-add-page-layout-category${
+											group.slug === activePageType
+												? ' is-selected'
+												: ''
+										}`,
+										key: group.slug,
+										onClick: () =>
+											setSelectedPageType( group.slug ),
+										variant: 'tertiary',
 									},
-									group.patterns.length
+									el( 'span', null, group.label ),
+									el(
+										'span',
+										{
+											className:
+												'cnl-add-page-layout-category__count',
+										},
+										group.patterns.length
+									)
 								)
 							)
-						)
 					),
 					el(
 						'div',
@@ -886,7 +978,9 @@ function AddPageFlow( { onClose, templates } ) {
 									} )
 								)
 						),
-						! isResolving &&
+						isLoadingPageLayouts &&
+							el( PageLayoutResultsPlaceholder ),
+						! isLoadingPageLayouts &&
 							! activePageLayouts.length &&
 							el(
 								'div',
@@ -894,7 +988,16 @@ function AddPageFlow( { onClose, templates } ) {
 								el(
 									'p',
 									null,
-									__( 'No designs found for this page type.' )
+									__(
+										'No page designs are available for this theme yet.'
+									)
+								),
+								el(
+									'p',
+									null,
+									__(
+										'Start with a blank page and add patterns from the editor.'
+									)
 								),
 								el(
 									Button,
@@ -906,7 +1009,8 @@ function AddPageFlow( { onClose, templates } ) {
 									__( 'Start blank' )
 								)
 							),
-						!! activePageLayouts.length &&
+						! isLoadingPageLayouts &&
+							!! activePageLayouts.length &&
 							el(
 								'div',
 								{ className: 'cnl-add-page-layout-grid' },
@@ -939,13 +1043,21 @@ function AddPageFlow( { onClose, templates } ) {
 						el(
 							'div',
 							{ className: 'cnl-add-page-form__preview' },
-							el( LazyEditorPreview, {
-								content: getPatternPreviewContent(
-									selectedLayout,
-									pageTemplateContent
-								),
-								description: getPatternTitle( selectedLayout ),
-							} )
+							el(
+								'div',
+								{
+									className:
+										'cnl-add-page-form__preview-page',
+								},
+								el( LazyEditorPreview, {
+									content: getPatternPreviewContent(
+										selectedLayout,
+										pageTemplateContent
+									),
+									description:
+										getPatternTitle( selectedLayout ),
+								} )
+							)
 						),
 					el( TextControl, {
 						__next40pxDefaultSize: true,
@@ -961,13 +1073,28 @@ function AddPageFlow( { onClose, templates } ) {
 					el(
 						'div',
 						{ className: 'cnl-add-page-form__settings' },
-						el( CheckboxControl, {
-							checked: publishImmediately,
-							disabled: isBusy,
-							label: __( 'Publish immediately' ),
-							onChange: setPublishImmediately,
-						} ),
-						pageTemplateOptions.length > 1 &&
+						el(
+							'div',
+							{ className: 'cnl-add-page-form__checkbox-item' },
+							el( CheckboxControl, {
+								checked: publishImmediately,
+								disabled: isBusy,
+								label: __( 'Publish immediately' ),
+								onChange: setPublishImmediately,
+							} ),
+							el(
+								'p',
+								{
+									className:
+										'cnl-add-page-form__checkbox-help',
+								},
+								__(
+									'Your page will be visible to visitors immediately.'
+								)
+							)
+						),
+						! selectedLayout &&
+							pageTemplateOptions.length > 1 &&
 							el( SelectControl, {
 								__next40pxDefaultSize: true,
 								disabled: isBusy,

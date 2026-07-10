@@ -11,6 +11,10 @@ This is a standalone WordPress plugin repo for Create Not Learn Editor.
 - Preserve the plugin dependency on the released Gutenberg plugin.
 - The editor should mirror Gutenberg's experimental `site-editor-v2` full-page setup where practical.
 
+## Visual Parity Rules
+
+- Do not artificially enlarge standard WordPress/Gutenberg component sizing to match screenshots that may show only part of a page or UI. Preserve proportional component sizing from the prototype or established WordPress defaults unless a full-context design explicitly requires otherwise.
+
 ## Important Runtime Facts
 
 - Plugin slug: `create-not-learn-editor`.

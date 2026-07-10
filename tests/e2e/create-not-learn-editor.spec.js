@@ -9,6 +9,11 @@ const HOMEPAGE_PARITY_DIR = path.join(
 	'.context',
 	'homepage-parity'
 );
+const ADD_PAGE_PARITY_DIR = path.join(
+	process.cwd(),
+	'.context',
+	'add-page-parity'
+);
 
 async function login( page ) {
 	await page.request.get( '/wp-login.php' );
@@ -65,6 +70,14 @@ async function writeHomepageParityScreenshot( locator, name ) {
 	await locator.screenshot( {
 		animations: 'disabled',
 		path: path.join( HOMEPAGE_PARITY_DIR, name ),
+	} );
+}
+
+async function writeAddPageParityScreenshot( locator, name ) {
+	await fs.mkdir( ADD_PAGE_PARITY_DIR, { recursive: true } );
+	await locator.screenshot( {
+		animations: 'disabled',
+		path: path.join( ADD_PAGE_PARITY_DIR, name ),
 	} );
 }
 
@@ -562,6 +575,13 @@ test.describe( 'Create Not Learn Editor', () => {
 			name: 'Add a new page',
 		} );
 		await expect( addPageDialog ).toBeVisible();
+		const addPageDialogBox = await addPageDialog.boundingBox();
+		expect( addPageDialogBox?.width ).toBeGreaterThanOrEqual( 560 );
+		expect( addPageDialogBox?.width ).toBeLessThanOrEqual( 680 );
+		await writeAddPageParityScreenshot(
+			addPageDialog,
+			'add-page-options.png'
+		);
 		await expect(
 			addPageDialog.getByRole( 'button', {
 				name: /Choose a page design/,
@@ -579,6 +599,67 @@ test.describe( 'Create Not Learn Editor', () => {
 		const designDialog = page.getByRole( 'dialog', {
 			name: 'Choose a page design',
 		} );
+		await expect( designDialog ).toBeVisible();
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-card' ).first()
+		).toBeVisible( { timeout: 15000 } );
+		await expect(
+			designDialog.getByRole( 'button', { name: /All designs/ } )
+		).toBeVisible();
+		await expect(
+			designDialog.getByRole( 'button', { name: /Other designs/ } )
+		).toHaveCount( 0 );
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-preview-page' ).first()
+		).toHaveCSS( 'overflow-y', 'auto' );
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-card__preview' ).first()
+		).toHaveCSS( 'border-top-width', '1px' );
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-card__preview' ).first()
+		).toHaveCSS( 'border-right-width', '1px' );
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-card__preview' ).first()
+		).toHaveCSS( 'border-bottom-width', '1px' );
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-card__preview' ).first()
+		).toHaveCSS( 'border-left-width', '1px' );
+		await expect(
+			designDialog.getByText( /No page designs are available/ )
+		).toHaveCount( 0 );
+		await writeAddPageParityScreenshot(
+			designDialog,
+			'choose-page-design-picker.png'
+		);
+		await designDialog
+			.locator( '.cnl-add-page-layout-card' )
+			.first()
+			.click();
+		await expect(
+			addPageDialog.getByText(
+				'Your page will be visible to visitors immediately.'
+			)
+		).toBeVisible();
+		await expect( addPageDialog.getByLabel( 'Page Template' ) ).toHaveCount(
+			0
+		);
+		const backButtonBox = await addPageDialog
+			.getByRole( 'button', { name: 'Back to options' } )
+			.boundingBox();
+		const createButtonBox = await addPageDialog
+			.getByRole( 'button', { name: 'Create and edit' } )
+			.boundingBox();
+		expect( createButtonBox.x ).toBeGreaterThan( backButtonBox.x );
+		await writeAddPageParityScreenshot(
+			addPageDialog,
+			'add-page-design-form.png'
+		);
+		await addPageDialog
+			.getByRole( 'button', { name: 'Back to options' } )
+			.click();
+		await addPageDialog
+			.getByRole( 'button', { name: /Choose a page design/ } )
+			.click();
 		await expect( designDialog ).toBeVisible();
 		await expect(
 			designDialog.getByRole( 'button', { name: 'Start blank' } )

@@ -4,7 +4,9 @@
 import {
 	OTHER_PAGE_LAYOUT_TYPE,
 	getPageLayoutGroups,
+	getPatternContent,
 	getPatternDescription,
+	getPatternTermSlugs,
 	getPatternPreviewContent,
 	getPatternTitle,
 	getPreviewContent,
@@ -75,7 +77,37 @@ describe( 'page layout helpers', () => {
 			isPageLayoutPattern( {
 				postTypes: [ 'page' ],
 			} )
-		).toBe( false );
+		).toBe( true );
+	} );
+
+	test( 'normalizes page pattern terms across theme data shapes', () => {
+		expect(
+			getPatternTermSlugs( [
+				'Page',
+				{ slug: 'pages', label: 'Pages' },
+				{ name: 'ollie/page', title: { rendered: 'Page' } },
+			] )
+		).toEqual(
+			expect.arrayContaining( [ 'page', 'pages', 'ollie/page' ] )
+		);
+
+		expect(
+			isPageLayoutPattern( {
+				categories: [ { slug: 'Page', label: 'Page' } ],
+				content:
+					'<!-- wp:paragraph --><p>Page</p><!-- /wp:paragraph -->',
+			} )
+		).toBe( true );
+		expect(
+			isPageLayoutPattern( {
+				categories: [ { name: 'ollie/pages', label: 'Pages' } ],
+			} )
+		).toBe( true );
+		expect(
+			isPageLayoutPattern( {
+				blockTypes: [ { name: 'core/post-content' } ],
+			} )
+		).toBe( true );
 	} );
 
 	test( 'groups page designs using explicit metadata and inferred titles', () => {
@@ -130,6 +162,30 @@ describe( 'page layout helpers', () => {
 				description: 'A clean &amp; flexible page.',
 			} )
 		).toBe( 'A clean & flexible page.' );
+	} );
+
+	test( 'reads pattern content from string and object records', () => {
+		expect(
+			getPatternContent( {
+				content:
+					'<!-- wp:paragraph --><p>String body</p><!-- /wp:paragraph -->',
+			} )
+		).toContain( 'String body' );
+		expect(
+			getPatternContent( {
+				content: {
+					raw: '<!-- wp:paragraph --><p>Raw body</p><!-- /wp:paragraph -->',
+				},
+			} )
+		).toContain( 'Raw body' );
+		expect(
+			getPatternContent( {
+				content: {
+					rendered:
+						'<!-- wp:paragraph --><p>Rendered body</p><!-- /wp:paragraph -->',
+				},
+			} )
+		).toContain( 'Rendered body' );
 	} );
 } );
 
