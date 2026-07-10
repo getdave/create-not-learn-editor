@@ -1515,6 +1515,11 @@ function NavigationEditStage() {
 			)
 		);
 
+	const openAddMenuItemsForTarget = ( parentClientId ) => {
+		setInsertionParentClientId( parentClientId || null );
+		setAddMode( 'more' );
+	};
+
 	const closeAddMenuItemModal = () => {
 		if ( ! isSaving ) {
 			setAddMode( null );
@@ -1826,6 +1831,7 @@ function NavigationEditStage() {
 						isAutoMenu,
 						menuTitle,
 						navigationId,
+						onAddMenuItems: openAddMenuItemsForTarget,
 						onBlocksChange: setListViewBlocks,
 						onInsertionTargetChange: setInsertionParentClientId,
 						onPendingInsertionComplete: completePendingInsertion,

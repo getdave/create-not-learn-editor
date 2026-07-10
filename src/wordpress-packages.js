@@ -39,6 +39,9 @@ import {
 	/* eslint-enable @wordpress/no-unsafe-wp-apis */
 } from '@wordpress/components';
 import {
+	/* eslint-disable @wordpress/no-unsafe-wp-apis -- Matches Gutenberg editor settings link suggestion wiring. */
+	__experimentalFetchLinkSuggestions as fetchLinkSuggestions,
+	/* eslint-enable @wordpress/no-unsafe-wp-apis */
 	store as coreDataStore,
 	useEntityBlockEditor,
 } from '@wordpress/core-data';
@@ -127,6 +130,7 @@ export {
 	escapeHTML,
 	file as fileIcon,
 	filterSortAndPaginate,
+	fetchLinkSuggestions,
 	getPath,
 	hasBlockSupport,
 	Icon,

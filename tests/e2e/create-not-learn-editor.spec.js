@@ -868,13 +868,41 @@ test.describe( 'Create Not Learn Editor', () => {
 			name: 'Block navigation structure',
 		} );
 		await expect( navigationTree ).toBeVisible();
+		const rootAppender = page.getByRole( 'button', {
+			name: 'Add menu item',
+		} );
 		await expect(
 			page.getByRole( 'button', { name: 'Add link to menu' } )
+		).toHaveCount( 0 );
+		await expect( rootAppender ).toBeVisible();
+
+		await rootAppender.click();
+		await expect(
+			page.getByRole( 'menuitem', { name: 'Add existing page' } )
 		).toBeVisible();
 		await expect(
-			page.getByRole( 'button', { name: 'Add menu item' } )
-		).toHaveCount( 0 );
-		await page.getByRole( 'button', { name: 'Add link to menu' } ).click();
+			page.getByRole( 'menuitem', { name: 'Custom link' } )
+		).toBeVisible();
+		await expect(
+			page.getByRole( 'menuitem', { name: 'Submenu' } )
+		).toBeVisible();
+		await expect(
+			page.getByRole( 'menuitem', { name: /More/ } )
+		).toBeVisible();
+		await page.getByRole( 'menuitem', { name: 'Submenu' } ).click();
+		await expect(
+			page.getByRole( 'menuitem', { name: 'Back' } )
+		).toBeVisible();
+		await expect(
+			page.getByRole( 'menuitem', { name: 'Existing page' } )
+		).toBeVisible();
+		await expect(
+			page.getByRole( 'menuitem', { name: 'Label only' } )
+		).toBeVisible();
+		await page.getByRole( 'menuitem', { name: 'Back' } ).click();
+		await page
+			.getByRole( 'menuitem', { name: 'Add existing page' } )
+			.click();
 		await expect(
 			page.getByRole( 'combobox', { name: 'Search or type URL' } )
 		).toBeVisible();
@@ -883,10 +911,44 @@ test.describe( 'Create Not Learn Editor', () => {
 			page.getByRole( 'combobox', { name: 'Search or type URL' } )
 		).toHaveCount( 0 );
 
-		await page
-			.getByRole( 'button', { name: 'Navigation menu options' } )
-			.click();
-		await page.getByRole( 'menuitem', { name: 'Add menu items' } ).click();
+		await rootAppender.click();
+		await page.getByRole( 'menuitem', { name: 'Custom link' } ).click();
+		await expect(
+			page.getByRole( 'combobox', { name: 'Search or type URL' } )
+		).toBeVisible();
+		await page.keyboard.press( 'Escape' );
+		await expect(
+			page.getByRole( 'combobox', { name: 'Search or type URL' } )
+		).toHaveCount( 0 );
+
+		const labelOnlySubmenuLabel = `Label submenu ${ Date.now() }`;
+		await rootAppender.click();
+		await page.getByRole( 'menuitem', { name: 'Submenu' } ).click();
+		await page.getByRole( 'menuitem', { name: 'Label only' } ).click();
+		await page.getByLabel( 'Submenu label' ).fill( labelOnlySubmenuLabel );
+		await page.getByRole( 'button', { name: 'Add drop-down' } ).click();
+		await expect(
+			navigationTree.getByText( labelOnlySubmenuLabel ).first()
+		).toBeVisible();
+		await expect(
+			navigationTree.getByText( 'This submenu is empty.' )
+		).toBeVisible();
+		const nestedAppender = page.getByRole( 'button', {
+			name: 'Add to submenu',
+		} );
+		await expect( nestedAppender ).toBeVisible();
+		await nestedAppender.click();
+		await page.getByRole( 'menuitem', { name: 'Custom link' } ).click();
+		await expect(
+			page.getByRole( 'combobox', { name: 'Search or type URL' } )
+		).toBeVisible();
+		await page.keyboard.press( 'Escape' );
+		await expect(
+			page.getByRole( 'combobox', { name: 'Search or type URL' } )
+		).toHaveCount( 0 );
+
+		await nestedAppender.click();
+		await page.getByRole( 'menuitem', { name: /More/ } ).click();
 		const moreDialog = page.getByRole( 'dialog', {
 			name: 'Add menu items',
 		} );

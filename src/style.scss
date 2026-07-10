@@ -1826,6 +1826,10 @@
 	text-align: start;
 }
 
+.routes-navigation-edit-list-view .block-editor-list-view-block__contents-container {
+	flex-wrap: wrap;
+}
+
 .routes-navigation-edit-list-view__loading {
 	display: flex;
 	justify-content: center;
@@ -1846,8 +1850,82 @@
 	padding: 0;
 }
 
+.routes-navigation-edit-list-view
+.list-view-appender
+.routes-navigation-edit-list-view__appender.block-editor-inserter__toggle {
+	background-color: #1e1e1e;
+	color: #fff;
+
+	&:hover,
+	&:focus {
+		background-color: #1e1e1e;
+		color: #fff;
+	}
+}
+
+.routes-navigation-edit-list-view__empty-submenu {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+	min-height: 0;
+	margin-block: 8px;
+	margin-inline: 52px 64px;
+	padding-block: 8px 12px;
+	padding-inline: 0;
+	border: 0;
+	background: transparent;
+	color: #757575;
+	font-size: 12px;
+}
+
+.routes-navigation-edit-list-view__empty-submenu .components-dropdown-menu {
+	flex-shrink: 0;
+}
+
+.routes-navigation-edit-list-view .block-editor-list-view-submenu-appender td {
+	background: rgba(var(--wp-admin-theme-color--rgb), 0.04);
+}
+
+.routes-navigation-edit-list-view
+.block-editor-list-view-submenu-appender
+.list-view-appender {
+	min-height: 48px;
+}
+
+.routes-navigation-edit-list-view
+.block-editor-list-view-submenu-appender
+.block-editor-inserter__toggle {
+	margin-inline-start: 52px;
+}
+
+.routes-navigation-edit-list-view
+.block-editor-list-view-submenu-appender
+.routes-navigation-edit-list-view__empty-submenu
+.block-editor-inserter__toggle {
+	margin-inline-start: 0;
+}
+
 .routes-navigation-edit-list-view__link-ui-popover {
 	z-index: 1000001;
+}
+
+.routes-navigation-edit-list-view__label-only-submenu-popover {
+	z-index: 1000001;
+}
+
+.routes-navigation-edit-list-view__label-only-submenu-form {
+	box-sizing: border-box;
+	width: 280px;
+	padding: 12px;
+}
+
+.routes-navigation-edit-list-view__label-only-submenu-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 12px;
 }
 
 .routes-navigation-edit__add-button.components-button {

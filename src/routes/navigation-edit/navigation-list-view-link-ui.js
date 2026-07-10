@@ -119,6 +119,7 @@ function useNavigationEntityBinding( { clientId, attributes = {} } ) {
 export default function NavigationListViewLinkUI( {
 	block,
 	insertedBlock,
+	onComplete,
 	setInsertedBlock,
 } ) {
 	const { removeBlock, updateBlockAttributes } =
@@ -195,6 +196,7 @@ export default function NavigationListViewLinkUI( {
 					clearBinding();
 				}
 
+				onComplete?.( insertedBlock, updatedAttributes );
 				setInsertedBlock( null );
 			},
 			onRemove: cleanupInsertedBlock,

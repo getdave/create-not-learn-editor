@@ -147,6 +147,22 @@ describe( 'navigation edit block helpers', () => {
 		] );
 	} );
 
+	test( 'serializes label-only submenu attributes', () => {
+		const content = serializeNavigationBlocks( [
+			createNavigationSubmenuBlock( {
+				label: 'Resources',
+				url: '#',
+			} ),
+		] );
+		const blocks = getParsedBlocks( content );
+
+		expect( blocks[ 0 ].blockName ).toBe( 'core/navigation-submenu' );
+		expect( blocks[ 0 ].attrs ).toMatchObject( {
+			label: 'Resources',
+			url: '#',
+		} );
+	} );
+
 	test( 'creates page-backed navigation link blocks', () => {
 		expect( createNavigationLinkBlockFromPage( samplePage ) ).toMatchObject(
 			{
