@@ -37,6 +37,7 @@ The shell mirrors Gutenberg's `site-editor-v2` experiment setup:
 - It avoids the normal wp-admin wrapper, sidebar, and footer.
 - It uses the Gutenberg `@wordpress/boot` package for the editor frame.
 - It uses `@wordpress/route` route modules for navigation.
+- It imports WordPress packages from `@wordpress/*` modules and relies on generated asset metadata for runtime dependencies.
 - It preserves extension points for route, menu, and boot dependency registration.
 
 The current routes are:
@@ -86,8 +87,10 @@ npm install
 Start the local WordPress environment:
 
 ```sh
-npm run wp-env start
+WP_ENV_PORT="<dev-port>" WP_ENV_TESTS_PORT="<test-port>" npm run wp-env start
 ```
+
+Use available non-default local ports for `WP_ENV_PORT` and `WP_ENV_TESTS_PORT`.
 
 The local environment uses WordPress 7.0 and installs Gutenberg 23.5.1 from the released plugin zip.
 
@@ -116,10 +119,32 @@ Generated `build/` assets and plugin zips are intentionally ignored by git. The 
 - `npm run dev` watches and rebuilds development assets.
 - `npm run start` is an alias for the same watcher.
 - `npm run build` builds production assets.
+- `npm run sync:list-view` regenerates the temporary vendored Gutenberg ListView bridge from the pinned `@wordpress/block-editor` package.
+- `npm run check:list-view` verifies the committed ListView bridge is current.
 - `npm run lint:js` runs JavaScript linting.
 - `npm run lint:css` runs stylesheet linting.
 - `npm run plugin-zip` creates an installable plugin zip.
 - `npm run wp-env` proxies to `wp-env`.
+
+## Vendored ListView Bridge
+
+Gutenberg's full ListView implementation is currently exposed only as a private `@wordpress/block-editor` API. This plugin temporarily vendors that ListView as a narrow exception to the normal no-copied-source rule.
+
+The vendored source lives in:
+
+```text
+src/vendor/gutenberg/list-view
+```
+
+Do not edit those files by hand. Regenerate them with:
+
+```sh
+npm run sync:list-view
+```
+
+The sync script copies from the installed, lockfile-pinned `@wordpress/block-editor` package, applies the minimal local patch in `patches/gutenberg-list-view.patch`, rewrites known internal imports to plugin-local compatibility shims, and writes `provenance.json` with the upstream package version, git head, copied files, and patch checksum.
+
+The local patch is limited to the prototype appender extension points (`renderAppender` and `appenderParentClientId`). When Gutenberg exposes the required ListView API publicly, replace `src/list-view.js` with the public package import and remove this bridge.
 
 ## Verification
 
@@ -127,21 +152,16 @@ Before handing off functional changes, run:
 
 ```sh
 npm run build
+npm run check:list-view
 npm run lint:js
 npm run lint:css
 find . -path ./node_modules -prune -o -path ./build -prune -o -name '*.php' -print | xargs -n1 php -l
 ```
 
-When checking runtime behavior, start wp-env and visit:
+When checking runtime behavior, start `wp-env` with explicit local ports and visit:
 
 ```text
-http://localhost:8888/wp-admin/admin.php?page=create-not-learn-editor
-```
-
-The default wp-env login is usually:
-
-```text
-admin / password
+http://localhost:<dev-port>/wp-admin/admin.php?page=create-not-learn-editor
 ```
 
 ## Repository Shape
@@ -149,14 +169,17 @@ admin / password
 - `create-not-learn-editor.php` is the plugin entry point.
 - `includes/` contains PHP bootstrap, dependency checks, admin page rendering, REST endpoints, and setup behavior.
 - `src/` contains JavaScript route modules, content surfaces, settings helpers, and styles.
-- `webpack.config.js` adapts `@wordpress/scripts` for Gutenberg script modules.
+- `routes/` contains thin `@wordpress/build` entry wrappers for the editor routes.
+- `src/list-view.js` is the stable internal wrapper around the temporary vendored ListView bridge.
+- `@wordpress/build` creates the browser bundles and asset metadata under `build/`.
 - `.wp-env.json` defines the local WordPress and Gutenberg plugin environment.
 
 ## Current Design Constraints
 
 - Do not depend on a local Gutenberg repository checkout.
-- Do not copy source from Gutenberg into this plugin.
+- Do not copy source from Gutenberg into this plugin, except for the scripted ListView bridge under `src/vendor/gutenberg/list-view`.
 - Use published `@wordpress/*` packages and runtime modules from the released Gutenberg plugin.
+- Import WordPress packages directly from `@wordpress/*`; do not access package APIs through `window.wp`.
 - Keep automatic site changes out of editor load.
 - Preserve PHP 7.4 compatibility.
 - Keep the plugin installable on the latest WordPress release once Gutenberg is installed and active.

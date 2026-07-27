@@ -167,19 +167,36 @@ add_action( CNL_EDITOR_SLUG . '_init', 'cnl_editor_register_default_routes_and_m
  * @return array App settings.
  */
 function cnl_editor_get_app_settings() {
+	$navigation_post_type = get_post_type_object( 'wp_navigation' );
+	$theme                = wp_get_theme();
+	$lazy_editor_file     = WP_PLUGIN_DIR . '/gutenberg/build/modules/lazy-editor/index.js';
+	$lazy_editor_version  = file_exists( $lazy_editor_file )
+		? filemtime( $lazy_editor_file )
+		: CNL_EDITOR_VERSION;
+
 	return array(
-		'version'          => CNL_EDITOR_VERSION,
-		'minGutenberg'    => CNL_EDITOR_MIN_GUTENBERG_VERSION,
-		'gutenbergVersion' => defined( 'GUTENBERG_VERSION' ) ? GUTENBERG_VERSION : null,
-		'restNamespace'   => CNL_EDITOR_REST_NAMESPACE,
-		'restRoot'        => esc_url_raw( rest_url() ),
-		'nonce'           => wp_create_nonce( 'wp_rest' ),
-		'adminUrl'        => admin_url(),
-		'homeUrl'         => home_url( '/' ),
-		'siteName'        => get_bloginfo( 'name' ),
-		'showOnFront'     => get_option( 'show_on_front' ),
-		'pageOnFront'     => (int) get_option( 'page_on_front' ),
-		'postTypes'       => cnl_editor_get_content_post_type_data(),
+		'version'             => CNL_EDITOR_VERSION,
+		'minGutenberg'       => CNL_EDITOR_MIN_GUTENBERG_VERSION,
+		'gutenbergVersion'   => defined( 'GUTENBERG_VERSION' ) ? GUTENBERG_VERSION : null,
+		'restNamespace'      => CNL_EDITOR_REST_NAMESPACE,
+		'restRoot'           => esc_url_raw( rest_url() ),
+		'nonce'              => wp_create_nonce( 'wp_rest' ),
+		'adminUrl'           => admin_url(),
+		'homeUrl'            => home_url( '/' ),
+		'lazyEditorModuleUrl' => add_query_arg(
+			'ver',
+			$lazy_editor_version,
+			plugins_url( 'gutenberg/build/modules/lazy-editor/index.js' )
+		),
+		'siteName'           => get_bloginfo( 'name' ),
+		'themeName'          => $theme->get( 'Name' ),
+		'showOnFront'        => get_option( 'show_on_front' ),
+		'pageOnFront'        => (int) get_option( 'page_on_front' ),
+		'postTypes'          => cnl_editor_get_content_post_type_data(),
+		'editablePostTypes'  => cnl_editor_get_editable_post_type_data(),
+		'navigationRestBase' => $navigation_post_type && $navigation_post_type->rest_base
+			? $navigation_post_type->rest_base
+			: 'navigation',
 	);
 }
 
@@ -216,6 +233,11 @@ function cnl_editor_preload_data() {
  */
 function cnl_editor_get_prerequisite_script_dependencies( $boot_asset ) {
 	$script_deps = $boot_asset['dependencies'] ?? array();
+
+	foreach ( cnl_editor_get_route_module_assets() as $asset ) {
+		$script_deps = array_merge( $script_deps, $asset['dependencies'] ?? array() );
+	}
+
 	$script_deps = array_merge(
 		$script_deps,
 		array(
@@ -238,15 +260,17 @@ function cnl_editor_get_prerequisite_script_dependencies( $boot_asset ) {
  * @return bool Whether runtime assets were found and enqueued.
  */
 function cnl_editor_enqueue_full_page_assets( $routes, $menu_items ) {
-	$asset_file = CNL_EDITOR_PATH . 'build/loader.asset.php';
+	$loader_file = CNL_EDITOR_PATH . 'build/pages/' . CNL_EDITOR_SLUG . '/loader.js';
 
-	if ( ! file_exists( $asset_file ) ) {
+	if ( ! file_exists( $loader_file ) ) {
 		return false;
 	}
 
 	if ( function_exists( 'wp_enqueue_command_palette_assets' ) ) {
 		wp_enqueue_command_palette_assets();
 	}
+
+	wp_enqueue_media();
 
 	cnl_editor_preload_data();
 	cnl_editor_register_boot_modules( $routes );
@@ -276,7 +300,7 @@ function cnl_editor_enqueue_full_page_assets( $routes, $menu_items ) {
 			wp_json_encode( 'create-not-learn-editor-app' ),
 			wp_json_encode( $menu_items, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES ),
 			wp_json_encode( $routes, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES ),
-			wp_json_encode( array(), JSON_HEX_TAG | JSON_UNESCAPED_SLASHES ),
+			wp_json_encode( array( '@create-not-learn-editor/app-init' ), JSON_HEX_TAG | JSON_UNESCAPED_SLASHES ),
 			wp_json_encode( admin_url( '/' ) )
 		),
 		'after'
@@ -299,6 +323,7 @@ function cnl_editor_enqueue_full_page_assets( $routes, $menu_items ) {
 	wp_enqueue_script( 'cnl-editor-prerequisites' );
 	wp_enqueue_script_module( CNL_EDITOR_SLUG );
 	wp_enqueue_style( 'cnl-editor-prerequisites' );
+	cnl_editor_register_lazy_editor_compat_module();
 
 	return true;
 }
@@ -382,6 +407,7 @@ function cnl_editor_render_full_page() {
 	/** This action is documented in wp-admin/admin-footer.php */
 	do_action( 'admin_footer', '' );
 
+	cnl_editor_register_lazy_editor_compat_module();
 	wp_script_modules()->print_import_map();
 	print_footer_scripts();
 	wp_script_modules()->print_enqueued_script_modules();
@@ -452,12 +478,20 @@ function cnl_editor_register_boot_modules( $routes = null ) {
 	}
 
 	foreach ( cnl_editor_get_module_map() as $module ) {
+		if ( '@wordpress/lazy-editor' === $module['id'] ) {
+			cnl_editor_register_lazy_editor_compat_module();
+			continue;
+		}
 		cnl_editor_register_script_module_from_build( $module['id'], $module['path'] );
 	}
 
 	$boot_dependencies = array(
 		array(
 			'id'     => '@wordpress/boot',
+			'import' => 'static',
+		),
+		array(
+			'id'     => '@create-not-learn-editor/app-init',
 			'import' => 'static',
 		),
 	);
@@ -490,9 +524,23 @@ function cnl_editor_register_boot_modules( $routes = null ) {
 
 	wp_register_script_module(
 		CNL_EDITOR_SLUG,
-		CNL_EDITOR_URL . 'build/loader.js',
+		CNL_EDITOR_URL . 'build/pages/' . CNL_EDITOR_SLUG . '/loader.js',
 		$boot_dependencies,
 		CNL_EDITOR_VERSION
+	);
+}
+
+/**
+ * Replace Gutenberg's affected lazy editor module with the compatibility
+ * wrapper after Gutenberg has registered its released package.
+ */
+function cnl_editor_register_lazy_editor_compat_module() {
+	// Let Gutenberg register its generated module map before replacing this ID.
+	wp_scripts();
+	wp_deregister_script_module( '@wordpress/lazy-editor' );
+	cnl_editor_register_script_module_from_build(
+		'@wordpress/lazy-editor',
+		'modules/lazy-editor-compat/index.min'
 	);
 }
 
@@ -505,7 +553,7 @@ function cnl_editor_register_boot_modules( $routes = null ) {
 function cnl_editor_register_script_module_from_build( $id, $path ) {
 	$asset_file = CNL_EDITOR_PATH . 'build/' . $path . '.asset.php';
 	$asset      = file_exists( $asset_file ) ? require $asset_file : array();
-	$deps       = $asset['module_dependencies'] ?? ( $asset['dependencies'] ?? array() );
+	$deps       = $asset['module_dependencies'] ?? array();
 
 	wp_register_script_module(
 		$id,
@@ -519,24 +567,34 @@ function cnl_editor_register_script_module_from_build( $id, $path ) {
  * Enqueue CSS emitted by the module build.
  */
 function cnl_editor_enqueue_built_styles() {
-	$style_files = glob( CNL_EDITOR_PATH . 'build/*.css' );
+	$build_path = CNL_EDITOR_PATH . 'build';
 
-	if ( ! is_array( $style_files ) ) {
+	if ( ! is_dir( $build_path ) ) {
 		return;
 	}
 
-	foreach ( $style_files as $style_file ) {
+	$iterator = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $build_path, FilesystemIterator::SKIP_DOTS )
+	);
+
+	foreach ( $iterator as $file ) {
+		if ( ! $file->isFile() || 'css' !== $file->getExtension() ) {
+			continue;
+		}
+
+		$style_file = $file->getPathname();
 		$basename = basename( $style_file );
 
 		if ( '-rtl.css' === substr( $basename, -8 ) ) {
 			continue;
 		}
 
-		$handle = 'cnl-editor-' . sanitize_key( basename( $style_file, '.css' ) );
+		$relative_path = str_replace( CNL_EDITOR_PATH . 'build/', '', $style_file );
+		$handle        = 'cnl-editor-' . sanitize_key( str_replace( array( '/', '.' ), '-', substr( $relative_path, 0, -4 ) ) );
 
 		wp_enqueue_style(
 			$handle,
-			CNL_EDITOR_URL . 'build/' . $basename,
+			CNL_EDITOR_URL . 'build/' . $relative_path,
 			array( 'wp-components' ),
 			filemtime( $style_file )
 		);
@@ -555,32 +613,108 @@ function cnl_editor_enqueue_built_styles() {
 function cnl_editor_get_module_map() {
 	return array(
 		array(
+			'id'   => '@create-not-learn-editor/app-init',
+			'path' => 'modules/app-init/index.min',
+		),
+		array(
+			'id'   => '@wordpress/lazy-editor',
+			'path' => 'modules/lazy-editor-compat/index.min',
+		),
+		array(
 			'id'   => 'create-not-learn-editor/routes/home/route',
-			'path' => 'routes/home/route',
+			'path' => 'routes/home/route.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/home/content',
-			'path' => 'routes/home/content',
+			'path' => 'routes/home/content.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/content-base/route',
+			'path' => 'routes/content-base/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/content-base/content',
+			'path' => 'routes/content-base/content.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/content/route',
-			'path' => 'routes/content/route',
+			'path' => 'routes/content/route.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/content/content',
-			'path' => 'routes/content/content',
+			'path' => 'routes/content/content.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/navigation/route',
+			'path' => 'routes/navigation/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/navigation/content',
+			'path' => 'routes/navigation/content.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/navigation-edit/route',
+			'path' => 'routes/navigation-edit/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/navigation-edit/content',
+			'path' => 'routes/navigation-edit/content.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/template-part-edit/route',
+			'path' => 'routes/template-part-edit/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/template-edit/route',
+			'path' => 'routes/template-edit/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/styles/route',
+			'path' => 'routes/styles/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/styles/content',
+			'path' => 'routes/styles/content.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/identity/route',
+			'path' => 'routes/identity/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/identity/content',
+			'path' => 'routes/identity/content.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/patterns/route',
+			'path' => 'routes/patterns/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/patterns/content',
+			'path' => 'routes/patterns/content.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/template-parts/route',
+			'path' => 'routes/template-parts/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/template-parts/content',
+			'path' => 'routes/template-parts/content.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/templates/route',
+			'path' => 'routes/templates/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/templates/content',
+			'path' => 'routes/templates/content.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/post-edit/route',
-			'path' => 'routes/post-edit/route',
+			'path' => 'routes/post-edit/route.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/post-new/route',
-			'path' => 'routes/post-new/route',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/post-new/content',
-			'path' => 'routes/post-new/content',
+			'path' => 'routes/post-new/route.min',
 		),
 	);
 }
@@ -599,8 +733,8 @@ function cnl_editor_get_routes() {
 		),
 		array(
 			'path'           => '/types/$type',
-			'route_module'   => 'create-not-learn-editor/routes/content/route',
-			'content_module' => 'create-not-learn-editor/routes/content/content',
+			'route_module'   => 'create-not-learn-editor/routes/content-base/route',
+			'content_module' => 'create-not-learn-editor/routes/content-base/content',
 		),
 		array(
 			'path'           => '/types/$type/list/$view',
@@ -612,9 +746,51 @@ function cnl_editor_get_routes() {
 			'route_module' => 'create-not-learn-editor/routes/post-edit/route',
 		),
 		array(
-			'path'           => '/types/$type/new',
-			'route_module'   => 'create-not-learn-editor/routes/post-new/route',
-			'content_module' => 'create-not-learn-editor/routes/post-new/content',
+			'path'         => '/types/$type/new',
+			'route_module' => 'create-not-learn-editor/routes/post-new/route',
+		),
+		array(
+			'path'           => '/navigation',
+			'route_module'   => 'create-not-learn-editor/routes/navigation/route',
+			'content_module' => 'create-not-learn-editor/routes/navigation/content',
+		),
+		array(
+			'path'           => '/navigation/edit/$id',
+			'route_module'   => 'create-not-learn-editor/routes/navigation-edit/route',
+			'content_module' => 'create-not-learn-editor/routes/navigation-edit/content',
+		),
+		array(
+			'path'         => '/wp_template',
+			'route_module' => 'create-not-learn-editor/routes/template-edit/route',
+		),
+		array(
+			'path'         => '/wp_template_part',
+			'route_module' => 'create-not-learn-editor/routes/template-part-edit/route',
+		),
+		array(
+			'path'           => '/styles',
+			'route_module'   => 'create-not-learn-editor/routes/styles/route',
+			'content_module' => 'create-not-learn-editor/routes/styles/content',
+		),
+		array(
+			'path'           => '/identity',
+			'route_module'   => 'create-not-learn-editor/routes/identity/route',
+			'content_module' => 'create-not-learn-editor/routes/identity/content',
+		),
+		array(
+			'path'           => '/patterns',
+			'route_module'   => 'create-not-learn-editor/routes/patterns/route',
+			'content_module' => 'create-not-learn-editor/routes/patterns/content',
+		),
+		array(
+			'path'           => '/template-parts',
+			'route_module'   => 'create-not-learn-editor/routes/template-parts/route',
+			'content_module' => 'create-not-learn-editor/routes/template-parts/content',
+		),
+		array(
+			'path'           => '/templates',
+			'route_module'   => 'create-not-learn-editor/routes/templates/route',
+			'content_module' => 'create-not-learn-editor/routes/templates/content',
 		),
 	);
 }
@@ -631,7 +807,7 @@ function cnl_editor_get_menu_items() {
 		array(
 			'id'    => 'home',
 			'icon'  => 'dashicons-admin-home',
-			'label' => __( 'Home', 'create-not-learn-editor' ),
+			'label' => __( 'Homepage', 'create-not-learn-editor' ),
 			'to'    => '/',
 		),
 		array(
@@ -652,6 +828,57 @@ function cnl_editor_get_menu_items() {
 			'parent' => 'content',
 		);
 	}
+
+	$items[] = array(
+		'id'    => 'navigation',
+		'icon'  => '',
+		'label' => __( 'Navigation Menus', 'create-not-learn-editor' ),
+		'to'    => '/navigation',
+	);
+	$items[] = array(
+		'id'          => 'design',
+		'icon'        => 'dashicons-admin-appearance',
+		'label'       => __( 'Design', 'create-not-learn-editor' ),
+		'to'          => '/styles',
+		'parent_type' => 'drilldown',
+	);
+	$items[] = array(
+		'id'     => 'styles',
+		'label'  => __( 'Styles', 'create-not-learn-editor' ),
+		'to'     => '/styles',
+		'parent' => 'design',
+	);
+	$items[] = array(
+		'id'     => 'identity',
+		'label'  => __( 'Site Identity', 'create-not-learn-editor' ),
+		'to'     => '/identity',
+		'parent' => 'design',
+	);
+	$items[] = array(
+		'id'          => 'advanced',
+		'icon'        => 'dashicons-admin-generic',
+		'label'       => __( 'Advanced', 'create-not-learn-editor' ),
+		'to'          => '/patterns',
+		'parent_type' => 'drilldown',
+	);
+	$items[] = array(
+		'id'     => 'patterns',
+		'label'  => __( 'Patterns', 'create-not-learn-editor' ),
+		'to'     => '/patterns',
+		'parent' => 'advanced',
+	);
+	$items[] = array(
+		'id'     => 'templateParts',
+		'label'  => __( 'Template Parts', 'create-not-learn-editor' ),
+		'to'     => '/template-parts',
+		'parent' => 'advanced',
+	);
+	$items[] = array(
+		'id'     => 'templates',
+		'label'  => __( 'Templates', 'create-not-learn-editor' ),
+		'to'     => '/templates',
+		'parent' => 'advanced',
+	);
 
 	return $items;
 }

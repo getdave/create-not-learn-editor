@@ -239,6 +239,8 @@ function cnl_editor_get_static_front_page_preview_context( $post_id ) {
 			__( 'Home (%s)', 'create-not-learn-editor' ),
 			$page_title
 		);
+	$context['previewDocumentStatus']      = 'home-static';
+	$context['previewDocumentStatusLabel'] = __( 'Home (Static)', 'create-not-learn-editor' );
 
 	return $context;
 }
@@ -265,6 +267,8 @@ function cnl_editor_get_front_page_preview_context() {
 		'previewEditLabel'   => __( 'Edit template', 'create-not-learn-editor' ),
 		'previewCanEdit'     => false,
 		'previewTone'        => 'global',
+		'previewDocumentStatus'      => 'home-latest-posts',
+		'previewDocumentStatusLabel' => __( 'Home (Latest Posts)', 'create-not-learn-editor' ),
 	);
 }
 
@@ -291,12 +295,25 @@ function cnl_editor_get_preview_context( $url ) {
 	$post_id = url_to_postid( $url );
 	if ( $post_id ) {
 		$page_on_front = (int) get_option( 'page_on_front' );
+		$page_for_posts = (int) get_option( 'page_for_posts' );
 		if (
 			'page' === get_option( 'show_on_front' ) &&
 			$page_on_front &&
 			$post_id === $page_on_front
 		) {
 			return cnl_editor_get_static_front_page_preview_context( $post_id );
+		}
+
+		if ( $page_for_posts && $post_id === $page_for_posts ) {
+			$context = cnl_editor_get_post_preview_context( $post_id, 'posts-page' );
+			if ( empty( $context ) ) {
+				return array();
+			}
+
+			$context['previewDocumentStatus']      = 'posts-page';
+			$context['previewDocumentStatusLabel'] = __( 'Posts Page', 'create-not-learn-editor' );
+
+			return $context;
 		}
 
 		return cnl_editor_get_post_preview_context( $post_id );

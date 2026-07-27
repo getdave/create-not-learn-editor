@@ -1,0 +1,1 @@
+{ "route": { "path": "/types/$type/list/$view", "page": "create-not-learn-editor" } }

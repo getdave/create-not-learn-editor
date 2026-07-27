@@ -1,0 +1,227 @@
+diff --git a/src/vendor/gutenberg/list-view/appender.js b/src/vendor/gutenberg/list-view/appender.js
+index 0000000..0000000 100644
+--- a/src/vendor/gutenberg/list-view/appender.js
++++ b/src/vendor/gutenberg/list-view/appender.js
+@@ -18,7 +18,10 @@ import AriaReferencedText from './aria-referenced-text';
+ import { unlock } from './compat/lock-unlock';
+ 
+ export const Appender = forwardRef(
+-	( { nestingLevel, blockCount, clientId, ...props }, ref ) => {
++	(
++		{ nestingLevel, blockCount, clientId, renderAppender, ...props },
++		ref
++	) => {
+ 		const { insertedBlock, setInsertedBlock } = useListViewContext();
+ 
+ 		const instanceId = useInstanceId( Appender );
+@@ -65,7 +68,10 @@ export const Appender = forwardRef(
+ 			);
+ 		}, [ insertedBlockTitle ] );
+ 
+-		if ( hideInserter ) {
++		// The generic inserter must respect template locks and zoom-out mode,
++		// but private List View consumers can provide a custom appender that
++		// handles its own insertion rules. Do not suppress that escape hatch.
++		if ( hideInserter && ! renderAppender ) {
+ 			return null;
+ 		}
+ 
+@@ -80,22 +86,36 @@ export const Appender = forwardRef(
+ 
+ 		return (
+ 			<div className="list-view-appender">
+-				<Inserter
+-					ref={ ref }
+-					rootClientId={ clientId }
+-					position="bottom right"
+-					isAppender
+-					selectBlockOnInsert={ false }
+-					shouldDirectInsert={ directInsert }
+-					__experimentalIsQuick
+-					{ ...props }
+-					toggleProps={ { 'aria-describedby': descriptionId } }
+-					onSelectOrClose={ ( maybeInsertedBlock ) => {
+-						if ( maybeInsertedBlock?.clientId ) {
+-							setInsertedBlock( maybeInsertedBlock );
+-						}
+-					} }
+-				/>
++				{ renderAppender ? (
++					// Private escape hatch for specialized list views that need
++					// the appender row/focus semantics without the generic Inserter UI.
++					renderAppender( {
++						clientId,
++						nestingLevel,
++						blockCount,
++						descriptionId,
++						ref,
++						setInsertedBlock,
++						...props,
++					} )
++				) : (
++					<Inserter
++						ref={ ref }
++						rootClientId={ clientId }
++						position="bottom right"
++						isAppender
++						selectBlockOnInsert={ false }
++						shouldDirectInsert={ directInsert }
++						__experimentalIsQuick
++						{ ...props }
++						toggleProps={ { 'aria-describedby': descriptionId } }
++						onSelectOrClose={ ( maybeInsertedBlock ) => {
++							if ( maybeInsertedBlock?.clientId ) {
++								setInsertedBlock( maybeInsertedBlock );
++							}
++						} }
++					/>
++				) }
+ 				<AriaReferencedText id={ descriptionId }>
+ 					{ description }
+ 				</AriaReferencedText>
+diff --git a/src/vendor/gutenberg/list-view/branch.js b/src/vendor/gutenberg/list-view/branch.js
+index 0000000..0000000 100644
+--- a/src/vendor/gutenberg/list-view/branch.js
++++ b/src/vendor/gutenberg/list-view/branch.js
+@@ -99,6 +99,8 @@ function ListViewBranch( props ) {
+ 		shouldShowInnerBlocks = true,
+ 		isSyncedBranch = false,
+ 		showAppender: showAppenderProp = true,
++		renderAppender,
++		appenderParentClientId,
+ 	} = props;
+ 
+ 	const parentBlockInformation = useBlockDisplayInformation( parentId );
+@@ -129,8 +131,18 @@ function ListViewBranch( props ) {
+ 		return null;
+ 	}
+ 
+-	// Only show the appender at the first level.
+-	const showAppender = showAppenderProp && level === 1;
++	const shouldShowNestedAppender =
++		!! parentId && parentId === appenderParentClientId;
++	const shouldHideCurrentAppender = level === 1 && !! appenderParentClientId;
++	// List View normally shows the appender only at the first level. The
++	// optional explicit parent id lets specialized private List View consumers
++	// expose an appender for one nested branch, such as the selected Navigation
++	// submenu. An id is more reliable than deriving this from selection inside
++	// every recursive branch, because empty branches still need to be mounted.
++	const showAppender =
++		showAppenderProp &&
++		! shouldHideCurrentAppender &&
++		( level === 1 || shouldShowNestedAppender );
+ 	const filteredBlocks = blocks.filter( Boolean );
+ 	const blockCount = filteredBlocks.length;
+ 	// The appender means an extra row in List View, so add 1 to the row count.
+@@ -189,6 +201,8 @@ function ListViewBranch( props ) {
+ 				);
+ 				const isSelectedBranch =
+ 					isBranchSelected || ( isSelected && hasNestedBlocks );
++				const shouldShowChildAppender =
++					clientId === appenderParentClientId;
+ 
+ 				// To avoid performance issues, we only render blocks that are in view,
+ 				// or blocks that are selected or dragged. If a block is selected,
+@@ -233,22 +247,29 @@ function ListViewBranch( props ) {
+ 								<td className="block-editor-list-view-placeholder" />
+ 							</tr>
+ 						) }
+-						{ hasNestedBlocks && shouldExpand && ! isDragged && (
+-							<ListViewBranch
+-								parentId={ clientId }
+-								blocks={ innerBlocks }
+-								selectBlock={ selectBlock }
+-								showBlockMovers={ showBlockMovers }
+-								level={ level + 1 }
+-								path={ updatedPath }
+-								listPosition={ nextPositionRef.current + 1 }
+-								fixedListWindow={ fixedListWindow }
+-								isBranchSelected={ isSelectedBranch }
+-								selectedClientIds={ selectedClientIds }
+-								isExpanded={ isExpanded }
+-								isSyncedBranch={ syncedBranch }
+-							/>
+-						) }
++						{ ( ( hasNestedBlocks && shouldExpand ) ||
++							shouldShowChildAppender ) &&
++							! isDragged && (
++								<ListViewBranch
++									parentId={ clientId }
++									blocks={ innerBlocks || [] }
++									selectBlock={ selectBlock }
++									showBlockMovers={ showBlockMovers }
++									level={ level + 1 }
++									path={ updatedPath }
++									listPosition={ nextPositionRef.current + 1 }
++									fixedListWindow={ fixedListWindow }
++									isBranchSelected={ isSelectedBranch }
++									selectedClientIds={ selectedClientIds }
++									isExpanded={ isExpanded }
++									isSyncedBranch={ syncedBranch }
++									showAppender={ showAppenderProp }
++									renderAppender={ renderAppender }
++									appenderParentClientId={
++										appenderParentClientId
++									}
++								/>
++							) }
+ 					</AsyncModeProvider>
+ 				);
+ 			} ) }
+@@ -257,14 +278,22 @@ function ListViewBranch( props ) {
+ 					level={ level }
+ 					setSize={ rowCount }
+ 					positionInSet={ rowCount }
++					className={
++						shouldShowNestedAppender
++							? 'block-editor-list-view-submenu-appender'
++							: undefined
++					}
+ 					isExpanded
+ 				>
+-					<TreeGridCell>
++					<TreeGridCell
++						colSpan={ shouldShowNestedAppender ? 2 : undefined }
++					>
+ 						{ ( treeGridCellProps ) => (
+ 							<Appender
+ 								clientId={ parentId }
+ 								nestingLevel={ level }
+ 								blockCount={ blockCount }
++								renderAppender={ renderAppender }
+ 								{ ...treeGridCellProps }
+ 							/>
+ 						) }
+diff --git a/src/vendor/gutenberg/list-view/index.js b/src/vendor/gutenberg/list-view/index.js
+index 0000000..0000000 100644
+--- a/src/vendor/gutenberg/list-view/index.js
++++ b/src/vendor/gutenberg/list-view/index.js
+@@ -81,6 +81,10 @@ export const BLOCK_LIST_ITEM_HEIGHT = 32;
+  * @param {string}         props.description            Optional accessible description for the tree grid component.
+  * @param {?Function}      props.onSelect               Optional callback to be invoked when a block is selected. Receives the block object that was selected.
+  * @param {?ComponentType} props.additionalBlockContent Component that renders additional block content UI.
++ * @param {?Function}      props.renderAppender         Optional private appender substitution for specialized list views.
++ *                                                      This is intentionally private because custom appenders need to
++ *                                                      preserve List View tree semantics while replacing Inserter UI.
++ * @param {?string}        props.appenderParentClientId Optional private target for showing the appender on a nested branch.
+  * @param {Ref}            ref                          Forwarded ref
+  */
+ function ListViewComponent(
+@@ -96,6 +100,8 @@ function ListViewComponent(
+ 		description,
+ 		onSelect,
+ 		additionalBlockContent: AdditionalBlockContent,
++		renderAppender,
++		appenderParentClientId,
+ 	},
+ 	ref
+ ) {
+@@ -395,6 +401,8 @@ function ListViewComponent(
+ 						selectedClientIds={ selectedClientIds }
+ 						isExpanded={ isExpanded }
+ 						showAppender={ showAppender }
++						renderAppender={ renderAppender }
++						appenderParentClientId={ appenderParentClientId }
+ 					/>
+ 				</ListViewContext.Provider>
+ 			</TreeGrid>
