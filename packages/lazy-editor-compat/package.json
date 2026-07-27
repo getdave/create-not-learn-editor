@@ -1,0 +1,12 @@
+{
+	"name": "@create-not-learn-editor/lazy-editor-compat",
+	"version": "0.1.0",
+	"private": true,
+	"dependencies": {
+		"@wordpress/blocks": "^15.23.0",
+		"@wordpress/core-data": "^7.23.0",
+		"@wordpress/data": "^10.50.0",
+		"@wordpress/element": "^8.2.0"
+	},
+	"wpScriptModuleExports": "./src/index.js"
+}

@@ -61,6 +61,18 @@ async function getAddPageFormPreviewFrameTexts( page ) {
 	return getPreviewFrameTexts( page, '.cnl-add-page-form__preview iframe' );
 }
 
+async function getEditorCanvasFrame( page ) {
+	const iframe = page.locator( 'iframe[name="editor-canvas"]' );
+	await expect( iframe ).toBeVisible( { timeout: 15000 } );
+
+	const frame = await ( await iframe.elementHandle() ).contentFrame();
+	if ( ! frame ) {
+		throw new Error( 'Editor canvas frame was not available.' );
+	}
+
+	return frame;
+}
+
 async function expectSnackbar( page, message ) {
 	await expect(
 		page.locator( '.components-snackbar' ).getByText( message )
@@ -778,9 +790,10 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect(
 			stage.getByText( /Templates control the layout used by pages/ )
 		).toBeVisible();
-		await expect(
-			stage.locator( '.routes-post-list__template-card' ).first()
-		).toBeVisible( { timeout: 10000 } );
+		const firstTemplateCard = stage
+			.locator( '.routes-post-list__template-card' )
+			.first();
+		await expect( firstTemplateCard ).toBeVisible( { timeout: 10000 } );
 		await expect(
 			stage.locator( '.routes-post-list__dataviews-toolbar' )
 		).toHaveCount( 0 );
@@ -789,10 +802,28 @@ test.describe( 'Create Not Learn Editor', () => {
 			name: 'Edit template',
 		} );
 		await expect( editTemplateButton ).toBeEnabled( { timeout: 10000 } );
+		await firstTemplateCard.click();
+		const previewFrame = await getEditorCanvasFrame( page );
+		await expect
+			.poll(
+				() =>
+					previewFrame
+						.locator( 'body' )
+						.evaluate(
+							( body ) =>
+								window.getComputedStyle( body ).fontFamily
+						),
+				{ timeout: 15000 }
+			)
+			.not.toContain( 'Times New Roman' );
 
+		const openTemplateEditor = page.getByRole( 'button', {
+			name: 'Click to edit',
+		} );
+		await expect( openTemplateEditor ).toBeVisible();
 		await Promise.all( [
 			page.waitForURL( /p=.*%2Fwp_template%3FpostId%3D/ ),
-			editTemplateButton.click(),
+			openTemplateEditor.click(),
 		] );
 		await expect(
 			page.locator(
@@ -810,6 +841,45 @@ test.describe( 'Create Not Learn Editor', () => {
 				)
 				.first()
 		).toBeVisible( { timeout: 15000 } );
+	} );
+
+	test( 'loads page content and theme styles in the editor canvas', async ( {
+		page,
+	} ) => {
+		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
+		const testPage = await createPreviewTestPage( page );
+
+		await page.goto(
+			`/wp-admin/admin.php?page=create-not-learn-editor&p=${ encodeURIComponent(
+				`/types/page/edit/${ testPage.id }`
+			) }`
+		);
+
+		const editorFrame = await getEditorCanvasFrame( page );
+		await expect( editorFrame.getByText( testPage.body ) ).toBeVisible( {
+			timeout: 15000,
+		} );
+		await expect
+			.poll( () =>
+				page.evaluate( ( postId ) => {
+					return window.wp.data
+						.select( window.wp.coreData.store )
+						.hasEditsForEntityRecord( 'postType', 'page', postId );
+				}, testPage.id )
+			)
+			.toBe( false );
+		await expect
+			.poll(
+				() =>
+					editorFrame
+						.locator( 'body' )
+						.evaluate(
+							( body ) =>
+								window.getComputedStyle( body ).fontFamily
+						),
+				{ timeout: 15000 }
+			)
+			.not.toContain( 'Times New Roman' );
 	} );
 
 	test( 'selects a navigation menu preview and opens explicit edit actions', async ( {

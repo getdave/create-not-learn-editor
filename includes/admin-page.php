@@ -169,21 +169,30 @@ add_action( CNL_EDITOR_SLUG . '_init', 'cnl_editor_register_default_routes_and_m
 function cnl_editor_get_app_settings() {
 	$navigation_post_type = get_post_type_object( 'wp_navigation' );
 	$theme                = wp_get_theme();
+	$lazy_editor_file     = WP_PLUGIN_DIR . '/gutenberg/build/modules/lazy-editor/index.js';
+	$lazy_editor_version  = file_exists( $lazy_editor_file )
+		? filemtime( $lazy_editor_file )
+		: CNL_EDITOR_VERSION;
 
 	return array(
-		'version'            => CNL_EDITOR_VERSION,
-		'minGutenberg'      => CNL_EDITOR_MIN_GUTENBERG_VERSION,
-		'gutenbergVersion'  => defined( 'GUTENBERG_VERSION' ) ? GUTENBERG_VERSION : null,
-		'restNamespace'     => CNL_EDITOR_REST_NAMESPACE,
-		'restRoot'          => esc_url_raw( rest_url() ),
-		'nonce'             => wp_create_nonce( 'wp_rest' ),
-		'adminUrl'          => admin_url(),
-		'homeUrl'           => home_url( '/' ),
-		'siteName'          => get_bloginfo( 'name' ),
-		'themeName'         => $theme->get( 'Name' ),
-		'showOnFront'       => get_option( 'show_on_front' ),
-		'pageOnFront'       => (int) get_option( 'page_on_front' ),
-		'postTypes'         => cnl_editor_get_content_post_type_data(),
+		'version'             => CNL_EDITOR_VERSION,
+		'minGutenberg'       => CNL_EDITOR_MIN_GUTENBERG_VERSION,
+		'gutenbergVersion'   => defined( 'GUTENBERG_VERSION' ) ? GUTENBERG_VERSION : null,
+		'restNamespace'      => CNL_EDITOR_REST_NAMESPACE,
+		'restRoot'           => esc_url_raw( rest_url() ),
+		'nonce'              => wp_create_nonce( 'wp_rest' ),
+		'adminUrl'           => admin_url(),
+		'homeUrl'            => home_url( '/' ),
+		'lazyEditorModuleUrl' => add_query_arg(
+			'ver',
+			$lazy_editor_version,
+			plugins_url( 'gutenberg/build/modules/lazy-editor/index.js' )
+		),
+		'siteName'           => get_bloginfo( 'name' ),
+		'themeName'          => $theme->get( 'Name' ),
+		'showOnFront'        => get_option( 'show_on_front' ),
+		'pageOnFront'        => (int) get_option( 'page_on_front' ),
+		'postTypes'          => cnl_editor_get_content_post_type_data(),
 		'editablePostTypes'  => cnl_editor_get_editable_post_type_data(),
 		'navigationRestBase' => $navigation_post_type && $navigation_post_type->rest_base
 			? $navigation_post_type->rest_base
@@ -314,6 +323,7 @@ function cnl_editor_enqueue_full_page_assets( $routes, $menu_items ) {
 	wp_enqueue_script( 'cnl-editor-prerequisites' );
 	wp_enqueue_script_module( CNL_EDITOR_SLUG );
 	wp_enqueue_style( 'cnl-editor-prerequisites' );
+	cnl_editor_register_lazy_editor_compat_module();
 
 	return true;
 }
@@ -397,6 +407,7 @@ function cnl_editor_render_full_page() {
 	/** This action is documented in wp-admin/admin-footer.php */
 	do_action( 'admin_footer', '' );
 
+	cnl_editor_register_lazy_editor_compat_module();
 	wp_script_modules()->print_import_map();
 	print_footer_scripts();
 	wp_script_modules()->print_enqueued_script_modules();
@@ -467,6 +478,10 @@ function cnl_editor_register_boot_modules( $routes = null ) {
 	}
 
 	foreach ( cnl_editor_get_module_map() as $module ) {
+		if ( '@wordpress/lazy-editor' === $module['id'] ) {
+			cnl_editor_register_lazy_editor_compat_module();
+			continue;
+		}
 		cnl_editor_register_script_module_from_build( $module['id'], $module['path'] );
 	}
 
@@ -512,6 +527,20 @@ function cnl_editor_register_boot_modules( $routes = null ) {
 		CNL_EDITOR_URL . 'build/pages/' . CNL_EDITOR_SLUG . '/loader.js',
 		$boot_dependencies,
 		CNL_EDITOR_VERSION
+	);
+}
+
+/**
+ * Replace Gutenberg's affected lazy editor module with the compatibility
+ * wrapper after Gutenberg has registered its released package.
+ */
+function cnl_editor_register_lazy_editor_compat_module() {
+	// Let Gutenberg register its generated module map before replacing this ID.
+	wp_scripts();
+	wp_deregister_script_module( '@wordpress/lazy-editor' );
+	cnl_editor_register_script_module_from_build(
+		'@wordpress/lazy-editor',
+		'modules/lazy-editor-compat/index.min'
 	);
 }
 
@@ -586,6 +615,10 @@ function cnl_editor_get_module_map() {
 		array(
 			'id'   => '@create-not-learn-editor/app-init',
 			'path' => 'modules/app-init/index.min',
+		),
+		array(
+			'id'   => '@wordpress/lazy-editor',
+			'path' => 'modules/lazy-editor-compat/index.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/home/route',
