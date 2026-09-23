@@ -1511,6 +1511,13 @@ function Stage() {
 			return;
 		}
 
+		if ( ! type.blockEditor ) {
+			if ( type.newUrl ) {
+				window.open( type.newUrl, '_blank', 'noopener,noreferrer' );
+			}
+			return;
+		}
+
 		navigate( {
 			to: `/types/${ type.name }/new`,
 		} );
