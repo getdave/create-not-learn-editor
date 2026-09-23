@@ -20,8 +20,8 @@ import {
 	DataViews,
 	DropdownMenu,
 	EmptyState,
-	HStack,
 	Icon,
+	InputControl,
 	layoutIcon,
 	MenuItem,
 	Modal,
@@ -31,7 +31,7 @@ import {
 	Notice,
 	Page,
 	Spinner,
-	TextControl,
+	Stack,
 	__,
 	_n,
 	el,
@@ -41,7 +41,6 @@ import {
 	useMemo,
 	useSelect,
 	useState,
-	VStack,
 } from '../../wordpress-packages';
 import {
 	assignNavigationMenuToFirstBlock,
@@ -424,11 +423,10 @@ function RenameNavigationMenuModal( {
 			onRequestClose: onClose,
 			title: __( 'Rename navigation menu' ),
 		},
-		el( TextControl, {
-			__next40pxDefaultSize: true,
+		el( InputControl, {
 			disabled: isSaving,
 			label: __( 'Name' ),
-			onChange: onChangeTitle,
+			onValueChange: onChangeTitle,
 			value: title,
 		} ),
 		el(
@@ -695,14 +693,13 @@ function AddNavigationModal( { onClose } ) {
 				onSubmit: submit,
 			},
 			el(
-				VStack,
-				{ spacing: 4 },
-				el( TextControl, {
-					__next40pxDefaultSize: true,
+				Stack,
+				{ direction: 'column', gap: 'lg' },
+				el( InputControl, {
 					autoComplete: 'off',
 					disabled: isBusy,
 					label: __( 'Name' ),
-					onChange: setMenuTitle,
+					onValueChange: setMenuTitle,
 					placeholder: __( 'Enter menu name' ),
 					value: menuTitle,
 				} ),
@@ -717,8 +714,8 @@ function AddNavigationModal( { onClose } ) {
 					onChange: setAutoSyncWithPages,
 				} ),
 				el(
-					HStack,
-					{ justify: 'right', spacing: 2 },
+					Stack,
+					{ align: 'center', gap: 'sm', justify: 'flex-end' },
 					el(
 						Button,
 						{

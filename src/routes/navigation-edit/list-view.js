@@ -9,10 +9,10 @@ import {
 	Button,
 	el,
 	fetchLinkSuggestions,
+	InputControl,
 	Popover,
 	sprintf,
 	Spinner,
-	TextControl,
 	useCallback,
 	useEditorAssets,
 	useEditorSettings,
@@ -339,11 +339,10 @@ function NavigationListViewContent( {
 							saveLabelOnlySubmenu();
 						},
 					},
-					el( TextControl, {
-						__next40pxDefaultSize: true,
+					el( InputControl, {
 						autoComplete: 'off',
 						label: __( 'Submenu label' ),
-						onChange: setLabelOnlySubmenuLabel,
+						onValueChange: setLabelOnlySubmenuLabel,
 						value: labelOnlySubmenuLabel,
 					} ),
 					el(

@@ -36,6 +36,7 @@ import {
 	DropdownMenu,
 	EmptyState,
 	Icon,
+	InputControl,
 	MenuItem,
 	Modal,
 	Notice,
@@ -43,7 +44,6 @@ import {
 	SelectControl,
 	Spinner,
 	Tabs,
-	TextControl,
 	__,
 	el,
 	layoutIcon,
@@ -1140,13 +1140,12 @@ function AddPageFlow( { onClose, templates } ) {
 								} )
 							)
 						),
-					el( TextControl, {
-						__next40pxDefaultSize: true,
+					el( InputControl, {
 						autoComplete: 'off',
 						className: 'cnl-add-page-form__title',
 						disabled: isBusy,
 						label: __( 'Page title' ),
-						onChange: setPageTitle,
+						onValueChange: setPageTitle,
 						placeholder: __( 'Enter page title' ),
 						required: true,
 						value: pageTitle,

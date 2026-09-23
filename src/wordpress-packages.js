@@ -26,19 +26,17 @@ import {
 	CheckboxControl,
 	Dropdown,
 	DropdownMenu,
-	Icon,
+	/*
+	 * The design system's `Icon` only renders SVG elements. Block icons can also
+	 * be dashicon strings or components, so those call sites keep this one.
+	 */
+	Icon as LegacyIcon,
 	MenuGroup,
 	MenuItem,
 	Modal,
 	Notice,
 	Popover,
 	SelectControl,
-	Spinner,
-	TextControl,
-	/* eslint-disable @wordpress/no-unsafe-wp-apis -- Matches the prototype's modal layout components. */
-	__experimentalHStack as HStack,
-	__experimentalVStack as VStack,
-	/* eslint-enable @wordpress/no-unsafe-wp-apis */
 } from '@wordpress/components';
 import {
 	/* eslint-disable @wordpress/no-unsafe-wp-apis -- Matches Gutenberg editor settings link suggestion wiring. */
@@ -103,7 +101,14 @@ import {
 import { useEditorAssets, useEditorSettings } from '@wordpress/lazy-editor';
 import { MediaUpload } from '@wordpress/media-utils';
 import { store as noticesStore } from '@wordpress/notices';
-import { EmptyState, Tabs } from '@wordpress/ui';
+import {
+	EmptyState,
+	Icon,
+	InputControl,
+	Spinner,
+	Stack,
+	Tabs,
+} from '@wordpress/ui';
 import { addQueryArgs, getPath, safeDecodeURI } from '@wordpress/url';
 
 export {
@@ -147,12 +152,13 @@ export {
 	hasBlockSupport,
 	home as homeIcon,
 	Icon,
+	InputControl,
 	image as imageIcon,
 	layout as layoutIcon,
+	LegacyIcon,
 	LinkControl,
 	link as linkIcon,
 	customLink as customLinkIcon,
-	HStack,
 	MenuGroup,
 	MenuItem,
 	MediaUpload,
@@ -180,10 +186,10 @@ export {
 	serialize,
 	settingsIcon,
 	Spinner,
+	Stack,
 	sprintf,
 	tablet as tabletIcon,
 	Tabs,
-	TextControl,
 	trash as trashIcon,
 	update as updateIcon,
 	useBlockBindingsUtils,
@@ -198,7 +204,6 @@ export {
 	useRef,
 	useSelect,
 	useState,
-	VStack,
 	__,
 	_n,
 };
