@@ -1,18 +1,11 @@
-/**
- * WordPress dependencies
- */
 import { useInstanceId } from '@wordpress/compose';
 import { speak } from '@wordpress/a11y';
 import { useSelect } from '@wordpress/data';
 import { forwardRef, useEffect } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
-
-/**
- * Internal dependencies
- */
 import { store as blockEditorStore } from './compat/block-editor-store';
 import useBlockDisplayTitle from './compat/use-block-display-title';
-import { useListViewContext } from './context';
+import { useInsertedBlockClientId, useListViewContext } from './context';
 import Inserter from './compat/inserter';
 import AriaReferencedText from './aria-referenced-text';
 import { unlock } from './compat/lock-unlock';
@@ -22,7 +15,8 @@ export const Appender = forwardRef(
 		{ nestingLevel, blockCount, clientId, renderAppender, ...props },
 		ref
 	) => {
-		const { insertedBlock, setInsertedBlock } = useListViewContext();
+		const { setInsertedBlockClientId } = useListViewContext();
+		const insertedBlockClientId = useInsertedBlockClientId();
 
 		const instanceId = useInstanceId( Appender );
 		const { directInsert, hideInserter } = useSelect(
@@ -49,7 +43,7 @@ export const Appender = forwardRef(
 		} );
 
 		const insertedBlockTitle = useBlockDisplayTitle( {
-			clientId: insertedBlock?.clientId,
+			clientId: insertedBlockClientId,
 			context: 'list-view',
 		} );
 
@@ -95,7 +89,7 @@ export const Appender = forwardRef(
 						blockCount,
 						descriptionId,
 						ref,
-						setInsertedBlock,
+						setInsertedBlockClientId,
 						...props,
 					} )
 				) : (
@@ -111,7 +105,9 @@ export const Appender = forwardRef(
 						toggleProps={ { 'aria-describedby': descriptionId } }
 						onSelectOrClose={ ( maybeInsertedBlock ) => {
 							if ( maybeInsertedBlock?.clientId ) {
-								setInsertedBlock( maybeInsertedBlock );
+								setInsertedBlockClientId(
+									maybeInsertedBlock.clientId
+								);
 							}
 						} }
 					/>

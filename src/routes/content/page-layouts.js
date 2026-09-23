@@ -48,7 +48,7 @@ export function replacePreviewTitleInBlocks(
 		const innerBlocksResult = block.innerBlocks?.length
 			? replacePreviewTitleInBlocks( block.innerBlocks, nextTitle, {
 					allowParagraph,
-			  } )
+				} )
 			: { blocks: block.innerBlocks, didReplace: false };
 
 		if ( innerBlocksResult.didReplace ) {
@@ -421,7 +421,7 @@ export function getSelectedTemplateContent( templates, selectedTemplateSlug ) {
 				( template ) =>
 					template.slug === selectedTemplateSlug ||
 					String( template.id ) === String( selectedTemplateSlug )
-		  )
+			)
 		: undefined;
 
 	return (
@@ -473,7 +473,7 @@ export function getPatternPreviewContentWithTitle(
 			? headingResult
 			: replacePreviewTitleInBlocks( blocks, nextTitle, {
 					allowParagraph: true,
-			  } );
+				} );
 
 		return result.didReplace ? serialize( result.blocks ) : previewContent;
 	} catch {

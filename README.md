@@ -66,7 +66,7 @@ That action creates or reuses a Home page, sets it as the static homepage, and e
 
 - WordPress 7.0 or newer.
 - PHP 7.4 or newer.
-- Gutenberg plugin 23.5.1 or newer.
+- Gutenberg plugin 24.0.0 or newer.
 
 The plugin header declares:
 
@@ -74,7 +74,7 @@ The plugin header declares:
 Requires Plugins: gutenberg
 ```
 
-WordPress plugin dependencies do not support minimum dependency versions, so the plugin also checks `GUTENBERG_VERSION >= 23.5.1` at runtime. If Gutenberg is missing or too old, the editor page is not registered and an admin notice is shown.
+WordPress plugin dependencies do not support minimum dependency versions, so the plugin also checks `GUTENBERG_VERSION >= 24.0.0` at runtime. If Gutenberg is missing or too old, the editor page is not registered and an admin notice is shown.
 
 ## Development
 
@@ -92,7 +92,7 @@ WP_ENV_PORT="<dev-port>" WP_ENV_TESTS_PORT="<test-port>" npm run wp-env start
 
 Use available non-default local ports for `WP_ENV_PORT` and `WP_ENV_TESTS_PORT`.
 
-The local environment uses WordPress 7.0 and installs Gutenberg 23.5.1 from the released plugin zip.
+The local environment uses WordPress 7.0 and installs Gutenberg 24.0.0 from the released plugin zip.
 
 Run the development build watcher:
 

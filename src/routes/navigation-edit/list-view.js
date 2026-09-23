@@ -73,7 +73,7 @@ function getLabelOnlySubmenuPopoverAnchor( listViewElement, clientId ) {
 						rect.top,
 						Math.min( rect.width, 240 ),
 						rect.height
-				  )
+					)
 				: rect;
 		},
 	};
@@ -151,7 +151,7 @@ function NavigationListViewContent( {
 			pendingInsertion
 				? select( blockEditorStore ).getBlocks(
 						pendingInsertionRootClientId
-				  )
+					)
 				: EMPTY_ARRAY,
 		[ pendingInsertion, pendingInsertionRootClientId ]
 	);
@@ -284,12 +284,12 @@ function NavigationListViewContent( {
 				/* translators: %s: Navigation menu title. */
 				__( 'Auto-generated structure for Navigation Menu: %s' ),
 				menuTitle
-		  )
+			)
 		: sprintf(
 				/* translators: %s: Navigation menu title. */
 				__( 'Structure for Navigation Menu: %s' ),
 				menuTitle
-		  );
+			);
 
 	return el(
 		'div',

@@ -1,12 +1,5 @@
-/**
- * WordPress dependencies
- */
 import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
 import { useRefEffect } from '@wordpress/compose';
-
-/**
- * Internal dependencies
- */
 import { store as blockEditorStore } from './compat/block-editor-store';
 import { useNotifyCopy } from './compat/use-notify-copy';
 import { focusListItem } from './utils';
