@@ -1922,6 +1922,92 @@
 	font-size: 12px;
 }
 
+/*
+ * The menu canvas stacks a fixed header over whichever view is showing, plus an
+ * optional notice between them, so it lays out as a column rather than with the
+ * two-row grid `.cnl-editor-canvas` uses.
+ */
+.routes-navigation-canvas {
+	display: flex;
+	flex-direction: column;
+	background: #fff;
+}
+
+.routes-navigation-canvas-toolbar {
+	gap: 16px;
+	flex: 0 0 auto;
+}
+
+.routes-navigation-canvas-toolbar__document {
+	min-width: 0;
+}
+
+.routes-navigation-canvas-toolbar__title {
+	margin: 0;
+	overflow: hidden;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.4;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.routes-navigation-canvas-toolbar__meta {
+	margin: 2px 0 0;
+	color: #646970;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.routes-navigation-canvas-toolbar__actions {
+	display: flex;
+	flex: 0 0 auto;
+	gap: 8px;
+	align-items: center;
+}
+
+/*
+ * Separated from the controls to its left because it switches the whole canvas
+ * rather than acting on what is in it, and anchored last so it stays put when
+ * the device switcher comes and goes.
+ */
+.routes-navigation-canvas-toolbar__preview-toggle.components-base-control {
+	margin-bottom: 0;
+	padding-left: 16px;
+	border-left: 1px solid #dcdcde;
+
+	.components-base-control__field {
+		margin-bottom: 0;
+	}
+
+	.components-toggle-control__label {
+		white-space: nowrap;
+	}
+}
+
+.routes-navigation-canvas__body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.routes-navigation-canvas__preview {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+	background: #fff;
+
+	/*
+	 * The editor's own loading state is sized for the full window, which
+	 * overflows the canvas column it is rendered into here.
+	 */
+	> div:has(> .components-spinner) {
+		height: 100% !important;
+	}
+}
+
 .routes-navigation-locations-canvas-shell {
 	grid-template-rows: minmax(0, 1fr);
 	padding: 0;

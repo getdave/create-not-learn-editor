@@ -37,6 +37,7 @@ import {
 	Notice,
 	Popover,
 	SelectControl,
+	ToggleControl,
 	/* eslint-disable @wordpress/no-unsafe-wp-apis -- The segmented control is still experimental in @wordpress/components and has no @wordpress/ui equivalent yet. */
 	__experimentalToggleGroupControl as ToggleGroupControl,
 	__experimentalToggleGroupControlOptionIcon as ToggleGroupControlOptionIcon,
@@ -194,6 +195,7 @@ export {
 	sprintf,
 	tablet as tabletIcon,
 	Tabs,
+	ToggleControl,
 	ToggleGroupControl,
 	ToggleGroupControlOptionIcon,
 	trash as trashIcon,
