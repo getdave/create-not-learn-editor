@@ -1874,7 +1874,7 @@ function Canvas() {
 								} ),
 							variant: 'primary',
 						},
-						__( 'Edit template' )
+						__( 'Edit' )
 					),
 				! showTemplates &&
 					selectedPost &&
