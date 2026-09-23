@@ -8,6 +8,8 @@ import {
 	__,
 	coreDataStore,
 	layoutIcon,
+	postFeaturedImageIcon,
+	postListIcon,
 	resolveSelect,
 } from '../../wordpress-packages';
 
@@ -44,6 +46,30 @@ function getPlainTitle( title, fallback ) {
 	text.innerHTML = rendered.replace( /<[^>]+>/g, '' ).trim();
 
 	return text.value || fallback;
+}
+
+function getTemplateTitle( template, fallback ) {
+	if ( template?.slug === 'home' ) {
+		return __( 'Posts Listing' );
+	}
+
+	if ( template?.slug === 'single' ) {
+		return __( 'Single Post' );
+	}
+
+	return getPlainTitle( template?.title, fallback );
+}
+
+function getTemplateIcon( template ) {
+	if ( template?.slug === 'home' ) {
+		return postListIcon;
+	}
+
+	if ( template?.slug === 'single' ) {
+		return postFeaturedImageIcon;
+	}
+
+	return layoutIcon;
 }
 
 export const route = {
@@ -85,8 +111,8 @@ export const route = {
 				postType: 'wp_template',
 				previewCanEdit: true,
 				previewEditLabel: __( 'Edit' ),
-				previewIcon: layoutIcon,
-				previewLabel: getPlainTitle( template.title, __( 'Pages' ) ),
+				previewIcon: getTemplateIcon( template ),
+				previewLabel: getTemplateTitle( template, __( 'Pages' ) ),
 				previewStatus: template.status || 'publish',
 				previewStatusLabel: getPreviewStatusLabel(
 					template.status || 'publish'
