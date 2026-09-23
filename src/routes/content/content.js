@@ -312,10 +312,10 @@ function getTemplateDescription( template ) {
 	return template?.description || '';
 }
 
-function TemplateDescriptionInfo( { description } ) {
+function TemplateDescriptionInfo( { authorText, description } ) {
 	const [ isOpen, setIsOpen ] = useState( false );
 
-	if ( ! description ) {
+	if ( ! description && ! authorText ) {
 		return null;
 	}
 
@@ -349,7 +349,28 @@ function TemplateDescriptionInfo( { description } ) {
 						className:
 							'routes-post-list__template-card-info-content',
 					},
-					description
+					description &&
+						el(
+							'span',
+							{
+								className:
+									'routes-post-list__template-card-info-description',
+							},
+							description
+						),
+					authorText &&
+						el(
+							'span',
+							{
+								className:
+									'routes-post-list__template-card-info-author',
+							},
+							sprintf(
+								/* translators: %s: template author name. */
+								__( 'Author: %s' ),
+								authorText
+							)
+						)
 				)
 			)
 	);
@@ -1764,24 +1785,12 @@ function Stage() {
 													'routes-post-list__template-badge',
 											},
 											getTemplateStatusLabel( template )
-										),
-										el(
-											'span',
-											{
-												className:
-													'routes-post-list__template-card-author',
-											},
-											sprintf(
-												/* translators: %s: template author name. */
-												__( 'Author: %s' ),
-												getTemplateAuthorText(
-													template
-												)
-											)
 										)
 									)
 								),
 								el( TemplateDescriptionInfo, {
+									authorText:
+										getTemplateAuthorText( template ),
 									description:
 										getTemplateDescription( template ),
 								} )
