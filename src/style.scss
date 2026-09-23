@@ -2974,3 +2974,37 @@
 	min-height: 120px;
 	color: #646970;
 }
+
+/*
+ * Pin the last root-level sidebar menu item ("Advanced") to the bottom of the
+ * panel.
+ *
+ * Gutenberg's boot sidebar has no API for this and its CSS module class names
+ * are content hashed, so the menu is matched structurally instead: the menu
+ * list is the element that directly follows the navigation screen title.
+ * Drilldown screens render a title, the root screen leaves it empty, so only
+ * the root screen gets the bottom pin.
+ */
+#create-not-learn-editor-app {
+
+	// Navigation screen.
+	div:has(> div > .components-h-stack + [role="list"]) {
+		min-height: 100%;
+	}
+
+	// Animated panel inside the navigation screen.
+	div:has(> .components-h-stack + [role="list"]) {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.components-h-stack + [role="list"] {
+		display: flex;
+		flex-grow: 1;
+		flex-direction: column;
+	}
+
+	.components-h-stack:has(> h1.components-heading:empty) + [role="list"] > :last-child {
+		margin-block-start: auto;
+	}
+}
