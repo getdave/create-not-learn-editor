@@ -35,11 +35,13 @@ import {
 	DropdownMenu,
 	EmptyState,
 	Icon,
+	infoIcon,
 	InputControl,
 	MenuItem,
 	Modal,
 	Notice,
 	plusIcon,
+	Popover,
 	SelectControl,
 	Spinner,
 	Tabs,
@@ -308,6 +310,49 @@ function templateMatchesPostType( template, typeName ) {
 
 function getTemplateDescription( template ) {
 	return template?.description || '';
+}
+
+function TemplateDescriptionInfo( { description } ) {
+	const [ isOpen, setIsOpen ] = useState( false );
+
+	if ( ! description ) {
+		return null;
+	}
+
+	return el(
+		'span',
+		{ className: 'routes-post-list__template-card-info' },
+		el( Button, {
+			'aria-expanded': isOpen,
+			icon: infoIcon,
+			label: __( 'Template description' ),
+			onClick: ( event ) => {
+				event.stopPropagation();
+				setIsOpen( ( open ) => ! open );
+			},
+			size: 'small',
+		} ),
+		isOpen &&
+			el(
+				Popover,
+				{
+					className: 'routes-post-list__template-card-info-popover',
+					focusOnMount: 'container',
+					onClose: () => setIsOpen( false ),
+					placement: 'right-start',
+					resize: false,
+					shift: true,
+				},
+				el(
+					'span',
+					{
+						className:
+							'routes-post-list__template-card-info-content',
+					},
+					description
+				)
+			)
+	);
 }
 
 function getTemplateStatusLabel( template ) {
@@ -1676,66 +1721,70 @@ function Stage() {
 								String( template.id );
 
 							return el(
-								'button',
+								'div',
 								{
 									key: template.id,
-									'aria-pressed': isSelected,
-									className: `routes-post-list__template-card${
-										isSelected ? ' is-selected' : ''
-									}`,
-									onClick: () =>
-										selectTemplate( template.id ),
-									type: 'button',
-								},
-								el( 'span', {
-									'aria-hidden': true,
 									className:
-										'routes-post-list__template-card-icon dashicons dashicons-layout',
-								} ),
+										'routes-post-list__template-card-wrapper',
+								},
 								el(
-									'span',
+									'button',
 									{
-										className:
-											'routes-post-list__template-card-content',
+										'aria-pressed': isSelected,
+										className: `routes-post-list__template-card${
+											isSelected ? ' is-selected' : ''
+										}`,
+										onClick: () =>
+											selectTemplate( template.id ),
+										type: 'button',
 									},
+									el( 'span', {
+										'aria-hidden': true,
+										className:
+											'routes-post-list__template-card-icon dashicons dashicons-layout',
+									} ),
 									el(
 										'span',
 										{
 											className:
-												'routes-post-list__template-card-title',
+												'routes-post-list__template-card-content',
 										},
-										getTemplateTitle( template )
-									),
-									el(
-										'span',
-										{
-											className:
-												'routes-post-list__template-badge',
-										},
-										getTemplateStatusLabel( template )
-									),
-									getTemplateDescription( template ) &&
 										el(
 											'span',
 											{
 												className:
-													'routes-post-list__template-card-description',
+													'routes-post-list__template-card-title',
 											},
-											getTemplateDescription( template )
+											getTemplateTitle( template )
 										),
-									el(
-										'span',
-										{
-											className:
-												'routes-post-list__template-card-author',
-										},
-										sprintf(
-											/* translators: %s: template author name. */
-											__( 'Author: %s' ),
-											getTemplateAuthorText( template )
+										el(
+											'span',
+											{
+												className:
+													'routes-post-list__template-badge',
+											},
+											getTemplateStatusLabel( template )
+										),
+										el(
+											'span',
+											{
+												className:
+													'routes-post-list__template-card-author',
+											},
+											sprintf(
+												/* translators: %s: template author name. */
+												__( 'Author: %s' ),
+												getTemplateAuthorText(
+													template
+												)
+											)
 										)
 									)
-								)
+								),
+								el( TemplateDescriptionInfo, {
+									description:
+										getTemplateDescription( template ),
+								} )
 							);
 						} ),
 					! isLoading && templates.length === 0 && templateEmpty
