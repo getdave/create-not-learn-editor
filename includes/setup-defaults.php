@@ -151,6 +151,7 @@ function cnl_editor_setup_site_defaults() {
 
 	update_option( 'show_on_front', 'page' );
 	update_option( 'page_on_front', $home_page_id );
+	update_option( 'page_for_posts', 0 );
 
 	$navigation = cnl_editor_ensure_default_navigation_menu();
 
@@ -159,6 +160,7 @@ function cnl_editor_setup_site_defaults() {
 		'homePageId'        => $home_page_id,
 		'showOnFront'       => get_option( 'show_on_front' ),
 		'pageOnFront'       => (int) get_option( 'page_on_front' ),
+		'pageForPosts'      => (int) get_option( 'page_for_posts' ),
 		'navigationCreated' => (bool) $navigation['created'],
 		'navigationId'      => (int) $navigation['id'],
 	);

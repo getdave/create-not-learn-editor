@@ -41,14 +41,12 @@ import {
 	settingsIcon,
 	tabletIcon,
 	useCallback,
-	useDispatch,
 	useEffect,
 	useRef,
 	useSelect,
 	useState,
 } from '../../wordpress-packages';
 
-const HOMEPAGE_CONFIGURED_EVENT = 'cnl-editor-homepage-configured';
 const EMPTY_OBJECT = {};
 const DOCUMENT_ICON_BY_STATUS = {
 	'home-latest-posts': homeIcon,
@@ -192,17 +190,12 @@ function getFrameUrl( frameWindow, fallbackUrl ) {
 
 function Canvas() {
 	const navigate = useNavigate();
-	const { invalidatePreviewContext, setupDefaults } =
-		useDispatch( cnlEditorStore );
 	const [ device, setDeviceState ] = useState( DEFAULT_HOMEPAGE_DEVICE );
 	const [ frameWindow, setFrameWindow ] = useState( null );
 	const [ previewHistoryState, setPreviewHistoryState ] = useState(
 		getPreviewHistoryState()
 	);
 	const [ localPreviewError, setLocalPreviewError ] = useState( null );
-	const [ isConfiguringHomepage, setIsConfiguringHomepage ] =
-		useState( false );
-	const [ refreshKey, setRefreshKey ] = useState( '' );
 	const [ previewContextUrl, setPreviewContextUrl ] = useState(
 		getHomepagePreviewContextUrl( settings.homeUrl )
 	);
@@ -215,7 +208,7 @@ function Canvas() {
 	const homePreviewContextUrl = getHomepagePreviewContextUrl(
 		settings.homeUrl
 	);
-	const previewUrl = getHomepagePreviewUrl( settings.homeUrl, refreshKey );
+	const previewUrl = getHomepagePreviewUrl( settings.homeUrl );
 	const currentPreviewContextUrl = previewContextUrl || homePreviewContextUrl;
 	const { isLoadingContext, previewContext, previewContextError } = useSelect(
 		( select ) => {
@@ -369,30 +362,6 @@ function Canvas() {
 	);
 
 	useEffect( () => {
-		const refreshPreview = () => {
-			invalidatePreviewContext( settings.homeUrl, namespace );
-			if ( currentPreviewContextUrl !== homePreviewContextUrl ) {
-				invalidatePreviewContext( currentPreviewContextUrl, namespace );
-			}
-			setPreviewContextUrl( homePreviewContextUrl );
-			setRefreshKey( String( Date.now() ) );
-		};
-
-		window.addEventListener( HOMEPAGE_CONFIGURED_EVENT, refreshPreview );
-
-		return () => {
-			window.removeEventListener(
-				HOMEPAGE_CONFIGURED_EVENT,
-				refreshPreview
-			);
-		};
-	}, [
-		currentPreviewContextUrl,
-		homePreviewContextUrl,
-		invalidatePreviewContext,
-	] );
-
-	useEffect( () => {
 		resetPreviewHistory();
 	}, [ previewUrl, resetPreviewHistory ] );
 
@@ -424,35 +393,7 @@ function Canvas() {
 		}
 	};
 
-	const configureHomepage = () => {
-		setIsConfiguringHomepage( true );
-		setLocalPreviewError( null );
-
-		setupDefaults( namespace )
-			.then( ( result ) => {
-				if ( result?.success ) {
-					invalidatePreviewContext( settings.homeUrl, namespace );
-					if ( currentPreviewContextUrl !== homePreviewContextUrl ) {
-						invalidatePreviewContext(
-							currentPreviewContextUrl,
-							namespace
-						);
-					}
-					window.dispatchEvent(
-						new CustomEvent( HOMEPAGE_CONFIGURED_EVENT )
-					);
-					return;
-				}
-
-				setLocalPreviewError(
-					result?.message || __( 'Homepage configuration failed.' )
-				);
-			} )
-			.catch( ( error ) =>
-				setLocalPreviewError( getErrorMessage( error ) )
-			)
-			.finally( () => setIsConfiguringHomepage( false ) );
-	};
+	const configureHomepage = () => {};
 
 	const editHomepage = () => {
 		if ( canEditPreview ) {
@@ -529,7 +470,7 @@ function Canvas() {
 					el( PageOptionsDropdown, {
 						hasHomepageOptions:
 							previewContext?.previewStatus === 'homepage',
-						isBusy: isConfiguringHomepage,
+						isBusy: false,
 						onConfigureHomepage: configureHomepage,
 					} ),
 					el( HomepageStatusIndicator, {
