@@ -3,7 +3,10 @@
  */
 import { useNavigate, useParams } from '@wordpress/route';
 import { _n } from '@wordpress/i18n';
-import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
+import {
+	Editor as LazyEditor,
+	Preview as LazyEditorPreview,
+} from '@wordpress/lazy-editor';
 
 /**
  * Internal dependencies
@@ -23,6 +26,8 @@ import {
 	customLinkIcon,
 	DataViewsPicker,
 	decodeEntities,
+	desktopIcon,
+	dispatch,
 	DropdownMenu,
 	el,
 	EmptyState,
@@ -36,6 +41,7 @@ import {
 	LegacyIcon,
 	MenuGroup,
 	MenuItem,
+	mobileIcon,
 	Modal,
 	moreVerticalIcon,
 	noticesStore,
@@ -49,8 +55,12 @@ import {
 	SelectControl,
 	Spinner,
 	sprintf,
+	tabletIcon,
 	trashIcon,
 	Tabs,
+	ToggleControl,
+	ToggleGroupControl,
+	ToggleGroupControlOptionIcon,
 	updateIcon,
 	useDispatch,
 	useEffect,
@@ -60,6 +70,11 @@ import {
 	__,
 	registerCoreBlocks,
 } from '../../wordpress-packages';
+import {
+	DEFAULT_CANVAS_VIEW_DEVICE,
+	getCanvasViewDevice,
+	getMenuLocationsSummary,
+} from './canvas-view';
 import {
 	appendNavigationBlocksToContent,
 	createEditorBlocksFromNavigationBlocks,
@@ -130,30 +145,6 @@ ensureCoreBlocksRegistered();
 
 function getMenuTitle( menu ) {
 	return getTitleText( menu?.title ) || __( 'Navigation' );
-}
-
-function getMenuLocationsTitle( menuTitle ) {
-	return sprintf(
-		/* translators: %s: Navigation menu title. */
-		__( '%s menu locations' ),
-		menuTitle
-	);
-}
-
-function getMenuLocationsDescription( count ) {
-	return count
-		? sprintf(
-				/* translators: %d: Number of locations where this navigation menu is shown. */
-				_n(
-					'This menu is shown in %d location on your site.',
-					'This menu is shown in %d locations on your site.',
-					count
-				),
-				count
-			)
-		: __(
-				'Choose where this menu should appear, such as your header or footer.'
-			);
 }
 
 function getBlockName( block ) {
@@ -2282,6 +2273,141 @@ function ChooseLocationModal( {
 	);
 }
 
+/*
+ * Rendering the canvas as a preview drops the editor's own header, sidebars and
+ * notices, leaving the canvas alone. Mirrors what `@wordpress/boot` passes for a
+ * route whose canvas `isPreview`. Kept at module scope because the editor
+ * provider pushes settings into the store whenever their identity changes.
+ */
+const SITE_PREVIEW_EDITOR_SETTINGS = { isPreviewMode: true };
+
+function getCanvasViewDeviceOptions() {
+	return [
+		{ icon: desktopIcon, label: __( 'Desktop view' ), value: 'Desktop' },
+		{ icon: tabletIcon, label: __( 'Tablet view' ), value: 'Tablet' },
+		{ icon: mobileIcon, label: __( 'Mobile view' ), value: 'Mobile' },
+	];
+}
+
+function CanvasDeviceSwitcher( { device, onChange } ) {
+	return el(
+		ToggleGroupControl,
+		{
+			__next40pxDefaultSize: true,
+			__nextHasNoMarginBottom: true,
+			className: 'routes-navigation-canvas-toolbar__devices',
+			hideLabelFromVision: true,
+			label: __( 'Preview device' ),
+			onChange,
+			value: device,
+		},
+		getCanvasViewDeviceOptions().map( ( option ) =>
+			el( ToggleGroupControlOptionIcon, {
+				icon: option.icon,
+				key: option.value,
+				label: option.label,
+				value: option.value,
+			} )
+		)
+	);
+}
+
+function NavigationCanvasHeader( {
+	device,
+	isPreviewVisible,
+	locationActions,
+	locationsSummary,
+	menuTitle,
+	onChangeDevice,
+	onTogglePreview,
+} ) {
+	return el(
+		'header',
+		{
+			className:
+				'cnl-editor-canvas__toolbar routes-navigation-canvas-toolbar',
+		},
+		el(
+			'div',
+			{ className: 'routes-navigation-canvas-toolbar__document' },
+			el(
+				'h2',
+				{ className: 'routes-navigation-canvas-toolbar__title' },
+				menuTitle
+			),
+			el(
+				'p',
+				{ className: 'routes-navigation-canvas-toolbar__meta' },
+				locationsSummary
+			)
+		),
+		el(
+			'div',
+			{ className: 'routes-navigation-canvas-toolbar__actions' },
+			isPreviewVisible &&
+				el( CanvasDeviceSwitcher, {
+					device,
+					onChange: onChangeDevice,
+				} ),
+			locationActions,
+			el( ToggleControl, {
+				__nextHasNoMarginBottom: true,
+				checked: isPreviewVisible,
+				className: 'routes-navigation-canvas-toolbar__preview-toggle',
+				label: __( 'Preview Site' ),
+				onChange: onTogglePreview,
+			} )
+		)
+	);
+}
+
+/**
+ * The site's front page in the editor canvas, as a read-only preview.
+ *
+ * Passing no post leaves the editor to resolve whatever is set to show at the
+ * site's root, and to compose it with the template that renders it, so a menu
+ * appears in the header or footer it was assigned to.
+ *
+ * @param {Object} props        Component props.
+ * @param {string} props.device Device type the canvas opens at.
+ * @return {Element} The preview canvas.
+ */
+function NavigationSitePreview( { device } ) {
+	return el(
+		'div',
+		{
+			className: 'routes-navigation-canvas__preview',
+			// Nothing in a preview is reachable by pointer or keyboard.
+			inert: 'true',
+		},
+		el( LazyEditor, {
+			initialViewport: device,
+			settings: SITE_PREVIEW_EDITOR_SETTINGS,
+		} )
+	);
+}
+
+function NavigationSitePreviewNotice( { onChooseLocation } ) {
+	return el(
+		Notice,
+		{
+			actions: [
+				{
+					label: __( 'Choose location' ),
+					onClick: onChooseLocation,
+					variant: 'link',
+				},
+			],
+			className: 'cnl-editor-preview-canvas__notice',
+			isDismissible: false,
+			status: 'warning',
+		},
+		__(
+			'This menu is not shown anywhere on your site yet, so it does not appear in the preview.'
+		)
+	);
+}
+
 function NavigationEditCanvas() {
 	const navigate = useNavigate();
 	const params = useParams( { strict: false } );
@@ -2293,11 +2419,27 @@ function NavigationEditCanvas() {
 		useNavigationLocations( navigationId );
 	const [ locationModalMode, setLocationModalMode ] = useState( null );
 	const [ isSavingLocations, setIsSavingLocations ] = useState( false );
+	const [ isPreviewVisible, setIsPreviewVisible ] = useState( true );
+	const [ device, setDevice ] = useState( DEFAULT_CANVAS_VIEW_DEVICE );
 	const selectedLocationIds = useMemo(
 		() => locations.map( ( location ) => location.id ),
 		[ locations ]
 	);
 	const menuTitle = menu ? getMenuTitle( menu ) : __( 'Navigation' );
+
+	/*
+	 * The editor store registers with the editor's own assets, which the preview
+	 * loads lazily, so the store is absent until it has. The editor opens at the
+	 * current device either way: it reads `initialViewport` on mount, and this
+	 * carries every later change to it.
+	 */
+	useEffect( () => {
+		if ( ! isPreviewVisible ) {
+			return;
+		}
+
+		dispatch( 'core/editor' )?.setDeviceType?.( device );
+	}, [ device, isPreviewVisible ] );
 	const menuBlocks = useMemo(
 		() =>
 			createEditorBlocksFromNavigationBlocks(
@@ -2436,109 +2578,114 @@ function NavigationEditCanvas() {
 			)
 	);
 
-	return el(
-		'section',
+	const locationsView = el(
+		'div',
 		{
-			className:
-				'cnl-editor-canvas routes-navigation-locations-canvas-shell',
+			className: 'routes-navigation-locations-canvas__content',
 		},
-		el(
-			Page,
-			{
-				actions: menuLocationActions,
-				className: 'routes-navigation-locations-canvas',
-				hasPadding: false,
-				headingLevel: 2,
-				showSidebarToggle: false,
-				subTitle: getMenuLocationsDescription( locations.length ),
-				title: getMenuLocationsTitle( menuTitle ),
-			},
+		isResolvingTemplateParts &&
+			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
+		! isResolvingTemplateParts &&
+			locations.length === 0 &&
+			el( NavigationLocationsEmptyState, {
+				disabled: isResolvingTemplateParts,
+				onChooseLocation: () => setLocationModalMode( 'choose' ),
+			} ),
+		! isResolvingTemplateParts &&
+			locations.length > 0 &&
 			el(
 				'div',
 				{
-					className: 'routes-navigation-locations-canvas__content',
+					className: 'routes-navigation-locations-canvas__previews',
 				},
-				isResolvingTemplateParts &&
+				locations.map( ( location ) =>
 					el(
-						'div',
-						{ className: 'cnl-editor-spinner' },
-						el( Spinner )
-					),
-				! isResolvingTemplateParts &&
-					locations.length === 0 &&
-					el( NavigationLocationsEmptyState, {
-						disabled: isResolvingTemplateParts,
-						onChooseLocation: () =>
-							setLocationModalMode( 'choose' ),
-					} ),
-				! isResolvingTemplateParts &&
-					locations.length > 0 &&
-					el(
-						'div',
+						'section',
 						{
 							className:
-								'routes-navigation-locations-canvas__previews',
+								'routes-navigation-locations-canvas__card',
+							key: location.id,
 						},
-						locations.map( ( location ) =>
+						el(
+							'div',
+							{
+								className:
+									'routes-navigation-locations-canvas__card-header',
+							},
 							el(
-								'section',
+								'div',
 								{
 									className:
-										'routes-navigation-locations-canvas__card',
-									key: location.id,
+										'routes-navigation-locations-canvas__card-title',
 								},
-								el(
-									'div',
-									{
-										className:
-											'routes-navigation-locations-canvas__card-header',
-									},
-									el(
-										'div',
-										{
-											className:
-												'routes-navigation-locations-canvas__card-title',
-										},
-										el( Icon, {
-											className:
-												'routes-navigation-locations-canvas__card-icon',
-											icon: layoutIcon,
+								el( Icon, {
+									className:
+										'routes-navigation-locations-canvas__card-icon',
+									icon: layoutIcon,
+								} ),
+								el( 'span', null, location.label )
+							),
+							el(
+								Button,
+								{
+									onClick: () =>
+										navigate( {
+											to: `/wp_template_part?postId=${ encodeURIComponent(
+												location.part.id
+											) }`,
 										} ),
-										el( 'span', null, location.label )
-									),
-									el(
-										Button,
-										{
-											onClick: () =>
-												navigate( {
-													to: `/wp_template_part?postId=${ encodeURIComponent(
-														location.part.id
-													) }`,
-												} ),
-											variant: 'link',
-										},
-										__( 'Edit' )
-									)
-								),
-								el(
-									'div',
-									{
-										className:
-											'routes-navigation-locations-canvas__preview',
-									},
-									el( LazyEditorPreview, {
-										blocks: getTemplatePartPreviewBlocks(
-											location.part,
-											navigationId,
-											menuBlocks
-										),
-										description: location.label,
-									} )
-								)
+									variant: 'link',
+								},
+								__( 'Edit' )
 							)
+						),
+						el(
+							'div',
+							{
+								className:
+									'routes-navigation-locations-canvas__preview',
+							},
+							el( LazyEditorPreview, {
+								blocks: getTemplatePartPreviewBlocks(
+									location.part,
+									navigationId,
+									menuBlocks
+								),
+								description: location.label,
+							} )
 						)
 					)
+				)
 			)
+	);
+
+	return el(
+		'section',
+		{
+			className: 'cnl-editor-canvas routes-navigation-canvas',
+		},
+		el( NavigationCanvasHeader, {
+			device,
+			isPreviewVisible,
+			locationActions: menuLocationActions,
+			locationsSummary: getMenuLocationsSummary( locations.length ),
+			menuTitle,
+			onChangeDevice: ( value ) =>
+				setDevice( getCanvasViewDevice( value ) ),
+			onTogglePreview: setIsPreviewVisible,
+		} ),
+		isPreviewVisible &&
+			! isResolvingTemplateParts &&
+			locations.length === 0 &&
+			el( NavigationSitePreviewNotice, {
+				onChooseLocation: () => setLocationModalMode( 'choose' ),
+			} ),
+		el(
+			'div',
+			{ className: 'routes-navigation-canvas__body' },
+			isPreviewVisible
+				? el( NavigationSitePreview, { device } )
+				: locationsView
 		),
 		locationModalMode &&
 			el( ChooseLocationModal, {
