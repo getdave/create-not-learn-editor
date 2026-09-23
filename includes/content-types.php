@@ -8,6 +8,21 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Register content type hooks.
+ */
+function cnl_editor_register_content_type_hooks() {
+	add_action( 'init', 'cnl_editor_set_page_default_rendering_mode', 20 );
+}
+
+/**
+ * Default Pages to the full template rendering mode, so the editor always
+ * shows the surrounding template context when editing a Page.
+ */
+function cnl_editor_set_page_default_rendering_mode() {
+	add_post_type_support( 'page', 'editor', array( 'default-mode' => 'template-locked' ) );
+}
+
+/**
  * Get post types that should appear in the Create Not Learn content menu.
  *
  * @return WP_Post_Type[] Post type objects keyed by post type name.

@@ -41,6 +41,7 @@ function cnl_editor_bootstrap() {
 	require_once CNL_EDITOR_PATH . 'includes/rest-api.php';
 	require_once CNL_EDITOR_PATH . 'includes/admin-page.php';
 
+	cnl_editor_register_content_type_hooks();
 	cnl_editor_register_rest_hooks();
 	cnl_editor_register_admin_page_hooks();
 }
