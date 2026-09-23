@@ -15,7 +15,6 @@ import {
 	getHomepagePreviewNavigationUrl,
 	getHomepagePreviewContextUrl,
 	getHomepagePreviewUrl,
-	getHomepageStatusTone,
 	getPreviewHistoryState,
 	isHomepagePreviewNavigationUrl,
 } from './preview';
@@ -156,17 +155,6 @@ function HistoryButton( { canMove, direction, icon, label, onMove } ) {
 	} );
 }
 
-function HomepageStatusIndicator( { label, status } ) {
-	const tone = getHomepageStatusTone( status );
-
-	return el( 'span', {
-		'aria-label': label,
-		className: `cnl-editor-homepage-document__status is-${ tone }`,
-		role: 'status',
-		title: label,
-	} );
-}
-
 function EmptyPreview() {
 	return el(
 		'div',
@@ -250,10 +238,15 @@ function Canvas() {
 		localPreviewError ||
 		( previewContextError ? getErrorMessage( previewContextError ) : null );
 	const previewLabel = previewContext?.previewLabel || __( 'Home' );
-	const previewStatus = previewContext?.previewStatus || 'preview';
 	const previewStatusLabel = isLoadingContext
 		? __( 'Loading preview details' )
 		: previewContext?.previewStatusLabel || __( 'Preview' );
+	const previewTypeLabel = previewContext?.previewTypeLabel || '';
+	const previewMetaLabel = isLoadingContext
+		? previewStatusLabel
+		: [ previewTypeLabel, previewStatusLabel ]
+				.filter( Boolean )
+				.join( ' · ' );
 	const documentIcon =
 		DOCUMENT_ICON_BY_STATUS[
 			getHomepageDocumentIconStatus(
@@ -466,25 +459,45 @@ function Canvas() {
 					{
 						className: 'cnl-editor-homepage-document',
 					},
-					documentIcon &&
-						el( Icon, {
-							className: 'cnl-editor-homepage-document__icon',
-							icon: documentIcon,
-						} ),
 					el(
-						'h1',
-						{ className: 'cnl-editor-homepage-document__title' },
-						previewLabel
+						'div',
+						{ className: 'cnl-editor-homepage-document__text' },
+						el(
+							'div',
+							{
+								className:
+									'cnl-editor-homepage-document__heading',
+							},
+							documentIcon &&
+								el( Icon, {
+									className:
+										'cnl-editor-homepage-document__icon',
+									icon: documentIcon,
+								} ),
+							el(
+								'h1',
+								{
+									className:
+										'cnl-editor-homepage-document__title',
+								},
+								previewLabel
+							)
+						),
+						previewMetaLabel &&
+							el(
+								'p',
+								{
+									className:
+										'cnl-editor-homepage-document__meta',
+								},
+								previewMetaLabel
+							)
 					),
 					el( PageOptionsDropdown, {
 						hasHomepageOptions:
 							previewContext?.previewStatus === 'homepage',
 						isBusy: false,
 						onConfigureHomepage: configureHomepage,
-					} ),
-					el( HomepageStatusIndicator, {
-						label: previewStatusLabel,
-						status: previewStatus,
 					} )
 				)
 			),
