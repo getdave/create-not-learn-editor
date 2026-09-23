@@ -184,7 +184,7 @@ export default function NavigationListViewAppender( {
 								__( 'Label only' )
 							)
 						)
-				  )
+					)
 				: el(
 						'div',
 						null,
@@ -246,7 +246,7 @@ export default function NavigationListViewAppender( {
 								__( 'More…' )
 							)
 						)
-				  )
+					)
 	);
 
 	if ( ! shouldShowEmptySubmenu ) {

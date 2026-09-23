@@ -559,7 +559,7 @@ function PageLayoutCard( { onSelect, pageTemplateContent, pattern } ) {
 							content: previewContent,
 							description: getPatternTitle( pattern ),
 							placeholder: el( PageLayoutPreviewPlaceholder ),
-					  } )
+						} )
 					: el( PageLayoutPreviewPlaceholder )
 			)
 		),
@@ -712,7 +712,7 @@ function AddPageFlow( { onClose, templates } ) {
 						pageTemplateContent,
 						previewPageTitle,
 						{ parseBlocks, serialize }
-				  )
+					)
 				: '',
 		[ pageTemplateContent, previewPageTitle, selectedLayout ]
 	);
@@ -839,7 +839,7 @@ function AddPageFlow( { onClose, templates } ) {
 							variant: 'secondary',
 						},
 						__( 'Start blank' )
-				  )
+					)
 				: null,
 			onRequestClose: onClose,
 			size: 'large',
@@ -1327,9 +1327,9 @@ function useContentRecords() {
 					activeTab === 'templates'
 						? ! hasResolvedTemplates || isResolvingTemplates
 						: ! hasResolvedPosts ||
-						  ! hasResolvedTemplates ||
-						  isResolvingPosts ||
-						  isResolvingTemplates,
+							! hasResolvedTemplates ||
+							isResolvingPosts ||
+							isResolvingTemplates,
 				posts: resolvedPosts,
 				rawTemplates: resolvedTemplates,
 			};
@@ -1341,7 +1341,7 @@ function useContentRecords() {
 			type
 				? rawTemplates.filter( ( template ) =>
 						templateMatchesPostType( template, type.name )
-				  )
+					)
 				: EMPTY_ARRAY,
 		[ rawTemplates, type ]
 	);
@@ -1776,7 +1776,7 @@ function Stage() {
 							);
 						} ),
 					! isLoading && templates.length === 0 && templateEmpty
-			  )
+				)
 			: el(
 					DataViews,
 					{
@@ -1800,7 +1800,7 @@ function Stage() {
 						view: contentView,
 					},
 					el( PostListDataViewsLayout )
-			  ),
+				),
 		showTemplates &&
 			templates.length > 0 &&
 			el(

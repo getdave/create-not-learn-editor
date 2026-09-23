@@ -407,7 +407,7 @@ function SiteMediaSetting( {
 						alt: '',
 						className: imageClassName,
 						src: imageUrl,
-				  } )
+					} )
 				: el(
 						'div',
 						{
@@ -415,7 +415,7 @@ function SiteMediaSetting( {
 							className: 'cnl-editor-identity-media__placeholder',
 						},
 						isLoading ? el( Spinner ) : label.charAt( 0 )
-				  )
+					)
 		),
 		el(
 			'div',
@@ -612,7 +612,7 @@ function SiteIdentityCanvas() {
 						'div',
 						{ className: 'cnl-editor-spinner' },
 						el( Spinner )
-				  )
+					)
 				: el(
 						'div',
 						{ className: 'cnl-editor-identity-preview' },
@@ -628,7 +628,7 @@ function SiteIdentityCanvas() {
 										className:
 											'cnl-editor-identity-preview__icon',
 										src: iconUrl,
-								  } )
+									} )
 								: title.charAt( 0 ).toUpperCase()
 						),
 						logoUrl &&
@@ -652,7 +652,7 @@ function SiteIdentityCanvas() {
 							},
 							tagline
 						)
-				  )
+					)
 		)
 	);
 }
@@ -1781,12 +1781,12 @@ function TemplatePartsStage() {
 				activeArea === 'all'
 					? __(
 							'Template parts will appear here when the active theme or site defines reusable structural areas.'
-					  )
+						)
 					: sprintf(
 							/* translators: %s: template part area label. */
 							__( 'No template parts are available for %s.' ),
 							getTemplatePartAreaLabel( activeArea ).toLowerCase()
-					  )
+						)
 			)
 		)
 	);
@@ -2068,8 +2068,8 @@ function normalizeUserPattern( pattern, userCategories ) {
 			typeof pattern?.title === 'string'
 				? pattern.title
 				: pattern?.title?.raw ||
-				  pattern?.title?.rendered ||
-				  __( 'Untitled pattern' ),
+					pattern?.title?.rendered ||
+					__( 'Untitled pattern' ),
 		type: PATTERN_TYPES.user,
 	};
 }
@@ -2360,7 +2360,7 @@ function usePatternsData() {
 							'getEntityRecords',
 							userPatternArgs
 						)
-				  )
+					)
 				: null,
 			isLoading:
 				Boolean( store.isResolving?.( 'getBlockPatterns', [] ) ) ||
@@ -2803,7 +2803,7 @@ function useStylesData() {
 					'root',
 					'globalStyles',
 					currentGlobalStylesId
-			  )
+				)
 			: null;
 		const themeBaseStyles =
 			store.__experimentalGetCurrentThemeBaseGlobalStyles?.();
@@ -2965,7 +2965,7 @@ function StylesStage() {
 								/* translators: %s: Theme name. */
 								__( 'Manage the visual language for %s.' ),
 								themeName
-						  )
+							)
 						: __( 'Manage the visual language of the site.' )
 				)
 			),
@@ -3029,14 +3029,14 @@ function StylesStage() {
 									variation,
 								} )
 							)
-					  )
+						)
 					: el(
 							'div',
 							{ className: 'cnl-editor-empty' },
 							__(
 								'No style variations are available for this theme.'
 							)
-					  )
+						)
 			)
 	);
 }

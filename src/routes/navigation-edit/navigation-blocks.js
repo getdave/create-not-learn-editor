@@ -64,7 +64,7 @@ function getManualNavigationItems( blocks, depth = 0 ) {
 							isSubmenu: blockName === 'core/navigation-submenu',
 							label: getNavigationItemLabel( block ),
 						},
-				  ]
+					]
 				: [];
 
 		return [

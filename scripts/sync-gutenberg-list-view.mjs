@@ -35,7 +35,7 @@ const sourceListViewDir = path.join(
 	'list-view'
 );
 
-const COPY_EXTENSIONS = new Set( [ '.js', '.scss', '.md' ] );
+const COPY_EXTENSIONS = new Set( [ '.js', '.jsx', '.scss', '.md' ] );
 const JAVASCRIPT_EXTENSIONS = new Set( [ '.js', '.jsx' ] );
 
 const importRewrites = [
@@ -57,6 +57,7 @@ const importRewrites = [
 	[ '../inserter', './compat/inserter' ],
 	[ '../block-lock', './compat/block-lock' ],
 	[ '../../utils/math', './compat/math' ],
+	[ '../../utils/group-blocks', './compat/group-blocks' ],
 	[ '../use-on-block-drop', './compat/use-on-block-drop' ],
 	[ '../block-mover/button', './compat/block-mover-button' ],
 	[ '../block-rename', './compat/block-rename' ],
@@ -80,7 +81,7 @@ const compatCopies = [
 		rewrites: [ [ '../../store', './block-editor-store' ] ],
 	},
 	{
-		source: [ 'src', 'components', 'block-mover', 'button.js' ],
+		source: [ 'src', 'components', 'block-mover', 'button.jsx' ],
 		target: [ 'compat', 'block-mover-button.js' ],
 		rewrites: [
 			[ './mover-description', './block-mover-description' ],
@@ -116,6 +117,11 @@ const compatCopies = [
 		rewrites: [],
 	},
 	{
+		source: [ 'src', 'utils', 'group-blocks.js' ],
+		target: [ 'compat', 'group-blocks.js' ],
+		rewrites: [],
+	},
+	{
 		source: [ 'src', 'hooks', 'supports.js' ],
 		target: [ 'compat', 'block-supports.js' ],
 		rewrites: [],
@@ -129,17 +135,15 @@ const compatCopies = [
 		],
 	},
 	{
-		source: [ 'src', 'components', 'block-visibility', 'constants.js' ],
-		target: [ 'compat', 'block-visibility-constants.js' ],
-		rewrites: [],
-	},
-	{
 		source: [ 'src', 'components', 'block-visibility', 'utils.js' ],
 		target: [ 'compat', 'block-visibility.js' ],
-		rewrites: [ [ './constants', './block-visibility-constants' ] ],
+		rewrites: [
+			[ './constants', './block-visibility-constants' ],
+			[ '../../lock-unlock', './lock-unlock' ],
+		],
 	},
 	{
-		source: [ 'src', 'components', 'block-rename', 'modal.js' ],
+		source: [ 'src', 'components', 'block-rename', 'modal.jsx' ],
 		target: [ 'compat', 'block-rename-modal.js' ],
 		rewrites: [
 			[ '../../store', './block-editor-store' ],
@@ -161,10 +165,17 @@ const compatCopies = [
 ];
 
 const manualCompatFiles = {
+	// Upstream source is now block-visibility/constants.ts. Reproduced without
+	// the TypeScript-only syntax (type alias, `satisfies`) since this bridge
+	// is plain JS; the runtime values must stay in sync with that file by hand.
+	'compat/block-visibility-constants.js': `import { __ } from '@wordpress/i18n';\nimport { desktop, tablet, mobile } from '@wordpress/icons';\n\nexport const BLOCK_VISIBILITY_VIEWPORTS = {\n\tdesktop: {\n\t\tlabel: __( 'Desktop' ),\n\t\ticon: desktop,\n\t\tkey: 'desktop',\n\t},\n\ttablet: {\n\t\tlabel: __( 'Tablet' ),\n\t\ticon: tablet,\n\t\tkey: 'tablet',\n\t},\n\tmobile: {\n\t\tlabel: __( 'Mobile' ),\n\t\ticon: mobile,\n\t\tkey: 'mobile',\n\t},\n};\n\nexport const BLOCK_VISIBILITY_VIEWPORT_ENTRIES = Object.entries(\n\tBLOCK_VISIBILITY_VIEWPORTS\n);\n`,
 	'compat/block-editor-store.js': `export { store } from '@wordpress/block-editor';\n`,
 	'compat/block-settings-dropdown.js': `export { BlockSettingsMenu as BlockSettingsDropdown } from '@wordpress/block-editor';\n`,
 	'compat/block-icon.js': `export { BlockIcon as default } from '@wordpress/block-editor';\n`,
-	'compat/use-block-display-information.js': `export { useBlockDisplayInformation as default } from '@wordpress/block-editor';\nexport { useBlockDisplayInformation } from '@wordpress/block-editor';\n`,
+	// getPositionTypeLabel is not part of block-editor's public API; it is a
+	// standalone helper alongside the useBlockDisplayInformation hook, which
+	// the public package does export, so only the helper needs reproducing.
+	'compat/use-block-display-information.js': `import { __ } from '@wordpress/i18n';\n\nexport { useBlockDisplayInformation as default } from '@wordpress/block-editor';\nexport { useBlockDisplayInformation } from '@wordpress/block-editor';\n\nexport function getPositionTypeLabel( attributes ) {\n\tconst positionType = attributes?.style?.position?.type;\n\n\tif ( positionType === 'sticky' ) {\n\t\treturn __( 'Sticky' );\n\t}\n\n\tif ( positionType === 'fixed' ) {\n\t\treturn __( 'Fixed' );\n\t}\n\n\treturn null;\n}\n`,
 	'compat/inserter.js': `export { Inserter as default } from '@wordpress/block-editor';\n`,
 	'compat/lock-unlock.js': `import { __dangerousOptInToUnstableAPIsOnlyForCoreModules } from '@wordpress/private-apis';\n\nexport const { lock, unlock } =\n\t__dangerousOptInToUnstableAPIsOnlyForCoreModules(\n\t\t'I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.',\n\t\t'@wordpress/block-editor'\n\t);\n`,
 	'compat/block-lock.js': `import { useSelect } from '@wordpress/data';\n\nimport { store as blockEditorStore } from './block-editor-store';\nimport { unlock } from './lock-unlock';\n\nexport function useBlockLock( clientId ) {\n\treturn useSelect(\n\t\t( select ) => {\n\t\t\tconst {\n\t\t\t\tcanLockBlockType,\n\t\t\t\tgetBlockName,\n\t\t\t\tisEditLockedBlock,\n\t\t\t\tisMoveLockedBlock,\n\t\t\t\tisRemoveLockedBlock,\n\t\t\t\tisLockedBlock,\n\t\t\t} = unlock( select( blockEditorStore ) );\n\n\t\t\treturn {\n\t\t\t\tisEditLocked: isEditLockedBlock( clientId ),\n\t\t\t\tisMoveLocked: isMoveLockedBlock( clientId ),\n\t\t\t\tisRemoveLocked: isRemoveLockedBlock( clientId ),\n\t\t\t\tcanLock: canLockBlockType( getBlockName( clientId ) ),\n\t\t\t\tisLocked: isLockedBlock( clientId ),\n\t\t\t};\n\t\t},\n\t\t[ clientId ]\n\t);\n}\n`,
@@ -271,7 +282,7 @@ async function copyListViewSources( targetVendorDir ) {
 		const targetFile = path.join( targetVendorDir, entry.name );
 		let content = await fs.readFile( sourceFile, 'utf8' );
 
-		if ( entry.name.endsWith( '.js' ) ) {
+		if ( isJavaScriptFile( entry.name ) ) {
 			content = rewriteImports( content, importRewrites );
 		}
 

@@ -2449,10 +2449,10 @@
 }
 
 .navigation-add-items-modal__tab:is(:hover, :focus-visible),
-.navigation-add-items-modal__more-tab.components-button:is(
-	:hover,
-	:focus-visible
-) {
+	.navigation-add-items-modal__more-tab.components-button:is(
+		:hover,
+		:focus-visible
+	) {
 	background: #f6f7f7;
 }
 
@@ -2648,7 +2648,7 @@
 
 .navigation-add-items-picker__link {
 	color: #757575;
-	word-break: break-word;
+	overflow-wrap: anywhere;
 }
 
 .navigation-add-items-picker__badge {

@@ -15,7 +15,7 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'CNL_EDITOR_VERSION', '0.1.0' );
-define( 'CNL_EDITOR_MIN_GUTENBERG_VERSION', '23.5.1' );
+define( 'CNL_EDITOR_MIN_GUTENBERG_VERSION', '24.0.0' );
 define( 'CNL_EDITOR_FILE', __FILE__ );
 define( 'CNL_EDITOR_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CNL_EDITOR_URL', plugin_dir_url( __FILE__ ) );

@@ -155,10 +155,10 @@ function getMenuLocationsDescription( count ) {
 					count
 				),
 				count
-		  )
+			)
 		: __(
 				'Choose where this menu should appear, such as your header or footer.'
-		  );
+			);
 }
 
 function navigateToNavigationEditRoute( navigate, menuOrId ) {
@@ -292,7 +292,7 @@ function getNavigationFields( {
 					: getLocationsSummary(
 							locationsMap[ getNavigationMenuId( item ) ] ||
 								EMPTY_ARRAY
-					  ),
+						),
 			id: 'usage',
 			label: __( 'Usage' ),
 			type: 'text',

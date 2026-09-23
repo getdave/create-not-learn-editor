@@ -149,10 +149,10 @@ function getMenuLocationsDescription( count ) {
 					count
 				),
 				count
-		  )
+			)
 		: __(
 				'Choose where this menu should appear, such as your header or footer.'
-		  );
+			);
 }
 
 function getBlockName( block ) {
@@ -1066,7 +1066,7 @@ function AddMenuItemsModal( {
 										__( 'Add to menu' )
 									)
 								)
-						  )
+							)
 						: el(
 								DataViewsPicker,
 								{
@@ -1135,7 +1135,7 @@ function AddMenuItemsModal( {
 									},
 									el( DataViewsPicker.Footer )
 								)
-						  )
+							)
 				)
 			)
 		)
@@ -1300,12 +1300,12 @@ const pickerFields = [
 								'navigation-add-items-picker__badge is-linked',
 						},
 						__( 'In this menu' )
-				  )
+					)
 				: el(
 						'span',
 						{ className: 'navigation-add-items-picker__empty' },
 						'-'
-				  ),
+					),
 		type: 'text',
 	},
 ];
@@ -1468,10 +1468,10 @@ function NavigationEditStage() {
 			mode === 'submenu-page'
 				? __(
 						'Submenu added to menu. Review and save changes when you are ready.'
-				  )
+					)
 				: __(
 						'Page added to menu. Review and save changes when you are ready.'
-				  )
+					)
 		);
 
 	const addCustomLinkToMenu = ( { isSubmenu, label, url } ) =>
@@ -1482,20 +1482,20 @@ function NavigationEditStage() {
 							kind: 'custom',
 							label,
 							url,
-					  } )
+						} )
 					: createNavigationLinkBlock( {
 							kind: 'custom',
 							label,
 							url,
-					  } ),
+						} ),
 			],
 			isSubmenu
 				? __(
 						'Submenu added to menu. Review and save changes when you are ready.'
-				  )
+					)
 				: __(
 						'Link added to menu. Review and save changes when you are ready.'
-				  )
+					)
 		);
 
 	const addLabelOnlySubmenuToMenu = ( label ) =>

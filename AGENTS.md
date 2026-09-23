@@ -20,7 +20,7 @@ This is a standalone WordPress plugin repo for Create Not Learn Editor.
 - Plugin slug: `create-not-learn-editor`.
 - Full-page admin URL: `/wp-admin/admin.php?page=create-not-learn-editor`.
 - WordPress menu location: `Appearance > Create Not Learn`.
-- Required Gutenberg version: `23.5.1` or newer.
+- Required Gutenberg version: `24.0.0` or newer.
 - Minimum PHP version: `7.4`.
 - WordPress dependency header must keep `Requires Plugins: gutenberg`.
 
