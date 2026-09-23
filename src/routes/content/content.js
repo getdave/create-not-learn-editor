@@ -50,6 +50,7 @@ import {
 	layoutIcon,
 	moreVerticalIcon,
 	pageIcon,
+	postFeaturedImageIcon,
 	postListIcon,
 	Page,
 	parseBlocks,
@@ -191,6 +192,18 @@ function getTemplateTitle( template ) {
 	}
 
 	return getTitleText( template?.title ) || __( 'Untitled template' );
+}
+
+function getTemplateIcon( template ) {
+	if ( template?.slug === 'home' ) {
+		return postListIcon;
+	}
+
+	if ( template?.slug === 'single' ) {
+		return postFeaturedImageIcon;
+	}
+
+	return layoutIcon;
 }
 
 function getCanvasLabel( {
@@ -1759,11 +1772,17 @@ function Stage() {
 											selectTemplate( template.id ),
 										type: 'button',
 									},
-									el( 'span', {
-										'aria-hidden': true,
-										className:
-											'routes-post-list__template-card-icon dashicons dashicons-layout',
-									} ),
+									el(
+										'span',
+										{
+											'aria-hidden': true,
+											className:
+												'routes-post-list__template-card-icon',
+										},
+										el( Icon, {
+											icon: getTemplateIcon( template ),
+										} )
+									),
 									el(
 										'span',
 										{

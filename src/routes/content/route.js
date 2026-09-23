@@ -8,6 +8,8 @@ import {
 	__,
 	coreDataStore,
 	layoutIcon,
+	postFeaturedImageIcon,
+	postListIcon,
 	resolveSelect,
 } from '../../wordpress-packages';
 
@@ -58,6 +60,18 @@ function getTemplateTitle( template, fallback ) {
 	return getPlainTitle( template?.title, fallback );
 }
 
+function getTemplateIcon( template ) {
+	if ( template?.slug === 'home' ) {
+		return postListIcon;
+	}
+
+	if ( template?.slug === 'single' ) {
+		return postFeaturedImageIcon;
+	}
+
+	return layoutIcon;
+}
+
 export const route = {
 	beforeLoad: ( { params } ) => {
 		if ( ! getPostType( params.type ) ) {
@@ -97,7 +111,7 @@ export const route = {
 				postType: 'wp_template',
 				previewCanEdit: true,
 				previewEditLabel: __( 'Edit' ),
-				previewIcon: layoutIcon,
+				previewIcon: getTemplateIcon( template ),
 				previewLabel: getTemplateTitle( template, __( 'Pages' ) ),
 				previewStatus: template.status || 'publish',
 				previewStatusLabel: getPreviewStatusLabel(
