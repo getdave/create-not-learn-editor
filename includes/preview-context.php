@@ -301,7 +301,7 @@ function cnl_editor_get_front_page_preview_context() {
 		'previewStatusLabel' => cnl_editor_get_preview_status_label( 'homepage' ),
 		'previewType'        => 'template',
 		'previewTypeLabel'   => __( 'Template', 'create-not-learn-editor' ),
-		'previewEditLabel'   => __( 'Edit template', 'create-not-learn-editor' ),
+		'previewEditLabel'   => __( 'Edit', 'create-not-learn-editor' ),
 		'previewCanEdit'     => '' !== $template_id,
 		'previewTone'        => 'global',
 		'previewDocumentStatus'      => 'home-latest-posts',
