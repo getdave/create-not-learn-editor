@@ -1,0 +1,75 @@
+<?php
+/**
+ * Styling injected into the block editor canvas iframe.
+ *
+ * @package CreateNotLearnEditor
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Register hooks that style the block editor canvas.
+ */
+function cnl_editor_register_block_canvas_style_hooks() {
+	add_filter( 'block_editor_settings_all', 'cnl_editor_add_block_hover_label_style' );
+}
+
+/**
+ * Add the block name label style to the resolved editor settings.
+ *
+ * The canvas renders in an iframe populated from these settings (fetched via
+ * the wp-block-editor/v1/assets REST route), so styles enqueued on the admin
+ * page never reach it. Adding to `styles` here is the supported way to style
+ * canvas-only elements such as the block wrapper's `data-title` attribute.
+ *
+ * @param array $settings Editor settings.
+ * @return array Filtered editor settings.
+ */
+function cnl_editor_add_block_hover_label_style( $settings ) {
+	if ( ! isset( $settings['styles'] ) || ! is_array( $settings['styles'] ) ) {
+		$settings['styles'] = array();
+	}
+
+	$settings['styles'][] = array(
+		'css' => cnl_editor_get_block_hover_label_css(),
+	);
+
+	return $settings;
+}
+
+/**
+ * Get the CSS that shows a block's name in a small label on hover.
+ *
+ * Relies on the `data-title` attribute Gutenberg already renders on every
+ * block wrapper (the block type's human-readable title), so no JavaScript is
+ * needed to source the name.
+ *
+ * @return string CSS.
+ */
+function cnl_editor_get_block_hover_label_css() {
+	return '
+		.block-editor-block-list__block {
+			position: relative;
+		}
+
+		.block-editor-block-list__block:hover:not(.is-selected):not(:has(.block-editor-block-list__block:hover))::before {
+			content: attr(data-title);
+			position: absolute;
+			top: 0;
+			left: 0;
+			transform: translateY(-100%);
+			z-index: 1;
+			padding: 2px 6px;
+			background: var(--wp-admin-theme-color, #007cba);
+			color: #fff;
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+			font-size: 11px;
+			font-weight: 500;
+			line-height: 1.6;
+			letter-spacing: 0.2px;
+			text-transform: uppercase;
+			white-space: nowrap;
+			pointer-events: none;
+		}
+	';
+}
