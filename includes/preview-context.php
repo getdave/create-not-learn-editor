@@ -246,6 +246,39 @@ function cnl_editor_get_static_front_page_preview_context( $post_id ) {
 }
 
 /**
+ * Get the editable template ID that renders the "Home (Latest Posts)" front page.
+ *
+ * Mirrors the front-page &gt; home &gt; index template hierarchy WordPress uses to
+ * resolve the blog index on the front end.
+ *
+ * @return string Template ID (theme//slug) or empty string if none is editable.
+ */
+function cnl_editor_get_front_page_template_id() {
+	if ( ! function_exists( 'get_block_template' ) ) {
+		return '';
+	}
+
+	$template_post_type = get_post_type_object( 'wp_template' );
+	if (
+		! $template_post_type ||
+		empty( $template_post_type->show_in_rest ) ||
+		! current_user_can( $template_post_type->cap->edit_posts )
+	) {
+		return '';
+	}
+
+	$theme = get_stylesheet();
+	foreach ( array( 'front-page', 'home', 'index' ) as $slug ) {
+		$template = get_block_template( $theme . '//' . $slug, 'wp_template' );
+		if ( $template ) {
+			return $template->id;
+		}
+	}
+
+	return '';
+}
+
+/**
  * Get preview context for the site's front page.
  *
  * @return array Preview context.
@@ -258,14 +291,16 @@ function cnl_editor_get_front_page_preview_context() {
 		}
 	}
 
+	$template_id = cnl_editor_get_front_page_template_id();
+
 	return array(
-		'editLink'           => '',
+		'editLink'           => $template_id ? '/wp_template?postId=' . rawurlencode( $template_id ) : '',
 		'previewLabel'       => __( 'Home', 'create-not-learn-editor' ),
 		'previewStatus'      => 'homepage',
 		'previewStatusLabel' => cnl_editor_get_preview_status_label( 'homepage' ),
 		'previewType'        => 'template',
 		'previewEditLabel'   => __( 'Edit template', 'create-not-learn-editor' ),
-		'previewCanEdit'     => false,
+		'previewCanEdit'     => '' !== $template_id,
 		'previewTone'        => 'global',
 		'previewDocumentStatus'      => 'home-latest-posts',
 		'previewDocumentStatusLabel' => __( 'Home (Latest Posts)', 'create-not-learn-editor' ),
