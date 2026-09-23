@@ -180,6 +180,14 @@ function getDateLabel( post ) {
 }
 
 function getTemplateTitle( template ) {
+	if ( template?.slug === 'home' ) {
+		return __( 'Posts Listing' );
+	}
+
+	if ( template?.slug === 'single' ) {
+		return __( 'Single Post' );
+	}
+
 	return getTitleText( template?.title ) || __( 'Untitled template' );
 }
 

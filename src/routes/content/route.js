@@ -46,6 +46,18 @@ function getPlainTitle( title, fallback ) {
 	return text.value || fallback;
 }
 
+function getTemplateTitle( template, fallback ) {
+	if ( template?.slug === 'home' ) {
+		return __( 'Posts Listing' );
+	}
+
+	if ( template?.slug === 'single' ) {
+		return __( 'Single Post' );
+	}
+
+	return getPlainTitle( template?.title, fallback );
+}
+
 export const route = {
 	beforeLoad: ( { params } ) => {
 		if ( ! getPostType( params.type ) ) {
@@ -86,7 +98,7 @@ export const route = {
 				previewCanEdit: true,
 				previewEditLabel: __( 'Edit' ),
 				previewIcon: layoutIcon,
-				previewLabel: getPlainTitle( template.title, __( 'Pages' ) ),
+				previewLabel: getTemplateTitle( template, __( 'Pages' ) ),
 				previewStatus: template.status || 'publish',
 				previewStatusLabel: getPreviewStatusLabel(
 					template.status || 'publish'
