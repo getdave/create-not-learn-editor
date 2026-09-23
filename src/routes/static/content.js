@@ -20,6 +20,7 @@ import {
 	coreDataStore,
 	DataViews,
 	EmptyState,
+	InputControl,
 	layoutIcon,
 	MediaUpload,
 	Modal,
@@ -31,7 +32,6 @@ import {
 	Spinner,
 	sprintf,
 	Tabs,
-	TextControl,
 	__,
 	el,
 	useDispatch,
@@ -499,18 +499,15 @@ function SiteIdentityStage() {
 				el(
 					'div',
 					{ className: 'cnl-editor-identity-form__fields' },
-					el( TextControl, {
-						__next40pxDefaultSize: true,
-						__nextHasNoMarginBottom: true,
+					el( InputControl, {
 						label: __( 'Site Title' ),
-						onChange: ( value ) => updateDraft( 'title', value ),
+						onValueChange: ( value ) =>
+							updateDraft( 'title', value ),
 						value: draft.title,
 					} ),
-					el( TextControl, {
-						__next40pxDefaultSize: true,
-						__nextHasNoMarginBottom: true,
+					el( InputControl, {
 						label: __( 'Site Tagline' ),
-						onChange: ( value ) =>
+						onValueChange: ( value ) =>
 							updateDraft( 'description', value ),
 						value: draft.description,
 					} ),
@@ -860,13 +857,11 @@ function CreateTemplateModal( { isSaving, onClose, onCreate, saveError } ) {
 				className: 'routes-template-list__create-form',
 				onSubmit: submit,
 			},
-			el( TextControl, {
-				__next40pxDefaultSize: true,
-				__nextHasNoMarginBottom: true,
+			el( InputControl, {
 				autoComplete: 'off',
 				disabled: isSaving,
 				label: __( 'Name' ),
-				onChange: ( value ) => {
+				onValueChange: ( value ) => {
 					setTitle( value );
 					setValidationError( '' );
 				},
@@ -1471,13 +1466,11 @@ function CreateTemplatePartModal( {
 				className: 'routes-template-part-list__create-form',
 				onSubmit: submit,
 			},
-			el( TextControl, {
-				__next40pxDefaultSize: true,
-				__nextHasNoMarginBottom: true,
+			el( InputControl, {
 				autoComplete: 'off',
 				disabled: isSaving,
 				label: __( 'Name' ),
-				onChange: ( value ) => {
+				onValueChange: ( value ) => {
 					setTitle( value );
 					setValidationError( '' );
 				},
@@ -2223,13 +2216,11 @@ function CreatePatternModal( { isSaving, onClose, onCreate, saveError } ) {
 				className: 'routes-pattern-list__create-form',
 				onSubmit: submit,
 			},
-			el( TextControl, {
-				__next40pxDefaultSize: true,
-				__nextHasNoMarginBottom: true,
+			el( InputControl, {
 				autoComplete: 'off',
 				disabled: isSaving,
 				label: __( 'Name' ),
-				onChange: ( value ) => {
+				onValueChange: ( value ) => {
 					setTitle( value );
 					setValidationError( '' );
 				},

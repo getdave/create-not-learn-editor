@@ -31,7 +31,9 @@ import {
 	filterSortAndPaginate,
 	getBlockType as getRegisteredBlockType,
 	imageIcon,
+	InputControl,
 	layoutIcon,
+	LegacyIcon,
 	MenuGroup,
 	MenuItem,
 	Modal,
@@ -47,7 +49,6 @@ import {
 	SelectControl,
 	Spinner,
 	sprintf,
-	TextControl,
 	trashIcon,
 	Tabs,
 	updateIcon,
@@ -382,16 +383,14 @@ function CustomLinkModal( {
 				className: 'routes-navigation-edit__item-form',
 				onSubmit: submit,
 			},
-			el( TextControl, {
-				__next40pxDefaultSize: true,
+			el( InputControl, {
 				label: __( 'Label' ),
-				onChange: setLabel,
+				onValueChange: setLabel,
 				value: label,
 			} ),
-			el( TextControl, {
-				__next40pxDefaultSize: true,
+			el( InputControl, {
 				label: __( 'URL' ),
-				onChange: setUrl,
+				onValueChange: setUrl,
 				type: 'url',
 				value: url,
 			} ),
@@ -450,10 +449,9 @@ function LabelOnlySubmenuModal( { isSaving, onAddSubmenu, onClose } ) {
 				className: 'routes-navigation-edit__item-form',
 				onSubmit: submit,
 			},
-			el( TextControl, {
-				__next40pxDefaultSize: true,
+			el( InputControl, {
 				label: __( 'Submenu label' ),
-				onChange: setLabel,
+				onValueChange: setLabel,
 				value: label,
 			} ),
 			el(
@@ -1022,19 +1020,17 @@ function AddMenuItemsModal( {
 								},
 								!! error &&
 									el( Notice, { status: 'error' }, error ),
-								el( TextControl, {
-									__next40pxDefaultSize: true,
+								el( InputControl, {
 									label: __( 'URL' ),
-									onChange: ( nextUrl ) => {
+									onValueChange: ( nextUrl ) => {
 										setError( '' );
 										setCustomUrl( nextUrl );
 									},
 									value: customUrl,
 								} ),
-								el( TextControl, {
-									__next40pxDefaultSize: true,
+								el( InputControl, {
 									label: __( 'Link text' ),
-									onChange: ( nextLabel ) => {
+									onValueChange: ( nextLabel ) => {
 										setError( '' );
 										setCustomLabel( nextLabel );
 									},
@@ -1188,7 +1184,8 @@ function PickerSourceIcon( { item } ) {
 	return el(
 		'span',
 		{ className: 'navigation-add-items-picker__source-icon' },
-		el( Icon, { icon } )
+		// Block icons are not always SVG elements, so this stays on `LegacyIcon`.
+		el( LegacyIcon, { icon } )
 	);
 }
 
@@ -1940,11 +1937,10 @@ function NavigationEditStage() {
 							onRequestClose: closeRenameModal,
 							title: __( 'Rename navigation menu' ),
 						},
-						el( TextControl, {
-							__next40pxDefaultSize: true,
+						el( InputControl, {
 							disabled: isSaving,
 							label: __( 'Name' ),
-							onChange: setRenameTitle,
+							onValueChange: setRenameTitle,
 							value: renameTitle,
 						} ),
 						el(
