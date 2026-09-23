@@ -1246,7 +1246,7 @@ function TemplatesCanvas() {
 								} ),
 							variant: 'primary',
 						},
-						__( 'Edit template' )
+						__( 'Edit' )
 					)
 			)
 		),

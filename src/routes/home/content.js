@@ -424,7 +424,7 @@ function Canvas() {
 						onClick: editHomepage,
 						variant: 'primary',
 					},
-					previewContext?.previewEditLabel || __( 'Edit page' )
+					previewContext?.previewEditLabel || __( 'Edit' )
 				),
 				el(
 					'div',
