@@ -4,9 +4,8 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
 /**
  * Internal dependencies
  */
-import { getPostType, namespace, settings } from '../../settings';
+import { getPostType, settings } from '../../settings';
 import {
-	cnlEditorStore,
 	getErrorMessage,
 	getTemplateAuthorText,
 	getTitleText,
@@ -1392,11 +1391,7 @@ function useContentRecords() {
 function Stage() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
-	const { setupDefaults } = useDispatch( cnlEditorStore );
 	const [ isAddingPage, setIsAddingPage ] = useState( false );
-	const [ configureNotice, setConfigureNotice ] = useState( null );
-	const [ isConfiguringHomepage, setIsConfiguringHomepage ] =
-		useState( false );
 	const {
 		activeTab,
 		contentView,
@@ -1481,35 +1476,7 @@ function Stage() {
 			to: listPath,
 		} );
 	};
-	const configureHomepage = () => {
-		setIsConfiguringHomepage( true );
-		setConfigureNotice( null );
-
-		setupDefaults( namespace )
-			.then( ( result ) => {
-				if ( result?.success ) {
-					setConfigureNotice( {
-						message: __( 'Homepage is configured.' ),
-						status: 'success',
-					} );
-					return;
-				}
-
-				setConfigureNotice( {
-					message:
-						result?.message ||
-						__( 'Homepage configuration failed.' ),
-					status: 'error',
-				} );
-			} )
-			.catch( ( configureError ) =>
-				setConfigureNotice( {
-					message: getErrorMessage( configureError ),
-					status: 'error',
-				} )
-			)
-			.finally( () => setIsConfiguringHomepage( false ) );
-	};
+	const configureHomepage = () => {};
 	const totalPages = Math.max(
 		1,
 		Math.ceil( posts.length / ( contentView.perPage || 20 ) )
@@ -1552,7 +1519,6 @@ function Stage() {
 					popoverProps: { placement: 'bottom-end' },
 					toggleProps: {
 						__next40pxDefaultSize: true,
-						disabled: isConfiguringHomepage,
 						variant: 'tertiary',
 					},
 				},
@@ -1669,16 +1635,6 @@ function Stage() {
 				)
 			)
 		),
-		configureNotice &&
-			el(
-				Notice,
-				{
-					className: 'routes-post-list__homepage-notice',
-					isDismissible: false,
-					status: configureNotice.status,
-				},
-				configureNotice.message
-			),
 		showTemplates &&
 			el(
 				'p',
