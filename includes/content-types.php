@@ -52,9 +52,7 @@ function cnl_editor_get_content_post_types() {
 	$post_types = array_filter(
 		$post_types,
 		static function ( $post_type ) use ( $excluded_post_types ) {
-			return ! in_array( $post_type->name, $excluded_post_types, true ) &&
-				function_exists( 'use_block_editor_for_post_type' ) &&
-				use_block_editor_for_post_type( $post_type->name );
+			return ! in_array( $post_type->name, $excluded_post_types, true );
 		}
 	);
 
@@ -127,6 +125,7 @@ function cnl_editor_get_post_type_data( $post_type ) {
 			use_block_editor_for_post_type( $post_type->name ),
 		'menuIcon'    => cnl_editor_get_content_post_type_icon( $post_type ),
 		'archiveUrl'  => $post_type->has_archive ? get_post_type_archive_link( $post_type->name ) : null,
+		'newUrl'      => add_query_arg( 'post_type', $post_type->name, admin_url( 'post-new.php' ) ),
 	);
 }
 
