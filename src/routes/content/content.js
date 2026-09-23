@@ -56,6 +56,7 @@ import {
 	useEffect,
 	useDispatch,
 	useMemo,
+	useRef,
 	useSelect,
 	useState,
 } from '../../wordpress-packages';
@@ -247,11 +248,16 @@ function getCanvasIconClass( { showTemplates, type } ) {
 		: 'dashicons-admin-post';
 }
 
-function getInitialContentView( searchParams ) {
+function getDefaultContentViewType( type ) {
+	return type?.name === 'page' ? 'grid' : 'table';
+}
+
+function getInitialContentView( searchParams, type ) {
 	return {
 		...DEFAULT_CONTENT_VIEW,
 		page: searchParams.page ? Number( searchParams.page ) || 1 : 1,
 		search: searchParams.search || '',
+		type: getDefaultContentViewType( type ),
 	};
 }
 
@@ -1256,10 +1262,11 @@ function PostListDataViewsLayout() {
 function useContentRecords() {
 	const params = useParams( { strict: false } );
 	const searchParams = useSearch( { strict: false } );
-	const [ contentView, setContentView ] = useState( () =>
-		getInitialContentView( searchParams )
-	);
 	const type = getPostType( params.type );
+	const [ contentView, setContentView ] = useState( () =>
+		getInitialContentView( searchParams, type )
+	);
+	const previousTypeNameRef = useRef( type?.name );
 	const activeTab = getActiveTab( searchParams );
 	const postQuery = useMemo(
 		() => getPostQuery( contentView.search ),
@@ -1273,6 +1280,18 @@ function useContentRecords() {
 			search: searchParams.search || '',
 		} ) );
 	}, [ searchParams.page, searchParams.search ] );
+
+	useEffect( () => {
+		if ( previousTypeNameRef.current === type?.name ) {
+			return;
+		}
+
+		previousTypeNameRef.current = type?.name;
+		setContentView( ( currentView ) => ( {
+			...currentView,
+			type: getDefaultContentViewType( type ),
+		} ) );
+	}, [ type ] );
 
 	const { error, isLoading, posts, rawTemplates } = useSelect(
 		( select ) => {
