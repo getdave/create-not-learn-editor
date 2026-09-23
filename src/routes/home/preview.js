@@ -81,24 +81,6 @@ export function getHomepageDocumentIconStatus( status ) {
 	return HOMEPAGE_DOCUMENT_ICON_STATUSES.includes( status ) ? status : '';
 }
 
-export function getHomepageStatusTone( status ) {
-	switch ( status ) {
-		case 'homepage':
-		case 'publish':
-		case 'future':
-			return 'success';
-		case 'draft':
-		case 'auto-draft':
-		case 'pending':
-			return 'warning';
-		case 'private':
-		case 'trash':
-			return 'muted';
-		default:
-			return 'neutral';
-	}
-}
-
 export function getPreviewHistoryState( position = 0, maxPosition = 0 ) {
 	return {
 		canGoBack: position > 0,

@@ -8,7 +8,6 @@ import {
 	getHomepagePreviewNavigationUrl,
 	getHomepagePreviewContextUrl,
 	getHomepagePreviewUrl,
-	getHomepageStatusTone,
 	getPreviewHistoryState,
 	isHomepagePreviewNavigationUrl,
 } from '../preview';
@@ -79,15 +78,6 @@ describe( 'homepage preview helpers', () => {
 		);
 		expect( getHomepageDocumentIconStatus( 'publish' ) ).toBe( '' );
 		expect( getHomepageDocumentIconStatus( 'preview' ) ).toBe( '' );
-	} );
-
-	test( 'maps preview statuses to indicator tones', () => {
-		expect( getHomepageStatusTone( 'homepage' ) ).toBe( 'success' );
-		expect( getHomepageStatusTone( 'publish' ) ).toBe( 'success' );
-		expect( getHomepageStatusTone( 'draft' ) ).toBe( 'warning' );
-		expect( getHomepageStatusTone( 'pending' ) ).toBe( 'warning' );
-		expect( getHomepageStatusTone( 'private' ) ).toBe( 'muted' );
-		expect( getHomepageStatusTone( 'archive' ) ).toBe( 'neutral' );
 	} );
 
 	test( 'derives history button availability from tracked position', () => {
