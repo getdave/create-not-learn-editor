@@ -37,6 +37,10 @@ import {
 	Notice,
 	Popover,
 	SelectControl,
+	/* eslint-disable @wordpress/no-unsafe-wp-apis -- The segmented control is still experimental in @wordpress/components and has no @wordpress/ui equivalent yet. */
+	__experimentalToggleGroupControl as ToggleGroupControl,
+	__experimentalToggleGroupControlOptionIcon as ToggleGroupControlOptionIcon,
+	/* eslint-enable @wordpress/no-unsafe-wp-apis */
 } from '@wordpress/components';
 import {
 	/* eslint-disable @wordpress/no-unsafe-wp-apis -- Matches Gutenberg editor settings link suggestion wiring. */
@@ -190,6 +194,8 @@ export {
 	sprintf,
 	tablet as tabletIcon,
 	Tabs,
+	ToggleGroupControl,
+	ToggleGroupControlOptionIcon,
 	trash as trashIcon,
 	update as updateIcon,
 	useBlockBindingsUtils,

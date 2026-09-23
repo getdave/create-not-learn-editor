@@ -40,6 +40,8 @@ import {
 	postListIcon,
 	settingsIcon,
 	tabletIcon,
+	ToggleGroupControl,
+	ToggleGroupControlOptionIcon,
 	useCallback,
 	useEffect,
 	useRef,
@@ -74,20 +76,27 @@ function getDeviceOptions() {
 	];
 }
 
-function DeviceButton( { currentDevice, icon, label, setDevice, value } ) {
-	const isSelected = currentDevice === value;
-
-	return el( Button, {
-		'aria-pressed': isSelected,
-		className: `cnl-editor-homepage-device-switcher__button${
-			isSelected ? ' is-selected' : ''
-		}`,
-		icon,
-		label,
-		onClick: () => setDevice( value ),
-		showTooltip: true,
-		variant: 'tertiary',
-	} );
+function DeviceSwitcher( { device, setDevice } ) {
+	return el(
+		ToggleGroupControl,
+		{
+			__next40pxDefaultSize: true,
+			__nextHasNoMarginBottom: true,
+			className: 'cnl-editor-homepage-device-switcher__control',
+			hideLabelFromVision: true,
+			label: __( 'Preview device' ),
+			onChange: setDevice,
+			value: device,
+		},
+		getDeviceOptions().map( ( option ) =>
+			el( ToggleGroupControlOptionIcon, {
+				icon: option.icon,
+				key: option.value,
+				label: option.label,
+				value: option.value,
+			} )
+		)
+	);
 }
 
 function PageOptionsDropdown( {
@@ -485,21 +494,10 @@ function Canvas() {
 				el(
 					'div',
 					{
-						'aria-label': __( 'Preview device' ),
 						className:
 							'cnl-editor-preview-canvas__device-switcher cnl-editor-homepage-device-switcher',
-						role: 'group',
 					},
-					getDeviceOptions().map( ( option ) =>
-						el( DeviceButton, {
-							currentDevice: device,
-							icon: option.icon,
-							key: option.value,
-							label: option.label,
-							setDevice,
-							value: option.value,
-						} )
-					)
+					el( DeviceSwitcher, { device, setDevice } )
 				),
 				el( Button, {
 					className: 'cnl-editor-homepage-toolbar__external',
