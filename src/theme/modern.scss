@@ -84,6 +84,19 @@ $title-font-family: "Recoleta", "Georgia", "Times New Roman", "Times", serif;
 	}
 
 	/*
+	 * The sidebar greeting and the title shown when drilling into a menu
+	 * section (Content, Design, Advanced) use the same serif.
+	 */
+	.cnl-sidebar-welcome,
+	[class*="__sidebar"] [class*="__title-icon"] h1 {
+		font-family: $title-font-family;
+		font-size: var(--wpds-typography-font-size-xl);
+		font-weight: var(--wpds-typography-font-weight-default);
+		letter-spacing: normal;
+		line-height: 1.25;
+	}
+
+	/*
 	 * Section labels read as quiet eyebrows rather than bold headings.
 	 */
 	.routes-styles__label,

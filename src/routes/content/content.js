@@ -53,6 +53,7 @@ import {
 	__,
 	el,
 	layoutIcon,
+	LegacyIcon,
 	moreVerticalIcon,
 	pageIcon,
 	postFeaturedImageIcon,
@@ -1450,6 +1451,20 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 	);
 }
 
+function TabLabel( { icon, label } ) {
+	return el(
+		'span',
+		{ className: 'routes-post-list__tab-label' },
+		icon &&
+			el( LegacyIcon, {
+				className: 'routes-post-list__tab-icon',
+				icon: icon.replace( /^dashicons-/, '' ),
+				size: 20,
+			} ),
+		label
+	);
+}
+
 function PostListDataViewsLayout() {
 	return el(
 		'div',
@@ -1914,9 +1929,19 @@ function Stage() {
 					el(
 						Tabs.Tab,
 						{ value: 'content' },
-						type.menuName || type.label
+						el( TabLabel, {
+							icon: type.menuIcon,
+							label: type.menuName || type.label,
+						} )
 					),
-					el( Tabs.Tab, { value: 'templates' }, __( 'Layouts' ) )
+					el(
+						Tabs.Tab,
+						{ value: 'templates' },
+						el( TabLabel, {
+							icon: 'dashicons-layout',
+							label: __( 'Layouts' ),
+						} )
+					)
 				)
 			)
 		),

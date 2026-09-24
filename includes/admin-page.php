@@ -178,6 +178,29 @@ function cnl_editor_get_ui_theme() {
 }
 
 /**
+ * Get the name to greet the user by: their first name, or their nickname.
+ *
+ * WordPress sets the nickname to the username until someone changes it, so
+ * an untouched nickname is skipped rather than greeting people by login.
+ *
+ * @param WP_User $user User to greet.
+ * @return string First name, nickname, or an empty string.
+ */
+function cnl_editor_get_greeting_name( $user ) {
+	$first_name = trim( (string) $user->first_name );
+	if ( '' !== $first_name ) {
+		return $first_name;
+	}
+
+	$nickname = trim( (string) $user->nickname );
+	if ( '' !== $nickname && $nickname !== $user->user_login ) {
+		return $nickname;
+	}
+
+	return '';
+}
+
+/**
  * Get settings for the editor app.
  *
  * @return array App settings.
@@ -185,6 +208,7 @@ function cnl_editor_get_ui_theme() {
 function cnl_editor_get_app_settings() {
 	$navigation_post_type = get_post_type_object( 'wp_navigation' );
 	$theme                = wp_get_theme();
+	$current_user         = wp_get_current_user();
 	$lazy_editor_file     = WP_PLUGIN_DIR . '/gutenberg/build/modules/lazy-editor/index.js';
 	$lazy_editor_version  = file_exists( $lazy_editor_file )
 		? filemtime( $lazy_editor_file )
@@ -205,6 +229,7 @@ function cnl_editor_get_app_settings() {
 			plugins_url( 'gutenberg/build/modules/lazy-editor/index.js' )
 		),
 		'siteName'           => get_bloginfo( 'name' ),
+		'userName'           => cnl_editor_get_greeting_name( $current_user ),
 		'uiTheme'            => cnl_editor_get_ui_theme(),
 		'themeName'          => $theme->get( 'Name' ),
 		'showOnFront'        => get_option( 'show_on_front' ),

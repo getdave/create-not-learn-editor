@@ -12,6 +12,11 @@ import {
 	symbolFilled,
 } from '@wordpress/icons';
 
+/**
+ * Internal dependencies
+ */
+import { enhanceSidebar } from './sidebar';
+
 export async function init() {
 	const menuIcons = {
 		identity: siteLogo,
@@ -25,4 +30,6 @@ export async function init() {
 	Object.entries( menuIcons ).forEach( ( [ id, icon ] ) => {
 		dispatch( bootStore ).updateMenuItem( id, { icon } );
 	} );
+
+	enhanceSidebar( { userName: window.createNotLearnEditor?.userName } );
 }

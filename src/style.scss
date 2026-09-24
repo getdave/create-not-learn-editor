@@ -3010,7 +3010,8 @@
 }
 
 /*
- * "Your site" hub: the launch checklist shown beside the homepage preview.
+ * "Your site" hub: the "Create your site" checklist beside the homepage
+ * preview.
  */
 .cnl-site-hub {
 	gap: var(--wpds-dimension-gap-xl);
@@ -3150,4 +3151,109 @@
 		box-shadow: none;
 		color: var(--wpds-color-foreground-interactive-neutral-strong);
 	}
+}
+
+/*
+ * Sidebar heading slot.
+ *
+ * Inside a menu section, boot shows a title row with a Back button and the
+ * section name. At the top level that row is empty, and the greeting sits
+ * over it instead. Giving the row one fixed height at both levels, and
+ * laying the greeting over it rather than above it, keeps the menu items
+ * in the same place when drilling in and out.
+ */
+$sidebar-heading-height: 48px;
+
+[class*="__sidebar"] [class*="__title-icon"] {
+	box-sizing: border-box;
+	height: $sidebar-heading-height;
+	padding-block: 0;
+	align-items: center;
+}
+
+/*
+ * Dashboard link with the WordPress logo, added to boot's sidebar by
+ * app-init in place of boot's own text link. Knocked back until hovered.
+ */
+[class*="__sidebar"] [class*="__back-button"] {
+	display: none;
+}
+
+/*
+ * Line the arrow's visible edge up with the greeting text below, which sits
+ * at the padding-xl inset. The chevron is drawn 9px in from its 24px box,
+ * which sits inside the button's 1px border.
+ */
+$chevron-inset: 10px;
+
+.cnl-sidebar-dashboard {
+	margin-block: var(--wpds-dimension-gap-lg) var(--wpds-dimension-gap-sm);
+	margin-inline: calc(var(--wpds-dimension-padding-xl) - #{$chevron-inset}) var(--wpds-dimension-gap-md);
+}
+
+.components-button.cnl-sidebar-dashboard__link {
+	gap: var(--wpds-dimension-gap-xs);
+	padding-inline-start: 0;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+
+	svg {
+		fill: currentcolor;
+	}
+
+	&:hover:not(:disabled),
+	&:focus-visible {
+		color: var(--wpds-color-foreground-content-neutral);
+	}
+
+	@media not (prefers-reduced-motion) {
+		transition: color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+	}
+}
+
+/*
+ * Greeting above the main menu, added to boot's sidebar by app-init.
+ */
+.cnl-sidebar-welcome {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	box-sizing: border-box;
+	align-items: center;
+	height: $sidebar-heading-height;
+	margin: 0 0 (-$sidebar-heading-height);
+	padding: 0 var(--wpds-dimension-padding-xl);
+	overflow: hidden;
+	color: var(--wpds-color-foreground-content-neutral);
+	font-size: var(--wpds-typography-font-size-lg);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	line-height: var(--wpds-typography-line-height-md);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	pointer-events: none;
+
+	/*
+	 * Only greet at the top level. Inside a section (Content, Design,
+	 * Advanced) the title row shows a Back button and the section name.
+	 */
+	[class*="__sidebar"]:has([class*="__title-icon"] .components-button) & {
+		visibility: hidden;
+		opacity: 0;
+	}
+
+	@media not (prefers-reduced-motion) {
+		transition:
+			opacity var(--wpds-motion-duration-md) var(--wpds-motion-easing-subtle),
+			visibility var(--wpds-motion-duration-md);
+	}
+}
+
+.routes-post-list__tab-label {
+	display: inline-flex;
+	gap: var(--wpds-dimension-gap-sm);
+	align-items: center;
+}
+
+.routes-post-list__tab-icon {
+	flex: 0 0 auto;
+	color: var(--wpds-color-foreground-content-neutral-weak);
 }

@@ -1,12 +1,12 @@
 /**
- * The launch checklist on the "Your site" screen.
+ * The "Create your site" checklist on the "Your site" screen.
  *
  * Each step is worked out from the site itself rather than from a stored
  * "done" flag, so the list stays honest when changes are made elsewhere in
  * WordPress and never needs to write anything when the editor loads.
  */
 
-export const LAUNCH_STEP_IDS = [ 'identity', 'styles', 'homepage', 'pages' ];
+export const CREATION_STEP_IDS = [ 'identity', 'styles', 'homepage', 'pages' ];
 
 /*
  * A fresh install ships with a Home page and the Sample Page, so a site needs
@@ -61,7 +61,7 @@ export function hasBeenEdited( page ) {
 }
 
 /**
- * Work out which launch steps are complete.
+ * Work out which creation steps are complete.
  *
  * @param {Object} data                    Site data.
  * @param {Object} data.site               Site settings record.
@@ -70,7 +70,7 @@ export function hasBeenEdited( page ) {
  * @param {number} data.publishedPageCount Number of published pages.
  * @return {Object<string, boolean>} Completion keyed by step ID.
  */
-export function getLaunchStepStatus( {
+export function getCreationStepStatus( {
 	frontPage,
 	globalStyles,
 	publishedPageCount = 0,
@@ -93,9 +93,9 @@ export function getLaunchStepStatus( {
  * @param {Object<string, boolean>} status Completion keyed by step ID.
  * @return {{ done: number, total: number, percent: number }} Progress.
  */
-export function getLaunchProgress( status = {} ) {
-	const total = LAUNCH_STEP_IDS.length;
-	const done = LAUNCH_STEP_IDS.filter( ( id ) => status[ id ] ).length;
+export function getCreationProgress( status = {} ) {
+	const total = CREATION_STEP_IDS.length;
+	const done = CREATION_STEP_IDS.filter( ( id ) => status[ id ] ).length;
 
 	return {
 		done,

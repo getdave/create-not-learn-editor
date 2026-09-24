@@ -2,13 +2,13 @@
  * Internal dependencies
  */
 import {
-	getLaunchProgress,
-	getLaunchStepStatus,
+	getCreationProgress,
+	getCreationStepStatus,
 	hasBeenEdited,
 	hasCustomGlobalStyles,
 } from '../checklist';
 
-describe( 'launch checklist', () => {
+describe( 'creation checklist', () => {
 	test( 'treats empty global styles as the theme defaults', () => {
 		expect( hasCustomGlobalStyles( undefined ) ).toBe( false );
 		expect(
@@ -38,7 +38,7 @@ describe( 'launch checklist', () => {
 	} );
 
 	test( 'works out each step from site data', () => {
-		expect( getLaunchStepStatus() ).toEqual( {
+		expect( getCreationStepStatus() ).toEqual( {
 			homepage: false,
 			identity: false,
 			pages: false,
@@ -46,7 +46,7 @@ describe( 'launch checklist', () => {
 		} );
 
 		expect(
-			getLaunchStepStatus( {
+			getCreationStepStatus( {
 				frontPage: {
 					date_gmt: '2026-09-24T10:00:00',
 					modified_gmt: '2026-09-25T10:00:00',
@@ -68,7 +68,7 @@ describe( 'launch checklist', () => {
 
 	test( 'does not count the homepage step for a latest posts front page', () => {
 		expect(
-			getLaunchStepStatus( {
+			getCreationStepStatus( {
 				frontPage: {
 					date_gmt: '2026-09-24T10:00:00',
 					modified_gmt: '2026-09-25T10:00:00',
@@ -79,8 +79,12 @@ describe( 'launch checklist', () => {
 	} );
 
 	test( 'reports progress', () => {
-		expect( getLaunchProgress( { identity: true, pages: true } ) ).toEqual(
-			{ done: 2, percent: 50, total: 4 }
-		);
+		expect(
+			getCreationProgress( { identity: true, pages: true } )
+		).toEqual( {
+			done: 2,
+			percent: 50,
+			total: 4,
+		} );
 	} );
 } );

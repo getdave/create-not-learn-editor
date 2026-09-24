@@ -8,9 +8,9 @@ import { useNavigate } from '@wordpress/route';
  */
 import { settings } from '../../settings';
 import {
-	getLaunchProgress,
-	getLaunchStepStatus,
-	LAUNCH_STEP_IDS,
+	getCreationProgress,
+	getCreationStepStatus,
+	CREATION_STEP_IDS,
 } from './checklist';
 import {
 	Button,
@@ -38,15 +38,15 @@ const PUBLISHED_PAGES_QUERY = {
 	_fields: 'id,date_gmt,modified_gmt',
 };
 
-function getLaunchSteps( frontPageId ) {
+function getCreationSteps( frontPageId ) {
 	return {
 		identity: {
-			description: __( 'Site name, tagline, and logo' ),
+			description: __( 'Name your site and add a logo' ),
 			title: __( 'Name & logo' ),
 			to: '/identity',
 		},
 		styles: {
-			description: __( 'Pick a look, then fine-tune it' ),
+			description: __( 'Pick a look, then make it yours' ),
 			title: __( 'Colors & fonts' ),
 			to: '/styles',
 		},
@@ -65,7 +65,7 @@ function getLaunchSteps( frontPageId ) {
 	};
 }
 
-function useLaunchData() {
+function useCreationData() {
 	return useSelect( ( select ) => {
 		const store = select( coreDataStore );
 		const site = store.getEntityRecord( 'root', 'site' );
@@ -104,7 +104,7 @@ function StepStatus( { isDone } ) {
 	);
 }
 
-function LaunchStep( { isDone, onSelect, step } ) {
+function CreationStep( { isDone, onSelect, step } ) {
 	return el(
 		'li',
 		null,
@@ -159,15 +159,15 @@ export default function Stage() {
 		isLoading,
 		publishedPageCount,
 		site,
-	} = useLaunchData();
-	const status = getLaunchStepStatus( {
+	} = useCreationData();
+	const status = getCreationStepStatus( {
 		frontPage,
 		globalStyles,
 		publishedPageCount,
 		site,
 	} );
-	const progress = getLaunchProgress( status );
-	const steps = getLaunchSteps( frontPageId );
+	const progress = getCreationProgress( status );
+	const steps = getCreationSteps( frontPageId );
 	const siteName = decodeEntities( site?.title || settings.siteName || '' );
 	const isComplete = progress.done === progress.total;
 
@@ -211,8 +211,8 @@ export default function Stage() {
 						Card.Title,
 						{ render: el( 'h2' ) },
 						isComplete
-							? __( 'Ready to share' )
-							: __( 'Getting ready to launch' )
+							? __( 'Your site is made' )
+							: __( 'Create your site' )
 					),
 					! isLoading &&
 						el(
@@ -254,17 +254,19 @@ export default function Stage() {
 										variant: 'body-sm',
 									},
 									__(
-										'Nice work. Your site has the basics in place, and you can change any of it later.'
+										'Nice work, you made it. Keep creating: add pages, try new looks, and change anything whenever you like.'
 									)
 								),
 							el(
 								'ol',
 								{
-									'aria-label': __( 'Launch steps' ),
+									'aria-label': __(
+										'Steps to create your site'
+									),
 									className: 'cnl-site-hub__steps',
 								},
-								LAUNCH_STEP_IDS.map( ( id ) =>
-									el( LaunchStep, {
+								CREATION_STEP_IDS.map( ( id ) =>
+									el( CreationStep, {
 										isDone: status[ id ],
 										key: id,
 										onSelect: () =>
