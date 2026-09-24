@@ -44,7 +44,10 @@ export default function SitePreviewCanvas( { description, title } ) {
 
 	return el(
 		'section',
-		{ className: 'cnl-editor-canvas routes-navigation-canvas' },
+		{
+			className:
+				'cnl-editor-canvas routes-navigation-canvas cnl-editor-site-preview',
+		},
 		el(
 			'header',
 			{

@@ -316,3 +316,17 @@ export function getVariationPalette( variation ) {
 		[]
 	);
 }
+
+/**
+ * Get the font families a variation uses, for swatches.
+ *
+ * @param {Object} variation Style variation.
+ * @return {Object[]} Font family entries.
+ */
+export function getVariationFontFamilies( variation ) {
+	return (
+		variation?.settings?.typography?.fontFamilies?.theme ||
+		variation?.settings?.typography?.fontFamilies?.default ||
+		[]
+	);
+}
