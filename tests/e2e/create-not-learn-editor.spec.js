@@ -46,10 +46,6 @@ async function getPreviewFrameTexts( page, selector ) {
 	return texts;
 }
 
-async function getPagePreviewFrameTexts( page ) {
-	return getPreviewFrameTexts( page, '.cnl-editor-dataviews-preview iframe' );
-}
-
 async function getNavigationLocationPreviewFrameTexts( page ) {
 	return getPreviewFrameTexts(
 		page,
@@ -544,7 +540,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		);
 	} );
 
-	test( 'opens the Add Page flow and creates a blank page in the block editor canvas', async ( {
+	test( 'lists pages as a tree, opens one into its sections, and adds a page', async ( {
 		page,
 	} ) => {
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
@@ -552,52 +548,36 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		await page.getByRole( 'button', { name: 'Content' } ).click();
 		await page.getByRole( 'link', { name: 'Pages' } ).click();
+		const pageRow = page.locator( '.cnl-pages-tree__link', {
+			hasText: previewPage.title,
+		} );
+		await expect( pageRow ).toBeVisible( { timeout: 10000 } );
+		// The preview canvas is there before any page is picked.
 		await expect(
-			page.locator( '.routes-post-list__dataviews-toolbar' )
-		).toBeVisible();
-		await expect(
-			page
-				.locator(
-					[
-						'.dataviews-view-grid',
-						'.dataviews-view-table',
-						'.dataviews-view-list',
-					].join( ', ' )
-				)
-				.first()
-		).toBeVisible( { timeout: 10000 } );
-		const pagePreview = page
-			.locator( '.cnl-editor-dataviews-preview' )
-			.first();
-		await expect( pagePreview ).toBeVisible( { timeout: 15000 } );
-		await expect(
-			pagePreview.locator( '.lazy-editor-block-preview__container' )
+			page.locator( '.cnl-pages-canvas iframe[name="editor-canvas"]' )
 		).toBeVisible( { timeout: 15000 } );
+
+		await pageRow.click();
+		await expect( page ).toHaveURL(
+			new RegExp( `postId%3D${ previewPage.id }` )
+		);
 		await expect(
-			pagePreview.locator( '.dashicons-admin-page' )
+			page.locator( '.cnl-page-section:not(.is-site-part)' )
+		).toHaveCount( 1, { timeout: 15000 } );
+		const pageCanvas = page.frameLocator(
+			'.cnl-pages-canvas iframe[name="editor-canvas"]'
+		);
+		await expect( pageCanvas.getByText( previewPage.body ) ).toBeVisible( {
+			timeout: 15000,
+		} );
+		await expect(
+			pageCanvas.getByText( 'This is the Content block' )
 		).toHaveCount( 0 );
-		await expect
-			.poll(
-				() =>
-					getPagePreviewFrameTexts( page ).then( ( texts ) =>
-						texts.some( ( text ) =>
-							text.includes( previewPage.body )
-						)
-					),
-				{ timeout: 15000 }
-			)
-			.toBe( true );
-		await expect
-			.poll(
-				() =>
-					getPagePreviewFrameTexts( page ).then( ( texts ) =>
-						texts.some( ( text ) =>
-							text.includes( 'This is the Content block' )
-						)
-					),
-				{ timeout: 15000 }
-			)
-			.toBe( false );
+
+		await page
+			.locator( '.cnl-pages-detail' )
+			.getByRole( 'link', { name: 'Pages' } )
+			.click();
 		await page.getByRole( 'button', { name: 'Add Page' } ).click();
 		const designDialog = page.getByRole( 'dialog', {
 			name: 'Add a page',
@@ -781,7 +761,7 @@ test.describe( 'Create Not Learn Editor', () => {
 			.getByRole( 'button', { name: 'Back to designs' } )
 			.boundingBox();
 		const createButtonBox = await addPageDialog
-			.getByRole( 'button', { name: 'Create and edit' } )
+			.getByRole( 'button', { name: 'Create page' } )
 			.boundingBox();
 		expect( createButtonBox.x ).toBeGreaterThan( backButtonBox.x );
 		await writeAddPageParityScreenshot(
@@ -802,28 +782,20 @@ test.describe( 'Create Not Learn Editor', () => {
 			.getByLabel( 'Page title' )
 			.fill( `Blank parity ${ Date.now() }` );
 
+		// A new page opens in the Pages screen, ready for its first section.
 		await Promise.all( [
-			page.waitForURL( /p=.*%2Ftypes%2Fpage%2Fedit%2F\d+/ ),
+			page.waitForURL( /p=.*%2Ftypes%2Fpage%2Flist%2Fall.*postId%3D\d+/ ),
 			addPageDialog
-				.getByRole( 'button', { name: 'Create and edit' } )
+				.getByRole( 'button', { name: 'Create page' } )
 				.click(),
 		] );
+		await expect( page.locator( '.cnl-pages-detail' ) ).toBeVisible();
+		await expect( page.locator( '.cnl-page-sections__empty' ) ).toBeVisible(
+			{ timeout: 15000 }
+		);
 		await expect(
-			page.locator(
-				'iframe[src*="post-new.php"], iframe[src*="post.php"]'
-			)
-		).toHaveCount( 0 );
-		await expect(
-			page
-				.locator(
-					[
-						'.interface-interface-skeleton',
-						'.edit-post-layout',
-						'.block-editor-writing-flow',
-					].join( ', ' )
-				)
-				.first()
-		).toBeVisible();
+			page.locator( '.cnl-pages-canvas iframe[name="editor-canvas"]' )
+		).toBeVisible( { timeout: 15000 } );
 	} );
 
 	test( 'opens a page template in the block editor canvas', async ( {

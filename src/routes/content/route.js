@@ -82,7 +82,7 @@ export const route = {
 		const type = getPostType( params.type );
 		return type?.menuName || type?.label || __( 'Content' );
 	},
-	async canvas( { search } ) {
+	async canvas( { params, search } ) {
 		if ( search.content === 'templates' ) {
 			const templateId = getSearchValue( search.postIds );
 			if ( ! templateId || ! getEditablePostType( 'wp_template' ) ) {
@@ -103,9 +103,7 @@ export const route = {
 			}
 
 			return {
-				editLink: `/wp_template?postId=${ encodeURIComponent(
-					templateId
-				) }`,
+				editLink: `/wp_template?postId=${ encodeURIComponent( templateId ) }`,
 				isPreview: true,
 				postId: templateId,
 				postType: 'wp_template',
@@ -120,7 +118,8 @@ export const route = {
 			};
 		}
 
-		if ( search.postId || search.postIds ) {
+		// Pages always show a page next to the list.
+		if ( params.type === 'page' || search.postId || search.postIds ) {
 			return null;
 		}
 
