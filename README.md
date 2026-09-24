@@ -50,6 +50,19 @@ The current routes are:
 
 Home and Content currently include visible placeholder canvases. They are deliberately simple surfaces so the boot frame, routing, menu, and content list behavior can be developed before replacing the placeholders with richer previews.
 
+## Visual Theme
+
+A small theme layer sits on top of the WordPress Design System. It softens corners, floats the site preview on a quiet backdrop, and tidies a few legacy components, while keeping WordPress's fonts, colors, and dark sidebar.
+
+It is on by default. Switch it with the `CNL_EDITOR_UI_THEME` constant, either `'modern'` or `'default'` (stock WPDS):
+
+```sh
+npm run wp-env run cli wp config set CNL_EDITOR_UI_THEME default
+npm run wp-env run cli wp config delete CNL_EDITOR_UI_THEME
+```
+
+The `create-not-learn-editor_ui_theme` filter can override it too. The theme's settings live in `src/theme/`.
+
 ## Site Mutations Are Explicit
 
 The editor does not automatically create pages, navigation, or homepage settings when it loads.

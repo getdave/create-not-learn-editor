@@ -6,6 +6,7 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { withUiTheme } from '../../theme';
 import { namespace, settings } from '../../settings';
 import { cnlEditorStore, getErrorMessage } from '../../records';
 import {
@@ -18,6 +19,7 @@ import {
 	getPreviewHistoryState,
 	isHomepagePreviewNavigationUrl,
 } from './preview';
+import Stage from './stage';
 import {
 	Button,
 	Dropdown,
@@ -568,6 +570,5 @@ function Canvas() {
 	);
 }
 
-const stage = undefined;
-
-export { stage, Canvas as canvas };
+export const stage = withUiTheme( Stage );
+export const canvas = withUiTheme( Canvas );

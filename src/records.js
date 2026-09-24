@@ -574,6 +574,30 @@ export function getTitleText( title ) {
 	return element.value || 'Untitled';
 }
 
+/**
+ * A plain-language name for a template, for people who have not met the
+ * template hierarchy.
+ *
+ * @param {Object} template Template record.
+ * @return {string} Display title.
+ */
+export function getTemplateDisplayTitle( template ) {
+	switch ( template?.slug ) {
+		case 'home':
+			return __( 'Posts Listing' );
+		case 'single':
+			return __( 'Single Post' );
+		case 'index':
+			return __( 'Fallback' );
+		case 'front-page':
+			return __( 'Homepage' );
+		case '404':
+			return __( 'Page not found' );
+	}
+
+	return getTitleText( template?.title );
+}
+
 export function getTemplateAuthorText( template ) {
 	if ( template?.source === 'theme' && appSettings.themeName ) {
 		return appSettings.themeName;

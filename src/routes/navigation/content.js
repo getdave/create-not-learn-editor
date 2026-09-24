@@ -7,6 +7,7 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
 /**
  * Internal dependencies
  */
+import { withUiTheme } from '../../theme';
 import {
 	cnlEditorStore,
 	getErrorMessage,
@@ -139,7 +140,7 @@ function getNavigationMenuSearchId( menuOrId ) {
 function getMenuLocationsTitle( menuTitle ) {
 	return sprintf(
 		/* translators: %s: Navigation menu title. */
-		__( '%s menu locations' ),
+		__( 'Where “%s” appears' ),
 		menuTitle
 	);
 }
@@ -226,7 +227,7 @@ function NavigationNoMenuSelectedEmptyState() {
 		el(
 			EmptyState.Description,
 			null,
-			__( 'Create or select a navigation menu to edit its structure.' )
+			__( 'Pick a menu to see where it appears and change its links.' )
 		)
 	);
 }
@@ -293,7 +294,7 @@ function getNavigationFields( {
 								EMPTY_ARRAY
 						),
 			id: 'usage',
-			label: __( 'Usage' ),
+			label: __( 'Shown in' ),
 			type: 'text',
 		},
 		{
@@ -685,7 +686,7 @@ function AddNavigationModal( { onClose } ) {
 			focusOnMount: 'firstContentElement',
 			onRequestClose: closeModal,
 			size: 'small',
-			title: __( 'Add New Navigation Menu' ),
+			title: __( 'Add a menu' ),
 		},
 		el(
 			'form',
@@ -704,13 +705,13 @@ function AddNavigationModal( { onClose } ) {
 					value: menuTitle,
 				} ),
 				el( CheckboxControl, {
-					'aria-label': __( 'Auto sync with site pages' ),
+					'aria-label': __( 'List every page automatically' ),
 					checked: autoSyncWithPages,
 					disabled: isBusy,
 					help: __(
 						'This menu will update automatically when you add, rename, or remove pages, until you choose to customize it manually.'
 					),
-					label: __( 'Auto sync with site pages' ),
+					label: __( 'List every page automatically' ),
 					onChange: setAutoSyncWithPages,
 				} ),
 				el(
@@ -1166,7 +1167,7 @@ function Stage() {
 			EmptyState.Root,
 			null,
 			el( EmptyState.Icon, { icon: compassIcon } ),
-			el( EmptyState.Title, null, __( 'No navigation menus yet' ) ),
+			el( EmptyState.Title, null, __( 'No menus yet' ) ),
 			el(
 				EmptyState.Description,
 				null,
@@ -1214,14 +1215,16 @@ function Stage() {
 						size: 'compact',
 						variant: 'primary',
 					},
-					__( 'Add New' )
+					__( 'Add menu' )
 				),
 				className: 'cnl-editor-stage routes-navigation-list',
 				hasPadding: false,
 				headingLevel: 2,
 				key: 'navigation-page',
-				subTitle: __( 'Manage menus for the site.' ),
-				title: __( 'Navigation Menus' ),
+				subTitle: __(
+					'The links visitors use to get around your site. Most sites need one menu, shown in the header.'
+				),
+				title: __( 'Menus' ),
 			},
 			( error || locationsError ) &&
 				el(
@@ -1598,4 +1601,5 @@ function Canvas() {
 	);
 }
 
-export { Stage as stage, Canvas as canvas };
+export const stage = withUiTheme( Stage );
+export const canvas = withUiTheme( Canvas );

@@ -1,0 +1,159 @@
+/**
+ * "Modern" theme layer for the WordPress Design System.
+ *
+ * Softer corners, calmer surfaces, and a floating site preview, while keeping
+ * WordPress's type, colors, and dark sidebar.
+ *
+ * Token values are changed through the design system's own API, not here:
+ * `src/theme/index.js` wraps each route in a `ThemeProvider` with the
+ * "moderate" corner radius preset, and the PHP shell puts the same preset on
+ * <body> so modals and popovers portalled there match.
+ *
+ * This file only covers what tokens cannot reach: components that still
+ * hard-code their styles, and layout touches like the floating preview. It is
+ * scoped to `.cnl-ui-theme-modern`, which PHP adds to <body> when
+ * `CNL_EDITOR_UI_THEME` is 'modern'.
+ */
+
+$title-font-family: "Recoleta", "Georgia", "Times New Roman", "Times", serif;
+
+.cnl-ui-theme-modern {
+
+	/*
+	 * Legacy @wordpress/components inputs that hard-code a 2px radius instead
+	 * of reading the radius tokens. Input borders inherit from the input base.
+	 *
+	 * Buttons, including segmented controls, keep WordPress's square 2px
+	 * corners on purpose.
+	 */
+	.components-input-base,
+	.components-text-control__input,
+	.components-textarea-control__input,
+	.components-form-token-field__input-container {
+		border-radius: var(--wpds-border-radius-sm);
+	}
+
+	/*
+	 * Segmented controls read the radius tokens themselves, so pin them to
+	 * the stock values to keep them square like other buttons.
+	 */
+	.components-toggle-group-control,
+	.components-toggle-group-control::before {
+		border-radius: 2px;
+	}
+
+	.components-toggle-group-control-option-base {
+		border-radius: 1px;
+	}
+
+	.components-modal__frame {
+		border-radius: var(--wpds-border-radius-lg);
+		box-shadow: 0 24px 48px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
+	}
+
+	.components-popover__content,
+	.components-snackbar,
+	.components-notice {
+		border-radius: var(--wpds-border-radius-md);
+	}
+
+	.components-popover__content {
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+	}
+
+	/*
+	 * Headings sit a little tighter, keeping the system font WordPress uses.
+	 */
+	.cnl-editor-stage h2,
+	.components-modal__header-heading {
+		letter-spacing: -0.01em;
+	}
+
+	/*
+	 * Each screen's main title uses the serif display face from
+	 * WordPress.com's dashboard. Recoleta is not bundled; where it is not
+	 * installed the title falls back to Georgia.
+	 */
+	.cnl-editor-stage h1,
+	.cnl-editor-stage [class*="__header-lockup"] > h2 {
+		font-family: $title-font-family;
+		font-size: 28px;
+		font-weight: var(--wpds-typography-font-weight-default);
+		letter-spacing: normal;
+		line-height: 1.2;
+	}
+
+	/*
+	 * The sidebar greeting and the title shown when drilling into a menu
+	 * section (Content, Design, Advanced) use the same serif.
+	 */
+	.cnl-sidebar-welcome,
+	[class*="__sidebar"] [class*="__title-icon"] h1 {
+		font-family: $title-font-family;
+		font-size: var(--wpds-typography-font-size-xl);
+		font-weight: var(--wpds-typography-font-weight-default);
+		letter-spacing: normal;
+		line-height: 1.25;
+	}
+
+	/*
+	 * Section labels read as quiet eyebrows rather than bold headings.
+	 */
+	.routes-styles__label,
+	.routes-styles__step-heading {
+		color: var(--wpds-color-foreground-content-neutral-weak);
+		letter-spacing: 0.04em;
+	}
+
+	/*
+	 * Site previews float on a quiet backdrop as rounded cards, instead of
+	 * filling the canvas edge to edge.
+	 */
+	.cnl-editor-canvas__frame-wrap,
+	.routes-navigation-canvas {
+		background: var(--wpds-color-background-surface-neutral-weak);
+	}
+
+	.cnl-editor-preview-canvas__frame-wrap,
+	.routes-navigation-canvas__preview {
+		margin: var(--wpds-dimension-padding-xl);
+		overflow: hidden;
+		border-radius: var(--wpds-border-radius-lg);
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.08);
+	}
+
+	/*
+	 * Lists of pages, sections, and layouts.
+	 */
+	.dataviews-view-grid__card,
+	.dataviews-view-grid__media {
+		border-radius: var(--wpds-border-radius-md);
+	}
+
+	.routes-navigation-locations-canvas__card {
+		overflow: hidden;
+		border-radius: var(--wpds-border-radius-lg);
+	}
+
+	/*
+	 * Cards lift slightly on hover.
+	 */
+	.dataviews-view-grid__media--clickable:hover,
+	.routes-styles__look:hover .routes-styles__look-preview,
+	.cnl-add-page-layout-card:hover,
+	.cnl-add-page-option-card.components-button:hover {
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+	}
+
+	@media not (prefers-reduced-motion) {
+
+		.dataviews-view-grid__media,
+		.routes-styles__look-preview,
+		.cnl-add-page-layout-card,
+		.cnl-add-page-option-card.components-button {
+			transition-duration: var(--wpds-motion-duration-sm);
+			transition-property: border-color, box-shadow;
+			transition-timing-function: var(--wpds-motion-easing-subtle);
+		}
+	}
+}

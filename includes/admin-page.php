@@ -162,6 +162,45 @@ function cnl_editor_register_default_routes_and_menu() {
 add_action( CNL_EDITOR_SLUG . '_init', 'cnl_editor_register_default_routes_and_menu', 5 );
 
 /**
+ * Get the visual theme layered on top of the design system.
+ *
+ * @return string Theme name: 'modern' or 'default'.
+ */
+function cnl_editor_get_ui_theme() {
+	/**
+	 * Filters the visual theme for the full-page editor.
+	 *
+	 * @param string $theme Theme name: 'modern' or 'default'.
+	 */
+	$theme = apply_filters( CNL_EDITOR_SLUG . '_ui_theme', CNL_EDITOR_UI_THEME );
+
+	return in_array( $theme, array( 'modern', 'default' ), true ) ? $theme : 'default';
+}
+
+/**
+ * Get the name to greet the user by: their first name, or their nickname.
+ *
+ * WordPress sets the nickname to the username until someone changes it, so
+ * an untouched nickname is skipped rather than greeting people by login.
+ *
+ * @param WP_User $user User to greet.
+ * @return string First name, nickname, or an empty string.
+ */
+function cnl_editor_get_greeting_name( $user ) {
+	$first_name = trim( (string) $user->first_name );
+	if ( '' !== $first_name ) {
+		return $first_name;
+	}
+
+	$nickname = trim( (string) $user->nickname );
+	if ( '' !== $nickname && $nickname !== $user->user_login ) {
+		return $nickname;
+	}
+
+	return '';
+}
+
+/**
  * Get settings for the editor app.
  *
  * @return array App settings.
@@ -169,6 +208,7 @@ add_action( CNL_EDITOR_SLUG . '_init', 'cnl_editor_register_default_routes_and_m
 function cnl_editor_get_app_settings() {
 	$navigation_post_type = get_post_type_object( 'wp_navigation' );
 	$theme                = wp_get_theme();
+	$current_user         = wp_get_current_user();
 	$lazy_editor_file     = WP_PLUGIN_DIR . '/gutenberg/build/modules/lazy-editor/index.js';
 	$lazy_editor_version  = file_exists( $lazy_editor_file )
 		? filemtime( $lazy_editor_file )
@@ -189,6 +229,8 @@ function cnl_editor_get_app_settings() {
 			plugins_url( 'gutenberg/build/modules/lazy-editor/index.js' )
 		),
 		'siteName'           => get_bloginfo( 'name' ),
+		'userName'           => cnl_editor_get_greeting_name( $current_user ),
+		'uiTheme'            => cnl_editor_get_ui_theme(),
 		'themeName'          => $theme->get( 'Name' ),
 		'showOnFront'        => get_option( 'show_on_front' ),
 		'pageOnFront'        => (int) get_option( 'page_on_front' ),
@@ -395,7 +437,7 @@ function cnl_editor_render_full_page() {
 	do_action( 'admin_head' );
 	?>
 	</head>
-	<body class="create-not-learn-editor">
+	<body class="<?php echo esc_attr( 'create-not-learn-editor cnl-ui-theme-' . cnl_editor_get_ui_theme() ); ?>"<?php echo 'modern' === cnl_editor_get_ui_theme() ? ' data-wpds-corner-radius="moderate"' : ''; ?>>
 		<div id="create-not-learn-editor-app" style="height: 100vh; box-sizing: border-box;">
 			<?php if ( ! $assets_ready ) : ?>
 				<div class="cnl-editor-loading">
@@ -807,7 +849,7 @@ function cnl_editor_get_menu_items() {
 		array(
 			'id'    => 'home',
 			'icon'  => 'dashicons-admin-home',
-			'label' => __( 'Homepage', 'create-not-learn-editor' ),
+			'label' => __( 'Your site', 'create-not-learn-editor' ),
 			'to'    => '/',
 		),
 		array(
@@ -832,7 +874,7 @@ function cnl_editor_get_menu_items() {
 	$items[] = array(
 		'id'    => 'navigation',
 		'icon'  => '',
-		'label' => __( 'Navigation Menus', 'create-not-learn-editor' ),
+		'label' => __( 'Menus', 'create-not-learn-editor' ),
 		'to'    => '/navigation',
 	);
 	$items[] = array(
@@ -844,13 +886,13 @@ function cnl_editor_get_menu_items() {
 	);
 	$items[] = array(
 		'id'     => 'styles',
-		'label'  => __( 'Styles', 'create-not-learn-editor' ),
+		'label'  => __( 'Colors & fonts', 'create-not-learn-editor' ),
 		'to'     => '/styles',
 		'parent' => 'design',
 	);
 	$items[] = array(
 		'id'     => 'identity',
-		'label'  => __( 'Site Identity', 'create-not-learn-editor' ),
+		'label'  => __( 'Name & logo', 'create-not-learn-editor' ),
 		'to'     => '/identity',
 		'parent' => 'design',
 	);
@@ -863,19 +905,19 @@ function cnl_editor_get_menu_items() {
 	);
 	$items[] = array(
 		'id'     => 'patterns',
-		'label'  => __( 'Patterns', 'create-not-learn-editor' ),
+		'label'  => __( 'Sections', 'create-not-learn-editor' ),
 		'to'     => '/patterns',
 		'parent' => 'advanced',
 	);
 	$items[] = array(
 		'id'     => 'templateParts',
-		'label'  => __( 'Template Parts', 'create-not-learn-editor' ),
+		'label'  => __( 'Site parts', 'create-not-learn-editor' ),
 		'to'     => '/template-parts',
 		'parent' => 'advanced',
 	);
 	$items[] = array(
 		'id'     => 'templates',
-		'label'  => __( 'Templates', 'create-not-learn-editor' ),
+		'label'  => __( 'Layouts', 'create-not-learn-editor' ),
 		'to'     => '/templates',
 		'parent' => 'advanced',
 	);

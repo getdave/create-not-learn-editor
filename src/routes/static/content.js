@@ -7,14 +7,16 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { withUiTheme } from '../../theme';
 import { getCurrentEditorPath, getStaticScreen } from './screens';
+import { SiteIdentityCanvas, SiteIdentityStage } from './identity';
+import { StylesCanvas, StylesStage } from './styles';
 import {
-	cnlEditorStore,
 	getErrorMessage,
 	getTemplateAuthorText,
+	getTemplateDisplayTitle,
 	getTitleText,
 } from '../../records';
-import { addPreviewArgs, settings as appSettings } from '../../settings';
 import {
 	Button,
 	coreDataStore,
@@ -22,12 +24,10 @@ import {
 	EmptyState,
 	InputControl,
 	layoutIcon,
-	MediaUpload,
 	Modal,
 	Notice,
 	Page,
 	plusIcon,
-	seenIcon,
 	SelectControl,
 	Spinner,
 	sprintf,
@@ -35,15 +35,11 @@ import {
 	__,
 	el,
 	useDispatch,
-	useEffect,
 	useMemo,
-	useRef,
 	useSelect,
 	useState,
 } from '../../wordpress-packages';
 
-const SITE_IDENTITY_CHANGED_EVENT = 'cnl-editor-site-identity-changed';
-const STYLES_PREVIEW_CHANGED_EVENT = 'cnl-editor-styles-preview-changed';
 const EMPTY_ARRAY = [];
 const TEMPLATE_QUERY = {
 	context: 'edit',
@@ -72,7 +68,8 @@ const PATTERN_SYNC_STATUS = {
 };
 const DEFAULT_PATTERN_CONTENT = '';
 const DEFAULT_TEMPLATE_VIEW = {
-	fields: [ 'description', 'author', 'status', 'slug' ],
+	descriptionField: 'description',
+	fields: [],
 	filters: [],
 	layout: {
 		previewSize: 160,
@@ -89,9 +86,10 @@ const DEFAULT_TEMPLATE_VIEW = {
 	type: 'grid',
 };
 const DEFAULT_TEMPLATE_PART_VIEW = {
-	fields: [ 'area', 'author', 'slug' ],
+	fields: [ 'area' ],
 	filters: [],
 	layout: {
+		badgeFields: [ 'area' ],
 		previewSize: 160,
 	},
 	mediaField: 'preview',
@@ -106,10 +104,10 @@ const DEFAULT_TEMPLATE_PART_VIEW = {
 	type: 'grid',
 };
 const DEFAULT_PATTERN_VIEW = {
-	fields: [ 'category', 'sync-status', 'type' ],
+	fields: [ 'category' ],
 	filters: [],
 	layout: {
-		badgeFields: [ 'sync-status' ],
+		badgeFields: [ 'category' ],
 		previewSize: 160,
 	},
 	mediaField: 'preview',
@@ -136,21 +134,21 @@ const DEFAULT_TEMPLATE_LAYOUTS = {
 };
 const PATTERN_TABS = [
 	{
-		label: __( 'All patterns' ),
+		label: __( 'All sections' ),
 		value: 'all',
 	},
 	{
-		label: __( 'My patterns' ),
+		label: __( 'Saved by you' ),
 		value: 'my-patterns',
 	},
 	{
-		label: __( 'Registered' ),
+		label: __( 'From your theme' ),
 		value: 'registered',
 	},
 ];
 const TEMPLATE_PART_AREAS = [
 	{
-		label: __( 'All Template Parts' ),
+		label: __( 'All' ),
 		value: 'all',
 	},
 	{
@@ -198,460 +196,12 @@ function getSearchParams() {
 	return params;
 }
 
-function updateSearchParams( updates ) {
-	const params = getSearchParams();
-
-	Object.entries( updates ).forEach( ( [ key, value ] ) => {
-		if ( value === undefined || value === null || value === '' ) {
-			params.delete( key );
-			return;
-		}
-
-		params.set( key, value );
-	} );
-
-	window.history.replaceState(
-		null,
-		'',
-		`${ window.location.pathname }?${ params }`
-	);
-}
-
 function getSearchValue( value ) {
 	if ( Array.isArray( value ) ) {
 		return value[ 0 ];
 	}
 
 	return value;
-}
-
-function useSiteIdentity() {
-	const { invalidateSiteSettings, saveSiteSettings } =
-		useDispatch( cnlEditorStore );
-	const { error, isLoading, isSaving, settings } = useSelect( ( select ) => {
-		const store = select( cnlEditorStore );
-
-		return {
-			error: store.getSiteSettingsError(),
-			isLoading:
-				store.isFetchingSiteSettings() ||
-				! store.hasFinishedResolution( 'getSiteSettings', [] ),
-			isSaving: store.isSavingSiteSettings(),
-			settings: store.getSiteSettings(),
-		};
-	}, [] );
-	const [ draft, setDraft ] = useState( {
-		description: '',
-		siteIcon: null,
-		siteLogo: 0,
-		title: '',
-	} );
-	const [ selectedMedia, setSelectedMedia ] = useState( {
-		siteIcon: null,
-		siteLogo: null,
-	} );
-	const [ saveNotice, setSaveNotice ] = useState( null );
-	const hasLocalEdits = useRef( false );
-	const dirtyMediaFields = useRef( new Set() );
-
-	useEffect( () => {
-		const refreshSettings = () => invalidateSiteSettings();
-
-		window.addEventListener( SITE_IDENTITY_CHANGED_EVENT, refreshSettings );
-
-		return () => {
-			window.removeEventListener(
-				SITE_IDENTITY_CHANGED_EVENT,
-				refreshSettings
-			);
-		};
-	}, [ invalidateSiteSettings ] );
-
-	useEffect( () => {
-		if ( ! settings || hasLocalEdits.current ) {
-			return;
-		}
-
-		setDraft( {
-			description: settings.description || '',
-			siteIcon: settings.site_icon || null,
-			siteLogo: settings.site_logo || 0,
-			title: settings.title || '',
-		} );
-	}, [ settings ] );
-
-	const updateDraft = ( key, value ) => {
-		hasLocalEdits.current = true;
-		setDraft( ( currentDraft ) => ( {
-			...currentDraft,
-			[ key ]: value,
-		} ) );
-		setSaveNotice( null );
-	};
-
-	const updateMediaDraft = ( key, media ) => {
-		updateDraft( key, media?.id || ( 'siteLogo' === key ? 0 : null ) );
-		dirtyMediaFields.current.add( key );
-		setSelectedMedia( ( currentMedia ) => ( {
-			...currentMedia,
-			[ key ]: media || null,
-		} ) );
-	};
-
-	const save = () => {
-		setSaveNotice( null );
-
-		const payload = {
-			description: draft.description,
-			title: draft.title,
-		};
-
-		if ( dirtyMediaFields.current.has( 'siteIcon' ) ) {
-			payload.site_icon = draft.siteIcon || 0;
-		}
-
-		if ( dirtyMediaFields.current.has( 'siteLogo' ) ) {
-			payload.site_logo = draft.siteLogo || 0;
-		}
-
-		saveSiteSettings( payload )
-			.then( ( result ) => {
-				const nextSettings = result || draft;
-				hasLocalEdits.current = false;
-				dirtyMediaFields.current.clear();
-				setDraft( {
-					description: nextSettings.description || '',
-					siteIcon: nextSettings.site_icon || null,
-					siteLogo: nextSettings.site_logo || 0,
-					title: nextSettings.title || '',
-				} );
-				setSelectedMedia( {
-					siteIcon: null,
-					siteLogo: null,
-				} );
-				setSaveNotice( __( 'Site identity saved.' ) );
-				window.dispatchEvent(
-					new CustomEvent( SITE_IDENTITY_CHANGED_EVENT )
-				);
-			} )
-			.catch( () => {} );
-	};
-
-	return {
-		draft,
-		error: error ? getErrorMessage( error ) : null,
-		isLoading,
-		isSaving,
-		save,
-		saveNotice,
-		selectedMedia,
-		settings,
-		updateDraft,
-		updateMediaDraft,
-	};
-}
-
-function getMediaUrl( media ) {
-	return (
-		media?.media_details?.sizes?.medium?.source_url ||
-		media?.media_details?.sizes?.thumbnail?.source_url ||
-		media?.source_url ||
-		media?.url ||
-		''
-	);
-}
-
-function useMediaRecord( mediaId ) {
-	return useSelect(
-		( select ) => {
-			if ( ! mediaId ) {
-				return {
-					isLoading: false,
-					media: null,
-				};
-			}
-
-			const args = [ 'root', 'media', mediaId ];
-			const store = select( coreDataStore );
-
-			return {
-				isLoading:
-					store.isResolving( 'getEntityRecord', args ) ||
-					! store.hasFinishedResolution( 'getEntityRecord', args ),
-				media: store.getEntityRecord( ...args ),
-			};
-		},
-		[ mediaId ]
-	);
-}
-
-function SiteMediaSetting( {
-	description,
-	imageClassName = '',
-	label,
-	onChange,
-	selectedMedia = null,
-	value,
-} ) {
-	const { isLoading, media } = useMediaRecord( value );
-	const imageUrl = getMediaUrl( selectedMedia ) || getMediaUrl( media );
-
-	return el(
-		'div',
-		{ className: 'cnl-editor-identity-media' },
-		el(
-			'div',
-			{ className: 'cnl-editor-identity-media__preview' },
-			imageUrl
-				? el( 'img', {
-						alt: '',
-						className: imageClassName,
-						src: imageUrl,
-					} )
-				: el(
-						'div',
-						{
-							'aria-hidden': true,
-							className: 'cnl-editor-identity-media__placeholder',
-						},
-						isLoading ? el( Spinner ) : label.charAt( 0 )
-					)
-		),
-		el(
-			'div',
-			{ className: 'cnl-editor-identity-media__details' },
-			el( 'h3', null, label ),
-			el( 'p', null, description ),
-			el(
-				'div',
-				{ className: 'cnl-editor-identity-media__actions' },
-				el( MediaUpload, {
-					allowedTypes: [ 'image' ],
-					multiple: false,
-					onSelect: onChange,
-					render: ( { open } ) =>
-						el(
-							Button,
-							{
-								onClick: open,
-								variant: value ? 'secondary' : 'primary',
-							},
-							value ? __( 'Replace' ) : __( 'Choose image' )
-						),
-					value: value || undefined,
-				} ),
-				Boolean( value ) &&
-					el(
-						Button,
-						{
-							onClick: () => onChange( null ),
-							variant: 'tertiary',
-						},
-						__( 'Remove' )
-					)
-			)
-		)
-	);
-}
-
-function SiteIdentityStage() {
-	const {
-		draft,
-		error,
-		isLoading,
-		isSaving,
-		save,
-		saveNotice,
-		selectedMedia,
-		updateDraft,
-		updateMediaDraft,
-	} = useSiteIdentity();
-
-	return el(
-		'div',
-		{ className: 'cnl-editor-stage' },
-		el(
-			'div',
-			{ className: 'cnl-editor-stage__header' },
-			el( 'span', {
-				'aria-hidden': true,
-				className: 'dashicons dashicons-id',
-			} ),
-			el(
-				'div',
-				null,
-				el( 'h1', null, __( 'Site Identity' ) ),
-				el(
-					'p',
-					null,
-					__(
-						'Manage the name and tagline visitors see across the site.'
-					)
-				)
-			)
-		),
-		el(
-			'div',
-			{ className: 'cnl-editor-panel cnl-editor-identity-form' },
-			isLoading &&
-				el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
-			! isLoading &&
-				el(
-					'div',
-					{ className: 'cnl-editor-identity-form__fields' },
-					el( InputControl, {
-						label: __( 'Site Title' ),
-						onValueChange: ( value ) =>
-							updateDraft( 'title', value ),
-						value: draft.title,
-					} ),
-					el( InputControl, {
-						label: __( 'Site Tagline' ),
-						onValueChange: ( value ) =>
-							updateDraft( 'description', value ),
-						value: draft.description,
-					} ),
-					el( SiteMediaSetting, {
-						description: __(
-							'Appears in templates and places where the site brand is shown.'
-						),
-						label: __( 'Site Logo' ),
-						onChange: ( media ) =>
-							updateMediaDraft( 'siteLogo', media ),
-						selectedMedia: selectedMedia.siteLogo,
-						value: draft.siteLogo,
-					} ),
-					el( SiteMediaSetting, {
-						description: __(
-							'Appears in browser tabs, bookmarks, and app surfaces.'
-						),
-						imageClassName:
-							'cnl-editor-identity-media__image--icon',
-						label: __( 'Site Icon' ),
-						onChange: ( media ) =>
-							updateMediaDraft( 'siteIcon', media ),
-						selectedMedia: selectedMedia.siteIcon,
-						value: draft.siteIcon,
-					} ),
-					el(
-						Button,
-						{
-							isBusy: isSaving,
-							onClick: save,
-							variant: 'primary',
-						},
-						__( 'Save identity' )
-					)
-				),
-			error &&
-				el(
-					Notice,
-					{
-						className: 'cnl-editor-panel__notice',
-						isDismissible: false,
-						status: 'error',
-					},
-					error
-				),
-			saveNotice &&
-				el(
-					Notice,
-					{
-						className: 'cnl-editor-panel__notice',
-						isDismissible: false,
-						status: 'success',
-					},
-					saveNotice
-				)
-		)
-	);
-}
-
-function SiteIdentityCanvas() {
-	const { isLoading, settings } = useSiteIdentity();
-	const title = settings?.title || __( 'Site title' );
-	const tagline = settings?.description || __( 'Site tagline' );
-	const { isLoading: isLogoLoading, media: logoMedia } = useMediaRecord(
-		settings?.site_logo
-	);
-	const { isLoading: isIconLoading, media: iconMedia } = useMediaRecord(
-		settings?.site_icon
-	);
-	const logoUrl = getMediaUrl( logoMedia );
-	const iconUrl = getMediaUrl( iconMedia );
-
-	return el(
-		'section',
-		{ className: 'cnl-editor-canvas' },
-		el(
-			'header',
-			{ className: 'cnl-editor-canvas__toolbar' },
-			el(
-				'div',
-				null,
-				el(
-					'div',
-					{ className: 'cnl-editor-canvas__label' },
-					__( 'Site Identity' )
-				),
-				el(
-					'div',
-					{ className: 'cnl-editor-canvas__status' },
-					__( 'Design' )
-				)
-			)
-		),
-		el(
-			'div',
-			{ className: 'cnl-editor-canvas__frame-wrap' },
-			isLoading || isLogoLoading || isIconLoading
-				? el(
-						'div',
-						{ className: 'cnl-editor-spinner' },
-						el( Spinner )
-					)
-				: el(
-						'div',
-						{ className: 'cnl-editor-identity-preview' },
-						el(
-							'div',
-							{
-								'aria-hidden': true,
-								className: 'cnl-editor-identity-preview__mark',
-							},
-							iconUrl
-								? el( 'img', {
-										alt: '',
-										className:
-											'cnl-editor-identity-preview__icon',
-										src: iconUrl,
-									} )
-								: title.charAt( 0 ).toUpperCase()
-						),
-						logoUrl &&
-							el( 'img', {
-								alt: '',
-								className: 'cnl-editor-identity-preview__logo',
-								src: logoUrl,
-							} ),
-						el(
-							'h2',
-							{
-								className: 'cnl-editor-identity-preview__title',
-							},
-							title
-						),
-						el(
-							'p',
-							{
-								className:
-									'cnl-editor-identity-preview__tagline',
-							},
-							tagline
-						)
-					)
-		)
-	);
 }
 
 function getTemplateDescription( template ) {
@@ -745,14 +295,14 @@ function getTemplateFields() {
 		{
 			enableGlobalSearch: true,
 			enableHiding: false,
-			getValue: ( { item } ) => getTitleText( item.title ),
+			getValue: ( { item } ) => getTemplateDisplayTitle( item ),
 			id: 'title',
 			label: __( 'Title' ),
 			render: ( { item } ) =>
 				el(
 					'span',
 					{ className: 'cnl-editor-dataviews-title' },
-					getTitleText( item.title )
+					getTemplateDisplayTitle( item )
 				),
 			type: 'text',
 		},
@@ -816,7 +366,7 @@ function getTemplateActions( navigate ) {
 			},
 			id: 'edit-template',
 			isPrimary: true,
-			label: __( 'Edit template' ),
+			label: __( 'Edit' ),
 			supportsBulk: false,
 		},
 	];
@@ -849,7 +399,7 @@ function CreateTemplateModal( { isSaving, onClose, onCreate, saveError } ) {
 					onClose();
 				}
 			},
-			title: __( 'Add new template' ),
+			title: __( 'Add a layout' ),
 		},
 		el(
 			'form',
@@ -1088,7 +638,7 @@ function TemplatesStage() {
 					onClick: openCreateModal,
 					variant: 'primary',
 				},
-				__( 'Add New Template' )
+				__( 'Add layout' )
 			)
 		);
 	const empty = el(
@@ -1116,10 +666,8 @@ function TemplatesStage() {
 			className: 'cnl-editor-stage routes-template-list',
 			hasPadding: false,
 			headingLevel: 2,
-			subTitle: __(
-				'Templates control the structure used by pages, posts, archives, and other site views.'
-			),
-			title: __( 'Templates' ),
+			subTitle: getStaticScreen().description,
+			title: getStaticScreen().title,
 		},
 		error && el( 'div', { className: 'cnl-editor-empty' }, error ),
 		el(
@@ -1176,14 +724,14 @@ function TemplatesCanvas() {
 			{
 				className: 'cnl-editor-canvas-placeholder__title',
 			},
-			__( 'No template selected' )
+			__( 'No layout selected' )
 		),
 		el(
 			'p',
 			{
 				className: 'cnl-editor-canvas-placeholder__description',
 			},
-			__( 'Select a template to preview its structure.' )
+			__( 'Pick a layout to see how it arranges a page.' )
 		)
 	);
 
@@ -1219,8 +767,8 @@ function TemplatesCanvas() {
 					'div',
 					{ className: 'cnl-editor-canvas__label' },
 					selectedTemplate
-						? getTitleText( selectedTemplate.title )
-						: __( 'Templates' )
+						? getTemplateDisplayTitle( selectedTemplate )
+						: __( 'Layouts' )
 				),
 				el(
 					'div',
@@ -1365,7 +913,7 @@ function getTemplatePartFields( activeArea ) {
 		{
 			getValue: ( { item } ) => getTemplatePartAreaLabel( item.area ),
 			id: 'area',
-			label: __( 'Area' ),
+			label: __( 'Where it goes' ),
 			type: 'text',
 		},
 		{
@@ -1417,7 +965,7 @@ function getTemplatePartActions( navigate ) {
 			},
 			id: 'edit-template-part',
 			isPrimary: true,
-			label: __( 'Edit template part' ),
+			label: __( 'Edit' ),
 			supportsBulk: false,
 		},
 	];
@@ -1458,7 +1006,7 @@ function CreateTemplatePartModal( {
 					onClose();
 				}
 			},
-			title: __( 'Add new template part' ),
+			title: __( 'Add a site part' ),
 		},
 		el(
 			'form',
@@ -1757,7 +1305,7 @@ function TemplatePartsStage() {
 					onClick: openCreateModal,
 					variant: 'primary',
 				},
-				__( 'Add New Template Part' )
+				__( 'Add site part' )
 			)
 		);
 	const empty = el(
@@ -1767,7 +1315,7 @@ function TemplatePartsStage() {
 			EmptyState.Root,
 			null,
 			el( EmptyState.Icon, { icon: layoutIcon } ),
-			el( EmptyState.Title, null, __( 'No template parts found' ) ),
+			el( EmptyState.Title, null, __( 'No site parts found' ) ),
 			el(
 				EmptyState.Description,
 				null,
@@ -1791,10 +1339,8 @@ function TemplatePartsStage() {
 			className: 'cnl-editor-stage routes-template-part-list',
 			hasPadding: false,
 			headingLevel: 2,
-			subTitle: __(
-				'Template parts are reusable structural areas like headers, footers, sidebars, and overlays.'
-			),
-			title: __( 'Template Parts' ),
+			subTitle: getStaticScreen().description,
+			title: getStaticScreen().title,
 		},
 		el(
 			'div',
@@ -1884,14 +1430,14 @@ function TemplatePartsCanvas() {
 			{
 				className: 'cnl-editor-canvas-placeholder__title',
 			},
-			__( 'No template part selected' )
+			__( 'No site part selected' )
 		),
 		el(
 			'p',
 			{
 				className: 'cnl-editor-canvas-placeholder__description',
 			},
-			__( 'Select a template part to preview its structure.' )
+			__( 'Pick a site part, like your header, to preview it.' )
 		)
 	);
 
@@ -1928,7 +1474,7 @@ function TemplatePartsCanvas() {
 					{ className: 'cnl-editor-canvas__label' },
 					selectedTemplatePart
 						? getTitleText( selectedTemplatePart.title )
-						: __( 'Template Parts' )
+						: __( 'Site parts' )
 				),
 				el(
 					'div',
@@ -1992,10 +1538,10 @@ function getPatternSyncStatusLabel( syncStatus ) {
 
 function getPatternTypeLabel( type ) {
 	if ( type === PATTERN_TYPES.user ) {
-		return __( 'My pattern' );
+		return __( 'Saved by you' );
 	}
 
-	return __( 'Registered' );
+	return __( 'From your theme' );
 }
 
 function getUserPatternCategorySlugs( pattern, userCategories ) {
@@ -2081,6 +1627,64 @@ function getPatternsForTab( patterns, activeTab ) {
 	}
 
 	return patterns;
+}
+
+const MAX_CATEGORY_CHIPS = 10;
+
+/**
+ * The most common kinds of section, for quick filtering.
+ *
+ * @param {Object[]} patterns    Patterns in the current tab.
+ * @param {Map}      categoryMap Category labels keyed by slug.
+ * @return {Object[]} Chips with a value and a label.
+ */
+function getPatternCategoryChips( patterns, categoryMap ) {
+	const counts = new Map();
+
+	patterns.forEach( ( pattern ) =>
+		( pattern.categories || EMPTY_ARRAY ).forEach( ( category ) =>
+			counts.set( category, ( counts.get( category ) || 0 ) + 1 )
+		)
+	);
+
+	return [ ...counts.entries() ]
+		.sort( ( [ , first ], [ , second ] ) => second - first )
+		.slice( 0, MAX_CATEGORY_CHIPS )
+		.map( ( [ value ] ) => ( {
+			label: categoryMap.get( value ) || value,
+			value,
+		} ) )
+		.sort( ( first, second ) => first.label.localeCompare( second.label ) );
+}
+
+function PatternCategoryChips( { chips, onChange, value } ) {
+	if ( chips.length < 2 ) {
+		return null;
+	}
+
+	return el(
+		'div',
+		{
+			'aria-label': __( 'Kinds of section' ),
+			className: 'routes-pattern-list__categories',
+			role: 'group',
+		},
+		[ { label: __( 'Everything' ), value: 'all' }, ...chips ].map(
+			( chip ) =>
+				el(
+					Button,
+					{
+						'aria-pressed': value === chip.value,
+						className: 'routes-pattern-list__category',
+						key: chip.value,
+						onClick: () => onChange( chip.value ),
+						size: 'compact',
+						variant: 'secondary',
+					},
+					chip.label
+				)
+		)
+	);
 }
 
 function renderPatternPreview( { item } ) {
@@ -2173,7 +1777,7 @@ function getPatternActions( navigate ) {
 			id: 'edit-pattern',
 			isEligible: ( item ) => item?.type === PATTERN_TYPES.user,
 			isPrimary: true,
-			label: __( 'Edit pattern' ),
+			label: __( 'Edit' ),
 			supportsBulk: false,
 		},
 	];
@@ -2208,7 +1812,7 @@ function CreatePatternModal( { isSaving, onClose, onCreate, saveError } ) {
 					onClose();
 				}
 			},
-			title: __( 'Add new pattern' ),
+			title: __( 'Add a section' ),
 		},
 		el(
 			'form',
@@ -2224,22 +1828,22 @@ function CreatePatternModal( { isSaving, onClose, onCreate, saveError } ) {
 					setTitle( value );
 					setValidationError( '' );
 				},
-				placeholder: __( 'My pattern' ),
+				placeholder: __( 'Customer reviews' ),
 				value: title,
 			} ),
 			el( SelectControl, {
 				__next40pxDefaultSize: true,
 				__nextHasNoMarginBottom: true,
 				disabled: isSaving,
-				label: __( 'Syncing' ),
+				label: __( 'When you edit it later' ),
 				onChange: setSyncStatus,
 				options: [
 					{
-						label: __( 'Synced' ),
+						label: __( 'Update it everywhere it is used' ),
 						value: PATTERN_SYNC_STATUS.full,
 					},
 					{
-						label: __( 'Not synced' ),
+						label: __( 'Let each copy be changed on its own' ),
 						value: PATTERN_SYNC_STATUS.unsynced,
 					},
 				],
@@ -2401,10 +2005,32 @@ function PatternsStage() {
 			} ),
 		[]
 	);
-	const visiblePatterns = useMemo(
+	const [ activeCategory, setActiveCategory ] = useState( 'all' );
+	const tabPatterns = useMemo(
 		() => getPatternsForTab( patterns, activeTab ),
 		[ activeTab, patterns ]
 	);
+	const categoryChips = useMemo(
+		() => getPatternCategoryChips( tabPatterns, categoryMap ),
+		[ categoryMap, tabPatterns ]
+	);
+	const visiblePatterns = useMemo(
+		() =>
+			activeCategory === 'all'
+				? tabPatterns
+				: tabPatterns.filter( ( pattern ) =>
+						pattern.categories?.includes( activeCategory )
+					),
+		[ activeCategory, tabPatterns ]
+	);
+	const selectCategory = ( nextCategory ) => {
+		setActiveCategory( nextCategory );
+		setSelectedPatternId( null );
+		setView( ( currentView ) => ( {
+			...currentView,
+			page: 1,
+		} ) );
+	};
 	const fields = useMemo(
 		() => getPatternFields( categoryMap ),
 		[ categoryMap ]
@@ -2434,6 +2060,7 @@ function PatternsStage() {
 	};
 	const selectTab = ( nextTab ) => {
 		setActiveTab( nextTab );
+		setActiveCategory( 'all' );
 		setSelectedPatternId( null );
 		setView( ( currentView ) => ( {
 			...currentView,
@@ -2525,7 +2152,7 @@ function PatternsStage() {
 					onClick: openCreateModal,
 					variant: 'primary',
 				},
-				__( 'Add New Pattern' )
+				__( 'Add section' )
 			)
 		);
 	const empty = el(
@@ -2535,7 +2162,7 @@ function PatternsStage() {
 			EmptyState.Root,
 			null,
 			el( EmptyState.Icon, { icon: layoutIcon } ),
-			el( EmptyState.Title, null, __( 'No patterns found' ) ),
+			el( EmptyState.Title, null, __( 'No sections found' ) ),
 			el(
 				EmptyState.Description,
 				null,
@@ -2553,10 +2180,8 @@ function PatternsStage() {
 			className: 'cnl-editor-stage routes-pattern-list',
 			hasPadding: false,
 			headingLevel: 2,
-			subTitle: __(
-				'Reusable design elements for your site. Create once, use everywhere.'
-			),
-			title: __( 'Patterns' ),
+			subTitle: getStaticScreen().description,
+			title: getStaticScreen().title,
 		},
 		el(
 			'div',
@@ -2583,6 +2208,11 @@ function PatternsStage() {
 				)
 			)
 		),
+		el( PatternCategoryChips, {
+			chips: categoryChips,
+			onChange: selectCategory,
+			value: activeCategory,
+		} ),
 		error && el( 'div', { className: 'cnl-editor-empty' }, error ),
 		el(
 			DataViews,
@@ -2639,14 +2269,14 @@ function PatternsCanvas() {
 			{
 				className: 'cnl-editor-canvas-placeholder__title',
 			},
-			__( 'No pattern selected' )
+			__( 'No section selected' )
 		),
 		el(
 			'p',
 			{
 				className: 'cnl-editor-canvas-placeholder__description',
 			},
-			__( 'Select a pattern to preview its reusable design.' )
+			__( 'Pick a section to preview it.' )
 		)
 	);
 
@@ -2684,7 +2314,7 @@ function PatternsCanvas() {
 					{ className: 'cnl-editor-canvas__label' },
 					selectedPattern
 						? getPatternTitle( selectedPattern )
-						: __( 'Patterns' )
+						: __( 'Sections' )
 				),
 				el(
 					'div',
@@ -2709,476 +2339,6 @@ function PatternsCanvas() {
 						},
 						__( 'Edit pattern' )
 					)
-			)
-		),
-		el(
-			'div',
-			{ className: 'cnl-editor-canvas__frame-wrap' },
-			canvasContent
-		)
-	);
-}
-
-function getStyleVariationTitle( variation, index = 0 ) {
-	const title = variation?.title;
-
-	if ( typeof title === 'string' ) {
-		return title;
-	}
-
-	return (
-		title?.rendered ||
-		title?.raw ||
-		variation?.name ||
-		sprintf(
-			/* translators: %d: Style variation number. */
-			__( 'Style %d' ),
-			index + 1
-		)
-	);
-}
-
-function getStyleVariationPalette( variation ) {
-	return (
-		variation?.settings?.color?.palette?.theme ||
-		variation?.settings?.color?.palette?.default ||
-		EMPTY_ARRAY
-	);
-}
-
-function getStyleVariationFontFamilies( variation ) {
-	return (
-		variation?.settings?.typography?.fontFamilies?.theme ||
-		variation?.settings?.typography?.fontFamilies?.default ||
-		EMPTY_ARRAY
-	);
-}
-
-function getStyleVariationTextColor( variation ) {
-	return variation?.styles?.color?.text || '#1d2327';
-}
-
-function getStyleVariationBackgroundColor( variation ) {
-	return variation?.styles?.color?.background || '#ffffff';
-}
-
-function getPreviewStylesConfig( editedGlobalStyles, baseStyles, variations ) {
-	const config =
-		editedGlobalStyles?.styles || editedGlobalStyles?.settings
-			? editedGlobalStyles
-			: variations?.[ 0 ] || baseStyles || {};
-
-	return {
-		settings: config?.settings || {},
-		styles: config?.styles || {},
-		title: getStyleVariationTitle( config, 0 ),
-	};
-}
-
-function useStylesData() {
-	const { editEntityRecord } = useDispatch( coreDataStore );
-	const {
-		baseStyles,
-		editedGlobalStyles,
-		globalStylesId,
-		isLoading,
-		theme,
-		variations,
-	} = useSelect( ( select ) => {
-		const store = select( coreDataStore );
-		const currentTheme = store.getCurrentTheme?.();
-		const currentGlobalStylesId =
-			store.__experimentalGetCurrentGlobalStylesId?.();
-		const globalStylesRecord = currentGlobalStylesId
-			? store.getEditedEntityRecord(
-					'root',
-					'globalStyles',
-					currentGlobalStylesId
-				)
-			: null;
-		const themeBaseStyles =
-			store.__experimentalGetCurrentThemeBaseGlobalStyles?.();
-		const styleVariations =
-			store.__experimentalGetCurrentThemeGlobalStylesVariations?.() ||
-			EMPTY_ARRAY;
-		const globalStylesArgs = currentGlobalStylesId
-			? [ 'root', 'globalStyles', currentGlobalStylesId ]
-			: null;
-
-		return {
-			baseStyles: themeBaseStyles,
-			editedGlobalStyles: globalStylesRecord,
-			globalStylesId: currentGlobalStylesId,
-			isLoading:
-				store.isResolving( 'getCurrentTheme', [] ) ||
-				store.isResolving(
-					'__experimentalGetCurrentGlobalStylesId',
-					[]
-				) ||
-				store.isResolving(
-					'__experimentalGetCurrentThemeBaseGlobalStyles',
-					[]
-				) ||
-				store.isResolving(
-					'__experimentalGetCurrentThemeGlobalStylesVariations',
-					[]
-				) ||
-				( Boolean( globalStylesArgs ) &&
-					store.isResolving( 'getEntityRecord', globalStylesArgs ) ),
-			theme: currentTheme,
-			variations: styleVariations,
-		};
-	}, [] );
-	const [ notice, setNotice ] = useState( '' );
-	const [ error, setError ] = useState( '' );
-
-	const applyVariation = ( variation, index ) => {
-		if ( ! globalStylesId ) {
-			setError(
-				__( 'The current global styles record is not available.' )
-			);
-			return;
-		}
-
-		setNotice( '' );
-		setError( '' );
-		editEntityRecord( 'root', 'globalStyles', globalStylesId, {
-			settings: variation?.settings || {},
-			styles: variation?.styles || {},
-		} );
-		setNotice(
-			sprintf(
-				/* translators: %s: Style variation name. */
-				__(
-					'%s selected. Review and save changes when you are ready.'
-				),
-				getStyleVariationTitle( variation, index )
-			)
-		);
-	};
-
-	return {
-		applyVariation,
-		baseStyles,
-		editedGlobalStyles,
-		error,
-		isLoading,
-		notice,
-		theme,
-		variations,
-	};
-}
-
-function StyleVariationCard( { index, onApply, variation } ) {
-	const palette = getStyleVariationPalette( variation );
-	const fontFamilies = getStyleVariationFontFamilies( variation );
-	const title = getStyleVariationTitle( variation, index );
-
-	return el(
-		'section',
-		{ className: 'routes-styles__variation-card' },
-		el(
-			'div',
-			{
-				className: 'routes-styles__variation-preview',
-				style: {
-					background: getStyleVariationBackgroundColor( variation ),
-					color: getStyleVariationTextColor( variation ),
-				},
-			},
-			el(
-				'div',
-				{ className: 'routes-styles__swatches' },
-				palette.slice( 0, 6 ).map( ( color, colorIndex ) =>
-					el( 'span', {
-						'aria-hidden': true,
-						className: 'routes-styles__swatch',
-						key: color.slug || color.color || colorIndex,
-						style: { background: color.color || color.slug },
-					} )
-				)
-			),
-			el( 'h2', null, title ),
-			el(
-				'p',
-				null,
-				fontFamilies[ 0 ]?.name ||
-					fontFamilies[ 0 ]?.fontFamily ||
-					__( 'Theme typography' )
-			)
-		),
-		el(
-			Button,
-			{
-				onClick: () => onApply( variation, index ),
-				variant: 'secondary',
-			},
-			__( 'Apply styles' )
-		)
-	);
-}
-
-function StylesStage() {
-	const { applyVariation, error, isLoading, notice, theme, variations } =
-		useStylesData();
-	const [ isStyleBookOpened, setIsStyleBookOpened ] = useState(
-		getSearchParams().get( 'preview' ) === 'stylebook'
-	);
-	const themeName = theme?.name?.rendered || theme?.name;
-	const toggleStyleBook = () => {
-		const nextValue = ! isStyleBookOpened;
-		setIsStyleBookOpened( nextValue );
-		updateSearchParams( {
-			preview: nextValue ? 'stylebook' : undefined,
-		} );
-		window.dispatchEvent( new CustomEvent( STYLES_PREVIEW_CHANGED_EVENT ) );
-	};
-
-	return el(
-		'div',
-		{ className: 'cnl-editor-stage routes-styles' },
-		el(
-			'div',
-			{ className: 'cnl-editor-stage__header routes-styles__header' },
-			el( 'span', {
-				'aria-hidden': true,
-				className: 'dashicons dashicons-admin-appearance',
-			} ),
-			el(
-				'div',
-				null,
-				el( 'h1', null, __( 'Styles' ) ),
-				el(
-					'p',
-					null,
-					themeName
-						? sprintf(
-								/* translators: %s: Theme name. */
-								__( 'Manage the visual language for %s.' ),
-								themeName
-							)
-						: __( 'Manage the visual language of the site.' )
-				)
-			),
-			el( Button, {
-				icon: seenIcon,
-				isPressed: isStyleBookOpened,
-				label: __( 'Style Book' ),
-				onClick: toggleStyleBook,
-				variant: 'secondary',
-			} )
-		),
-		notice &&
-			el(
-				Notice,
-				{
-					className: 'cnl-editor-panel__notice',
-					isDismissible: false,
-					status: 'success',
-				},
-				notice
-			),
-		error &&
-			el(
-				Notice,
-				{
-					className: 'cnl-editor-panel__notice',
-					isDismissible: false,
-					status: 'error',
-				},
-				error
-			),
-		isLoading &&
-			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
-		! isLoading &&
-			el(
-				'div',
-				{ className: 'routes-styles__section' },
-				el( 'h2', null, __( 'Style variations' ) ),
-				el(
-					'p',
-					null,
-					__(
-						'Choose a visual foundation for colors, typography, and block defaults.'
-					)
-				),
-				variations.length > 0
-					? el(
-							'div',
-							{ className: 'routes-styles__variation-grid' },
-							variations.map( ( variation, index ) =>
-								el( StyleVariationCard, {
-									index,
-									key: `${
-										variation.slug ||
-										getStyleVariationTitle(
-											variation,
-											index
-										)
-									}-${ index }`,
-									onApply: applyVariation,
-									variation,
-								} )
-							)
-						)
-					: el(
-							'div',
-							{ className: 'cnl-editor-empty' },
-							__(
-								'No style variations are available for this theme.'
-							)
-						)
-			)
-	);
-}
-
-function StyleBookPreview( { config } ) {
-	const palette = getStyleVariationPalette( config );
-	const fontFamilies = getStyleVariationFontFamilies( config );
-
-	return el(
-		'div',
-		{
-			className: 'routes-styles-preview routes-styles-preview--stylebook',
-			style: {
-				background: getStyleVariationBackgroundColor( config ),
-				color: getStyleVariationTextColor( config ),
-			},
-		},
-		el( 'span', null, __( 'Style Book' ) ),
-		el( 'h2', null, __( 'Typography, colors, and blocks' ) ),
-		el(
-			'p',
-			null,
-			__(
-				'Preview your website’s visual identity across common elements.'
-			)
-		),
-		el(
-			'div',
-			{ className: 'routes-styles-preview__samples' },
-			el(
-				'section',
-				null,
-				el( 'h3', null, __( 'Heading' ) ),
-				el(
-					'p',
-					null,
-					fontFamilies[ 0 ]?.name ||
-						fontFamilies[ 0 ]?.fontFamily ||
-						__( 'Theme typography' )
-				)
-			),
-			el(
-				'section',
-				null,
-				el( 'h3', null, __( 'Paragraph' ) ),
-				el(
-					'p',
-					null,
-					__(
-						'This sample shows how body copy, spacing, and color work together.'
-					)
-				)
-			),
-			el(
-				'section',
-				null,
-				el( 'h3', null, __( 'Button' ) ),
-				el( Button, { variant: 'primary' }, __( 'Sample action' ) )
-			)
-		),
-		el(
-			'div',
-			{ className: 'routes-styles-preview__palette' },
-			palette.slice( 0, 8 ).map( ( color, index ) =>
-				el(
-					'div',
-					{ key: color.slug || color.color || index },
-					el( 'span', {
-						'aria-hidden': true,
-						className: 'routes-styles__swatch',
-						style: { background: color.color || color.slug },
-					} ),
-					el( 'small', null, color.name || color.slug )
-				)
-			)
-		)
-	);
-}
-
-function StylesCanvas() {
-	const { baseStyles, editedGlobalStyles, isLoading, variations } =
-		useStylesData();
-	const [ isStyleBookOpened, setIsStyleBookOpened ] = useState(
-		getSearchParams().get( 'preview' ) === 'stylebook'
-	);
-	const previewConfig = useMemo(
-		() =>
-			getPreviewStylesConfig(
-				editedGlobalStyles,
-				baseStyles,
-				variations
-			),
-		[ baseStyles, editedGlobalStyles, variations ]
-	);
-
-	useEffect( () => {
-		const updatePreviewMode = () =>
-			setIsStyleBookOpened(
-				getSearchParams().get( 'preview' ) === 'stylebook'
-			);
-
-		window.addEventListener(
-			STYLES_PREVIEW_CHANGED_EVENT,
-			updatePreviewMode
-		);
-
-		return () => {
-			window.removeEventListener(
-				STYLES_PREVIEW_CHANGED_EVENT,
-				updatePreviewMode
-			);
-		};
-	}, [] );
-
-	let canvasContent = el( 'iframe', {
-		className: 'cnl-editor-canvas__frame',
-		src: addPreviewArgs( appSettings.homeUrl ),
-		title: __( 'Site preview' ),
-	} );
-
-	if ( isStyleBookOpened ) {
-		canvasContent = el( StyleBookPreview, { config: previewConfig } );
-	}
-
-	if ( isLoading ) {
-		canvasContent = el(
-			'div',
-			{ className: 'cnl-editor-spinner' },
-			el( Spinner )
-		);
-	}
-
-	return el(
-		'section',
-		{ className: 'cnl-editor-canvas' },
-		el(
-			'header',
-			{ className: 'cnl-editor-canvas__toolbar' },
-			el(
-				'div',
-				null,
-				el(
-					'div',
-					{ className: 'cnl-editor-canvas__label' },
-					__( 'Styles' )
-				),
-				el(
-					'div',
-					{ className: 'cnl-editor-canvas__status' },
-					isStyleBookOpened ? __( 'Style Book' ) : __( 'Preview' )
-				)
 			)
 		),
 		el(
@@ -3308,4 +2468,5 @@ function Canvas() {
 	);
 }
 
-export { Stage as stage, Canvas as canvas };
+export const stage = withUiTheme( Stage );
+export const canvas = withUiTheme( Canvas );

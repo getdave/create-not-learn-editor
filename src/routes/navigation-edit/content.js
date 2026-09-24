@@ -11,6 +11,7 @@ import {
 /**
  * Internal dependencies
  */
+import { withUiTheme } from '../../theme';
 import { cnlEditorStore, getErrorMessage, getTitleText } from '../../records';
 import {
 	archiveIcon,
@@ -2706,4 +2707,5 @@ function NavigationEditCanvas() {
 	);
 }
 
-export { NavigationEditStage as stage, NavigationEditCanvas as canvas };
+export const stage = withUiTheme( NavigationEditStage );
+export const canvas = withUiTheme( NavigationEditCanvas );
