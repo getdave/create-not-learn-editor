@@ -14,7 +14,6 @@ import {
 } from './checklist';
 import {
 	Button,
-	Card,
 	Icon,
 	Link,
 	ProgressBar,
@@ -199,84 +198,78 @@ export default function Stage() {
 			)
 		),
 		el(
-			Card.Root,
-			{ className: 'cnl-site-hub__card' },
+			Stack,
+			{
+				className: 'cnl-site-hub__checklist',
+				direction: 'column',
+				gap: 'md',
+			},
 			el(
-				Card.Header,
-				null,
+				Stack,
+				{ align: 'center', justify: 'space-between' },
 				el(
-					Stack,
-					{ align: 'center', justify: 'space-between' },
+					Text,
+					{ render: el( 'h2' ), variant: 'heading-sm' },
+					isComplete
+						? __( 'Your site is made' )
+						: __( 'Create your site' )
+				),
+				! isLoading &&
 					el(
-						Card.Title,
-						{ render: el( 'h2' ) },
-						isComplete
-							? __( 'Your site is made' )
-							: __( 'Create your site' )
-					),
-					! isLoading &&
-						el(
-							Text,
-							{
-								className: 'cnl-site-hub__count',
-								variant: 'body-sm',
-							},
-							sprintf(
-								/* translators: 1: completed steps, 2: total steps. */
-								__( '%1$d of %2$d' ),
-								progress.done,
-								progress.total
-							)
+						Text,
+						{
+							className: 'cnl-site-hub__count',
+							variant: 'body-sm',
+						},
+						sprintf(
+							/* translators: 1: completed steps, 2: total steps. */
+							__( '%1$d of %2$d' ),
+							progress.done,
+							progress.total
 						)
-				)
+					)
 			),
-			el(
-				Card.Content,
-				null,
-				isLoading
-					? el(
-							'div',
-							{ className: 'cnl-editor-spinner' },
-							el( Spinner )
-						)
-					: el(
-							Stack,
-							{ direction: 'column', gap: 'md' },
-							el( ProgressBar, {
-								className: 'cnl-site-hub__progress',
-								value: progress.percent,
-							} ),
-							isComplete &&
-								el(
-									Text,
-									{
-										className: 'cnl-site-hub__complete',
-										variant: 'body-sm',
-									},
-									__(
-										'Nice work, you made it. Keep creating: add pages, try new looks, and change anything whenever you like.'
-									)
-								),
+			isLoading
+				? el(
+						'div',
+						{ className: 'cnl-editor-spinner' },
+						el( Spinner )
+					)
+				: el(
+						Stack,
+						{ direction: 'column', gap: 'md' },
+						el( ProgressBar, {
+							className: 'cnl-site-hub__progress',
+							value: progress.percent,
+						} ),
+						isComplete &&
 							el(
-								'ol',
+								Text,
 								{
-									'aria-label': __(
-										'Steps to create your site'
-									),
-									className: 'cnl-site-hub__steps',
+									className: 'cnl-site-hub__complete',
+									variant: 'body-sm',
 								},
-								CREATION_STEP_IDS.map( ( id ) =>
-									el( CreationStep, {
-										isDone: status[ id ],
-										key: id,
-										onSelect: () =>
-											navigate( { to: steps[ id ].to } ),
-										step: steps[ id ],
-									} )
+								__(
+									'Nice work, you made it. Keep creating: add pages, try new looks, and change anything whenever you like.'
 								)
+							),
+						el(
+							'ol',
+							{
+								'aria-label': __( 'Steps to create your site' ),
+								className: 'cnl-site-hub__steps',
+							},
+							CREATION_STEP_IDS.map( ( id ) =>
+								el( CreationStep, {
+									isDone: status[ id ],
+									key: id,
+									onSelect: () =>
+										navigate( { to: steps[ id ].to } ),
+									step: steps[ id ],
+								} )
 							)
 						)
-			)
+					)
 		),
 		el(
 			Text,
