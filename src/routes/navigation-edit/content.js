@@ -1709,7 +1709,7 @@ function NavigationEditStage() {
 			breadcrumbs: el( Breadcrumbs, {
 				items: [
 					{
-						label: __( 'Navigation' ),
+						label: __( 'Menus' ),
 						to: '/navigation',
 					},
 					{ label: menuTitle },

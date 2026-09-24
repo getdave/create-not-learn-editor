@@ -1,8 +1,9 @@
 /**
  * "Modern" theme layer for the WordPress Design System.
  *
- * Softer corners, calmer surfaces, and a floating site preview, while keeping
- * WordPress's type, colors, and dark sidebar.
+ * Softer corners, calmer surfaces, a floating site preview, and WordPress.org's
+ * EB Garamond for headings, while keeping WordPress's interface font, colors,
+ * and dark sidebar.
  *
  * Token values are changed through the design system's own API, not here:
  * `src/theme/index.js` wraps each route in a `ThemeProvider` with the
@@ -15,7 +16,7 @@
  * `CNL_EDITOR_UI_THEME` is 'modern'.
  */
 
-$title-font-family: "Recoleta", "Georgia", "Times New Roman", "Times", serif;
+$heading-font-family: "EB Garamond", "Georgia", "Times New Roman", serif;
 
 .cnl-ui-theme-modern {
 
@@ -62,47 +63,140 @@ $title-font-family: "Recoleta", "Georgia", "Times New Roman", "Times", serif;
 	}
 
 	/*
-	 * Headings sit a little tighter, keeping the system font WordPress uses.
+	 * Headings follow WordPress.org: EB Garamond at a regular weight, with
+	 * balanced line breaks. The font ships with the plugin and is enqueued by
+	 * PHP only for this theme. Garamond has a small x-height, so each size
+	 * sits a step above the sans-serif it replaces.
 	 */
-	.cnl-editor-stage h2,
-	.components-modal__header-heading {
-		letter-spacing: -0.01em;
+	.cnl-editor-stage h1,
+	.cnl-editor-stage [class*="__header-lockup"] > h2,
+	.cnl-editor-canvas [class*="__header-lockup"] > h2,
+	.cnl-sidebar-welcome,
+	[class*="__sidebar"] [class*="__title-icon"] h1,
+	.cnl-site-hub__card h2,
+	.cnl-editor-identity-media__details h3,
+	.routes-styles__step-heading,
+	.routes-navigation-canvas-toolbar__title,
+	.components-modal__frame .components-modal__header .components-modal__header-heading {
+		font-family: $heading-font-family;
+		font-weight: 400;
+		letter-spacing: normal;
+		text-transform: none;
+		text-wrap: balance;
+	}
+
+	// Screen titles.
+	.cnl-editor-stage h1,
+	.cnl-editor-stage [class*="__header-lockup"] > h2 {
+		font-size: 32px;
+		line-height: 1.15;
 	}
 
 	/*
-	 * Each screen's main title uses the serif display face from
-	 * WordPress.com's dashboard. Recoleta is not bundled; where it is not
-	 * installed the title falls back to Georgia.
+	 * Breadcrumb trails, such as Menus / Navigation, read as one title: every
+	 * crumb in the heading face at the same size, with the parents muted so
+	 * the current screen stands out.
 	 */
-	.cnl-editor-stage h1,
-	.cnl-editor-stage [class*="__header-lockup"] > h2 {
-		font-family: $title-font-family;
+	.cnl-editor-stage [class*="__header-lockup"] nav {
+		min-width: 0;
+
+		// When a long name wraps, keep the parent crumbs on its first line.
+		li {
+			align-self: first baseline;
+		}
+
+		a,
+		h1,
+		[class*="__separator"] {
+			font-family: $heading-font-family;
+			font-size: 26px;
+			font-weight: 400;
+			line-height: 1.2;
+		}
+
+		a,
+		[class*="__separator"] {
+			color: var(--wpds-color-foreground-content-neutral-weak);
+		}
+
+		a {
+			text-decoration: none;
+		}
+
+		a:hover {
+			color: var(--wpds-color-foreground-content-neutral);
+			text-decoration: underline;
+			text-decoration-thickness: 1px;
+			text-underline-offset: 0.15em;
+		}
+	}
+
+	// The sidebar greeting and drilldown titles (Content, Design, Advanced).
+	.cnl-sidebar-welcome,
+	[class*="__sidebar"] [class*="__title-icon"] h1 {
 		font-size: 28px;
-		font-weight: var(--wpds-typography-font-weight-default);
-		letter-spacing: normal;
 		line-height: 1.2;
 	}
 
-	/*
-	 * The sidebar greeting and the title shown when drilling into a menu
-	 * section (Content, Design, Advanced) use the same serif.
-	 */
-	.cnl-sidebar-welcome,
-	[class*="__sidebar"] [class*="__title-icon"] h1 {
-		font-family: $title-font-family;
-		font-size: var(--wpds-typography-font-size-xl);
-		font-weight: var(--wpds-typography-font-weight-default);
-		letter-spacing: normal;
+	// Card, canvas, and dialog headings.
+	.cnl-editor-canvas [class*="__header-lockup"] > h2,
+	.cnl-site-hub__card h2,
+	.components-modal__frame .components-modal__header .components-modal__header-heading {
+		font-size: 26px;
+		line-height: 1.2;
+	}
+
+	// The full-width layout picker gets a screen-sized title.
+	.cnl-add-page-modal.is-layout-picker .components-modal__header .components-modal__header-heading {
+		font-size: 32px;
+		line-height: 1.15;
+	}
+
+	// Steps within a screen, and smaller headings inside them.
+	.routes-styles__step-heading,
+	.routes-navigation-canvas-toolbar__title {
+		font-size: 24px;
+		line-height: 1.25;
+	}
+
+	.cnl-editor-identity-media__details h3 {
+		font-size: 22px;
 		line-height: 1.25;
 	}
 
 	/*
-	 * Section labels read as quiet eyebrows rather than bold headings.
+	 * Step numbers stay in the interface font so they read as markers, not
+	 * part of the heading.
+	 */
+	.routes-styles__step-number {
+		width: 24px;
+		height: 24px;
+		background: var(--wpds-color-foreground-content-neutral);
+		color: var(--wpds-color-background-surface-neutral-strong);
+		font-family: var(--wpds-typography-font-family-body);
+		font-size: var(--wpds-typography-font-size-sm);
+		font-weight: var(--wpds-typography-font-weight-emphasis);
+	}
+
+	/*
+	 * Field labels in sentence case, like WordPress.org, rather than small
+	 * capitals.
 	 */
 	.routes-styles__label,
-	.routes-styles__step-heading {
-		color: var(--wpds-color-foreground-content-neutral-weak);
-		letter-spacing: 0.04em;
+	.cnl-editor-stage label[class*="__label"],
+	.components-modal__frame label[class*="__label"],
+	.components-base-control__label,
+	.components-input-control__label {
+		font-size: var(--wpds-typography-font-size-md);
+		text-transform: none;
+	}
+
+	/*
+	 * Descriptions under titles and steps get a little more room to breathe.
+	 */
+	.cnl-editor-stage .routes-styles__muted {
+		line-height: 1.6;
+		text-wrap: pretty;
 	}
 
 	/*
