@@ -205,7 +205,6 @@ function cnl_editor_get_post_preview_context( $post_id, $preview_type = '', $sta
 		'previewStatusLabel' => $status_label ? $status_label : cnl_editor_get_preview_post_status_label( $post ),
 		'previewType'        => $preview_type ? $preview_type : $post->post_type,
 		'previewTypeLabel'   => $post_type ? $post_type->labels->singular_name : __( 'Page', 'create-not-learn-editor' ),
-		'previewEditLabel'   => 'page' === $post->post_type ? __( 'Edit page', 'create-not-learn-editor' ) : __( 'Edit', 'create-not-learn-editor' ),
 		'previewCanEdit'     => '' !== $edit_route,
 	);
 }
@@ -301,7 +300,6 @@ function cnl_editor_get_front_page_preview_context() {
 		'previewStatusLabel' => cnl_editor_get_preview_status_label( 'homepage' ),
 		'previewType'        => 'template',
 		'previewTypeLabel'   => __( 'Template', 'create-not-learn-editor' ),
-		'previewEditLabel'   => __( 'Edit', 'create-not-learn-editor' ),
 		'previewCanEdit'     => '' !== $template_id,
 		'previewTone'        => 'global',
 		'previewDocumentStatus'      => 'home-latest-posts',
@@ -363,7 +361,6 @@ function cnl_editor_get_preview_context( $url ) {
 		'previewStatusLabel' => __( 'Preview', 'create-not-learn-editor' ),
 		'previewType'        => 'preview',
 		'previewTypeLabel'   => __( 'Page', 'create-not-learn-editor' ),
-		'previewEditLabel'   => __( 'Edit', 'create-not-learn-editor' ),
 		'previewCanEdit'     => false,
 	);
 }

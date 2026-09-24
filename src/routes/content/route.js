@@ -110,7 +110,6 @@ export const route = {
 				postId: templateId,
 				postType: 'wp_template',
 				previewCanEdit: true,
-				previewEditLabel: __( 'Edit' ),
 				previewIcon: getTemplateIcon( template ),
 				previewLabel: getTemplateTitle( template, __( 'Pages' ) ),
 				previewStatus: template.status || 'publish',
