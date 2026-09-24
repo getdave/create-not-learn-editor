@@ -5,7 +5,14 @@ import { store as bootStore } from '@wordpress/boot';
 import { dispatch } from '@wordpress/data';
 import { layout, navigation, symbol, symbolFilled } from '@wordpress/icons';
 
+/**
+ * Internal dependencies
+ */
+import { registerTemplatePartEditing } from '../../../src/editor-extensions/template-part-editing';
+
 export async function init() {
+	registerTemplatePartEditing();
+
 	const menuIcons = {
 		navigation,
 		patterns: symbol,
