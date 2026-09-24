@@ -5,6 +5,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { Breadcrumbs, Page } from '@wordpress/admin-ui';
 import { registerCoreBlocks } from '@wordpress/block-library';
 import {
+	cloneBlock,
 	createBlock,
 	getBlockType,
 	hasBlockSupport,
@@ -14,6 +15,7 @@ import {
 } from '@wordpress/blocks';
 import {
 	BlockEditorProvider,
+	BlockIcon,
 	BlockList,
 	BlockTitle,
 	LinkControl,
@@ -71,6 +73,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from '@wordpress/element';
 import { escapeHTML } from '@wordpress/escape-html';
 import { decodeEntities } from '@wordpress/html-entities';
@@ -78,6 +81,8 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 import {
 	addSubmenu,
 	archive,
+	arrowDown,
+	arrowUp,
 	blockDefault,
 	brush,
 	category,
@@ -85,9 +90,14 @@ import {
 	chevronLeft,
 	chevronDown,
 	chevronRight,
+	chevronRightSmall,
+	chevronDownSmall,
 	chevronUp,
+	closeSmall,
+	copy,
 	customLink,
 	desktop,
+	dragHandle,
 	external,
 	file,
 	footer,
@@ -107,12 +117,14 @@ import {
 	postList,
 	pages,
 	postCategories,
+	search,
 	settings as settingsIcon,
 	siteLogo,
 	styles,
 	tablet,
 	trash,
 	seen,
+	undo,
 	update,
 } from '@wordpress/icons';
 import { useEditorAssets, useEditorSettings } from '@wordpress/lazy-editor';
@@ -140,9 +152,12 @@ export {
 	addQueryArgs,
 	apiFetch,
 	archive as archiveIcon,
+	arrowDown as arrowDownIcon,
+	arrowUp as arrowUpIcon,
 	Badge,
 	blockEditorStore,
 	BlockEditorProvider,
+	BlockIcon,
 	blockDefault as blockDefaultIcon,
 	BlockList,
 	blocksStore,
@@ -158,7 +173,12 @@ export {
 	ColorIndicator,
 	chevronLeft as chevronLeftIcon,
 	chevronRight as chevronRightIcon,
+	chevronRightSmall as chevronRightSmallIcon,
+	chevronDownSmall as chevronDownSmallIcon,
 	chevronUp as chevronUpIcon,
+	cloneBlock,
+	closeSmall as closeSmallIcon,
+	copy as copyIcon,
 	coreDataStore,
 	createBlock,
 	createReduxStore,
@@ -167,6 +187,7 @@ export {
 	decodeEntities,
 	dispatch,
 	desktop as desktopIcon,
+	dragHandle as dragHandleIcon,
 	Dropdown,
 	DropdownMenu,
 	el,
@@ -216,6 +237,7 @@ export {
 	registerCoreBlocks,
 	resolveSelect,
 	safeDecodeURI,
+	search as searchIcon,
 	SelectControl,
 	seen as seenIcon,
 	select,
@@ -237,6 +259,7 @@ export {
 	ToggleGroupControlOptionIcon,
 	trash as trashIcon,
 	UiButton,
+	undo as undoIcon,
 	update as updateIcon,
 	useBlockBindingsUtils,
 	useBlockEditingMode,
@@ -250,6 +273,7 @@ export {
 	useRef,
 	useSelect,
 	useState,
+	useSyncExternalStore,
 	__,
 	_n,
 };

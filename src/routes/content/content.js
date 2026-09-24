@@ -29,6 +29,8 @@ import {
 } from './page-layouts';
 import { isPageInMenu } from './menu-status';
 import useMainMenu, { useAddPageToMenu } from './use-main-menu';
+import { PageDetailStage, PagesTree } from './pages/stage';
+import PagesCanvas from './pages/canvas';
 import {
 	Badge,
 	Button,
@@ -1058,8 +1060,10 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 			}
 
 			onClose();
+			// Open the new page in the Pages screen, where its sections are.
 			navigate( {
-				to: `/types/page/edit/${ newPage.id }`,
+				search: { postId: newPage.id },
+				to: '/types/page/list/all',
 			} );
 		} catch ( error ) {
 			setValidationError( getErrorMessage( error ) );
@@ -1431,7 +1435,7 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 							onClick: createPage,
 							variant: 'primary',
 						},
-						__( 'Create and edit' )
+						__( 'Create page' )
 					)
 				)
 			)
@@ -1699,6 +1703,15 @@ function Stage() {
 
 	const listPath = `/types/${ type.name }/list/all`;
 	const showTemplates = activeTab === 'templates';
+	const drilledPageId =
+		isPages && ! showTemplates ? Number( searchParams.postId ) || 0 : 0;
+
+	if ( drilledPageId ) {
+		return el( PageDetailStage, {
+			key: drilledPageId,
+			pageId: drilledPageId,
+		} );
+	}
 	const onChangeContentView = ( nextView ) => {
 		setContentView( nextView );
 		navigate( {
@@ -1877,6 +1890,37 @@ function Stage() {
 		)
 	);
 
+	const contentList = isPages
+		? el( PagesTree, {
+				canCreate: type.canCreate,
+				onAddPage: openCreateFlow,
+			} )
+		: el(
+				DataViews,
+				{
+					actions: contentActions,
+					data: posts,
+					defaultLayouts: DEFAULT_CONTENT_LAYOUTS,
+					empty: contentEmpty,
+					fields: contentFields,
+					getItemId: ( item ) => String( item.id ),
+					isLoading,
+					key: `${ previewTemplatesKey }|${ frontPageId }|${ postsPageId }|${
+						mainMenu.menuPages ? 'menu' : 'no-menu'
+					}`,
+					onChangeSelection: () => {},
+					onChangeView: onChangeContentView,
+					onClickItem: ( item ) => selectPost( item.id ),
+					paginationInfo: {
+						totalItems: posts.length,
+						totalPages,
+					},
+					selection: EMPTY_ARRAY,
+					view: contentView,
+				},
+				el( PostListDataViewsLayout )
+			);
+
 	return el(
 		Page,
 		{
@@ -1887,7 +1931,7 @@ function Stage() {
 			subTitle:
 				( type.name === 'page' &&
 					__(
-						'Every page on your site. Add a new one, or check which ones are in your menu.'
+						'Every page on your site. Pick one to see what is on it and change it.'
 					) ) ||
 				( type.name === 'post' &&
 					__( 'Your blog posts, newest first.' ) ) ||
@@ -2025,31 +2069,7 @@ function Stage() {
 						} ),
 					! isLoading && templates.length === 0 && templateEmpty
 				)
-			: el(
-					DataViews,
-					{
-						actions: contentActions,
-						data: posts,
-						defaultLayouts: DEFAULT_CONTENT_LAYOUTS,
-						empty: contentEmpty,
-						fields: contentFields,
-						getItemId: ( item ) => String( item.id ),
-						isLoading,
-						key: `${ previewTemplatesKey }|${ frontPageId }|${ postsPageId }|${
-							mainMenu.menuPages ? 'menu' : 'no-menu'
-						}`,
-						onChangeSelection: () => {},
-						onChangeView: onChangeContentView,
-						onClickItem: ( item ) => selectPost( item.id ),
-						paginationInfo: {
-							totalItems: posts.length,
-							totalPages,
-						},
-						selection: EMPTY_ARRAY,
-						view: contentView,
-					},
-					el( PostListDataViewsLayout )
-				),
+			: contentList,
 		showTemplates &&
 			templates.length > 0 &&
 			el(
@@ -2081,6 +2101,20 @@ function Stage() {
 }
 
 function Canvas() {
+	const params = useParams( { strict: false } );
+	const searchParams = useSearch( { strict: false } );
+
+	if (
+		params.type === 'page' &&
+		getActiveTab( searchParams ) !== 'templates'
+	) {
+		return el( PagesCanvas );
+	}
+
+	return el( ContentCanvas );
+}
+
+function ContentCanvas() {
 	const navigate = useNavigate();
 	const { activeTab, isLoading, selectedPost, selectedTemplate, type } =
 		useContentRecords();
