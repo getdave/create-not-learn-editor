@@ -5,41 +5,49 @@ import { __ } from '../../wordpress-packages';
 
 const screens = {
 	'/styles': {
-		description: __( 'Manage the visual language of the site.' ),
+		description: __(
+			'Pick a look for your whole site, then fine-tune it.'
+		),
 		icon: 'dashicons-admin-appearance',
 		section: __( 'Design' ),
 		status: __( 'Styles' ),
-		title: __( 'Styles' ),
+		title: __( 'Colors & fonts' ),
 	},
 	'/identity': {
 		description: __(
-			'Manage the name, logo, and basic identity of the site.'
+			'Your site’s name, tagline, and logo. Shown in your header, browser tabs, and search results.'
 		),
 		icon: 'dashicons-id',
 		section: __( 'Design' ),
 		status: __( 'Site identity' ),
-		title: __( 'Site Identity' ),
+		title: __( 'Name & logo' ),
 	},
 	'/patterns': {
-		description: __( 'Manage reusable patterns for the site.' ),
+		description: __(
+			'Ready-made pieces you can drop into any page, like a row of reviews or a contact block. WordPress calls these patterns.'
+		),
 		icon: 'dashicons-layout',
 		section: __( 'Advanced' ),
 		status: __( 'Patterns' ),
-		title: __( 'Patterns' ),
+		title: __( 'Sections' ),
 	},
 	'/template-parts': {
-		description: __( 'Manage reusable structural areas of the site.' ),
+		description: __(
+			'The pieces that repeat on every page, like your header and footer. Change one and it updates everywhere. WordPress calls these template parts.'
+		),
 		icon: 'dashicons-schedule',
 		section: __( 'Advanced' ),
 		status: __( 'Template parts' ),
-		title: __( 'Template Parts' ),
+		title: __( 'Site parts' ),
 	},
 	'/templates': {
-		description: __( 'Manage the templates that control site structure.' ),
+		description: __(
+			'Layouts decide how each kind of page is arranged. Changing one changes every page that uses it. WordPress calls these templates.'
+		),
 		icon: 'dashicons-media-document',
 		section: __( 'Advanced' ),
 		status: __( 'Templates' ),
-		title: __( 'Templates' ),
+		title: __( 'Layouts' ),
 	},
 };
 

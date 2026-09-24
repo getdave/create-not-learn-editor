@@ -98,7 +98,7 @@ async function writeAddPageParityScreenshot( locator, name ) {
 }
 
 async function navigateToNavigationMenus( page ) {
-	await page.getByRole( 'link', { name: 'Navigation Menus' } ).click();
+	await page.getByRole( 'link', { name: 'Menus', exact: true } ).click();
 }
 
 async function createPreviewTestPage( page, options = {} ) {
@@ -613,7 +613,7 @@ test.describe( 'Create Not Learn Editor', () => {
 			.getByRole( 'button', { name: /Choose a page design/ } )
 			.click();
 		const designDialog = page.getByRole( 'dialog', {
-			name: 'Choose a page design',
+			name: 'What kind of page?',
 		} );
 		await expect( designDialog ).toBeVisible();
 		await expect(
@@ -696,22 +696,24 @@ test.describe( 'Create Not Learn Editor', () => {
 			)
 			.toBe( true );
 		await expect(
-			addPageDialog.getByLabel( 'Page Template' )
+			addPageDialog.getByLabel( 'Layout', { exact: true } )
 		).toBeVisible();
 		const pageTemplateOptionLabels = await addPageDialog
-			.getByLabel( 'Page Template' )
+			.getByLabel( 'Layout', { exact: true } )
 			.locator( 'option' )
 			.allTextContents();
 		expect( pageTemplateOptionLabels ).not.toContain( 'Page' );
-		await addPageDialog.getByLabel( 'Page Template' ).selectOption( {
-			index: 0,
-		} );
-		await expect( addPageDialog.getByLabel( 'Page Template' ) ).toHaveValue(
-			''
-		);
+		await addPageDialog
+			.getByLabel( 'Layout', { exact: true } )
+			.selectOption( {
+				index: 0,
+			} );
 		await expect(
-			addPageDialog.getByLabel( 'Page Template' )
-		).toContainText( 'Default template' );
+			addPageDialog.getByLabel( 'Layout', { exact: true } )
+		).toHaveValue( '' );
+		await expect(
+			addPageDialog.getByLabel( 'Layout', { exact: true } )
+		).toContainText( 'Standard layout' );
 		const backButtonBox = await addPageDialog
 			.getByRole( 'button', { name: 'Back to options' } )
 			.boundingBox();
@@ -785,10 +787,10 @@ test.describe( 'Create Not Learn Editor', () => {
 		const stage = page.locator( '.cnl-editor-stage' );
 		const canvas = page.locator( '.cnl-editor-canvas' );
 
-		await stage.getByRole( 'tab', { name: 'Templates' } ).click();
+		await stage.getByRole( 'tab', { name: 'Layouts' } ).click();
 		await expect( page ).toHaveURL( /content%3Dtemplates/ );
 		await expect(
-			stage.getByText( /Templates control the layout used by pages/ )
+			stage.getByText( /Layouts decide how your pages are arranged/ )
 		).toBeVisible();
 		const firstTemplateCard = stage
 			.locator( '.routes-post-list__template-card' )
@@ -899,10 +901,10 @@ test.describe( 'Create Not Learn Editor', () => {
 			stage.locator( '.routes-navigation-list__dataviews-toolbar' )
 		).toBeVisible( { timeout: 10000 } );
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation Menus' } )
+			page.getByRole( 'heading', { name: 'Menus', exact: true } )
 		).toBeVisible();
 		await expect(
-			stage.getByText( 'Manage menus for the site.' )
+			stage.getByText( /The links visitors use to get around your site/ )
 		).toBeVisible();
 
 		if (
@@ -910,16 +912,16 @@ test.describe( 'Create Not Learn Editor', () => {
 				.isVisible( { timeout: 3000 } )
 				.catch( () => false ) )
 		) {
-			await stage.getByRole( 'button', { name: 'Add New' } ).click();
+			await stage.getByRole( 'button', { name: 'Add menu' } ).click();
 			const addNavigationDialog = page.getByRole( 'dialog', {
-				name: 'Add New Navigation Menu',
+				name: 'Add a menu',
 			} );
 			await expect( addNavigationDialog ).toBeVisible();
 			await addNavigationDialog
 				.getByLabel( 'Name' )
 				.fill( `Navigation edit action ${ Date.now() }` );
 			await addNavigationDialog
-				.getByLabel( 'Auto sync with site pages' )
+				.getByLabel( 'List every page automatically' )
 				.check();
 			await addNavigationDialog
 				.getByRole( 'button', { name: 'Create Menu' } )
@@ -951,7 +953,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect( stage.getByText( /\d+ selected/ ) ).toHaveCount( 0 );
 		await expect(
 			canvas.getByRole( 'heading', {
-				name: `${ selectedMenuTitle } menu locations`,
+				name: `Where “${ selectedMenuTitle }” appears`,
 			} )
 		).toBeVisible( { timeout: 15000 } );
 		await expect( canvas ).toHaveCSS( 'padding', '0px' );
@@ -1045,7 +1047,7 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		await expect( page ).toHaveURL( /p=.*%2Fnavigation/ );
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
+			page.getByRole( 'heading', { name: 'Menus', exact: true } ).first()
 		).toBeVisible();
 
 		const stage = page.locator( '.cnl-editor-stage' );
@@ -1098,7 +1100,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		if ( selectedNavigationMenuTitle ) {
 			await expect(
 				canvas.getByRole( 'heading', {
-					name: `${ selectedNavigationMenuTitle } menu locations`,
+					name: `Where “${ selectedNavigationMenuTitle }” appears`,
 				} )
 			).toBeVisible();
 			await expect(
@@ -1153,16 +1155,16 @@ test.describe( 'Create Not Learn Editor', () => {
 		await Promise.all( [
 			page.waitForURL( /p=.*%2Fnavigation%2Fedit%2F\d+/ ),
 			( async () => {
-				await stage.getByRole( 'button', { name: 'Add New' } ).click();
+				await stage.getByRole( 'button', { name: 'Add menu' } ).click();
 				const addNavigationDialog = page.getByRole( 'dialog', {
-					name: 'Add New Navigation Menu',
+					name: 'Add a menu',
 				} );
 				await expect( addNavigationDialog ).toBeVisible();
 				await addNavigationDialog
 					.getByLabel( 'Name' )
 					.fill( autoNavigationTitle );
 				await addNavigationDialog
-					.getByLabel( 'Auto sync with site pages' )
+					.getByLabel( 'List every page automatically' )
 					.check();
 				await addNavigationDialog
 					.getByRole( 'button', { name: 'Create Menu' } )
@@ -1179,7 +1181,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		).toBeVisible( { timeout: 15000 } );
 		await expect(
 			page.getByRole( 'heading', {
-				name: `${ autoNavigationTitle } menu locations`,
+				name: `Where “${ autoNavigationTitle }” appears`,
 			} )
 		).toBeVisible( { timeout: 15000 } );
 		await expect(
@@ -1360,7 +1362,7 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		await navigateToNavigationMenus( page );
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
+			page.getByRole( 'heading', { name: 'Menus', exact: true } ).first()
 		).toBeVisible();
 
 		const stage = page.locator( '.cnl-editor-stage' );
@@ -1377,11 +1379,11 @@ test.describe( 'Create Not Learn Editor', () => {
 			) }`
 		);
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
+			page.getByRole( 'heading', { name: 'Menus', exact: true } ).first()
 		).toBeVisible();
 		await expect(
 			canvas.getByRole( 'heading', {
-				name: `${ unusedMenu.title } menu locations`,
+				name: `Where “${ unusedMenu.title }” appears`,
 			} )
 		).toBeVisible( { timeout: 15000 } );
 		await expect(
@@ -1466,7 +1468,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		).toBeVisible();
 		await expect(
 			canvas.getByRole( 'heading', {
-				name: `${ unusedMenu.title } menu locations`,
+				name: `Where “${ unusedMenu.title }” appears`,
 			} )
 		).toBeVisible();
 		await expect(
@@ -1523,7 +1525,7 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		await navigateToNavigationMenus( page );
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
+			page.getByRole( 'heading', { name: 'Menus', exact: true } ).first()
 		).toBeVisible();
 
 		const stage = page.locator( '.cnl-editor-stage' );
@@ -1534,9 +1536,9 @@ test.describe( 'Create Not Learn Editor', () => {
 		await Promise.all( [
 			page.waitForURL( /p=.*%2Fnavigation%2Fedit%2F\d+/ ),
 			( async () => {
-				await stage.getByRole( 'button', { name: 'Add New' } ).click();
+				await stage.getByRole( 'button', { name: 'Add menu' } ).click();
 				const addNavigationDialog = page.getByRole( 'dialog', {
-					name: 'Add New Navigation Menu',
+					name: 'Add a menu',
 				} );
 				await expect( addNavigationDialog ).toBeVisible();
 				await addNavigationDialog
@@ -1587,7 +1589,7 @@ test.describe( 'Create Not Learn Editor', () => {
 			} )
 			.toBe( '/navigation' );
 		await expect(
-			page.getByRole( 'heading', { name: 'Navigation Menus' } ).first()
+			page.getByRole( 'heading', { name: 'Menus', exact: true } ).first()
 		).toBeVisible();
 		await expect( page.getByText( renamedMenuTitle ) ).toHaveCount( 0 );
 	} );
@@ -1596,14 +1598,14 @@ test.describe( 'Create Not Learn Editor', () => {
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
 		await page.getByRole( 'button', { name: 'Advanced' } ).click();
-		await page.getByRole( 'link', { name: 'Templates' } ).click();
+		await page.getByRole( 'link', { name: 'Layouts' } ).click();
 
 		await expect( page ).toHaveURL( /p=.*%2Ftemplates/ );
 
 		const stage = page.locator( '.cnl-editor-stage' );
 
 		await expect(
-			stage.getByRole( 'heading', { name: 'Templates' } )
+			stage.getByRole( 'heading', { name: 'Layouts' } )
 		).toBeVisible();
 		await expect( stage.locator( '.dataviews-search' ) ).toBeVisible( {
 			timeout: 15000,
@@ -1621,18 +1623,18 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 		await page.getByRole( 'button', { name: 'Advanced' } ).click();
-		await page.getByRole( 'link', { name: 'Templates' } ).click();
+		await page.getByRole( 'link', { name: 'Layouts' } ).click();
 		await expect( page ).toHaveURL( /p=.*%2Ftemplates/ );
 
 		const stage = page.locator( '.cnl-editor-stage' );
 
 		await expect(
-			stage.getByRole( 'button', { name: 'Add New Template' } )
+			stage.getByRole( 'button', { name: 'Add layout' } )
 		).toBeVisible( { timeout: 15000 } );
-		await stage.getByRole( 'button', { name: 'Add New Template' } ).click();
+		await stage.getByRole( 'button', { name: 'Add layout' } ).click();
 
 		const dialog = page.getByRole( 'dialog', {
-			name: 'Add new template',
+			name: 'Add a layout',
 		} );
 		await expect( dialog ).toBeVisible();
 		await dialog.getByLabel( 'Name' ).fill( templateTitle );
@@ -1707,17 +1709,17 @@ test.describe( 'Create Not Learn Editor', () => {
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
 		await page.getByRole( 'button', { name: 'Advanced' } ).click();
-		await page.getByRole( 'link', { name: 'Template Parts' } ).click();
+		await page.getByRole( 'link', { name: 'Site parts' } ).click();
 
 		await expect( page ).toHaveURL( /p=.*%2Ftemplate-parts/ );
 
 		const stage = page.locator( '.cnl-editor-stage' );
 
 		await expect(
-			stage.getByRole( 'heading', { name: 'Template Parts' } )
+			stage.getByRole( 'heading', { name: 'Site parts' } )
 		).toBeVisible();
 		await expect(
-			stage.getByRole( 'tab', { name: 'All Template Parts' } )
+			stage.getByRole( 'tab', { name: 'All', exact: true } )
 		).toBeVisible();
 		await expect(
 			stage.getByRole( 'tab', { name: 'Headers' } )
@@ -1738,20 +1740,18 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 		await page.getByRole( 'button', { name: 'Advanced' } ).click();
-		await page.getByRole( 'link', { name: 'Template Parts' } ).click();
+		await page.getByRole( 'link', { name: 'Site parts' } ).click();
 		await expect( page ).toHaveURL( /p=.*%2Ftemplate-parts/ );
 
 		const stage = page.locator( '.cnl-editor-stage' );
 
 		await expect(
-			stage.getByRole( 'button', { name: 'Add New Template Part' } )
+			stage.getByRole( 'button', { name: 'Add site part' } )
 		).toBeVisible( { timeout: 15000 } );
-		await stage
-			.getByRole( 'button', { name: 'Add New Template Part' } )
-			.click();
+		await stage.getByRole( 'button', { name: 'Add site part' } ).click();
 
 		const dialog = page.getByRole( 'dialog', {
-			name: 'Add new template part',
+			name: 'Add a site part',
 		} );
 		await expect( dialog ).toBeVisible();
 		await dialog.getByLabel( 'Name' ).fill( templatePartTitle );
@@ -1832,19 +1832,19 @@ test.describe( 'Create Not Learn Editor', () => {
 		const pattern = await createTestPattern( page );
 
 		await page.getByRole( 'button', { name: 'Advanced' } ).click();
-		await page.getByRole( 'link', { name: 'Patterns' } ).click();
+		await page.getByRole( 'link', { name: 'Sections' } ).click();
 
 		await expect( page ).toHaveURL( /p=.*%2Fpatterns/ );
 
 		const stage = page.locator( '.cnl-editor-stage' );
 
 		await expect(
-			stage.getByRole( 'heading', { name: 'Patterns' } )
+			stage.getByRole( 'heading', { name: 'Sections' } )
 		).toBeVisible();
 		await expect(
-			stage.getByRole( 'tab', { name: 'All patterns' } )
+			stage.getByRole( 'tab', { name: 'All sections' } )
 		).toBeVisible();
-		await stage.getByRole( 'tab', { name: 'My patterns' } ).click();
+		await stage.getByRole( 'tab', { name: 'Saved by you' } ).click();
 		await expect( page ).toHaveURL( /type(?:=|%3D)my-patterns/ );
 		await expect( stage.locator( '.dataviews-search' ) ).toBeVisible( {
 			timeout: 15000,
@@ -1868,23 +1868,23 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 		await page.getByRole( 'button', { name: 'Advanced' } ).click();
-		await page.getByRole( 'link', { name: 'Patterns' } ).click();
+		await page.getByRole( 'link', { name: 'Sections' } ).click();
 		await expect( page ).toHaveURL( /p=.*%2Fpatterns/ );
 
 		const stage = page.locator( '.cnl-editor-stage' );
 
 		await expect(
-			stage.getByRole( 'button', { name: 'Add New Pattern' } )
+			stage.getByRole( 'button', { name: 'Add section' } )
 		).toBeVisible( { timeout: 15000 } );
-		await stage.getByRole( 'button', { name: 'Add New Pattern' } ).click();
+		await stage.getByRole( 'button', { name: 'Add section' } ).click();
 
 		const dialog = page.getByRole( 'dialog', {
-			name: 'Add new pattern',
+			name: 'Add a section',
 		} );
 		await expect( dialog ).toBeVisible();
 		await dialog.getByLabel( 'Name' ).fill( patternTitle );
 		await dialog.getByRole( 'combobox' ).selectOption( {
-			label: 'Not synced',
+			label: 'Let each copy be changed on its own',
 		} );
 		await dialog.getByRole( 'button', { name: 'Add' } ).click();
 
@@ -1940,13 +1940,13 @@ test.describe( 'Create Not Learn Editor', () => {
 		).toBe( patternTitle );
 	} );
 
-	test( 'opens Styles and stages style variation changes', async ( {
+	test( 'picks a look in Colors & fonts and previews it before saving', async ( {
 		page,
 	} ) => {
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
 		await page.getByRole( 'button', { name: 'Design' } ).click();
-		await page.getByRole( 'link', { name: 'Styles' } ).click();
+		await page.getByRole( 'link', { name: 'Colors & fonts' } ).click();
 
 		await expect( page ).toHaveURL( /p=.*%2Fstyles/ );
 
@@ -1954,47 +1954,53 @@ test.describe( 'Create Not Learn Editor', () => {
 		const canvas = page.locator( '.cnl-editor-canvas' );
 
 		await expect(
-			stage.getByRole( 'heading', { name: 'Styles' } )
+			stage.getByRole( 'heading', { name: 'Colors & fonts' } )
 		).toBeVisible();
 		await expect(
-			stage.getByRole( 'heading', { name: 'Style variations' } )
+			stage.getByRole( 'heading', { name: 'Pick a look' } )
 		).toBeVisible( { timeout: 15000 } );
 		await expect(
-			canvas.locator( 'iframe[title="Site preview"]' )
-		).toBeVisible( {
-			timeout: 15000,
-		} );
-
-		await stage.getByRole( 'button', { name: 'Style Book' } ).click();
-		await expect(
-			canvas.locator( '.routes-styles-preview' ).getByText( 'Style Book' )
+			stage.getByRole( 'heading', { name: 'Fine-tune' } )
 		).toBeVisible();
 		await expect(
-			canvas.getByText( 'Typography, colors, and blocks' )
-		).toBeVisible();
+			canvas.locator( '.routes-navigation-canvas__preview' )
+		).toBeVisible( { timeout: 15000 } );
 
-		const applyButtons = stage.getByRole( 'button', {
-			name: 'Apply styles',
-		} );
+		const looks = stage.locator( '.routes-styles__look' );
+		await expect(
+			stage.getByRole( 'button', { name: 'Theme default' } ).first()
+		).toHaveAttribute( 'aria-pressed', 'true' );
 
-		if ( ( await applyButtons.count() ) > 0 ) {
-			await applyButtons.first().click();
+		if ( ( await looks.count() ) > 1 ) {
+			await looks.nth( 1 ).click();
+			await expect( looks.nth( 1 ) ).toHaveAttribute(
+				'aria-pressed',
+				'true'
+			);
 			await expect(
-				stage.getByText( /Review and save changes/ )
+				stage.getByText( /You are previewing changes/ )
 			).toBeVisible();
 			await expect(
 				page.getByRole( 'button', { name: /Review \d+ change/ } )
 			).toBeVisible();
-		} else {
+
+			await stage.getByRole( 'button', { name: 'Undo changes' } ).click();
 			await expect(
-				stage.getByText(
-					'No style variations are available for this theme.'
-				)
-			).toBeVisible();
+				stage.getByText( /You are previewing changes/ )
+			).toHaveCount( 0 );
 		}
+
+		await stage.getByRole( 'radio', { name: 'Airy' } ).click();
+		await expect(
+			stage.getByText( /You are previewing changes/ )
+		).toBeVisible();
+		await stage.getByRole( 'button', { name: 'Undo changes' } ).click();
+		await expect(
+			stage.getByText( /You are previewing changes/ )
+		).toHaveCount( 0 );
 	} );
 
-	test( 'updates site title and tagline from Site Identity', async ( {
+	test( 'updates site name and tagline from Name & logo with a live preview', async ( {
 		page,
 	} ) => {
 		const timestamp = Date.now();
@@ -2004,27 +2010,52 @@ test.describe( 'Create Not Learn Editor', () => {
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
 		await page.getByRole( 'button', { name: 'Design' } ).click();
-		await page.getByRole( 'link', { name: 'Site Identity' } ).click();
+		await page.getByRole( 'link', { name: 'Name & logo' } ).click();
 
 		await expect( page ).toHaveURL( /p=.*%2Fidentity/ );
 
 		const stage = page.locator( '.cnl-editor-stage' );
-		const canvas = page.locator( '.cnl-editor-canvas' );
+		const preview = page.frameLocator(
+			'.routes-navigation-canvas__preview iframe[name="editor-canvas"]'
+		);
 
-		await expect( stage.getByText( 'Site Logo' ) ).toBeVisible();
-		await expect( stage.getByText( 'Site Icon' ) ).toBeVisible();
+		await expect( stage.getByText( 'Logo', { exact: true } ) ).toBeVisible(
+			{ timeout: 15000 }
+		);
+		await expect(
+			stage.getByText( 'Browser icon', { exact: true } )
+		).toBeVisible();
 		await expect(
 			stage.getByRole( 'button', { name: 'Choose image' } )
 		).toHaveCount( 2 );
 
-		await stage.getByLabel( 'Site Title' ).fill( title );
-		await stage.getByLabel( 'Site Tagline' ).fill( tagline );
-		await stage.getByRole( 'button', { name: 'Save identity' } ).click();
+		await stage.getByLabel( 'Site name' ).fill( title );
+		await stage.getByLabel( 'Tagline' ).fill( tagline );
 
-		await expect( stage.getByText( 'Site identity saved.' ) ).toBeVisible();
-		await expect( canvas.getByText( title ) ).toBeVisible( {
-			timeout: 10000,
+		// The preview reads unsaved edits, so the header updates before saving.
+		await expect( preview.getByText( title ).first() ).toBeVisible( {
+			timeout: 15000,
 		} );
-		await expect( canvas.getByText( tagline ) ).toBeVisible();
+
+		await stage.getByRole( 'button', { name: 'Save changes' } ).click();
+		await expect(
+			stage.getByText( /You are previewing changes/ )
+		).toHaveCount( 0, { timeout: 15000 } );
+
+		const savedSettings = await page.evaluate( async () => {
+			const response = await window.fetch(
+				'/wp-json/wp/v2/settings?_fields=title,description',
+				{
+					headers: {
+						'X-WP-Nonce': window.createNotLearnEditor.nonce,
+					},
+				}
+			);
+
+			return response.json();
+		} );
+
+		expect( savedSettings.title ).toBe( title );
+		expect( savedSettings.description ).toBe( tagline );
 	} );
 } );

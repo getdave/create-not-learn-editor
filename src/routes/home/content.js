@@ -18,6 +18,7 @@ import {
 	getPreviewHistoryState,
 	isHomepagePreviewNavigationUrl,
 } from './preview';
+import Stage from './stage';
 import {
 	Button,
 	Dropdown,
@@ -568,6 +569,4 @@ function Canvas() {
 	);
 }
 
-const stage = undefined;
-
-export { stage, Canvas as canvas };
+export { Stage as stage, Canvas as canvas };

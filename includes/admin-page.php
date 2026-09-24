@@ -807,7 +807,7 @@ function cnl_editor_get_menu_items() {
 		array(
 			'id'    => 'home',
 			'icon'  => 'dashicons-admin-home',
-			'label' => __( 'Homepage', 'create-not-learn-editor' ),
+			'label' => __( 'Your site', 'create-not-learn-editor' ),
 			'to'    => '/',
 		),
 		array(
@@ -832,7 +832,7 @@ function cnl_editor_get_menu_items() {
 	$items[] = array(
 		'id'    => 'navigation',
 		'icon'  => '',
-		'label' => __( 'Navigation Menus', 'create-not-learn-editor' ),
+		'label' => __( 'Menus', 'create-not-learn-editor' ),
 		'to'    => '/navigation',
 	);
 	$items[] = array(
@@ -844,13 +844,13 @@ function cnl_editor_get_menu_items() {
 	);
 	$items[] = array(
 		'id'     => 'styles',
-		'label'  => __( 'Styles', 'create-not-learn-editor' ),
+		'label'  => __( 'Colors & fonts', 'create-not-learn-editor' ),
 		'to'     => '/styles',
 		'parent' => 'design',
 	);
 	$items[] = array(
 		'id'     => 'identity',
-		'label'  => __( 'Site Identity', 'create-not-learn-editor' ),
+		'label'  => __( 'Name & logo', 'create-not-learn-editor' ),
 		'to'     => '/identity',
 		'parent' => 'design',
 	);
@@ -863,19 +863,19 @@ function cnl_editor_get_menu_items() {
 	);
 	$items[] = array(
 		'id'     => 'patterns',
-		'label'  => __( 'Patterns', 'create-not-learn-editor' ),
+		'label'  => __( 'Sections', 'create-not-learn-editor' ),
 		'to'     => '/patterns',
 		'parent' => 'advanced',
 	);
 	$items[] = array(
 		'id'     => 'templateParts',
-		'label'  => __( 'Template Parts', 'create-not-learn-editor' ),
+		'label'  => __( 'Site parts', 'create-not-learn-editor' ),
 		'to'     => '/template-parts',
 		'parent' => 'advanced',
 	);
 	$items[] = array(
 		'id'     => 'templates',
-		'label'  => __( 'Templates', 'create-not-learn-editor' ),
+		'label'  => __( 'Layouts', 'create-not-learn-editor' ),
 		'to'     => '/templates',
 		'parent' => 'advanced',
 	);

@@ -8,6 +8,7 @@ import { getPostType, settings } from '../../settings';
 import {
 	getErrorMessage,
 	getTemplateAuthorText,
+	getTemplateDisplayTitle,
 	getTitleText,
 } from '../../records';
 import {
@@ -25,7 +26,10 @@ import {
 	getSelectedTemplateContent,
 	isPageLayoutPattern,
 } from './page-layouts';
+import { isPageInMenu } from './menu-status';
+import useMainMenu, { useAddPageToMenu } from './use-main-menu';
 import {
+	Badge,
 	Button,
 	CheckboxControl,
 	chevronLeftIcon,
@@ -56,6 +60,7 @@ import {
 	parseBlocks,
 	sprintf,
 	serialize,
+	Stack,
 	useEffect,
 	useDispatch,
 	useMemo,
@@ -65,7 +70,7 @@ import {
 } from '../../wordpress-packages';
 
 const DEFAULT_CONTENT_VIEW = {
-	fields: [ 'author', 'status', 'date' ],
+	fields: [ 'status', 'date' ],
 	filters: [],
 	layout: {
 		previewSize: 160,
@@ -107,7 +112,7 @@ const STATUS_OPTIONS = [
 ];
 
 const POST_QUERY_FIELDS =
-	'id,author,link,title,status,type,date,modified,date_gmt,modified_gmt,content,template,slug';
+	'id,author,link,title,status,type,date,modified,date_gmt,modified_gmt,content,template,slug,parent';
 
 const TEMPLATE_QUERY = {
 	context: 'edit',
@@ -184,15 +189,7 @@ function getDateLabel( post ) {
 }
 
 function getTemplateTitle( template ) {
-	if ( template?.slug === 'home' ) {
-		return __( 'Posts Listing' );
-	}
-
-	if ( template?.slug === 'single' ) {
-		return __( 'Single Post' );
-	}
-
-	return getTitleText( template?.title ) || __( 'Untitled template' );
+	return getTemplateDisplayTitle( template ) || __( 'Untitled template' );
 }
 
 function getTemplateIcon( template ) {
@@ -275,9 +272,14 @@ function getDefaultContentViewType( type ) {
 	return type?.name === 'page' ? 'grid' : 'table';
 }
 
+function getDefaultContentViewFields( type ) {
+	return type?.name === 'page' ? [ 'on-site' ] : DEFAULT_CONTENT_VIEW.fields;
+}
+
 function getInitialContentView( searchParams, type ) {
 	return {
 		...DEFAULT_CONTENT_VIEW,
+		fields: getDefaultContentViewFields( type ),
 		page: searchParams.page ? Number( searchParams.page ) || 1 : 1,
 		search: searchParams.search || '',
 		type: getDefaultContentViewType( type ),
@@ -424,7 +426,56 @@ function renderContentPreview( { item }, templates ) {
 	);
 }
 
-function getContentFields( templates ) {
+function getStatusIntent( status ) {
+	switch ( status ) {
+		case 'draft':
+		case 'auto-draft':
+		case 'pending':
+			return 'draft';
+		case 'future':
+		case 'private':
+			return 'informational';
+		default:
+			return 'none';
+	}
+}
+
+function renderSiteRoleBadges( item, siteRoles ) {
+	const badges = [];
+
+	if ( item.status !== 'publish' ) {
+		badges.push( {
+			intent: getStatusIntent( item.status ),
+			label: getStatusLabel( item.status ),
+		} );
+	}
+
+	if ( Number( item.id ) === siteRoles.frontPageId ) {
+		badges.push( { intent: 'informational', label: __( 'Homepage' ) } );
+	}
+
+	if ( Number( item.id ) === siteRoles.postsPageId ) {
+		badges.push( { intent: 'informational', label: __( 'Blog' ) } );
+	}
+
+	if ( siteRoles.menuPages ) {
+		badges.push(
+			isPageInMenu( item, siteRoles.menuPages )
+				? { intent: 'stable', label: __( 'In menu' ) }
+				: { intent: 'none', label: __( 'Not in menu' ) }
+		);
+	}
+
+	return el(
+		Stack,
+		{ className: 'routes-post-list__badges', gap: 'xs', wrap: 'wrap' },
+		badges.map( ( badge ) =>
+			el( Badge, { intent: badge.intent, key: badge.label }, badge.label )
+		)
+	);
+}
+
+function getContentFields( templates, siteRoles = {} ) {
 	return [
 		{
 			enableGlobalSearch: true,
@@ -463,6 +514,26 @@ function getContentFields( templates ) {
 			getValue: ( { item } ) => getStatusLabel( item.status ),
 			id: 'status',
 			label: __( 'Status' ),
+			render: ( { item } ) =>
+				item.status === 'publish'
+					? getStatusLabel( item.status )
+					: el(
+							Badge,
+							{ intent: getStatusIntent( item.status ) },
+							getStatusLabel( item.status )
+						),
+			type: 'text',
+		},
+		siteRoles.isPages && {
+			enableSorting: false,
+			filterBy: false,
+			getValue: ( { item } ) =>
+				isPageInMenu( item, siteRoles.menuPages )
+					? __( 'In menu' )
+					: __( 'Not in menu' ),
+			id: 'on-site',
+			label: __( 'Details' ),
+			render: ( { item } ) => renderSiteRoleBadges( item, siteRoles ),
 			type: 'text',
 		},
 		{
@@ -481,7 +552,7 @@ function getContentFields( templates ) {
 			render: ( props ) => renderContentPreview( props, templates ),
 			type: 'media',
 		},
-	];
+	].filter( Boolean );
 }
 
 function getContentActions( navigate, type ) {
@@ -518,7 +589,7 @@ function getContentActions( navigate, type ) {
 function getPageTemplateOptions( templates ) {
 	return [
 		{
-			label: __( 'Default template' ),
+			label: __( 'Standard layout' ),
 			value: '',
 		},
 		...templates
@@ -717,9 +788,34 @@ function PageLayoutStartBlankCard( { onSelect } ) {
 	);
 }
 
-function AddPageFlow( { onClose, templates } ) {
+function getAddToMenuHelp( {
+	menuListsAllPages,
+	menuTitle,
+	publishImmediately,
+} ) {
+	if ( menuListsAllPages ) {
+		return __( 'Your menu already lists every published page.' );
+	}
+
+	if ( ! publishImmediately ) {
+		return __( 'Publish the page to add it to your menu.' );
+	}
+
+	return menuTitle
+		? sprintf(
+				/* translators: %s: navigation menu name. */
+				__( 'Adds a link to your “%s” menu so visitors can find it.' ),
+				menuTitle
+			)
+		: __( 'Adds a link to your menu so visitors can find it.' );
+}
+
+function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 	const navigate = useNavigate();
 	const { saveEntityRecord } = useDispatch( coreDataStore );
+	const addPageToMenu = useAddPageToMenu();
+	const [ addToMenu, setAddToMenu ] = useState( true );
+	const menuListsAllPages = Boolean( mainMenu.menuPages?.listsAllPages );
 	const [ selectedPath, setSelectedPath ] = useState();
 	const [ selectedLayout, setSelectedLayout ] = useState();
 	const [ selectedPageType, setSelectedPageType ] = useState();
@@ -899,6 +995,15 @@ function AddPageFlow( { onClose, templates } ) {
 				{ throwOnError: true }
 			);
 
+			if (
+				addToMenu &&
+				publishImmediately &&
+				mainMenu.menuId &&
+				! menuListsAllPages
+			) {
+				await addPageToMenu( mainMenu.menuId, newPage );
+			}
+
 			onClose();
 			navigate( {
 				to: `/types/page/edit/${ newPage.id }`,
@@ -936,7 +1041,7 @@ function AddPageFlow( { onClose, templates } ) {
 			onRequestClose: onClose,
 			size: 'large',
 			title: isChoosingLayout
-				? __( 'Choose a page design' )
+				? __( 'What kind of page?' )
 				: __( 'Add a new page' ),
 		},
 		el(
@@ -947,7 +1052,7 @@ function AddPageFlow( { onClose, templates } ) {
 					'p',
 					{ className: 'cnl-add-page-modal__subtitle' },
 					__(
-						'Choose a page design built with patterns you can customize, or start with a blank page.'
+						'Pick a starting point. You can change every word and picture afterwards.'
 					)
 				),
 			! selectedPath &&
@@ -1265,11 +1370,42 @@ function AddPageFlow( { onClose, templates } ) {
 								)
 							)
 						),
+						mainMenu.menuId &&
+							el(
+								'div',
+								{
+									className:
+										'cnl-add-page-form__checkbox-item',
+								},
+								el( CheckboxControl, {
+									checked:
+										menuListsAllPages ||
+										( addToMenu && publishImmediately ),
+									disabled:
+										isBusy ||
+										menuListsAllPages ||
+										! publishImmediately,
+									label: __( 'Add to my menu' ),
+									onChange: setAddToMenu,
+								} ),
+								el(
+									'p',
+									{
+										className:
+											'cnl-add-page-form__checkbox-help',
+									},
+									getAddToMenuHelp( {
+										menuListsAllPages,
+										menuTitle: mainMenu.menuTitle,
+										publishImmediately,
+									} )
+								)
+							),
 						pageTemplateOptions.length > 1 &&
 							el( SelectControl, {
 								__next40pxDefaultSize: true,
 								disabled: isBusy,
-								label: __( 'Page Template' ),
+								label: __( 'Layout' ),
 								onChange: ( value ) =>
 									setSelectedTemplateSlug( String( value ) ),
 								options: pageTemplateOptions,
@@ -1376,6 +1512,7 @@ function useContentRecords() {
 		previousTypeNameRef.current = type?.name;
 		setContentView( ( currentView ) => ( {
 			...currentView,
+			fields: getDefaultContentViewFields( type ),
 			type: getDefaultContentViewType( type ),
 		} ) );
 	}, [ type ] );
@@ -1511,9 +1648,37 @@ function Stage() {
 		templates,
 		type,
 	} = useContentRecords();
+	const mainMenu = useMainMenu();
+	const { frontPageId, postsPageId } = useSelect( ( select ) => {
+		const site = select( coreDataStore ).getEntityRecord( 'root', 'site' );
+
+		return {
+			frontPageId:
+				site?.show_on_front === 'page'
+					? Number( site?.page_on_front ) || 0
+					: 0,
+			postsPageId:
+				site?.show_on_front === 'page'
+					? Number( site?.page_for_posts ) || 0
+					: 0,
+		};
+	}, [] );
+	const isPages = type?.name === 'page';
 	const contentFields = useMemo(
-		() => getContentFields( previewTemplates ),
-		[ previewTemplates ]
+		() =>
+			getContentFields( previewTemplates, {
+				frontPageId,
+				isPages,
+				menuPages: mainMenu.menuPages,
+				postsPageId,
+			} ),
+		[
+			frontPageId,
+			isPages,
+			mainMenu.menuPages,
+			postsPageId,
+			previewTemplates,
+		]
 	);
 	const contentActions = useMemo(
 		() => ( type ? getContentActions( navigate, type ) : [] ),
@@ -1719,6 +1884,12 @@ function Stage() {
 			hasPadding: false,
 			headingLevel: 2,
 			subTitle:
+				( type.name === 'page' &&
+					__(
+						'Every page on your site. Add a new one, or check which ones are in your menu.'
+					) ) ||
+				( type.name === 'post' &&
+					__( 'Your blog posts, newest first.' ) ) ||
 				type.description ||
 				sprintf(
 					/* translators: %s: post type label. */
@@ -1744,7 +1915,7 @@ function Stage() {
 						{ value: 'content' },
 						type.menuName || type.label
 					),
-					el( Tabs.Tab, { value: 'templates' }, __( 'Templates' ) )
+					el( Tabs.Tab, { value: 'templates' }, __( 'Layouts' ) )
 				)
 			)
 		),
@@ -1755,7 +1926,7 @@ function Stage() {
 				sprintf(
 					/* translators: %s: post type label. */
 					__(
-						'Templates control the layout used by %s on your site. The default template is used unless content has a different template selected.'
+						'Layouts decide how your %s are arranged, like where the title and image go. WordPress calls these templates. Changing a layout changes every page that uses it.'
 					),
 					( type.label || type.name ).toLowerCase()
 				)
@@ -1853,7 +2024,9 @@ function Stage() {
 						fields: contentFields,
 						getItemId: ( item ) => String( item.id ),
 						isLoading,
-						key: previewTemplatesKey,
+						key: `${ previewTemplatesKey }|${ frontPageId }|${ postsPageId }|${
+							mainMenu.menuPages ? 'menu' : 'no-menu'
+						}`,
 						onChangeSelection: ( items ) =>
 							selectPost( items[ 0 ] ),
 						onChangeView: onChangeContentView,
@@ -1875,11 +2048,7 @@ function Stage() {
 				el(
 					'span',
 					null,
-					sprintf(
-						/* translators: %s: post type singular label. */
-						__( 'For more advanced control over %s templates,' ),
-						type.singular || type.name
-					),
+					__( 'Other parts of your site have layouts too.' ),
 					' '
 				),
 				el(
@@ -1888,12 +2057,13 @@ function Stage() {
 						onClick: () => navigate( { to: '/templates' } ),
 						variant: 'link',
 					},
-					__( 'view all templates.' )
+					__( 'See all layouts.' )
 				)
 			),
 		isAddingPage &&
 			type.name === 'page' &&
 			el( AddPageFlow, {
+				mainMenu,
 				onClose: () => setIsAddingPage( false ),
 				templates,
 			} )
@@ -1969,7 +2139,7 @@ function Canvas() {
 							onClick: () => navigate( { to: '/templates' } ),
 							variant: 'secondary',
 						},
-						__( 'View all templates' )
+						__( 'See all layouts' )
 					),
 				showTemplates &&
 					selectedTemplate &&

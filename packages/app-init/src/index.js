@@ -3,12 +3,21 @@
  */
 import { store as bootStore } from '@wordpress/boot';
 import { dispatch } from '@wordpress/data';
-import { layout, navigation, symbol, symbolFilled } from '@wordpress/icons';
+import {
+	layout,
+	navigation,
+	siteLogo,
+	styles,
+	symbol,
+	symbolFilled,
+} from '@wordpress/icons';
 
 export async function init() {
 	const menuIcons = {
+		identity: siteLogo,
 		navigation,
 		patterns: symbol,
+		styles,
 		templateParts: symbolFilled,
 		templates: layout,
 	};
