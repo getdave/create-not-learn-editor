@@ -117,6 +117,20 @@ export function setActiveWorkspace( id ) {
 }
 
 /**
+ * Reset the app to the home route.
+ *
+ * Boot has no public navigation API reachable from outside its own router
+ * tree, but its router keeps itself in sync by patching the native
+ * `window.history.pushState`/`replaceState`, so driving those directly is
+ * how code outside the tree - like the workspace switcher - moves it.
+ */
+export function resetRouteToHome() {
+	const url = new URL( window.location.href );
+	url.searchParams.set( 'p', '/' );
+	window.history.pushState( null, '', url );
+}
+
+/**
  * Apply the active workspace to boot's sidebar, now and whenever it changes.
  *
  * Every item any workspace touches is reset to its registered definition

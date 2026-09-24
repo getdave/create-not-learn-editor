@@ -22,6 +22,7 @@ import { Icon } from '@wordpress/ui';
 import {
 	WORKSPACES,
 	getActiveWorkspace,
+	resetRouteToHome,
 	setActiveWorkspace,
 } from '../../../src/workspaces';
 
@@ -106,6 +107,9 @@ function WorkspaceSwitcher() {
 								el( Icon, { icon: check } ),
 							className: 'cnl-sidebar-workspace__option',
 							onClick: () => {
+								if ( id !== workspace.id ) {
+									resetRouteToHome();
+								}
 								setActiveWorkspace( id );
 								onClose();
 							},

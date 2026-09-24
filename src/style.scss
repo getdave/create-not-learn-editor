@@ -3072,6 +3072,8 @@ $workspace-toggle-inset: var(--wpds-dimension-gap-xs);
  * workspace name a step brighter than its icons.
  */
 .components-button.cnl-sidebar-workspace__toggle {
+	display: flex;
+	width: 100%;
 	gap: var(--wpds-dimension-gap-xs);
 	margin-inline-start: calc(-1 * #{$workspace-toggle-inset});
 	padding-inline: $workspace-toggle-inset;
@@ -3095,8 +3097,10 @@ $workspace-toggle-inset: var(--wpds-dimension-gap-xs);
 }
 
 .cnl-sidebar-workspace__value {
+	flex: 1;
 	margin-inline-start: var(--wpds-dimension-gap-xs);
 	color: var(--wpds-color-foreground-content-neutral);
+	text-align: start;
 }
 
 /*
