@@ -271,7 +271,7 @@ export function SiteIdentityStage() {
 							onClick: discard,
 							variant: 'tertiary',
 						},
-						__( 'Undo changes' )
+						__( 'Discard changes' )
 					)
 				)
 			)

@@ -1232,7 +1232,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect(
 			page
 				.locator( '.cnl-save-controls' )
-				.getByRole( 'button', { name: 'Save changes' } )
+				.getByRole( 'button', { name: 'Review changes' } )
 		).toBeVisible();
 		const navigationTree = page.getByRole( 'treegrid', {
 			name: 'Block navigation structure',
@@ -1482,7 +1482,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect(
 			page
 				.locator( '.cnl-save-controls' )
-				.getByRole( 'button', { name: 'Save changes' } )
+				.getByRole( 'button', { name: 'Review changes' } )
 		).toBeVisible();
 		const persistedNavigationTemplateParts =
 			await getNavigationTemplatePartsSnapshot( page );
@@ -1593,7 +1593,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect(
 			page
 				.locator( '.cnl-save-controls' )
-				.getByRole( 'button', { name: 'Save changes' } )
+				.getByRole( 'button', { name: 'Review changes' } )
 		).toBeVisible();
 		await expect(
 			page.getByRole( 'heading', { name: renamedMenuTitle } )
@@ -2011,10 +2011,12 @@ test.describe( 'Create Not Learn Editor', () => {
 			await expect(
 				page
 					.locator( '.cnl-save-controls' )
-					.getByRole( 'button', { name: 'Save changes' } )
+					.getByRole( 'button', { name: 'Review changes' } )
 			).toBeVisible();
 
-			await stage.getByRole( 'button', { name: 'Undo changes' } ).click();
+			await stage
+				.getByRole( 'button', { name: 'Discard changes' } )
+				.click();
 			await expect(
 				stage.getByText( /You are previewing changes/ )
 			).toHaveCount( 0 );
@@ -2024,7 +2026,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		await expect(
 			stage.getByText( /You are previewing changes/ )
 		).toBeVisible();
-		await stage.getByRole( 'button', { name: 'Undo changes' } ).click();
+		await stage.getByRole( 'button', { name: 'Discard changes' } ).click();
 		await expect(
 			stage.getByText( /You are previewing changes/ )
 		).toHaveCount( 0 );
@@ -2072,11 +2074,11 @@ test.describe( 'Create Not Learn Editor', () => {
 		);
 		await page
 			.locator( '.cnl-save-controls' )
-			.getByRole( 'button', { name: 'Save changes' } )
+			.getByRole( 'button', { name: 'Review changes' } )
 			.click();
 		await page
-			.getByRole( 'dialog', { name: 'Save changes' } )
-			.getByRole( 'button', { name: 'Save', exact: true } )
+			.getByRole( 'dialog', { name: 'Review changes' } )
+			.getByRole( 'button', { name: 'Save 2 changes' } )
 			.click();
 		await expect(
 			stage.getByText( /You are previewing changes/ )
@@ -2100,5 +2102,59 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		expect( savedSettings.title ).toBe( title );
 		expect( savedSettings.description ).toBe( tagline );
+	} );
+
+	test( 'discards unsaved changes one at a time or all at once', async ( {
+		page,
+	} ) => {
+		await page.goto(
+			'/wp-admin/admin.php?page=create-not-learn-editor&p=%2Fidentity'
+		);
+
+		const stage = page.locator( '.cnl-editor-stage' );
+		const saveControls = page.locator( '.cnl-save-controls' );
+		const siteName = stage.getByLabel( 'Site name' );
+		const tagline = stage.getByLabel( 'Tagline' );
+
+		await expect( siteName ).toBeEditable( { timeout: 15000 } );
+
+		const savedName = await siteName.inputValue();
+		const savedTagline = await tagline.inputValue();
+
+		await siteName.fill( `Discarded name ${ Date.now() }` );
+		await tagline.fill( `Discarded tagline ${ Date.now() }` );
+		await expect( saveControls ).toContainText( '2 unsaved changes' );
+
+		// One change, from the review.
+		await saveControls
+			.getByRole( 'button', { name: 'Review changes' } )
+			.click();
+		const review = page.getByRole( 'dialog', { name: 'Review changes' } );
+		await review
+			.getByRole( 'button', { name: 'Discard change to Site name' } )
+			.click();
+		await expect( siteName ).toHaveValue( savedName );
+		await expect( review.getByRole( 'listitem' ) ).toHaveCount( 1 );
+
+		// Discard all asks first, and Keep changes goes back to the list.
+		await review.getByRole( 'button', { name: 'Discard all' } ).click();
+		const confirm = page.getByRole( 'dialog', {
+			name: 'Discard changes?',
+		} );
+		await confirm.getByRole( 'button', { name: 'Keep changes' } ).click();
+		await expect( review.getByRole( 'listitem' ) ).toHaveCount( 1 );
+		await page.keyboard.press( 'Escape' );
+		await expect( review ).toHaveCount( 0 );
+
+		// The rest, all at once.
+		await saveControls
+			.getByRole( 'button', { name: 'Review changes' } )
+			.click();
+		await review.getByRole( 'button', { name: 'Discard all' } ).click();
+		await confirm
+			.getByRole( 'button', { name: 'Discard changes' } )
+			.click();
+		await expect( tagline ).toHaveValue( savedTagline );
+		await expect( saveControls ).not.toContainText( 'unsaved' );
 	} );
 } );

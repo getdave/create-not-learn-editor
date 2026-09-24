@@ -1,47 +1,41 @@
 /**
- * Save controls: how many changes are waiting, and one button to save them.
+ * Save controls: how many changes are waiting, and a way to review them.
  *
  * Changes made across the editor are held back until the user saves them,
- * so this says how many are waiting and offers a single Save changes button.
- * The button opens a review of every waiting change, where the user picks
- * which ones to save. It replaces boot's save button at the foot of the
- * sidebar, which `style.scss` hides wherever the top bar is shown.
+ * so this says how many are waiting, with Review changes to open the review,
+ * where they are saved or discarded. It replaces boot's save button
+ * at the foot of the sidebar, which `style.scss` hides wherever the top bar
+ * is shown.
  */
 
 /**
  * WordPress dependencies
  */
-import { Button, Modal } from '@wordpress/components';
-import { store as coreStore } from '@wordpress/core-data';
-import { useSelect } from '@wordpress/data';
+import { Button } from '@wordpress/components';
 import {
-	EntitiesSavedStates,
-	useEntitiesSavedStatesIsDirty,
-} from '@wordpress/editor';
-import { createElement as el, useEffect, useState } from '@wordpress/element';
+	createElement as el,
+	useCallback,
+	useEffect,
+	useState,
+} from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { check } from '@wordpress/icons';
 import { displayShortcut, rawShortcut } from '@wordpress/keycodes';
 import { Icon } from '@wordpress/ui';
 
+/**
+ * Internal dependencies
+ */
+import { ReviewChanges } from './review-changes';
+import { useChanges } from './use-changes';
+
 export function SaveControls() {
 	const [ isReviewOpen, setIsReviewOpen ] = useState( false );
 	const [ hasSaved, setHasSaved ] = useState( false );
-	/*
-	 * Counted the way the review counts them, so the two agree: each edited
-	 * site setting is a change of its own, and every other record is one.
-	 */
-	const changeCount =
-		useEntitiesSavedStatesIsDirty().dirtyEntityRecords.length;
-	const isSaving = useSelect( ( select ) => {
-		const { __experimentalGetDirtyEntityRecords, isSavingEntityRecord } =
-			select( coreStore );
-
-		return __experimentalGetDirtyEntityRecords().some(
-			( { kind, name, key } ) => isSavingEntityRecord( kind, name, key )
-		);
-	}, [] );
+	const { changes, isSaving } = useChanges();
+	const changeCount = changes.length;
 	const hasChanges = changeCount > 0;
+	const closeReview = useCallback( () => setIsReviewOpen( false ), [] );
 
 	/*
 	 * "All changes saved" is shown once a save has cleared every change, and
@@ -103,20 +97,8 @@ export function SaveControls() {
 					shortcut: displayShortcut.primary( 's' ),
 					'aria-keyshortcuts': rawShortcut.primary( 's' ),
 				},
-				isSaving ? __( 'Saving…' ) : __( 'Save changes' )
+				isSaving ? __( 'Saving…' ) : __( 'Review changes' )
 			),
-		isReviewOpen &&
-			el(
-				Modal,
-				{
-					title: __( 'Save changes' ),
-					onRequestClose: () => setIsReviewOpen( false ),
-					size: 'small',
-				},
-				el( EntitiesSavedStates, {
-					close: () => setIsReviewOpen( false ),
-					variant: 'inline',
-				} )
-			)
+		isReviewOpen && el( ReviewChanges, { onClose: closeReview } )
 	);
 }
