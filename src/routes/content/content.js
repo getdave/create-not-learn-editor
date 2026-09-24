@@ -1478,7 +1478,6 @@ function PostListDataViewsLayout() {
 		el(
 			'div',
 			{ className: 'routes-post-list__dataviews-scroll' },
-			el( DataViews.BulkActionToolbar ),
 			el( DataViews.Layout ),
 			el( DataViews.Pagination )
 		)
@@ -1645,7 +1644,6 @@ function Stage() {
 		isLoading,
 		posts,
 		previewTemplates,
-		selectedId,
 		selectedTemplateId,
 		setContentView,
 		templates,
@@ -2040,15 +2038,14 @@ function Stage() {
 						key: `${ previewTemplatesKey }|${ frontPageId }|${ postsPageId }|${
 							mainMenu.menuPages ? 'menu' : 'no-menu'
 						}`,
-						onChangeSelection: ( items ) =>
-							selectPost( items[ 0 ] ),
+						onChangeSelection: () => {},
 						onChangeView: onChangeContentView,
 						onClickItem: ( item ) => selectPost( item.id ),
 						paginationInfo: {
 							totalItems: posts.length,
 							totalPages,
 						},
-						selection: selectedId ? [ String( selectedId ) ] : [],
+						selection: EMPTY_ARRAY,
 						view: contentView,
 					},
 					el( PostListDataViewsLayout )
