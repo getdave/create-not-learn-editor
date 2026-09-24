@@ -1,13 +1,11 @@
 /**
  * Internal dependencies
  */
-import { getErrorMessage } from '../../records';
 import SitePreviewCanvas from './site-preview';
 import {
 	Button,
 	InputControl,
 	MediaUpload,
-	Notice,
 	Spinner,
 	Stack,
 	Text,
@@ -16,7 +14,6 @@ import {
 	el,
 	useDispatch,
 	useSelect,
-	useState,
 } from '../../wordpress-packages';
 
 const EMPTY_OBJECT = {};
@@ -60,13 +57,12 @@ function useMediaRecord( mediaId ) {
  *
  * Editing the entity rather than posting settings directly means the site
  * preview, which reads the same entity, updates as the user types, and the
- * sidebar's save button picks the changes up with any others.
+ * save bar picks the changes up with any others.
  *
  * @return {Object} Site identity values and actions.
  */
 function useSiteIdentity() {
-	const { editEntityRecord, saveEditedEntityRecord } =
-		useDispatch( coreDataStore );
+	const { editEntityRecord } = useDispatch( coreDataStore );
 	const { hasEdits, isLoading, isSaving, site } = useSelect( ( select ) => {
 		const store = select( coreDataStore );
 
@@ -83,19 +79,8 @@ function useSiteIdentity() {
 			EMPTY_OBJECT,
 		[]
 	);
-	const [ error, setError ] = useState( '' );
-
-	const update = ( edits ) => {
-		setError( '' );
+	const update = ( edits ) =>
 		editEntityRecord( 'root', 'site', undefined, edits );
-	};
-
-	const save = () => {
-		setError( '' );
-		saveEditedEntityRecord( 'root', 'site', undefined, {
-			throwOnError: true,
-		} ).catch( ( saveError ) => setError( getErrorMessage( saveError ) ) );
-	};
 
 	const discard = () =>
 		update( {
@@ -107,11 +92,9 @@ function useSiteIdentity() {
 
 	return {
 		discard,
-		error,
 		hasEdits,
 		isLoading,
 		isSaving,
-		save,
 		site,
 		update,
 	};
@@ -192,16 +175,8 @@ function SiteMediaSetting( {
 }
 
 export function SiteIdentityStage() {
-	const {
-		discard,
-		error,
-		hasEdits,
-		isLoading,
-		isSaving,
-		save,
-		site,
-		update,
-	} = useSiteIdentity();
+	const { discard, hasEdits, isLoading, isSaving, site, update } =
+		useSiteIdentity();
 	const logoId = site.site_logo || 0;
 
 	return el(
@@ -223,16 +198,6 @@ export function SiteIdentityStage() {
 				)
 			)
 		),
-		error &&
-			el(
-				Notice,
-				{
-					className: 'cnl-editor-panel__notice',
-					isDismissible: false,
-					status: 'error',
-				},
-				error
-			),
 		isLoading &&
 			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
 		! isLoading &&
@@ -298,16 +263,6 @@ export function SiteIdentityStage() {
 				el(
 					Stack,
 					{ gap: 'sm' },
-					el(
-						Button,
-						{
-							__next40pxDefaultSize: true,
-							isBusy: isSaving,
-							onClick: save,
-							variant: 'primary',
-						},
-						__( 'Save changes' )
-					),
 					el(
 						Button,
 						{

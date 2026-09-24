@@ -1230,7 +1230,9 @@ test.describe( 'Create Not Learn Editor', () => {
 			'Navigation menu customized. Review and save changes when you are ready.'
 		);
 		await expect(
-			page.getByRole( 'button', { name: /Review \d+ change/ } )
+			page
+				.locator( '.cnl-save-controls' )
+				.getByRole( 'button', { name: 'Save changes' } )
 		).toBeVisible();
 		const navigationTree = page.getByRole( 'treegrid', {
 			name: 'Block navigation structure',
@@ -1478,7 +1480,9 @@ test.describe( 'Create Not Learn Editor', () => {
 			'Menu locations updated. Review and save changes when you are ready.'
 		);
 		await expect(
-			page.getByRole( 'button', { name: /Review \d+ change/ } )
+			page
+				.locator( '.cnl-save-controls' )
+				.getByRole( 'button', { name: 'Save changes' } )
 		).toBeVisible();
 		const persistedNavigationTemplateParts =
 			await getNavigationTemplatePartsSnapshot( page );
@@ -1587,7 +1591,9 @@ test.describe( 'Create Not Learn Editor', () => {
 			'Navigation menu renamed. Review and save changes when you are ready.'
 		);
 		await expect(
-			page.getByRole( 'button', { name: /Review \d+ change/ } )
+			page
+				.locator( '.cnl-save-controls' )
+				.getByRole( 'button', { name: 'Save changes' } )
 		).toBeVisible();
 		await expect(
 			page.getByRole( 'heading', { name: renamedMenuTitle } )
@@ -2003,7 +2009,9 @@ test.describe( 'Create Not Learn Editor', () => {
 				stage.getByText( /You are previewing changes/ )
 			).toBeVisible();
 			await expect(
-				page.getByRole( 'button', { name: /Review \d+ change/ } )
+				page
+					.locator( '.cnl-save-controls' )
+					.getByRole( 'button', { name: 'Save changes' } )
 			).toBeVisible();
 
 			await stage.getByRole( 'button', { name: 'Undo changes' } ).click();
@@ -2059,10 +2067,23 @@ test.describe( 'Create Not Learn Editor', () => {
 			timeout: 15000,
 		} );
 
-		await stage.getByRole( 'button', { name: 'Save changes' } ).click();
+		await expect( page.locator( '.cnl-save-controls' ) ).toContainText(
+			'2 unsaved changes'
+		);
+		await page
+			.locator( '.cnl-save-controls' )
+			.getByRole( 'button', { name: 'Save changes' } )
+			.click();
+		await page
+			.getByRole( 'dialog', { name: 'Save changes' } )
+			.getByRole( 'button', { name: 'Save', exact: true } )
+			.click();
 		await expect(
 			stage.getByText( /You are previewing changes/ )
 		).toHaveCount( 0, { timeout: 15000 } );
+		await expect( page.locator( '.cnl-save-controls' ) ).toContainText(
+			'All changes saved'
+		);
 
 		const savedSettings = await page.evaluate( async () => {
 			const response = await window.fetch(
