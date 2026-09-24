@@ -71,5 +71,25 @@ function cnl_editor_get_block_hover_label_css() {
 			white-space: nowrap;
 			pointer-events: none;
 		}
+
+		/*
+		 * Template parts and synced patterns are shared across the site rather
+		 * than owned by the page being edited, so their label takes the colour
+		 * the editor already uses to mark them, matching the outline core draws
+		 * around the same two blocks.
+		 */
+		.block-editor-block-list__block.wp-block-template-part:hover:not(.is-selected):not(:has(.block-editor-block-list__block:hover))::before,
+		.block-editor-block-list__block.is-reusable:hover:not(.is-selected):not(:has(.block-editor-block-list__block:hover))::before {
+			background: var(--wp-block-synced-color, #7a00df);
+		}
+
+		/*
+		 * The topmost block has nothing above it to hold the label, so it would
+		 * be drawn outside the canvas and clipped. That one sits just inside
+		 * the block instead.
+		 */
+		.is-root-container > .block-editor-block-list__block:first-child:hover:not(.is-selected):not(:has(.block-editor-block-list__block:hover))::before {
+			transform: none;
+		}
 	';
 }

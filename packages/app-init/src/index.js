@@ -15,9 +15,12 @@ import {
 /**
  * Internal dependencies
  */
+import { registerTemplatePartEditing } from '../../../src/editor-extensions/template-part-editing';
 import { enhanceSidebar } from './sidebar';
 
 export async function init() {
+	registerTemplatePartEditing();
+
 	const menuIcons = {
 		identity: siteLogo,
 		navigation,

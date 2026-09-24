@@ -51,6 +51,7 @@
 		"@wordpress/dataviews": "^19.0.0",
 		"@wordpress/element": "^8.7.0",
 		"@wordpress/escape-html": "^3.55.0",
+		"@wordpress/hooks": "^4.55.0",
 		"@wordpress/html-entities": "^4.55.0",
 		"@wordpress/i18n": "^6.28.0",
 		"@wordpress/icons": "^16.0.0",
