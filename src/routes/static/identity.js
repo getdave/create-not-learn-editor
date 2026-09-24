@@ -212,7 +212,7 @@ export function SiteIdentityStage() {
 			{ direction: 'column', gap: 'xs' },
 			el(
 				Text,
-				{ render: el( 'h1' ), variant: 'heading-xl' },
+				{ render: el( 'h1' ), variant: 'heading-lg' },
 				__( 'Name & logo' )
 			),
 			el(

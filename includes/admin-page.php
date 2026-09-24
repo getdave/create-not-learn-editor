@@ -610,9 +610,9 @@ function cnl_editor_register_script_module_from_build( $id, $path ) {
 /**
  * Enqueue the web fonts used by the active visual theme.
  *
- * The modern theme sets its headings in EB Garamond, the heading face on
- * WordPress.org. The font ships with the plugin rather than loading from a
- * third-party CDN.
+ * The modern theme sets the black sidebar's headings in EB Garamond, the
+ * heading face on WordPress.org. The font ships with the plugin rather than
+ * loading from a third-party CDN.
  */
 function cnl_editor_enqueue_ui_theme_fonts() {
 	if ( 'modern' !== cnl_editor_get_ui_theme() ) {
@@ -885,7 +885,7 @@ function cnl_editor_get_menu_items() {
 		array(
 			'id'    => 'home',
 			'icon'  => 'dashicons-admin-home',
-			'label' => __( 'Your site', 'create-not-learn-editor' ),
+			'label' => __( 'My site', 'create-not-learn-editor' ),
 			'to'    => '/',
 		),
 		array(
