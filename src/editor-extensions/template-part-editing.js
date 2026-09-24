@@ -41,40 +41,11 @@ const TEMPLATE_PART_BLOCK_NAME = 'core/template-part';
 
 const EMPTY_ARRAY = [];
 
-/**
- * Class added to the admin document while a template part is the selected
- * block. Template parts are edited through this module's toolbar button
- * instead, so the matching stylesheet rule hides core's "Edit original".
- */
-const SELECTED_BODY_CLASS = 'cnl-editor-template-part-selected';
-
 const NOT_EDITABLE = {
 	areaLabel: undefined,
 	canEdit: false,
 	title: undefined,
 };
-
-/**
- * Hide core's "Edit original" toolbar button while this part is selected.
- *
- * The block toolbar renders in the admin document rather than the canvas
- * iframe, and the canvas is portalled into that iframe from the same JavaScript
- * realm, so `document` here is the document the toolbar lives in.
- *
- * @param {boolean} isSelected Whether the template part is the selected block.
- */
-function useSelectedTemplatePartBodyClass( isSelected ) {
-	useEffect( () => {
-		if ( ! isSelected ) {
-			return;
-		}
-
-		const { body } = document;
-		body.classList.add( SELECTED_BODY_CLASS );
-
-		return () => body.classList.remove( SELECTED_BODY_CLASS );
-	}, [ isSelected ] );
-}
 
 /**
  * Unlock a template part's blocks for as long as it is the edited section.
@@ -326,6 +297,9 @@ function useTemplatePartEditState( clientId, attributes ) {
 /**
  * Toolbar button that edits a template part's blocks in place.
  *
+ * It replaces core's "Edit original", which the editor layer's stylesheet
+ * hides whenever a template part is selected. See src/editor-layer/style.scss.
+ *
  * @param {Object}  props            Component props.
  * @param {Object}  props.attributes Template part block attributes.
  * @param {string}  props.clientId   Template part block client ID.
@@ -342,12 +316,6 @@ function TemplatePartEditButton( { attributes, clientId, isSelected } ) {
 	const registry = useRegistry();
 
 	useSecondClickToEdit( clientId, element, canEdit && ! isEditing );
-
-	/*
-	 * Keyed on selection alone, including while the part is being edited: the
-	 * button core would show is replaced by this one either way.
-	 */
-	useSelectedTemplatePartBodyClass( isSelected );
 
 	if ( ! isSelected || ! canEdit || isEditing ) {
 		return null;

@@ -3090,27 +3090,3 @@ $chevron-inset: 10px;
 	flex: 0 0 auto;
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
-
-/**
- * Template parts are edited through this plugin's own "Edit Header" button, so
- * core's "Edit original" is hidden while one is selected.
- *
- * The whole toolbar group goes, not just the slot inside it. A group emptied of
- * its contents still draws its own borders, which reads as a broken gap.
- *
- * "Edit original" is the sole fill in the toolbar's "other" group for a
- * selected template part, and every slot shares one class name, so the group is
- * picked out as the last one holding a slot, which is where the "other" group
- * is rendered. Earlier slot groups carry controls that should stay, and the
- * replacement button sits in the last-item slot, outside all of them.
- *
- * The class is only present while a template part is selected, so synced
- * patterns, which share the `is-synced` toolbar class, keep theirs.
- */
-.cnl-editor-template-part-selected
-	.block-editor-block-toolbar.is-synced
-	.components-toolbar-group:has(> .block-editor-block-toolbar__slot):not(
-		:has(~ .components-toolbar-group > .block-editor-block-toolbar__slot)
-	) {
-	display: none;
-}

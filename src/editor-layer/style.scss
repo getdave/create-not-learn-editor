@@ -1,0 +1,46 @@
+/**
+ * The editor layer's stylesheet.
+ *
+ * Editor chrome the layer replaces is hidden here, never unmounted, so the
+ * editor underneath stays mounted and working. Every rule sits inside the one
+ * scope below, which is boot's own marker for the full-screen edit canvas, so
+ * nothing here can reach a stage screen or a preview canvas.
+ *
+ * `$edit-canvas` is `EDIT_CANVAS_SELECTOR` in `canvas-mode.js`, and the two
+ * must change together.
+ *
+ * Editor state the stylesheet needs beyond that, such as which block is
+ * selected, is published by `EditorLayer` as data attributes on
+ * `.cnl-editor-layer`, and read here through `:has()`.
+ */
+
+$edit-canvas: '[class*="__has-full-canvas"]';
+
+body:has(#{$edit-canvas}) {
+
+	/**
+	 * Template parts are edited through this plugin's own "Edit Header"
+	 * button, so core's "Edit original" is hidden while one is selected.
+	 *
+	 * The whole toolbar group goes, not just the slot inside it. A group
+	 * emptied of its contents still draws its own borders, which reads as a
+	 * broken gap.
+	 *
+	 * "Edit original" is the sole fill in the toolbar's "other" group for a
+	 * selected template part, and every slot shares one class name, so the
+	 * group is picked out as the last one holding a slot, which is where the
+	 * "other" group is rendered. Earlier slot groups carry controls that
+	 * should stay, and the replacement button sits in the last-item slot,
+	 * outside all of them.
+	 *
+	 * Keyed on the selected block's name, so synced patterns, which share the
+	 * `is-synced` toolbar class, keep theirs.
+	 */
+	&:has(.cnl-editor-layer[data-selected-block="core/template-part"])
+		.block-editor-block-toolbar.is-synced
+		.components-toolbar-group:has(> .block-editor-block-toolbar__slot):not(
+			:has(~ .components-toolbar-group > .block-editor-block-toolbar__slot)
+		) {
+		display: none;
+	}
+}
