@@ -117,18 +117,23 @@ function useNavigationEntityBinding( { clientId, attributes = {} } ) {
 }
 
 export default function NavigationListViewLinkUI( {
-	block,
-	insertedBlock,
+	insertedBlockClientId,
 	onComplete,
-	setInsertedBlock,
+	setInsertedBlockClientId,
 } ) {
 	const { removeBlock, updateBlockAttributes } =
 		useDispatch( blockEditorStore );
-	const blockWasJustInserted = insertedBlock?.clientId === block.clientId;
+	const insertedBlock = useSelect(
+		( select ) =>
+			insertedBlockClientId
+				? select( blockEditorStore ).getBlock( insertedBlockClientId )
+				: null,
+		[ insertedBlockClientId ]
+	);
 	const supportsLinkControls = BLOCKS_WITH_LINK_UI_SUPPORT.includes(
 		insertedBlock?.name
 	);
-	const showLinkControls = supportsLinkControls && blockWasJustInserted;
+	const showLinkControls = !! insertedBlock && supportsLinkControls;
 	const attributes = useMemo(
 		() => insertedBlock?.attributes || {},
 		[ insertedBlock?.attributes ]
@@ -155,7 +160,7 @@ export default function NavigationListViewLinkUI( {
 		if ( ! insertedBlock?.attributes?.url && insertedBlock?.clientId ) {
 			removeBlock( insertedBlock.clientId, false );
 		}
-		setInsertedBlock( null );
+		setInsertedBlockClientId( null );
 	};
 
 	const setInsertedBlockAttributes = ( updatedAttributes ) => {
@@ -197,7 +202,7 @@ export default function NavigationListViewLinkUI( {
 				}
 
 				onComplete?.( insertedBlock, updatedAttributes );
-				setInsertedBlock( null );
+				setInsertedBlockClientId( null );
 			},
 			onRemove: cleanupInsertedBlock,
 			showInitialSuggestions: true,
