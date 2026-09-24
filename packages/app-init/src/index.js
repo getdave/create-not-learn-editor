@@ -16,10 +16,12 @@ import {
  * Internal dependencies
  */
 import { registerTemplatePartEditing } from '../../../src/editor-extensions/template-part-editing';
+import { mountEditorLayer } from '../../../src/editor-layer';
 import { enhanceSidebar } from './sidebar';
 
 export async function init() {
 	registerTemplatePartEditing();
+	mountEditorLayer();
 
 	const menuIcons = {
 		identity: siteLogo,
