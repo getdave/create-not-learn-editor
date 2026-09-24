@@ -21,7 +21,6 @@ import {
 	DataViews,
 	DropdownMenu,
 	EmptyState,
-	Icon,
 	InputControl,
 	layoutIcon,
 	MenuItem,
@@ -55,6 +54,10 @@ import {
 	removeNavigationMenuFromFirstBlock,
 	templatePartHasNavigationBlock,
 } from './navigation-locations';
+import {
+	NavigationSitePreview,
+	NavigationSitePreviewNotice,
+} from './site-preview';
 
 const NAVIGATION_MENUS_CHANGED_EVENT = 'cnl-editor-navigation-menus-changed';
 const NAVIGATION_POST_TYPE = 'wp_navigation';
@@ -137,14 +140,6 @@ function getNavigationMenuSearchId( menuOrId ) {
 	return Number.isFinite( numericMenuId ) ? numericMenuId : menuId;
 }
 
-function getMenuLocationsTitle( menuTitle ) {
-	return sprintf(
-		/* translators: %s: Navigation menu title. */
-		__( 'Where “%s” appears' ),
-		menuTitle
-	);
-}
-
 function getMenuLocationsDescription( count ) {
 	return count
 		? sprintf(
@@ -182,54 +177,6 @@ function navigateToNavigationEditRoute( navigate, menuOrId ) {
 		currentUrl.searchParams.set( 'p', route );
 		window.location.assign( currentUrl.toString() );
 	}, 100 );
-}
-
-function NavigationLocationsEmptyState( { disabled, onChooseLocation } ) {
-	return el(
-		EmptyState.Root,
-		{ className: 'routes-navigation-locations-canvas__empty-state' },
-		el( EmptyState.Icon, { icon: compassIcon } ),
-		el(
-			EmptyState.Title,
-			null,
-			__( 'This menu is not shown on your site yet' )
-		),
-		el(
-			EmptyState.Description,
-			null,
-			__(
-				'Choose where this menu should appear, such as your header or footer.'
-			)
-		),
-		el(
-			EmptyState.Actions,
-			null,
-			el(
-				Button,
-				{
-					__next40pxDefaultSize: true,
-					disabled,
-					onClick: onChooseLocation,
-					variant: 'primary',
-				},
-				__( 'Choose location' )
-			)
-		)
-	);
-}
-
-function NavigationNoMenuSelectedEmptyState() {
-	return el(
-		EmptyState.Root,
-		{ className: 'routes-navigation-locations-canvas__empty-state' },
-		el( EmptyState.Icon, { icon: compassIcon } ),
-		el( EmptyState.Title, null, __( 'No menu selected' ) ),
-		el(
-			EmptyState.Description,
-			null,
-			__( 'Pick a menu to see where it appears and change its links.' )
-		)
-	);
 }
 
 function NavigationLocationsUnavailableEmptyState() {
@@ -1294,7 +1241,6 @@ function Stage() {
 }
 
 function Canvas() {
-	const navigate = useNavigate();
 	const { editEntityRecord } = useDispatch( coreDataStore );
 	const { createErrorNotice, createSuccessNotice } =
 		useDispatch( noticesStore );
@@ -1449,8 +1395,7 @@ function Canvas() {
 	return el(
 		'section',
 		{
-			className:
-				'cnl-editor-canvas routes-navigation-locations-canvas-shell',
+			className: 'cnl-editor-canvas routes-navigation-canvas',
 		},
 		( error || locationsError ) &&
 			el(
@@ -1462,119 +1407,49 @@ function Canvas() {
 				},
 				error || locationsError
 			),
-		isResolvingLocations &&
-			! selectedMenu &&
-			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
 		selectedMenu &&
 			el(
-				Page,
+				'header',
 				{
-					actions: selectedMenuActions,
-					className: 'routes-navigation-locations-canvas',
-					hasPadding: false,
-					headingLevel: 2,
-					showSidebarToggle: false,
-					subTitle: getMenuLocationsDescription(
-						selectedLocations.length
-					),
-					title: getMenuLocationsTitle( selectedMenuTitle ),
+					className:
+						'cnl-editor-canvas__toolbar routes-navigation-canvas-toolbar',
 				},
 				el(
 					'div',
 					{
-						className:
-							'routes-navigation-locations-canvas__content',
+						className: 'routes-navigation-canvas-toolbar__document',
 					},
-					isResolvingLocations &&
-						el(
-							'div',
-							{ className: 'cnl-editor-spinner' },
-							el( Spinner )
-						),
-					! isResolvingLocations &&
-						selectedLocations.length === 0 &&
-						el( NavigationLocationsEmptyState, {
-							disabled: isResolvingLocations,
-							onChooseLocation: () =>
-								setLocationModalMode( 'choose' ),
-						} ),
-					! isResolvingLocations &&
-						selectedLocations.length > 0 &&
-						el(
-							'div',
-							{
-								className:
-									'routes-navigation-locations-canvas__previews',
-							},
-							selectedLocations.map( ( location ) =>
-								el(
-									'section',
-									{
-										className:
-											'routes-navigation-locations-canvas__card',
-										key: location.id,
-									},
-									el(
-										'div',
-										{
-											className:
-												'routes-navigation-locations-canvas__card-header',
-										},
-										el(
-											'div',
-											{
-												className:
-													'routes-navigation-locations-canvas__card-title',
-											},
-											el( Icon, {
-												className:
-													'routes-navigation-locations-canvas__card-icon',
-												icon: layoutIcon,
-											} ),
-											el( 'span', null, location.label )
-										),
-										el(
-											Button,
-											{
-												onClick: () =>
-													navigate( {
-														to: `/wp_template_part?postId=${ encodeURIComponent(
-															location.part.id
-														) }`,
-													} ),
-												variant: 'link',
-											},
-											__( 'Edit' )
-										)
-									),
-									el(
-										'div',
-										{
-											className:
-												'routes-navigation-locations-canvas__preview',
-										},
-										el( LazyEditorPreview, {
-											content: getTemplatePartRawContent(
-												location.part
-											),
-											description: location.label,
-										} )
-									)
-								)
-							)
-						)
+					el(
+						'h2',
+						{
+							className:
+								'routes-navigation-canvas-toolbar__title',
+						},
+						selectedMenuTitle
+					),
+					el(
+						'p',
+						{ className: 'routes-navigation-canvas-toolbar__meta' },
+						getMenuLocationsDescription( selectedLocations.length )
+					)
+				),
+				el(
+					'div',
+					{ className: 'routes-navigation-canvas-toolbar__actions' },
+					selectedMenuActions
 				)
 			),
-		! isResolvingLocations &&
-			! selectedMenu &&
-			el(
-				'div',
-				{
-					className:
-						'routes-navigation-locations-canvas is-top-centered',
-				},
-				el( NavigationNoMenuSelectedEmptyState )
-			),
+		selectedMenu &&
+			! isResolvingLocations &&
+			selectedLocations.length === 0 &&
+			el( NavigationSitePreviewNotice, {
+				onChooseLocation: () => setLocationModalMode( 'choose' ),
+			} ),
+		el(
+			'div',
+			{ className: 'routes-navigation-canvas__body' },
+			el( NavigationSitePreview )
+		),
 		locationModalMode &&
 			selectedMenu?.id &&
 			el( ChooseLocationModal, {

@@ -3,10 +3,7 @@
  */
 import { useNavigate, useParams } from '@wordpress/route';
 import { _n } from '@wordpress/i18n';
-import {
-	Editor as LazyEditor,
-	Preview as LazyEditorPreview,
-} from '@wordpress/lazy-editor';
+import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
 
 /**
  * Internal dependencies
@@ -103,6 +100,10 @@ import {
 	removeNavigationMenuFromFirstBlock,
 	templatePartHasNavigationBlock,
 } from '../navigation/navigation-locations';
+import {
+	NavigationSitePreview,
+	NavigationSitePreviewNotice,
+} from '../navigation/site-preview';
 import NavigationEditListView from './list-view';
 
 const NAVIGATION_POST_TYPE = 'wp_navigation';
@@ -2280,8 +2281,6 @@ function ChooseLocationModal( {
  * route whose canvas `isPreview`. Kept at module scope because the editor
  * provider pushes settings into the store whenever their identity changes.
  */
-const SITE_PREVIEW_EDITOR_SETTINGS = { isPreviewMode: true };
-
 function getCanvasViewDeviceOptions() {
 	return [
 		{ icon: desktopIcon, label: __( 'Desktop view' ), value: 'Desktop' },
@@ -2358,53 +2357,6 @@ function NavigationCanvasHeader( {
 				label: __( 'Preview Site' ),
 				onChange: onTogglePreview,
 			} )
-		)
-	);
-}
-
-/**
- * The site's front page in the editor canvas, as a read-only preview.
- *
- * Passing no post leaves the editor to resolve whatever is set to show at the
- * site's root, and to compose it with the template that renders it, so a menu
- * appears in the header or footer it was assigned to.
- *
- * @param {Object} props        Component props.
- * @param {string} props.device Device type the canvas opens at.
- * @return {Element} The preview canvas.
- */
-function NavigationSitePreview( { device } ) {
-	return el(
-		'div',
-		{
-			className: 'routes-navigation-canvas__preview',
-			// Nothing in a preview is reachable by pointer or keyboard.
-			inert: 'true',
-		},
-		el( LazyEditor, {
-			initialViewport: device,
-			settings: SITE_PREVIEW_EDITOR_SETTINGS,
-		} )
-	);
-}
-
-function NavigationSitePreviewNotice( { onChooseLocation } ) {
-	return el(
-		Notice,
-		{
-			actions: [
-				{
-					label: __( 'Choose location' ),
-					onClick: onChooseLocation,
-					variant: 'link',
-				},
-			],
-			className: 'cnl-editor-preview-canvas__notice',
-			isDismissible: false,
-			status: 'warning',
-		},
-		__(
-			'This menu is not shown anywhere on your site yet, so it does not appear in the preview.'
 		)
 	);
 }
