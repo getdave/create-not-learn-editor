@@ -17,6 +17,7 @@ import {
  */
 import { registerTemplatePartEditing } from '../../../src/editor-extensions/template-part-editing';
 import { mountEditorLayer } from '../../../src/editor-layer';
+import { mountWorkspaces } from '../../../src/workspaces';
 import { enhanceSidebar } from './sidebar';
 
 export async function init() {
@@ -36,5 +37,6 @@ export async function init() {
 		dispatch( bootStore ).updateMenuItem( id, { icon } );
 	} );
 
+	mountWorkspaces();
 	enhanceSidebar( { userName: window.createNotLearnEditor?.userName } );
 }

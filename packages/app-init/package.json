@@ -9,6 +9,7 @@
 		"@wordpress/element": "^8.7.0",
 		"@wordpress/i18n": "^6.28.0",
 		"@wordpress/icons": "^15.1.0",
+		"@wordpress/preferences": "^4.55.0",
 		"@wordpress/ui": "^0.22.0"
 	},
 	"main": "src/script.js",

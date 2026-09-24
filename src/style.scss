@@ -2817,7 +2817,8 @@
  * are content hashed, so the menu is matched structurally instead: the menu
  * list is the element that directly follows the navigation screen title.
  * Drilldown screens render a title, the root screen leaves it empty, so only
- * the root screen gets the bottom pin.
+ * the root screen gets the bottom pin. Only workspaces that end on a gateway
+ * like Advanced ask for the pin, through `pinLastMenuItem`.
  */
 #create-not-learn-editor-app {
 
@@ -2838,7 +2839,7 @@
 		flex-direction: column;
 	}
 
-	.components-h-stack:has(> h1.components-heading:empty) + [role="list"] > :last-child {
+	.cnl-pin-last-menu-item & .components-h-stack:has(> h1.components-heading:empty) + [role="list"] > :last-child {
 		margin-block-start: auto;
 	}
 }
@@ -3042,6 +3043,67 @@ $chevron-inset: 10px;
 	@media not (prefers-reduced-motion) {
 		transition: color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
 	}
+}
+
+/*
+ * Workspace switcher, added below the main menu by app-init as a section of
+ * its own.
+ */
+$workspace-toggle-inset: var(--wpds-dimension-gap-xs);
+
+/*
+ * The divider runs the full width of the panel. Boot's footer below only has
+ * content while there are unsaved changes, so its padding is dropped while it
+ * is empty to keep the space above and below the toggle even.
+ */
+.cnl-sidebar-workspace {
+	margin-block-start: var(--wpds-dimension-gap-sm);
+	padding-block: var(--wpds-dimension-gap-md);
+	padding-inline: var(--wpds-dimension-padding-xl) var(--wpds-dimension-gap-md);
+	border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral);
+
+	+ [class*="__footer"]:empty {
+		padding: 0;
+	}
+}
+
+/*
+ * Tertiary: knocked back like the Dashboard link until hovered, with the
+ * workspace name a step brighter than its icons.
+ */
+.components-button.cnl-sidebar-workspace__toggle {
+	gap: var(--wpds-dimension-gap-xs);
+	margin-inline-start: calc(-1 * #{$workspace-toggle-inset});
+	padding-inline: $workspace-toggle-inset;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+	font-weight: var(--wpds-typography-font-weight-default);
+
+	svg {
+		fill: currentcolor;
+	}
+
+	&:hover:not(:disabled),
+	&:focus-visible,
+	&[aria-expanded="true"] {
+		color: var(--wpds-color-foreground-content-neutral);
+	}
+
+	@media not (prefers-reduced-motion) {
+		transition: color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+	}
+}
+
+.cnl-sidebar-workspace__value {
+	margin-inline-start: var(--wpds-dimension-gap-xs);
+	color: var(--wpds-color-foreground-content-neutral);
+}
+
+/*
+ * Each workspace's icon in the switcher menu, knocked back so the names lead.
+ */
+.cnl-sidebar-workspace__option .components-menu-items__item-icon {
+	fill: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /*
