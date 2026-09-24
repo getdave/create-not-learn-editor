@@ -6,6 +6,7 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { withUiTheme } from '../../theme';
 import { namespace, settings } from '../../settings';
 import { cnlEditorStore, getErrorMessage } from '../../records';
 import {
@@ -569,4 +570,5 @@ function Canvas() {
 	);
 }
 
-export { Stage as stage, Canvas as canvas };
+export const stage = withUiTheme( Stage );
+export const canvas = withUiTheme( Canvas );

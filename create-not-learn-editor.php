@@ -22,6 +22,16 @@ define( 'CNL_EDITOR_URL', plugin_dir_url( __FILE__ ) );
 define( 'CNL_EDITOR_SLUG', 'create-not-learn-editor' );
 define( 'CNL_EDITOR_REST_NAMESPACE', 'create-not-learn-editor/v1' );
 
+/*
+ * Visual theme layered on top of the WordPress Design System.
+ *
+ * 'modern' softens corners and surfaces; 'default' is stock WPDS. Override it
+ * in wp-config.php, or with the `create-not-learn-editor_ui_theme` filter.
+ */
+if ( ! defined( 'CNL_EDITOR_UI_THEME' ) ) {
+	define( 'CNL_EDITOR_UI_THEME', 'modern' );
+}
+
 require_once CNL_EDITOR_PATH . 'includes/dependencies.php';
 
 register_activation_hook( CNL_EDITOR_FILE, 'cnl_editor_activate' );

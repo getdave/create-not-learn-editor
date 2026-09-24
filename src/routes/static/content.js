@@ -7,6 +7,7 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { withUiTheme } from '../../theme';
 import { getCurrentEditorPath, getStaticScreen } from './screens';
 import { SiteIdentityCanvas, SiteIdentityStage } from './identity';
 import { StylesCanvas, StylesStage } from './styles';
@@ -2467,4 +2468,5 @@ function Canvas() {
 	);
 }
 
-export { Stage as stage, Canvas as canvas };
+export const stage = withUiTheme( Stage );
+export const canvas = withUiTheme( Canvas );

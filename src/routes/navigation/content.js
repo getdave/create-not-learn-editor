@@ -7,6 +7,7 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
 /**
  * Internal dependencies
  */
+import { withUiTheme } from '../../theme';
 import {
 	cnlEditorStore,
 	getErrorMessage,
@@ -1600,4 +1601,5 @@ function Canvas() {
 	);
 }
 
-export { Stage as stage, Canvas as canvas };
+export const stage = withUiTheme( Stage );
+export const canvas = withUiTheme( Canvas );

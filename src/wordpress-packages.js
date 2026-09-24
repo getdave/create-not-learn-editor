@@ -130,6 +130,7 @@ import {
 	Tabs,
 	Text,
 } from '@wordpress/ui';
+import { ThemeProvider } from '@wordpress/theme';
 import { addQueryArgs, getPath, safeDecodeURI } from '@wordpress/url';
 
 export {
@@ -226,6 +227,7 @@ export {
 	tablet as tabletIcon,
 	Tabs,
 	Text,
+	ThemeProvider,
 	ToggleControl,
 	ToggleGroupControl,
 	ToggleGroupControlOption,

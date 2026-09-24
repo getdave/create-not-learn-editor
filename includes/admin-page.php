@@ -162,6 +162,22 @@ function cnl_editor_register_default_routes_and_menu() {
 add_action( CNL_EDITOR_SLUG . '_init', 'cnl_editor_register_default_routes_and_menu', 5 );
 
 /**
+ * Get the visual theme layered on top of the design system.
+ *
+ * @return string Theme name: 'modern' or 'default'.
+ */
+function cnl_editor_get_ui_theme() {
+	/**
+	 * Filters the visual theme for the full-page editor.
+	 *
+	 * @param string $theme Theme name: 'modern' or 'default'.
+	 */
+	$theme = apply_filters( CNL_EDITOR_SLUG . '_ui_theme', CNL_EDITOR_UI_THEME );
+
+	return in_array( $theme, array( 'modern', 'default' ), true ) ? $theme : 'default';
+}
+
+/**
  * Get settings for the editor app.
  *
  * @return array App settings.
@@ -189,6 +205,7 @@ function cnl_editor_get_app_settings() {
 			plugins_url( 'gutenberg/build/modules/lazy-editor/index.js' )
 		),
 		'siteName'           => get_bloginfo( 'name' ),
+		'uiTheme'            => cnl_editor_get_ui_theme(),
 		'themeName'          => $theme->get( 'Name' ),
 		'showOnFront'        => get_option( 'show_on_front' ),
 		'pageOnFront'        => (int) get_option( 'page_on_front' ),
@@ -395,7 +412,7 @@ function cnl_editor_render_full_page() {
 	do_action( 'admin_head' );
 	?>
 	</head>
-	<body class="create-not-learn-editor">
+	<body class="<?php echo esc_attr( 'create-not-learn-editor cnl-ui-theme-' . cnl_editor_get_ui_theme() ); ?>"<?php echo 'modern' === cnl_editor_get_ui_theme() ? ' data-wpds-corner-radius="moderate"' : ''; ?>>
 		<div id="create-not-learn-editor-app" style="height: 100vh; box-sizing: border-box;">
 			<?php if ( ! $assets_ready ) : ?>
 				<div class="cnl-editor-loading">

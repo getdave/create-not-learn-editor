@@ -1,5 +1,6 @@
 @use "@wordpress/dataviews/build-style/style.css" as dataviews;
 @use "./vendor/gutenberg/list-view/style" as list-view;
+@use "./theme/modern";
 
 .cnl-editor-page {
 
@@ -3129,17 +3130,22 @@
 }
 
 .routes-pattern-list__categories .components-button.routes-pattern-list__category {
+	border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-strong);
 	border-radius: 999px;
-	box-shadow: inset 0 0 0 var(--wpds-border-width-xs) var(--wpds-color-stroke-surface-neutral-strong);
+	background: transparent;
+	box-shadow: none;
 	color: var(--wpds-color-foreground-interactive-neutral);
 
 	&:hover:not(:disabled) {
-		box-shadow: inset 0 0 0 var(--wpds-border-width-xs) var(--wpds-color-stroke-interactive-neutral-active);
+		border-color: var(--wpds-color-stroke-interactive-neutral-active);
+		background: transparent;
+		box-shadow: none;
 		color: var(--wpds-color-foreground-interactive-neutral-active);
 	}
 
 	&[aria-pressed="true"],
 	&[aria-pressed="true"]:hover:not(:disabled) {
+		border-color: var(--wpds-color-background-interactive-neutral-strong);
 		background: var(--wpds-color-background-interactive-neutral-strong);
 		box-shadow: none;
 		color: var(--wpds-color-foreground-interactive-neutral-strong);
