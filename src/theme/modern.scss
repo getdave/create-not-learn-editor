@@ -2,8 +2,8 @@
  * "Modern" theme layer for the WordPress Design System.
  *
  * Softer corners, calmer surfaces, a floating site preview, and WordPress.org's
- * EB Garamond for headings, while keeping WordPress's interface font, colors,
- * and dark sidebar.
+ * EB Garamond, larger than usual, for the black sidebar's headings, while
+ * keeping WordPress's interface font, colors, and dark sidebar everywhere else.
  *
  * Token values are changed through the design system's own API, not here:
  * `src/theme/index.js` wraps each route in a `ThemeProvider` with the
@@ -63,39 +63,27 @@ $heading-font-family: "EB Garamond", "Georgia", "Times New Roman", serif;
 	}
 
 	/*
-	 * Headings follow WordPress.org: EB Garamond at a regular weight, with
-	 * balanced line breaks. The font ships with the plugin and is enqueued by
-	 * PHP only for this theme. Garamond has a small x-height, so each size
-	 * sits a step above the sans-serif it replaces.
+	 * The black sidebar keeps a distinct identity: WordPress.org's EB
+	 * Garamond serif, larger than WordPress's interface font, for the
+	 * greeting and the drilldown section titles (Content, Design,
+	 * Advanced). The font ships with the plugin and is enqueued by PHP
+	 * only for this theme. Every other heading follows the WordPress
+	 * Design System's defaults.
 	 */
-	.cnl-editor-stage h1,
-	.cnl-editor-stage [class*="__header-lockup"] > h2,
-	.cnl-editor-canvas [class*="__header-lockup"] > h2,
 	.cnl-sidebar-welcome,
-	[class*="__sidebar"] [class*="__title-icon"] h1,
-	.cnl-site-hub__card h2,
-	.cnl-editor-identity-media__details h3,
-	.routes-styles__step-heading,
-	.routes-navigation-canvas-toolbar__title,
-	.components-modal__frame .components-modal__header .components-modal__header-heading {
+	[class*="__sidebar"] [class*="__title-icon"] h1 {
 		font-family: $heading-font-family;
+		font-size: 28px;
 		font-weight: 400;
 		letter-spacing: normal;
+		line-height: 1.2;
 		text-transform: none;
 		text-wrap: balance;
 	}
 
-	// Screen titles.
-	.cnl-editor-stage h1,
-	.cnl-editor-stage [class*="__header-lockup"] > h2 {
-		font-size: 32px;
-		line-height: 1.15;
-	}
-
 	/*
-	 * Breadcrumb trails, such as Menus / Navigation, read as one title: every
-	 * crumb in the heading face at the same size, with the parents muted so
-	 * the current screen stands out.
+	 * Breadcrumb trails, such as Menus / Navigation, read as one title,
+	 * with the parents muted so the current screen stands out.
 	 */
 	.cnl-editor-stage [class*="__header-lockup"] nav {
 		min-width: 0;
@@ -103,15 +91,6 @@ $heading-font-family: "EB Garamond", "Georgia", "Times New Roman", serif;
 		// When a long name wraps, keep the parent crumbs on its first line.
 		li {
 			align-self: first baseline;
-		}
-
-		a,
-		h1,
-		[class*="__separator"] {
-			font-family: $heading-font-family;
-			font-size: 26px;
-			font-weight: 400;
-			line-height: 1.2;
 		}
 
 		a,
@@ -129,39 +108,6 @@ $heading-font-family: "EB Garamond", "Georgia", "Times New Roman", serif;
 			text-decoration-thickness: 1px;
 			text-underline-offset: 0.15em;
 		}
-	}
-
-	// The sidebar greeting and drilldown titles (Content, Design, Advanced).
-	.cnl-sidebar-welcome,
-	[class*="__sidebar"] [class*="__title-icon"] h1 {
-		font-size: 28px;
-		line-height: 1.2;
-	}
-
-	// Card, canvas, and dialog headings.
-	.cnl-editor-canvas [class*="__header-lockup"] > h2,
-	.cnl-site-hub__card h2,
-	.components-modal__frame .components-modal__header .components-modal__header-heading {
-		font-size: 26px;
-		line-height: 1.2;
-	}
-
-	// The full-width layout picker gets a screen-sized title.
-	.cnl-add-page-modal.is-layout-picker .components-modal__header .components-modal__header-heading {
-		font-size: 32px;
-		line-height: 1.15;
-	}
-
-	// Steps within a screen, and smaller headings inside them.
-	.routes-styles__step-heading,
-	.routes-navigation-canvas-toolbar__title {
-		font-size: 24px;
-		line-height: 1.25;
-	}
-
-	.cnl-editor-identity-media__details h3 {
-		font-size: 22px;
-		line-height: 1.25;
 	}
 
 	/*
