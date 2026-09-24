@@ -5,6 +5,7 @@
 	"private": true,
 	"license": "GPL-2.0-or-later",
 	"files": [
+		"assets",
 		"build",
 		"create-not-learn-editor.php",
 		"includes",

@@ -25,8 +25,9 @@ define( 'CNL_EDITOR_REST_NAMESPACE', 'create-not-learn-editor/v1' );
 /*
  * Visual theme layered on top of the WordPress Design System.
  *
- * 'modern' softens corners and surfaces; 'default' is stock WPDS. Override it
- * in wp-config.php, or with the `create-not-learn-editor_ui_theme` filter.
+ * 'modern' softens corners and surfaces and sets headings in EB Garamond;
+ * 'default' is stock WPDS. Override it in wp-config.php, or with the
+ * `create-not-learn-editor_ui_theme` filter.
  */
 if ( ! defined( 'CNL_EDITOR_UI_THEME' ) ) {
 	define( 'CNL_EDITOR_UI_THEME', 'modern' );

@@ -317,6 +317,7 @@ function cnl_editor_enqueue_full_page_assets( $routes, $menu_items ) {
 	cnl_editor_preload_data();
 	cnl_editor_register_boot_modules( $routes );
 	cnl_editor_enqueue_built_styles();
+	cnl_editor_enqueue_ui_theme_fonts();
 
 	$boot_asset  = cnl_editor_get_gutenberg_boot_asset();
 	$script_deps = cnl_editor_get_prerequisite_script_dependencies( $boot_asset );
@@ -427,6 +428,7 @@ function cnl_editor_render_full_page() {
 	// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 	$hook_suffix = CNL_EDITOR_SLUG;
 
+	cnl_editor_print_ui_theme_font_preload();
 	print_admin_styles();
 	print_head_scripts();
 
@@ -602,6 +604,40 @@ function cnl_editor_register_script_module_from_build( $id, $path ) {
 		CNL_EDITOR_URL . 'build/' . $path . '.js',
 		$deps,
 		$asset['version'] ?? CNL_EDITOR_VERSION
+	);
+}
+
+/**
+ * Enqueue the web fonts used by the active visual theme.
+ *
+ * The modern theme sets its headings in EB Garamond, the heading face on
+ * WordPress.org. The font ships with the plugin rather than loading from a
+ * third-party CDN.
+ */
+function cnl_editor_enqueue_ui_theme_fonts() {
+	if ( 'modern' !== cnl_editor_get_ui_theme() ) {
+		return;
+	}
+
+	wp_enqueue_style(
+		'cnl-editor-font-eb-garamond',
+		CNL_EDITOR_URL . 'assets/fonts/eb-garamond/style.css',
+		array(),
+		CNL_EDITOR_VERSION
+	);
+}
+
+/**
+ * Preload the heading font so screen titles do not flash in a fallback face.
+ */
+function cnl_editor_print_ui_theme_font_preload() {
+	if ( 'modern' !== cnl_editor_get_ui_theme() ) {
+		return;
+	}
+
+	printf(
+		'<link rel="preload" href="%s" as="font" type="font/woff2" crossorigin>' . "\n",
+		esc_url( CNL_EDITOR_URL . 'assets/fonts/eb-garamond/EBGaramond-latin.woff2' )
 	);
 }
 

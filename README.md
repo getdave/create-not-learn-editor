@@ -52,7 +52,9 @@ Home and Content currently include visible placeholder canvases. They are delibe
 
 ## Visual Theme
 
-A small theme layer sits on top of the WordPress Design System. It softens corners, floats the site preview on a quiet backdrop, and tidies a few legacy components, while keeping WordPress's fonts, colors, and dark sidebar.
+A small theme layer sits on top of the WordPress Design System. It softens corners, floats the site preview on a quiet backdrop, and tidies a few legacy components, while keeping WordPress's interface font, colors, and dark sidebar.
+
+Headings use EB Garamond, the heading face on [WordPress.org](https://wordpress.org/). The font lives in `assets/fonts/eb-garamond/` under the SIL Open Font License and loads from the plugin, not a third-party CDN.
 
 It is on by default. Switch it with the `CNL_EDITOR_UI_THEME` constant, either `'modern'` or `'default'` (stock WPDS):
 
