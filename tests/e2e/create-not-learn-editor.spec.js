@@ -1988,48 +1988,39 @@ test.describe( 'Create Not Learn Editor', () => {
 			stage.getByRole( 'heading', { name: 'Pick a look' } )
 		).toBeVisible( { timeout: 15000 } );
 		await expect(
-			stage.getByRole( 'heading', { name: 'Fine-tune' } )
-		).toBeVisible();
-		await expect(
 			canvas.locator( '.routes-navigation-canvas__preview' )
 		).toBeVisible( { timeout: 15000 } );
 
 		const looks = stage.locator( '.routes-styles__look' );
-		await expect(
-			stage.getByRole( 'button', { name: 'Theme default' } ).first()
-		).toHaveAttribute( 'aria-pressed', 'true' );
+		const themeDefault = stage
+			.getByRole( 'button', { name: 'Theme default' } )
+			.first();
+		await expect( themeDefault ).toHaveAttribute( 'aria-pressed', 'true' );
 
-		if ( ( await looks.count() ) > 1 ) {
-			await looks.nth( 1 ).click();
-			await expect( looks.nth( 1 ) ).toHaveAttribute(
-				'aria-pressed',
-				'true'
-			);
-			await expect(
-				stage.getByText( /You are previewing changes/ )
-			).toBeVisible();
-			await expect(
-				page
-					.locator( '.cnl-save-controls' )
-					.getByRole( 'button', { name: 'Review changes' } )
-			).toBeVisible();
+		test.skip(
+			( await looks.count() ) < 2,
+			'The active theme has no style variations to pick.'
+		);
 
-			await stage
-				.getByRole( 'button', { name: 'Discard changes' } )
-				.click();
-			await expect(
-				stage.getByText( /You are previewing changes/ )
-			).toHaveCount( 0 );
-		}
+		// Picking a look is previewed, and waits in the top bar to be saved.
+		await looks.nth( 1 ).click();
+		await expect( looks.nth( 1 ) ).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		const saveControls = page.locator( '.cnl-save-controls' );
+		await expect( saveControls ).toContainText( '1 unsaved change' );
 
-		await stage.getByRole( 'radio', { name: 'Airy' } ).click();
-		await expect(
-			stage.getByText( /You are previewing changes/ )
-		).toBeVisible();
-		await stage.getByRole( 'button', { name: 'Discard changes' } ).click();
-		await expect(
-			stage.getByText( /You are previewing changes/ )
-		).toHaveCount( 0 );
+		// Discarding it from the review puts the theme's look back.
+		await saveControls
+			.getByRole( 'button', { name: 'Review changes' } )
+			.click();
+		await page
+			.getByRole( 'dialog', { name: 'Review changes' } )
+			.getByRole( 'button', { name: 'Discard change to Colors & fonts' } )
+			.click();
+		await expect( themeDefault ).toHaveAttribute( 'aria-pressed', 'true' );
+		await expect( saveControls ).not.toContainText( 'unsaved' );
 	} );
 
 	test( 'updates site name and tagline from Name & logo with a live preview', async ( {
