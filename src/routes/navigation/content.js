@@ -387,13 +387,11 @@ function NavigationListDataViewsLayout() {
 					className:
 						'routes-navigation-list__dataviews-toolbar-start',
 				},
-				el( DataViews.Search, { label: __( 'Search menus' ) } ),
 				el( DataViews.FiltersToggle )
 			),
 			el(
 				'div',
 				{ className: 'routes-navigation-list__dataviews-toolbar-end' },
-				el( DataViews.ViewConfig ),
 				el( DataViews.LayoutSwitcher )
 			)
 		),
