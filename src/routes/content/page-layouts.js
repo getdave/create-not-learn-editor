@@ -6,7 +6,7 @@ import { __ } from '@wordpress/i18n';
 
 export const EMPTY_ARRAY = [];
 export const OTHER_PAGE_LAYOUT_TYPE = 'other';
-export const PAGE_LAYOUTS_PER_PAGE = 2;
+export const DEFAULT_PAGE_LAYOUT_COLUMNS = 2;
 
 export function getPatternTitle( pattern ) {
 	return decodeEntities(

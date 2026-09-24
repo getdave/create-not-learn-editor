@@ -109,12 +109,16 @@ import { useEditorAssets, useEditorSettings } from '@wordpress/lazy-editor';
 import { MediaUpload } from '@wordpress/media-utils';
 import { store as noticesStore } from '@wordpress/notices';
 import {
+	Button as UiButton,
+	Card,
 	EmptyState,
 	Icon,
 	InputControl,
+	Skeleton,
 	Spinner,
 	Stack,
 	Tabs,
+	Text,
 } from '@wordpress/ui';
 import { addQueryArgs, getPath, safeDecodeURI } from '@wordpress/url';
 
@@ -131,6 +135,7 @@ export {
 	BlockTitle,
 	Breadcrumbs,
 	Button,
+	Card,
 	category as categoryIcon,
 	chevronDown as chevronDownIcon,
 	CheckboxControl,
@@ -194,15 +199,18 @@ export {
 	select,
 	serialize,
 	settingsIcon,
+	Skeleton,
 	Spinner,
 	Stack,
 	sprintf,
 	tablet as tabletIcon,
 	Tabs,
+	Text,
 	ToggleControl,
 	ToggleGroupControl,
 	ToggleGroupControlOptionIcon,
 	trash as trashIcon,
+	UiButton,
 	update as updateIcon,
 	useBlockBindingsUtils,
 	useBlockEditingMode,
