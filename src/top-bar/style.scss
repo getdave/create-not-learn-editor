@@ -1,0 +1,217 @@
+/*
+ * Top bar, added above boot's surfaces by `mountTopBar()`.
+ *
+ * Boot's layout matched by its CSS-module suffixes. Only the side-by-side
+ * layout gets the bar: boot's full-screen editor has its own header, and on
+ * narrow screens the stage fills the viewport and boot's sidebar save button
+ * is kept instead.
+ */
+$top-bar-height: 56px;
+
+// Boot's sidebar width plus the gap boot leaves between it and the surfaces.
+$sidebar-width: 248px;
+$layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-full-canvas"])';
+
+.cnl-top-bar-host {
+	display: none;
+}
+
+@media (min-width: 782px) {
+
+	#{$layout} {
+
+		[class*="__surfaces"] {
+			margin-block-start: $top-bar-height;
+		}
+
+		/*
+		 * Spans the whole screen, over the top of the sidebar, so it lets
+		 * clicks through to the sidebar and only its own controls take them.
+		 */
+		.cnl-top-bar-host {
+			display: block;
+			position: absolute;
+			inset-block-start: 0;
+			inset-inline: 0;
+			z-index: 1;
+			height: $top-bar-height;
+			padding-inline: var(--wpds-dimension-gap-sm);
+			pointer-events: none;
+		}
+
+		// Replaced by the save controls.
+		[class*="__sidebar"] [class*="__scrollable"] > [class*="__footer"] {
+			display: none;
+		}
+	}
+}
+
+/*
+ * Three columns with equal outer tracks, so the search stays centred on the
+ * screen whatever the save controls are showing. The first track never
+ * narrows past the sidebar, so on smaller screens the search gives way,
+ * shrinking and then moving right, rather than running into the sidebar.
+ */
+.cnl-top-bar {
+	display: grid;
+	grid-template-columns: minmax($sidebar-width, 1fr) minmax(160px, 360px) minmax(max-content, 1fr);
+	align-items: center;
+	gap: var(--wpds-dimension-gap-lg);
+	height: 100%;
+	color: var(--wpds-color-foreground-content-neutral);
+	font-size: var(--wpds-typography-font-size-md);
+}
+
+.cnl-top-bar__center,
+.cnl-top-bar__end {
+	pointer-events: auto;
+}
+
+.cnl-top-bar__center {
+	grid-column: 2;
+	min-width: 0;
+}
+
+.cnl-top-bar__end {
+	display: flex;
+	justify-content: flex-end;
+	grid-column: 3;
+}
+
+/*
+ * Command search. Dressed as a search field so it reads as somewhere to
+ * type, but it is a button: the palette is where the typing happens.
+ */
+.cnl-command-search {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-sm);
+	box-sizing: border-box;
+	width: 100%;
+	height: 32px;
+	padding-inline: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-xs);
+	border: 1px solid transparent;
+	border-radius: var(--wpds-border-radius-md);
+	background: rgba(255, 255, 255, 0.08);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font: inherit;
+	font-size: var(--wpds-typography-font-size-md);
+	text-align: start;
+	cursor: pointer;
+
+	&:hover {
+		background: rgba(255, 255, 255, 0.12);
+		color: var(--wpds-color-foreground-content-neutral);
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wp-admin-theme-color);
+		outline-offset: 1px;
+	}
+
+	@media not (prefers-reduced-motion) {
+		transition:
+			background var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle),
+			color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+	}
+}
+
+.cnl-command-search__label {
+	flex: 1;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.cnl-command-search__shortcut {
+	padding: 2px var(--wpds-dimension-padding-xs);
+	border-radius: var(--wpds-border-radius-sm);
+	background: rgba(255, 255, 255, 0.08);
+	font-family: inherit;
+	font-size: var(--wpds-typography-font-size-sm);
+}
+
+.cnl-save-controls {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-lg);
+}
+
+.cnl-save-controls__status {
+	display: contents;
+}
+
+.cnl-save-controls__changes,
+.cnl-save-controls__saved {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-sm);
+	white-space: nowrap;
+}
+
+// Amber, like core's alert yellow, so waiting changes read as a warning.
+.cnl-save-controls__indicator {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #f0b849;
+	box-shadow: 0 0 0 3px rgba(240, 184, 73, 0.25);
+}
+
+.cnl-save-controls__saved {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+/*
+ * Review changes dialog.
+ */
+.cnl-review-changes__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-lg);
+}
+
+.cnl-review-changes__item {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-md);
+	margin: 0;
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+
+	+ .cnl-review-changes__item {
+		border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	}
+}
+
+.cnl-review-changes__text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.cnl-review-changes__label {
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.cnl-review-changes__detail {
+	overflow: hidden;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.cnl-review-changes__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--wpds-dimension-gap-md);
+}
+
+.cnl-review-changes__footer-end {
+	display: flex;
+	gap: var(--wpds-dimension-gap-sm);
+	margin-inline-start: auto;
+}
