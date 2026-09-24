@@ -1,7 +1,6 @@
 /**
  * Internal dependencies
  */
-import { getErrorMessage } from '../../records';
 import { settings as appSettings } from '../../settings';
 import SitePreviewCanvas from './site-preview';
 import {
@@ -11,59 +10,32 @@ import {
 	areStyleConfigsEqual,
 	findActivePreset,
 	getStyleConfig,
-	getValueAtPath,
+	getVariationFontFamilies,
 	getVariationPalette,
 	getVariationTitle,
 	groupStyleVariations,
-	setValueAtPath,
 } from './style-variations';
 import {
 	Button,
 	ColorIndicator,
+	Collapsible,
+	Icon,
 	Link,
-	Notice,
-	SelectControl,
 	Spinner,
 	Stack,
 	Text,
-	ToggleGroupControl,
-	ToggleGroupControlOption,
 	__,
+	chevronRightIcon,
 	coreDataStore,
 	el,
 	sprintf,
 	useDispatch,
 	useMemo,
 	useSelect,
-	useState,
 } from '../../wordpress-packages';
 
 const EMPTY_ARRAY = [];
 const EMPTY_OBJECT = {};
-const DEFAULT_OPTION = 'theme';
-const ACCENT_PATHS = [
-	[ 'styles', 'elements', 'button', 'color', 'background' ],
-	[ 'styles', 'elements', 'link', 'color', 'text' ],
-];
-const CORNER_PATH = [ 'styles', 'elements', 'button', 'border', 'radius' ];
-const SPACING_PATH = [ 'styles', 'spacing', 'blockGap' ];
-
-function getCornerOptions() {
-	return [
-		{ label: __( 'Theme' ), value: DEFAULT_OPTION },
-		{ label: __( 'Square' ), value: '0px' },
-		{ label: __( 'Rounded' ), value: '8px' },
-		{ label: __( 'Pill' ), value: '9999px' },
-	];
-}
-
-function getSpacingOptions() {
-	return [
-		{ label: __( 'Tight' ), value: '0.75rem' },
-		{ label: __( 'Theme' ), value: DEFAULT_OPTION },
-		{ label: __( 'Airy' ), value: '2.5rem' },
-	];
-}
 
 /**
  * Turn a theme.json color reference into a CSS color for swatches.
@@ -88,6 +60,84 @@ function resolveColor( value, palette ) {
 	return palette.find( ( color ) => color.slug === slug )?.color;
 }
 
+/**
+ * Turn a theme.json font family reference into a CSS font-family for swatches.
+ *
+ * @param {string}   value        A font-family, `var:preset|font-family|slug`, or CSS variable.
+ * @param {Object[]} fontFamilies Font families to look the slug up in.
+ * @return {string|undefined} A CSS font-family.
+ */
+function resolveFontFamily( value, fontFamilies ) {
+	if ( typeof value !== 'string' ) {
+		return undefined;
+	}
+
+	const slug =
+		value.match( /^var:preset\|font-family\|(.+)$/ )?.[ 1 ] ||
+		value.match( /^var\(--wp--preset--font-family--([^)]+)\)$/ )?.[ 1 ];
+
+	if ( ! slug ) {
+		return value;
+	}
+
+	return fontFamilies.find( ( font ) => font.slug === slug )?.fontFamily;
+}
+
+function getBodyFontFamily( variation, fontFamilies ) {
+	return (
+		resolveFontFamily(
+			variation?.styles?.typography?.fontFamily,
+			fontFamilies
+		) || 'inherit'
+	);
+}
+
+function getHeadingFontFamily( variation, fontFamilies ) {
+	return (
+		resolveFontFamily(
+			variation?.styles?.elements?.heading?.typography?.fontFamily,
+			fontFamilies
+		) || getBodyFontFamily( variation, fontFamilies )
+	);
+}
+
+/**
+ * Turn a theme.json font family reference into its display name.
+ *
+ * @param {string}   value        A font-family, `var:preset|font-family|slug`, or CSS variable.
+ * @param {Object[]} fontFamilies Font families to look the slug up in.
+ * @return {string|undefined} The preset's display name.
+ */
+function resolveFontName( value, fontFamilies ) {
+	if ( typeof value !== 'string' ) {
+		return undefined;
+	}
+
+	const slug =
+		value.match( /^var:preset\|font-family\|(.+)$/ )?.[ 1 ] ||
+		value.match( /^var\(--wp--preset--font-family--([^)]+)\)$/ )?.[ 1 ];
+
+	return fontFamilies.find( ( font ) => font.slug === slug )?.name;
+}
+
+function getBodyFontName( variation, fontFamilies ) {
+	return (
+		resolveFontName(
+			variation?.styles?.typography?.fontFamily,
+			fontFamilies
+		) || __( 'Body' )
+	);
+}
+
+function getHeadingFontName( variation, fontFamilies ) {
+	return (
+		resolveFontName(
+			variation?.styles?.elements?.heading?.typography?.fontFamily,
+			fontFamilies
+		) || getBodyFontName( variation, fontFamilies )
+	);
+}
+
 function getSwatches( palette, count = 4 ) {
 	const seen = new Set();
 
@@ -105,8 +155,7 @@ function getSwatches( palette, count = 4 ) {
 }
 
 function useStylesData() {
-	const { editEntityRecord, saveEditedEntityRecord } =
-		useDispatch( coreDataStore );
+	const { editEntityRecord } = useDispatch( coreDataStore );
 	const data = useSelect( ( select ) => {
 		const store = select( coreDataStore );
 		const globalStylesId = store.__experimentalGetCurrentGlobalStylesId?.();
@@ -119,7 +168,6 @@ function useStylesData() {
 				store.__experimentalGetCurrentThemeBaseGlobalStyles?.() ||
 				EMPTY_OBJECT,
 			globalStylesId,
-			hasEdits: args ? store.hasEditsForEntityRecord( ...args ) : false,
 			isLoading:
 				! globalStylesId ||
 				! store.hasFinishedResolution(
@@ -127,8 +175,6 @@ function useStylesData() {
 					[]
 				) ||
 				( args && ! store.getEntityRecord( ...args ) ),
-			isSaving: args ? store.isSavingEntityRecord( ...args ) : false,
-			savedConfig: args ? store.getEntityRecord( ...args ) : null,
 			themeName:
 				store.getCurrentTheme?.()?.name?.rendered ||
 				appSettings.themeName,
@@ -140,14 +186,12 @@ function useStylesData() {
 				EMPTY_ARRAY,
 		};
 	}, [] );
-	const [ error, setError ] = useState( '' );
 
 	const setConfig = ( nextConfig ) => {
 		if ( ! data.globalStylesId ) {
 			return;
 		}
 
-		setError( '' );
 		editEntityRecord(
 			'root',
 			'globalStyles',
@@ -156,22 +200,23 @@ function useStylesData() {
 		);
 	};
 
-	const save = () => {
-		setError( '' );
-		saveEditedEntityRecord( 'root', 'globalStyles', data.globalStylesId, {
-			throwOnError: true,
-		} ).catch( ( saveError ) => setError( getErrorMessage( saveError ) ) );
-	};
-
-	const discard = () => setConfig( data.savedConfig );
-
-	return { ...data, discard, error, save, setConfig };
+	return { ...data, setConfig };
 }
 
-function LookCard( { basePalette, isSelected, onSelect, title, variation } ) {
+function LookCard( {
+	basePalette,
+	baseFontFamilies,
+	isSelected,
+	onSelect,
+	title,
+	variation,
+} ) {
 	const palette = getVariationPalette( variation ).length
 		? getVariationPalette( variation )
 		: basePalette;
+	const fontFamilies = getVariationFontFamilies( variation ).length
+		? getVariationFontFamilies( variation )
+		: baseFontFamilies;
 	const background =
 		resolveColor( variation?.styles?.color?.background, palette ) ||
 		resolveColor( 'var:preset|color|base', palette ) ||
@@ -180,6 +225,7 @@ function LookCard( { basePalette, isSelected, onSelect, title, variation } ) {
 		resolveColor( variation?.styles?.color?.text, palette ) ||
 		resolveColor( 'var:preset|color|contrast', palette ) ||
 		'#1e1e1e';
+	const fontFamily = getHeadingFontFamily( variation, fontFamilies );
 	const swatches = getSwatches(
 		palette.filter(
 			( color ) => color.color !== background && color.color !== text
@@ -203,7 +249,14 @@ function LookCard( { basePalette, isSelected, onSelect, title, variation } ) {
 				className: 'routes-styles__look-preview',
 				style: { background, color: text },
 			},
-			el( 'span', { className: 'routes-styles__look-sample' }, 'Aa' ),
+			el(
+				'span',
+				{
+					className: 'routes-styles__look-sample',
+					style: { fontFamily },
+				},
+				'Aa'
+			),
 			el(
 				'span',
 				{ className: 'routes-styles__look-swatches' },
@@ -254,46 +307,59 @@ function PaletteOption( { colors, isSelected, onSelect, title } ) {
 	);
 }
 
-function SegmentedControl( { label, onChange, options, value } ) {
+function FontCard( {
+	bodyFont,
+	bodyFontName,
+	headingFont,
+	headingFontName,
+	isSelected,
+	onSelect,
+	title,
+} ) {
 	return el(
-		ToggleGroupControl,
+		Button,
 		{
-			__next40pxDefaultSize: true,
-			__nextHasNoMarginBottom: true,
-			isBlock: true,
-			label,
-			onChange,
-			value,
+			'aria-pressed': isSelected,
+			className: `routes-styles__font${
+				isSelected ? ' is-selected' : ''
+			}`,
+			label: title,
+			onClick: onSelect,
+			showTooltip: true,
 		},
-		options.map( ( option ) =>
-			el( ToggleGroupControlOption, {
-				key: option.value,
-				label: option.label,
-				value: option.value,
-			} )
+		el(
+			'span',
+			{ 'aria-hidden': true, className: 'routes-styles__font-preview' },
+			el(
+				'span',
+				{
+					className: 'routes-styles__font-heading',
+					style: { fontFamily: headingFont },
+				},
+				headingFontName
+			),
+			el(
+				'span',
+				{
+					className: 'routes-styles__font-body',
+					style: { fontFamily: bodyFont },
+				},
+				bodyFontName
+			)
 		)
 	);
 }
 
-function StepHeading( { number, title, description } ) {
+function SectionHeading( { title, description, variant = 'heading-sm' } ) {
 	return el(
 		Stack,
 		{ direction: 'column', gap: 'xs' },
 		el(
 			Text,
 			{
-				className: 'routes-styles__step-heading',
 				render: el( 'h2' ),
-				variant: 'heading-sm',
+				variant,
 			},
-			el(
-				'span',
-				{
-					'aria-hidden': true,
-					className: 'routes-styles__step-number',
-				},
-				number
-			),
 			title
 		),
 		description &&
@@ -308,12 +374,7 @@ function StepHeading( { number, title, description } ) {
 export function StylesStage() {
 	const {
 		baseStyles,
-		discard,
-		error,
-		hasEdits,
 		isLoading,
-		isSaving,
-		save,
 		setConfig,
 		themeName,
 		userConfig,
@@ -324,9 +385,7 @@ export function StylesStage() {
 		[ variations ]
 	);
 	const basePalette = getVariationPalette( baseStyles );
-	const currentPalette = getVariationPalette( userConfig ).length
-		? getVariationPalette( userConfig )
-		: basePalette;
+	const baseFontFamilies = getVariationFontFamilies( baseStyles );
 	const activeColors = findActivePreset(
 		userConfig,
 		groups.colors,
@@ -336,30 +395,6 @@ export function StylesStage() {
 		userConfig,
 		groups.fonts,
 		TYPOGRAPHY_PROPERTIES
-	);
-	const accentValue = getValueAtPath( userConfig, ACCENT_PATHS[ 0 ] );
-	const cornerValue = getValueAtPath( userConfig, CORNER_PATH );
-	const spacingValue = getValueAtPath( userConfig, SPACING_PATH );
-	const setValue = ( path, value ) =>
-		setConfig(
-			setValueAtPath(
-				userConfig,
-				path,
-				value === DEFAULT_OPTION ? undefined : value
-			)
-		);
-	const setAccent = ( slug ) => {
-		const value = slug ? `var:preset|color|${ slug }` : undefined;
-
-		setConfig(
-			ACCENT_PATHS.reduce(
-				( config, path ) => setValueAtPath( config, path, value ),
-				userConfig
-			)
-		);
-	};
-	const accentColors = currentPalette.filter(
-		( color ) => ! [ 'base', 'contrast' ].includes( color.slug )
 	);
 
 	return el(
@@ -387,34 +422,25 @@ export function StylesStage() {
 					: __( 'Changes the whole site at once.' )
 			)
 		),
-		error &&
-			el(
-				Notice,
-				{
-					className: 'cnl-editor-panel__notice',
-					isDismissible: false,
-					status: 'error',
-				},
-				error
-			),
 		isLoading &&
 			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
 		! isLoading &&
 			el(
 				'section',
 				{ className: 'routes-styles__section' },
-				el( StepHeading, {
+				el( SectionHeading, {
 					description: __(
 						'Each look sets colors, fonts, and spacing together.'
 					),
-					number: '1',
 					title: __( 'Pick a look' ),
+					variant: 'heading-md',
 				} ),
 				el(
 					'div',
 					{ className: 'routes-styles__looks' },
 					el( LookCard, {
 						basePalette,
+						baseFontFamilies,
 						isSelected: areStyleConfigsEqual( userConfig, {} ),
 						onSelect: () => setConfig( {} ),
 						title: __( 'Theme default' ),
@@ -423,6 +449,7 @@ export function StylesStage() {
 					groups.looks.map( ( variation, index ) =>
 						el( LookCard, {
 							basePalette,
+							baseFontFamilies,
 							isSelected: areStyleConfigsEqual(
 								userConfig,
 								variation
@@ -443,83 +470,24 @@ export function StylesStage() {
 				)
 			),
 		! isLoading &&
+			( groups.colors.length > 0 || groups.fonts.length > 0 ) &&
 			el(
-				'section',
-				{ className: 'routes-styles__section' },
-				el( StepHeading, {
-					description: __(
-						'Adjust one thing at a time. The preview updates as you go.'
-					),
-					number: '2',
-					title: __( 'Fine-tune' ),
-				} ),
-				groups.colors.length > 0 &&
+				Collapsible.Root,
+				{ className: 'routes-styles__customize' },
+				el(
+					Collapsible.Trigger,
+					{ className: 'routes-styles__customize-trigger' },
+					el( Icon, {
+						className: 'routes-styles__customize-icon',
+						icon: chevronRightIcon,
+					} ),
 					el(
-						'div',
-						{
-							className: 'routes-styles__field',
-							role: 'group',
-							'aria-label': __( 'Color palette' ),
-						},
+						Stack,
+						{ direction: 'column', gap: '3xs' },
 						el(
 							Text,
-							{
-								className: 'routes-styles__label',
-								variant: 'body-sm',
-							},
-							__( 'Color palette' )
-						),
-						el(
-							'div',
-							{ className: 'routes-styles__palettes' },
-							el( PaletteOption, {
-								colors: getSwatches( basePalette ),
-								isSelected: ! activeColors,
-								onSelect: () =>
-									setConfig(
-										applyPreset(
-											userConfig,
-											null,
-											COLOR_PROPERTIES
-										)
-									),
-								title: __( 'Theme colors' ),
-							} ),
-							groups.colors.map( ( preset ) =>
-								el( PaletteOption, {
-									colors: getSwatches(
-										getVariationPalette( preset )
-									),
-									isSelected: activeColors === preset,
-									key: getVariationTitle( preset ),
-									onSelect: () =>
-										setConfig(
-											applyPreset(
-												userConfig,
-												preset,
-												COLOR_PROPERTIES
-											)
-										),
-									title: getVariationTitle( preset ),
-								} )
-							)
-						)
-					),
-				accentColors.length > 0 &&
-					el(
-						'div',
-						{
-							className: 'routes-styles__field',
-							role: 'group',
-							'aria-label': __( 'Main color' ),
-						},
-						el(
-							Text,
-							{
-								className: 'routes-styles__label',
-								variant: 'body-sm',
-							},
-							__( 'Main color' )
+							{ render: el( 'span' ), variant: 'heading-sm' },
+							__( 'Customize colors and fonts' )
 						),
 						el(
 							Text,
@@ -527,112 +495,143 @@ export function StylesStage() {
 								className: 'routes-styles__muted',
 								variant: 'body-sm',
 							},
-							__( 'Used for buttons and links.' )
-						),
-						el(
-							'div',
-							{ className: 'routes-styles__accents' },
-							el( PaletteOption, {
-								colors: [],
-								isSelected: ! accentValue,
-								onSelect: () => setAccent( undefined ),
-								title: __( 'Theme default' ),
-							} ),
-							accentColors.map( ( color ) =>
-								el( PaletteOption, {
-									colors: [ color.color ],
-									isSelected:
-										accentValue ===
-										`var:preset|color|${ color.slug }`,
-									key: color.slug,
-									onSelect: () => setAccent( color.slug ),
-									title: color.name || color.slug,
-								} )
-							)
+							__( 'Optional. Fine-tune beyond the preset looks.' )
 						)
-					),
-				groups.fonts.length > 0 &&
-					el( SelectControl, {
-						__next40pxDefaultSize: true,
-						__nextHasNoMarginBottom: true,
-						help: __(
-							'A heading font and a body font that suit each other.'
-						),
-						label: __( 'Fonts' ),
-						onChange: ( value ) =>
-							setConfig(
-								applyPreset(
-									userConfig,
-									groups.fonts.find(
-										( preset ) =>
-											getVariationTitle( preset ) ===
-											value
-									) || null,
-									TYPOGRAPHY_PROPERTIES
-								)
-							),
-						options: [
-							{
-								label: __( 'Theme fonts' ),
-								value: DEFAULT_OPTION,
-							},
-							...groups.fonts.map( ( preset ) => ( {
-								label: getVariationTitle( preset ),
-								value: getVariationTitle( preset ),
-							} ) ),
-						],
-						value: activeFonts
-							? getVariationTitle( activeFonts )
-							: DEFAULT_OPTION,
-					} ),
-				el( SegmentedControl, {
-					label: __( 'Button corners' ),
-					onChange: ( value ) => setValue( CORNER_PATH, value ),
-					options: getCornerOptions(),
-					value: cornerValue || DEFAULT_OPTION,
-				} ),
-				el( SegmentedControl, {
-					label: __( 'Spacing' ),
-					onChange: ( value ) => setValue( SPACING_PATH, value ),
-					options: getSpacingOptions(),
-					value: spacingValue || DEFAULT_OPTION,
-				} )
-			),
-		! isLoading &&
-			hasEdits &&
-			el(
-				'div',
-				{ className: 'routes-styles__save' },
-				el(
-					Text,
-					{ className: 'routes-styles__muted', variant: 'body-sm' },
-					__(
-						'You are previewing changes. Visitors see them once you save.'
 					)
 				),
 				el(
-					Stack,
-					{ gap: 'sm' },
-					el(
-						Button,
-						{
-							__next40pxDefaultSize: true,
-							isBusy: isSaving,
-							onClick: save,
-							variant: 'primary',
-						},
-						__( 'Save changes' )
-					),
-					el(
-						Button,
-						{
-							__next40pxDefaultSize: true,
-							disabled: isSaving,
-							onClick: discard,
-							variant: 'tertiary',
-						},
-						__( 'Undo changes' )
-					)
+					Collapsible.Panel,
+					{ className: 'routes-styles__customize-panel' },
+					groups.colors.length > 0 &&
+						el(
+							'div',
+							{ className: 'routes-styles__field' },
+							el(
+								Text,
+								{
+									className: 'routes-styles__sublabel',
+									variant: 'body-sm',
+								},
+								__( 'Colors' )
+							),
+							el(
+								'div',
+								{ className: 'routes-styles__palettes' },
+								el( PaletteOption, {
+									colors: getSwatches( basePalette ),
+									isSelected: ! activeColors,
+									onSelect: () =>
+										setConfig(
+											applyPreset(
+												userConfig,
+												null,
+												COLOR_PROPERTIES
+											)
+										),
+									title: __( 'Theme colors' ),
+								} ),
+								groups.colors.map( ( preset ) =>
+									el( PaletteOption, {
+										colors: getSwatches(
+											getVariationPalette( preset )
+										),
+										isSelected: activeColors === preset,
+										key: getVariationTitle( preset ),
+										onSelect: () =>
+											setConfig(
+												applyPreset(
+													userConfig,
+													preset,
+													COLOR_PROPERTIES
+												)
+											),
+										title: getVariationTitle( preset ),
+									} )
+								)
+							)
+						),
+					groups.fonts.length > 0 &&
+						el(
+							'div',
+							{ className: 'routes-styles__field' },
+							el(
+								Text,
+								{
+									className: 'routes-styles__sublabel',
+									variant: 'body-sm',
+								},
+								__( 'Fonts' )
+							),
+							el(
+								'div',
+								{ className: 'routes-styles__fonts' },
+								el( FontCard, {
+									bodyFont: getBodyFontFamily(
+										baseStyles,
+										baseFontFamilies
+									),
+									bodyFontName: getBodyFontName(
+										baseStyles,
+										baseFontFamilies
+									),
+									headingFont: getHeadingFontFamily(
+										baseStyles,
+										baseFontFamilies
+									),
+									headingFontName: getHeadingFontName(
+										baseStyles,
+										baseFontFamilies
+									),
+									isSelected: ! activeFonts,
+									onSelect: () =>
+										setConfig(
+											applyPreset(
+												userConfig,
+												null,
+												TYPOGRAPHY_PROPERTIES
+											)
+										),
+									title: __( 'Theme fonts' ),
+								} ),
+								groups.fonts.map( ( preset ) => {
+									const fontFamilies =
+										getVariationFontFamilies( preset )
+											.length
+											? getVariationFontFamilies( preset )
+											: baseFontFamilies;
+
+									return el( FontCard, {
+										bodyFont: getBodyFontFamily(
+											preset,
+											fontFamilies
+										),
+										bodyFontName: getBodyFontName(
+											preset,
+											fontFamilies
+										),
+										headingFont: getHeadingFontFamily(
+											preset,
+											fontFamilies
+										),
+										headingFontName: getHeadingFontName(
+											preset,
+											fontFamilies
+										),
+										isSelected: activeFonts === preset,
+										key: getVariationTitle( preset ),
+										onSelect: () =>
+											setConfig(
+												applyPreset(
+													userConfig,
+													preset,
+													TYPOGRAPHY_PROPERTIES
+												)
+											),
+										title: getVariationTitle( preset ),
+									} );
+								} )
+							)
+						)
 				)
 			),
 		! isLoading &&
