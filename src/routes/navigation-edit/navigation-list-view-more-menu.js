@@ -1,6 +1,7 @@
 /**
  * Internal dependencies
  */
+import { useListViewTreeState } from '../../list-view';
 import {
 	addSubmenuIcon,
 	blockEditorStore,
@@ -102,8 +103,12 @@ function AddSubmenuItem( {
 }
 
 export default function NavigationListViewMoreMenu( props ) {
-	const { block } = props;
-	const { clientId } = block;
+	const { clientId, setInsertedBlockClientId, updateExpansion } = props;
+	const block = useSelect(
+		( select ) => select( blockEditorStore ).getBlock( clientId ),
+		[ clientId ]
+	);
+	const { expansionState = {} } = useListViewTreeState();
 	const {
 		duplicateBlocks,
 		insertBlock,
@@ -111,11 +116,6 @@ export default function NavigationListViewMoreMenu( props ) {
 		moveBlocksUp,
 		removeBlocks,
 	} = useDispatch( blockEditorStore );
-	const removeLabel = sprintf(
-		/* translators: %s: block name. */
-		__( 'Remove %s' ),
-		BlockTitle( { clientId, maximumLength: 25 } )
-	);
 	const {
 		canDuplicate,
 		canInsertBlock,
@@ -163,8 +163,18 @@ export default function NavigationListViewMoreMenu( props ) {
 		const newLink = createDefaultNavigationLink();
 
 		insertBlock( newLink, nextIndex, rootClientId, false );
-		props.setInsertedBlock( newLink );
+		setInsertedBlockClientId?.( newLink.clientId );
 	};
+
+	if ( ! block ) {
+		return null;
+	}
+
+	const removeLabel = sprintf(
+		/* translators: %s: block name. */
+		__( 'Remove %s' ),
+		BlockTitle( { clientId, maximumLength: 25 } )
+	);
 
 	return el(
 		DropdownMenu,
@@ -215,10 +225,17 @@ export default function NavigationListViewMoreMenu( props ) {
 					),
 					el( AddSubmenuItem, {
 						block,
-						expandedState: props.expandedState,
-						expand: props.expand,
+						expandedState: expansionState,
+						expand: ( expandClientId ) =>
+							updateExpansion?.( {
+								clientIds: [ expandClientId ],
+								type: 'expand',
+							} ),
 						onClose,
-						setInsertedBlock: props.setInsertedBlock,
+						setInsertedBlock: ( insertedBlock ) =>
+							setInsertedBlockClientId?.(
+								insertedBlock.clientId
+							),
 					} ),
 					canDuplicate &&
 						el(

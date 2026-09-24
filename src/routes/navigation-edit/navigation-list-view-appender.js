@@ -45,7 +45,7 @@ export default function NavigationListViewAppender( {
 	isEmptyBranch,
 	onAddLabelOnlySubmenu,
 	onAddMenuItems,
-	setInsertedBlock,
+	setInsertedBlockClientId,
 	...props
 } ) {
 	const [ isChoosingSubmenuType, setIsChoosingSubmenuType ] =
@@ -87,7 +87,7 @@ export default function NavigationListViewAppender( {
 		);
 
 		if ( openLinkUI ) {
-			setInsertedBlock( block );
+			setInsertedBlockClientId?.( block.clientId );
 		}
 	};
 
