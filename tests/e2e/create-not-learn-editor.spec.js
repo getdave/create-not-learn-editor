@@ -61,6 +61,18 @@ async function getAddPageFormPreviewFrameTexts( page ) {
 	return getPreviewFrameTexts( page, '.cnl-add-page-form__preview iframe' );
 }
 
+async function getDesignGridColumnCount( page ) {
+	return page
+		.locator( '.cnl-add-page-layout-grid' )
+		.first()
+		.evaluate(
+			( element ) =>
+				window
+					.getComputedStyle( element )
+					.gridTemplateColumns.split( ' ' ).length
+		);
+}
+
 async function getEditorCanvasFrame( page ) {
 	const iframe = page.locator( 'iframe[name="editor-canvas"]' );
 	await expect( iframe ).toBeVisible( { timeout: 15000 } );
@@ -587,94 +599,145 @@ test.describe( 'Create Not Learn Editor', () => {
 			)
 			.toBe( false );
 		await page.getByRole( 'button', { name: 'Add Page' } ).click();
+		const designDialog = page.getByRole( 'dialog', {
+			name: 'Add a page',
+		} );
+		await expect( designDialog ).toBeVisible();
+		const designDialogBox = await designDialog.boundingBox();
+		expect( designDialogBox?.width ).toBeGreaterThan( 680 );
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-card' ).first()
+		).toBeVisible( { timeout: 15000 } );
+		await expect(
+			designDialog.getByRole( 'button', { name: 'Add blank' } )
+		).toBeVisible();
+		const pageTypeTabs = designDialog
+			.getByRole( 'tablist', { name: 'Page types' } )
+			.getByRole( 'tab' );
+		await expect( pageTypeTabs.first() ).toHaveAttribute(
+			'aria-selected',
+			'true'
+		);
+		await expect(
+			designDialog.getByRole( 'tab', { name: /Other designs/ } )
+		).toHaveCount( 0 );
+		await expect(
+			designDialog.getByRole( 'button', { name: 'Choose a page design' } )
+		).toHaveCount( 0 );
+		await expect(
+			designDialog.getByRole( 'button', { name: 'Start from scratch' } )
+		).toHaveCount( 0 );
+		// Selecting a page type swaps the panel contents.
+		await pageTypeTabs.nth( 1 ).click();
+		await expect( pageTypeTabs.nth( 1 ) ).toHaveAttribute(
+			'aria-selected',
+			'true'
+		);
+		await pageTypeTabs.first().click();
+		// The card corner radius should come from the design system token.
+		await expect
+			.poll( () =>
+				designDialog
+					.locator( '.cnl-add-page-layout-card' )
+					.first()
+					.evaluate( ( element ) => {
+						const styles = window.getComputedStyle( element );
+						const token = styles
+							/* eslint-disable-next-line @wordpress/no-unknown-ds-tokens -- Reading the token value at runtime, not authoring a style. */
+							.getPropertyValue( '--wpds-border-radius-lg' )
+							.trim();
+
+						return !! token && styles.borderTopLeftRadius === token;
+					} )
+			)
+			.toBe( true );
+		// Every preview is framed with the design system stroke tokens.
+		await expect
+			.poll( () =>
+				designDialog
+					.locator( '.cnl-add-page-layout-card__preview' )
+					.first()
+					.evaluate( ( element ) => {
+						const styles = window.getComputedStyle( element );
+						/* eslint-disable @wordpress/no-unknown-ds-tokens -- Reading token values at runtime, not authoring styles. */
+						const width = styles
+							.getPropertyValue( '--wpds-border-width-xs' )
+							.trim();
+						const radius = styles
+							.getPropertyValue( '--wpds-border-radius-md' )
+							.trim();
+						/* eslint-enable @wordpress/no-unknown-ds-tokens */
+
+						return {
+							hasBorder:
+								!! width &&
+								styles.borderTopWidth === width &&
+								styles.borderRightWidth === width &&
+								styles.borderBottomWidth === width &&
+								styles.borderLeftWidth === width,
+							hasRadius:
+								!! radius &&
+								styles.borderTopLeftRadius === radius,
+							style: styles.borderTopStyle,
+						};
+					} )
+			)
+			.toEqual( { hasBorder: true, hasRadius: true, style: 'solid' } );
+		await expect(
+			designDialog.getByText( /No page designs are available/ )
+		).toHaveCount( 0 );
+		// The design preview is its own scroll region.
+		const firstPreview = designDialog
+			.locator( '.cnl-add-page-layout-preview-page' )
+			.first();
+		await expect
+			.poll( () =>
+				firstPreview.evaluate(
+					( element ) => element.scrollHeight > element.clientHeight
+				)
+			)
+			.toBe( true );
+		await expect( firstPreview ).toHaveCSS( 'overflow-y', 'auto' );
+		await firstPreview.evaluate( ( element ) => {
+			element.scrollTop = 200;
+		} );
+		await expect
+			.poll( () => firstPreview.evaluate( ( el ) => el.scrollTop ) )
+			.toBeGreaterThan( 0 );
+
+		await expect.poll( () => getDesignGridColumnCount( page ) ).toBe( 2 );
+		await designDialog
+			.getByRole( 'radio', { name: 'Large previews' } )
+			.click();
+		await expect.poll( () => getDesignGridColumnCount( page ) ).toBe( 1 );
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-card' )
+		).toHaveCount( 1 );
+		// Small previews lay out as a grid rather than full-height columns.
+		await designDialog
+			.getByRole( 'radio', { name: 'Small previews' } )
+			.click();
+		await expect.poll( () => getDesignGridColumnCount( page ) ).toBe( 3 );
+		await designDialog
+			.getByRole( 'radio', { name: 'Medium previews' } )
+			.click();
+		await expect.poll( () => getDesignGridColumnCount( page ) ).toBe( 2 );
+		await writeAddPageParityScreenshot(
+			designDialog,
+			'choose-page-design-picker.png'
+		);
+		await designDialog
+			.locator( '.cnl-add-page-layout-card' )
+			.first()
+			.getByRole( 'button', { name: 'Use design' } )
+			.click();
 		let addPageDialog = page.getByRole( 'dialog', {
-			name: 'Add a new page',
+			name: 'Name your page',
 		} );
 		await expect( addPageDialog ).toBeVisible();
 		const addPageDialogBox = await addPageDialog.boundingBox();
 		expect( addPageDialogBox?.width ).toBeGreaterThanOrEqual( 560 );
 		expect( addPageDialogBox?.width ).toBeLessThanOrEqual( 680 );
-		await writeAddPageParityScreenshot(
-			addPageDialog,
-			'add-page-options.png'
-		);
-		await expect(
-			addPageDialog.getByRole( 'button', {
-				name: /Choose a page design/,
-			} )
-		).toBeVisible();
-		await expect(
-			addPageDialog.getByRole( 'button', {
-				name: /Start from scratch/,
-			} )
-		).toBeVisible();
-
-		await addPageDialog
-			.getByRole( 'button', { name: /Choose a page design/ } )
-			.click();
-		const designDialog = page.getByRole( 'dialog', {
-			name: 'Choose a page design',
-		} );
-		await expect( designDialog ).toBeVisible();
-		await expect(
-			designDialog.locator( '.cnl-add-page-layout-card' ).first()
-		).toBeVisible( { timeout: 15000 } );
-		await expect(
-			designDialog.getByRole( 'button', { name: /All designs/ } )
-		).toBeVisible();
-		await expect(
-			designDialog.getByRole( 'button', { name: /Other designs/ } )
-		).toHaveCount( 0 );
-		await expect(
-			designDialog.locator( '.cnl-add-page-layout-preview-page' ).first()
-		).toHaveCSS( 'overflow-y', 'auto' );
-		await expect(
-			designDialog.locator( '.cnl-add-page-layout-card__preview' ).first()
-		).toHaveCSS( 'border-top-width', '1px' );
-		await expect(
-			designDialog.locator( '.cnl-add-page-layout-card__preview' ).first()
-		).toHaveCSS( 'border-right-width', '1px' );
-		await expect(
-			designDialog.locator( '.cnl-add-page-layout-card__preview' ).first()
-		).toHaveCSS( 'border-bottom-width', '1px' );
-		await expect(
-			designDialog.locator( '.cnl-add-page-layout-card__preview' ).first()
-		).toHaveCSS( 'border-left-width', '1px' );
-		await expect(
-			designDialog.getByText( /No page designs are available/ )
-		).toHaveCount( 0 );
-		await writeAddPageParityScreenshot(
-			designDialog,
-			'choose-page-design-picker.png'
-		);
-		await expect(
-			designDialog.locator( '.cnl-add-page-layout-card.is-start-blank' )
-		).toHaveCount( 0 );
-		const nextDesignsButton = designDialog.getByRole( 'button', {
-			name: 'Next designs',
-		} );
-		if ( await nextDesignsButton.count() ) {
-			while ( await nextDesignsButton.isEnabled() ) {
-				await nextDesignsButton.click();
-			}
-		}
-		await expect(
-			designDialog.locator( '.cnl-add-page-layout-card.is-start-blank' )
-		).toBeVisible();
-		await expect(
-			designDialog.locator(
-				'.cnl-add-page-layout-card.is-start-blank .cnl-add-page-layout-card__preview'
-			)
-		).toHaveCSS( 'border-top-style', 'dashed' );
-		await expect(
-			designDialog
-				.locator( '.cnl-add-page-layout-card.is-start-blank' )
-				.getByText( 'Create a blank page and add sections as you go.' )
-		).toBeVisible();
-		await designDialog
-			.locator( '.cnl-add-page-layout-card' )
-			.first()
-			.click();
 		await expect(
 			addPageDialog.getByText(
 				'Your page will be visible to visitors immediately.'
@@ -713,7 +776,7 @@ test.describe( 'Create Not Learn Editor', () => {
 			addPageDialog.getByLabel( 'Page Template' )
 		).toContainText( 'Default template' );
 		const backButtonBox = await addPageDialog
-			.getByRole( 'button', { name: 'Back to options' } )
+			.getByRole( 'button', { name: 'Back to designs' } )
 			.boundingBox();
 		const createButtonBox = await addPageDialog
 			.getByRole( 'button', { name: 'Create and edit' } )
@@ -724,28 +787,15 @@ test.describe( 'Create Not Learn Editor', () => {
 			'add-page-design-form.png'
 		);
 		await addPageDialog
-			.getByRole( 'button', { name: 'Back to options' } )
-			.click();
-		await addPageDialog
-			.getByRole( 'button', { name: /Choose a page design/ } )
+			.getByRole( 'button', { name: 'Back to designs' } )
 			.click();
 		await expect( designDialog ).toBeVisible();
-		await expect(
-			designDialog.getByRole( 'button', { name: 'Start blank' } )
-		).toBeVisible();
-		await expect(
-			designDialog.getByRole( 'button', { name: 'Back to options' } )
-		).toBeVisible();
-		await designDialog
-			.getByRole( 'button', { name: 'Back to options' } )
-			.click();
 
+		await designDialog.getByRole( 'button', { name: 'Add blank' } ).click();
 		addPageDialog = page.getByRole( 'dialog', {
-			name: 'Add a new page',
+			name: 'Name your page',
 		} );
-		await addPageDialog
-			.getByRole( 'button', { name: /Start from scratch/ } )
-			.click();
+		await expect( addPageDialog ).toBeVisible();
 		await addPageDialog
 			.getByLabel( 'Page title' )
 			.fill( `Blank parity ${ Date.now() }` );
