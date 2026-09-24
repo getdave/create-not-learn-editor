@@ -56,6 +56,30 @@ function walk( blocks, visit, depth = 0 ) {
 	} );
 }
 
+// Blocks that hold other blocks but still read as one thing, not a layout.
+const SINGLE_BLOCKS = [
+	'core/buttons',
+	'core/list',
+	'core/quote',
+	'core/pullquote',
+	'core/social-links',
+];
+
+/**
+ * Whether a top-level block is a single block, like a heading or an image,
+ * rather than a section laid out from several. A single block is shown by its
+ * block icon; a section by a sketch of its layout.
+ *
+ * @param {Object} block Top-level block.
+ * @return {boolean} Whether it is a single block.
+ */
+export function isSingleBlockSection( block ) {
+	return (
+		! getInnerBlocks( block ).length ||
+		SINGLE_BLOCKS.includes( block?.name )
+	);
+}
+
 /**
  * Tally what a section holds, for describing and sketching it.
  *

@@ -8,6 +8,7 @@ import {
 	getSectionSummary,
 	getSectionTitle,
 	insertItems,
+	isSingleBlockSection,
 	moveItem,
 	removeItem,
 } from '../page-sections';
@@ -114,6 +115,25 @@ describe( 'page sections', () => {
 		expect( getSectionSketch( columns ) ).toEqual(
 			expect.objectContaining( { columnImages: true, columns: 3 } )
 		);
+	} );
+
+	test( 'tells single blocks apart from laid-out sections', () => {
+		expect( isSingleBlockSection( heading( 'Hi' ) ) ).toBe( true );
+		expect( isSingleBlockSection( image ) ).toBe( true );
+		expect(
+			isSingleBlockSection( {
+				attributes: {},
+				innerBlocks: [ button ],
+				name: 'core/buttons',
+			} )
+		).toBe( true );
+		expect(
+			isSingleBlockSection( {
+				attributes: {},
+				innerBlocks: [ heading( 'Hi' ) ],
+				name: 'core/group',
+			} )
+		).toBe( false );
 	} );
 
 	test( 'moves, inserts and removes items without mutating', () => {

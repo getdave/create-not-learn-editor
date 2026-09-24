@@ -26,20 +26,30 @@ import { getSectionTitle } from './page-sections';
 import { sectionBridge, useSectionBridge } from './section-bridge';
 import {
 	__,
+	Button,
+	chevronDownIcon,
+	chevronLeftIcon,
+	chevronRightIcon,
 	coreDataStore,
 	desktopIcon,
 	dispatch,
+	Dropdown,
 	el,
 	EmptyState,
 	externalIcon,
+	homeIcon,
 	Icon,
+	linkIcon,
+	MenuGroup,
+	MenuItem,
 	mobileIcon,
+	noticesStore,
 	pageIcon,
 	pencilIcon,
 	tabletIcon,
 	ToggleGroupControl,
 	ToggleGroupControlOptionIcon,
-	UiButton,
+	useDispatch,
 	useEffect,
 	useMemo,
 	useRef,
@@ -71,22 +81,12 @@ function getCanvasStyles( accent ) {
 .cnl-sections-linked [data-cnl-section] { cursor: pointer; transition: outline-color .15s ease, box-shadow .15s ease; outline: 2px solid transparent; outline-offset: -2px; }
 .cnl-sections-linked a { cursor: pointer; }
 .cnl-sections-linked :is(.is-hovered, .is-hovered-draggable):not([data-cnl-section])::before,
-.cnl-sections-linked :is(.is-hovered, .is-hovered-draggable):not([data-cnl-section])::after,
 .cnl-sections-linked [data-cnl-section]:is(.is-hovered, .is-hovered-draggable):not(.${ INSERT_BEFORE }):not(.${ INSERT_AFTER })::before,
-.cnl-sections-linked [data-cnl-section]:is(.is-hovered, .is-hovered-draggable):not(.${ SELECTED }):not(.${ INSERT_BEFORE }):not(.${ INSERT_AFTER })::after { content: none !important; }
-[data-cnl-section].${ HOVERED } { outline-color: color-mix(in srgb, var(--cnl-section-accent) 45%, transparent); }
+.cnl-sections-linked :is(.is-hovered, .is-hovered-draggable)::after { content: none !important; }
+.cnl-sections-linked .block-editor-block-list__block:hover:not(.${ INSERT_BEFORE }):not(.${ INSERT_AFTER })::before { content: none !important; }
+[data-cnl-section].${ HOVERED } { outline-color: var(--cnl-section-accent); }
 [data-cnl-section].${ SELECTED } { outline: 3px solid var(--cnl-section-accent); outline-offset: -3px; }
 [data-cnl-section].${ HOVERED }, [data-cnl-section].${ SELECTED }, [data-cnl-section].${ INSERT_BEFORE }, [data-cnl-section].${ INSERT_AFTER } { position: relative; }
-[data-cnl-section].${ SELECTED }::after {
-	content: attr(data-cnl-section);
-	position: absolute; z-index: 20; top: 10px; left: 10px;
-	max-width: calc(100% - 40px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-	padding: 4px 10px; border-radius: 999px;
-	background: var(--cnl-section-accent); color: #fff;
-	font: 500 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-	letter-spacing: normal; text-transform: none; pointer-events: none;
-	box-shadow: 0 2px 6px rgba(0,0,0,.2);
-}
 [data-cnl-section].${ INSERT_BEFORE }::before, [data-cnl-section].${ INSERT_AFTER }::before {
 	content: ""; position: absolute; z-index: 21; left: 12px; right: 12px; height: 4px;
 	border-radius: 4px; background: var(--cnl-section-accent);
@@ -95,16 +95,6 @@ function getCanvasStyles( accent ) {
 }
 [data-cnl-section].${ INSERT_BEFORE }::before { top: -2px; }
 [data-cnl-section].${ INSERT_AFTER }::before { bottom: -2px; }
-[data-cnl-section].${ INSERT_BEFORE }::after, [data-cnl-section].${ INSERT_AFTER }::after {
-	content: attr(data-cnl-insert-label);
-	position: absolute; z-index: 22; left: 50%; right: auto; transform: translateX(-50%);
-	max-width: none; padding: 4px 12px; border-radius: 999px;
-	background: var(--cnl-section-accent); color: #fff;
-	font: 500 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-	white-space: nowrap; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,.2);
-}
-[data-cnl-section].${ INSERT_BEFORE }::after { top: -13px; }
-[data-cnl-section].${ INSERT_AFTER }::after { top: auto; bottom: -13px; }
 @keyframes cnl-insert-pulse { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--cnl-section-accent) 10%, transparent); } }
 @media (prefers-reduced-motion: reduce) { [data-cnl-section]::before { animation: none !important; } }
 `;
@@ -392,13 +382,7 @@ function useLinkedSections( { canvasDocument, items, onPick } ) {
 				const anchor =
 					sections[ Math.min( insertionIndex, sections.length - 1 ) ];
 
-				const anchorNode = getNode( anchor.key );
-
-				anchorNode?.setAttribute(
-					'data-cnl-insert-label',
-					__( 'New section goes here' )
-				);
-				anchorNode?.classList.add(
+				getNode( anchor.key )?.classList.add(
 					isAfter ? INSERT_AFTER : INSERT_BEFORE
 				);
 			}
@@ -498,6 +482,126 @@ function useLinkedSections( { canvasDocument, items, onPick } ) {
 	}, [ canvasDocument, insertionIndex, items ] );
 }
 
+function getStatusLabel( status ) {
+	switch ( status ) {
+		case 'publish':
+			return __( 'Published' );
+		case 'draft':
+		case 'auto-draft':
+			return __( 'Draft' );
+		case 'future':
+			return __( 'Scheduled' );
+		case 'pending':
+			return __( 'Pending review' );
+		case 'private':
+			return __( 'Private' );
+		default:
+			return '';
+	}
+}
+
+/*
+ * Stepping back and forward through changes made to the page here, in the
+ * place the Home preview steps through pages visited.
+ */
+function PageHistory() {
+	const { hasRedo, hasUndo } = useSelect(
+		( select ) => ( {
+			hasRedo: select( coreDataStore ).hasRedo(),
+			hasUndo: select( coreDataStore ).hasUndo(),
+		} ),
+		[]
+	);
+	const { redo, undo } = useDispatch( coreDataStore );
+
+	return el(
+		'div',
+		{
+			'aria-label': __( 'Page changes' ),
+			className: 'cnl-editor-homepage-toolbar__history',
+			role: 'group',
+		},
+		el( Button, {
+			accessibleWhenDisabled: true,
+			className: 'cnl-editor-homepage-toolbar__history-button',
+			disabled: ! hasUndo,
+			icon: chevronLeftIcon,
+			label: __( 'Undo' ),
+			onClick: () => undo(),
+			showTooltip: true,
+			variant: 'tertiary',
+		} ),
+		el( Button, {
+			accessibleWhenDisabled: true,
+			className: 'cnl-editor-homepage-toolbar__history-button',
+			disabled: ! hasRedo,
+			icon: chevronRightIcon,
+			label: __( 'Redo' ),
+			onClick: () => redo(),
+			showTooltip: true,
+			variant: 'tertiary',
+		} )
+	);
+}
+
+function PageOptions( { link } ) {
+	const { createSuccessNotice } = useDispatch( noticesStore );
+
+	if ( ! link ) {
+		return null;
+	}
+
+	return el( Dropdown, {
+		className: 'cnl-editor-homepage-options',
+		contentClassName: 'cnl-editor-homepage-options__content',
+		popoverProps: { placement: 'bottom' },
+		renderContent: ( { onClose } ) =>
+			el(
+				MenuGroup,
+				{ className: 'cnl-editor-homepage-options__menu' },
+				el(
+					MenuItem,
+					{
+						icon: externalIcon,
+						onClick: () => {
+							onClose();
+							window.open(
+								link,
+								'_blank',
+								'noopener,noreferrer'
+							);
+						},
+					},
+					__( 'View on your site' )
+				),
+				el(
+					MenuItem,
+					{
+						icon: linkIcon,
+						onClick: async () => {
+							onClose();
+							await window.navigator.clipboard?.writeText( link );
+							createSuccessNotice( __( 'Link copied.' ), {
+								type: 'snackbar',
+							} );
+						},
+					},
+					__( 'Copy link' )
+				)
+			),
+		renderToggle: ( { isOpen, onToggle } ) =>
+			el( Button, {
+				'aria-expanded': isOpen,
+				className: 'cnl-editor-homepage-options__toggle',
+				icon: chevronDownIcon,
+				label: __( 'Page options' ),
+				onClick: onToggle,
+				showTooltip: true,
+				variant: 'tertiary',
+			} ),
+	} );
+}
+
 function CanvasEmptyState() {
 	return el(
 		'section',
@@ -575,6 +679,9 @@ function PagesCanvas() {
 
 	const title = getPageTitle( page );
 	const isPublished = page?.status === 'publish';
+	const meta = [ __( 'Page' ), getStatusLabel( page?.status ) ]
+		.filter( Boolean )
+		.join( ' · ' );
 
 	return el(
 		'section',
@@ -583,70 +690,110 @@ function PagesCanvas() {
 		},
 		el(
 			'header',
-			{ className: 'cnl-pages-canvas__toolbar' },
+			{
+				className:
+					'cnl-editor-canvas__toolbar cnl-editor-homepage-toolbar',
+			},
 			el(
 				'div',
-				{ className: 'cnl-pages-canvas__document' },
-				el( Icon, { icon: pageIcon } ),
-				el( 'span', { className: 'cnl-pages-canvas__title' }, title ),
-				! isPublished &&
-					el(
-						'span',
-						{ className: 'cnl-pages-canvas__status' },
-						__( 'Not published' )
-					)
+				{ className: 'cnl-editor-homepage-toolbar__left' },
+				el(
+					Button,
+					{
+						className: 'cnl-editor-homepage-toolbar__edit',
+						icon: pencilIcon,
+						onClick: () =>
+							navigate( { to: `/types/page/edit/${ pageId }` } ),
+						variant: 'primary',
+					},
+					__( 'Edit' )
+				),
+				el( PageHistory )
 			),
 			el(
 				'div',
-				{ className: 'cnl-pages-canvas__actions' },
+				{ className: 'cnl-editor-homepage-toolbar__center' },
 				el(
-					ToggleGroupControl,
+					'div',
+					{ className: 'cnl-editor-homepage-document' },
+					el(
+						'div',
+						{ className: 'cnl-editor-homepage-document__text' },
+						el(
+							'div',
+							{
+								className:
+									'cnl-editor-homepage-document__heading',
+							},
+							el( Icon, {
+								className: 'cnl-editor-homepage-document__icon',
+								icon:
+									pageId === frontPageId
+										? homeIcon
+										: pageIcon,
+							} ),
+							el(
+								'h1',
+								{
+									className:
+										'cnl-editor-homepage-document__title',
+								},
+								title
+							)
+						),
+						el(
+							'p',
+							{ className: 'cnl-editor-homepage-document__meta' },
+							meta
+						)
+					),
+					el( PageOptions, {
+						link: isPublished ? page?.link : '',
+					} )
+				)
+			),
+			el(
+				'div',
+				{ className: 'cnl-editor-homepage-toolbar__right' },
+				el(
+					'div',
 					{
-						__next40pxDefaultSize: true,
-						__nextHasNoMarginBottom: true,
-						className: 'cnl-pages-canvas__devices',
-						hideLabelFromVision: true,
-						label: __( 'Preview size' ),
-						onChange: setDevice,
-						value: device,
+						className:
+							'cnl-editor-preview-canvas__device-switcher cnl-editor-homepage-device-switcher',
 					},
-					getDeviceOptions().map( ( option ) =>
-						el( ToggleGroupControlOptionIcon, {
-							icon: option.icon,
-							key: option.value,
-							label: option.label,
-							value: option.value,
-						} )
+					el(
+						ToggleGroupControl,
+						{
+							__next40pxDefaultSize: true,
+							__nextHasNoMarginBottom: true,
+							hideLabelFromVision: true,
+							label: __( 'Preview device' ),
+							onChange: setDevice,
+							value: device,
+						},
+						getDeviceOptions().map( ( option ) =>
+							el( ToggleGroupControlOptionIcon, {
+								icon: option.icon,
+								key: option.value,
+								label: option.label,
+								value: option.value,
+							} )
+						)
 					)
 				),
-				isPublished &&
-					page?.link &&
-					el(
-						UiButton,
-						{
-							render: el( 'a', {
-								href: page.link,
-								rel: 'noreferrer',
-								target: '_blank',
-							} ),
-							size: 'compact',
-							tone: 'neutral',
-							variant: 'minimal',
-						},
-						el( UiButton.Icon, { icon: externalIcon } ),
-						__( 'View' )
-					),
-				el(
-					UiButton,
-					{
-						onClick: () =>
-							navigate( { to: `/types/page/edit/${ pageId }` } ),
-						size: 'compact',
-						variant: 'outline',
-					},
-					el( UiButton.Icon, { icon: pencilIcon } ),
-					__( 'Open editor' )
-				)
+				el( Button, {
+					className: 'cnl-editor-homepage-toolbar__external',
+					disabled: ! isPublished || ! page?.link,
+					href: isPublished ? page?.link : undefined,
+					icon: externalIcon,
+					label: isPublished
+						? __( 'View page in new tab' )
+						: __( 'Publish the page to view it on your site' ),
+					rel: 'noreferrer',
+					showTooltip: true,
+					target: '_blank',
+					variant: 'tertiary',
+				} )
 			)
 		),
 		el(

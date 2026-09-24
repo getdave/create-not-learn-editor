@@ -44,6 +44,7 @@ import {
 	getSectionSummary,
 	getSectionTitle,
 	insertItems,
+	isSingleBlockSection,
 	moveItem,
 	removeItem,
 } from './page-sections';
@@ -56,6 +57,7 @@ import {
 	arrowUpIcon,
 	Badge,
 	blockEditorStore,
+	BlockIcon,
 	Breadcrumbs,
 	Button,
 	checkIcon,
@@ -71,6 +73,7 @@ import {
 	el,
 	EmptyState,
 	externalIcon,
+	getBlockType,
 	footerIcon,
 	headerIcon,
 	homeIcon,
@@ -103,7 +106,6 @@ import {
 } from '../../../wordpress-packages';
 
 const LIST_PATH = '/types/page/list/all';
-const SECTION_DRAG_TYPE = 'application/x-cnl-page-section';
 
 function getStatusBadge( status ) {
 	switch ( status ) {
@@ -1124,13 +1126,10 @@ function SectionCard( {
 	isLast,
 	isNew,
 	isSelected,
-	onDragEnd,
-	onDragOver,
-	onDragStart,
-	onDrop,
 	onDuplicate,
 	onEdit,
 	onMove,
+	onPointerDown,
 	onRemove,
 	onSelect,
 	shouldReveal,
@@ -1184,12 +1183,9 @@ function SectionCard( {
 		'li',
 		{
 			className,
-			draggable: true,
-			onDragEnd,
-			onDragOver: ( event ) => onDragOver( event, index ),
-			onDragStart: ( event ) => onDragStart( event, index ),
-			onDrop: ( event ) => onDrop( event, index ),
+			'data-section-index': index,
 			onMouseEnter: () => sectionBridge.hover( block.clientId ),
+			onPointerDown: ( event ) => onPointerDown( event, index ),
 			onMouseLeave: () => sectionBridge.hover( null ),
 			ref,
 		},
@@ -1217,7 +1213,18 @@ function SectionCard( {
 					onKeyDown,
 					type: 'button',
 				},
-				el( SectionSketch, { block } ),
+				isSingleBlockSection( block )
+					? el(
+							'span',
+							{
+								'aria-hidden': true,
+								className: 'cnl-page-section__part-icon',
+							},
+							el( BlockIcon, {
+								icon: getBlockType( block.name )?.icon,
+							} )
+						)
+					: el( SectionSketch, { block } ),
 				el(
 					'span',
 					{ className: 'cnl-page-section__text' },
@@ -1437,6 +1444,12 @@ function SectionList( {
 	const [ dragIndex, setDragIndex ] = useState( null );
 	const [ dropTarget, setDropTarget ] = useState( null );
 	const [ newId, setNewId ] = useState( null );
+	const listRef = useRef();
+	const latestRef = useRef();
+	const dragRef = useRef( null );
+
+	// Stop a drag that is still going if the list goes away.
+	useEffect( () => () => dragRef.current?.stop(), [] );
 
 	useEffect( () => {
 		if ( ! newId ) {
@@ -1487,51 +1500,163 @@ function SectionList( {
 	const selectSection = ( clientId ) =>
 		sectionBridge.select( clientId, 'stage' );
 
-	const onDragStart = ( event, index ) => {
-		event.dataTransfer.effectAllowed = 'move';
-		event.dataTransfer.setData( SECTION_DRAG_TYPE, String( index ) );
-		setDragIndex( index );
-		sectionBridge.select( blocks[ index ].clientId, 'stage' );
-	};
-	const onDragOver = ( event, index ) => {
-		if ( dragIndex === null ) {
+	/*
+	 * Sections are dragged with pointer events rather than native drag and
+	 * drop, which hands the cursor to the browser: this way it stays a grab
+	 * hand the whole time. The list scrolls when dragged near its edges, and
+	 * Escape puts the section back.
+	 */
+	latestRef.current = { blocks, move };
+
+	const onPointerDown = ( event, index ) => {
+		if (
+			event.button !== 0 ||
+			event.target.closest( '.cnl-page-section__menu' )
+		) {
 			return;
 		}
 
-		event.preventDefault();
-		event.dataTransfer.dropEffect = 'move';
+		const startX = event.clientX;
+		const startY = event.clientY;
+		const scroller = listRef.current?.closest( '.cnl-pages-detail__body' );
+		const drag = { active: false, frame: 0, lastY: startY, target: null };
 
-		const rect = event.currentTarget.getBoundingClientRect();
-		const position =
-			event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+		const findTarget = ( clientY ) => {
+			const cards = [
+				...listRef.current.querySelectorAll( '[data-section-index]' ),
+			];
+			const card =
+				cards.find(
+					( item ) => clientY < item.getBoundingClientRect().bottom
+				) || cards[ cards.length - 1 ];
 
-		if (
-			dropTarget?.index !== index ||
-			dropTarget?.position !== position
-		) {
-			setDropTarget( { index, position } );
-			sectionBridge.setInsertionIndex(
-				index + ( position === 'after' ? 1 : 0 )
-			);
+			if ( ! card ) {
+				return null;
+			}
+
+			const rect = card.getBoundingClientRect();
+
+			return {
+				index: Number( card.dataset.sectionIndex ),
+				position:
+					clientY < rect.top + rect.height / 2 ? 'before' : 'after',
+			};
+		};
+		const update = () => {
+			const target = findTarget( drag.lastY );
+
+			if (
+				target &&
+				( target.index !== drag.target?.index ||
+					target.position !== drag.target?.position )
+			) {
+				drag.target = target;
+				setDropTarget( target );
+				sectionBridge.setInsertionIndex(
+					target.index + ( target.position === 'after' ? 1 : 0 )
+				);
+			}
+		};
+		const autoScroll = () => {
+			const rect = scroller?.getBoundingClientRect();
+			const edge = 48;
+			let delta = 0;
+
+			if ( rect && drag.lastY < rect.top + edge ) {
+				delta = -Math.ceil( ( rect.top + edge - drag.lastY ) / 4 );
+			} else if ( rect && drag.lastY > rect.bottom - edge ) {
+				delta = Math.ceil( ( drag.lastY - rect.bottom + edge ) / 4 );
+			}
+
+			if ( delta ) {
+				scroller.scrollTop += delta;
+				update();
+			}
+
+			drag.frame = window.requestAnimationFrame( autoScroll );
+		};
+		const stop = () => {
+			window.removeEventListener( 'pointermove', onMove );
+			window.removeEventListener( 'pointerup', onUp );
+			window.removeEventListener( 'pointercancel', stop );
+			window.removeEventListener( 'keydown', onKeyDown, true );
+			window.cancelAnimationFrame( drag.frame );
+			document.body.classList.remove( 'cnl-is-dragging-section' );
+			dragRef.current = null;
+
+			if ( drag.active ) {
+				setDragIndex( null );
+				setDropTarget( null );
+				sectionBridge.setInsertionIndex( null );
+			}
+		};
+		function onMove( moveEvent ) {
+			drag.lastY = moveEvent.clientY;
+
+			if ( ! drag.active ) {
+				if (
+					Math.hypot(
+						moveEvent.clientX - startX,
+						moveEvent.clientY - startY
+					) < 5
+				) {
+					return;
+				}
+
+				drag.active = true;
+				setDragIndex( index );
+				document.body.classList.add( 'cnl-is-dragging-section' );
+				sectionBridge.select(
+					latestRef.current.blocks[ index ].clientId,
+					'stage'
+				);
+				drag.frame = window.requestAnimationFrame( autoScroll );
+			}
+
+			moveEvent.preventDefault();
+			update();
 		}
-	};
-	const onDragEnd = () => {
-		setDragIndex( null );
-		setDropTarget( null );
-		sectionBridge.setInsertionIndex( null );
-	};
-	const onDrop = ( event, index ) => {
-		event.preventDefault();
+		function onUp() {
+			if ( drag.active ) {
+				// Letting go over a card would otherwise count as clicking it.
+				const swallowClick = ( clickEvent ) => {
+					clickEvent.preventDefault();
+					clickEvent.stopPropagation();
+				};
 
-		if ( dragIndex !== null && dropTarget ) {
-			const to = getDropIndex( dragIndex, index, dropTarget.position );
+				window.addEventListener( 'click', swallowClick, true );
+				window.setTimeout( () =>
+					window.removeEventListener( 'click', swallowClick, true )
+				);
 
-			if ( to !== dragIndex ) {
-				move( dragIndex, to );
+				if ( drag.target ) {
+					const to = getDropIndex(
+						index,
+						drag.target.index,
+						drag.target.position
+					);
+
+					if ( to !== index ) {
+						latestRef.current.move( index, to );
+					}
+				}
+			}
+
+			stop();
+		}
+		function onKeyDown( keyEvent ) {
+			if ( keyEvent.key === 'Escape' && drag.active ) {
+				keyEvent.preventDefault();
+				keyEvent.stopPropagation();
+				stop();
 			}
 		}
 
-		onDragEnd();
+		window.addEventListener( 'pointermove', onMove );
+		window.addEventListener( 'pointerup', onUp );
+		window.addEventListener( 'pointercancel', stop );
+		window.addEventListener( 'keydown', onKeyDown, true );
+		dragRef.current = { stop };
 	};
 
 	if ( ! isReady ) {
@@ -1574,13 +1699,10 @@ function SectionList( {
 				shouldReveal:
 					selectedId === block.clientId && selectedFrom === 'canvas',
 				key: block.clientId,
-				onDragEnd,
-				onDragOver,
-				onDragStart,
-				onDrop,
 				onDuplicate: duplicate,
 				onEdit,
 				onMove: move,
+				onPointerDown,
 				onRemove: remove,
 				onSelect: selectSection,
 			} )
@@ -1618,6 +1740,7 @@ function SectionList( {
 		'ol',
 		{
 			'aria-label': __( 'The page, top to bottom' ),
+			ref: listRef,
 			className: `cnl-page-sections__list${
 				dragIndex !== null ? ' is-dragging' : ''
 			}${ structure.header ? ' has-header' : '' }`,
@@ -1821,27 +1944,16 @@ export function PageDetailStage( { pageId } ) {
 	const navigate = useNavigate();
 	const { frontPageId, pages, postsPageId } = usePages();
 	const { blocks, isReady, setBlocks } = usePageSections( pageId );
-	const { saveEditedEntityRecord } = useDispatch( coreDataStore );
-	const { createErrorNotice, createSuccessNotice } =
-		useDispatch( noticesStore );
+	const { createSuccessNotice } = useDispatch( noticesStore );
 	const [ insertAt, setInsertAt ] = useState( null );
-	const [ isSaving, setIsSaving ] = useState( false );
 	const bodyRef = useRef();
-	const { hasEdits, page } = useSelect(
-		( selectStore ) => {
-			const store = selectStore( coreDataStore );
-
-			return {
-				hasEdits: store.hasEditsForEntityRecord(
-					'postType',
-					'page',
-					pageId
-				),
-				page:
-					store.getEditedEntityRecord( 'postType', 'page', pageId ) ||
-					null,
-			};
-		},
+	const page = useSelect(
+		( selectStore ) =>
+			selectStore( coreDataStore ).getEditedEntityRecord(
+				'postType',
+				'page',
+				pageId
+			) || null,
 		[ pageId ]
 	);
 	const listPage = pages.find( ( item ) => Number( item.id ) === pageId );
@@ -1889,37 +2001,9 @@ export function PageDetailStage( { pageId } ) {
 	};
 	const editPart = ( id ) =>
 		navigate( { search: { postId: id }, to: '/wp_template_part' } );
-	const save = async () => {
-		setIsSaving( true );
-
-		try {
-			await saveEditedEntityRecord( 'postType', 'page', pageId, {
-				throwOnError: true,
-			} );
-			createSuccessNotice( __( 'Page saved.' ), { type: 'snackbar' } );
-		} catch ( error ) {
-			createErrorNotice( getErrorMessage( error ), {
-				type: 'snackbar',
-			} );
-		} finally {
-			setIsSaving( false );
-		}
-	};
-
 	const actions = el(
 		Stack,
 		{ align: 'center', direction: 'row', gap: 'sm' },
-		hasEdits &&
-			el(
-				UiButton,
-				{
-					disabled: isSaving,
-					loading: isSaving,
-					onClick: save,
-					size: 'compact',
-				},
-				__( 'Save' )
-			),
 		el(
 			DropdownMenu,
 			{
@@ -2016,17 +2100,7 @@ export function PageDetailStage( { pageId } ) {
 							el(
 								'h3',
 								{ className: 'cnl-page-sections__title' },
-								__( 'On this page' ),
-								isReady &&
-									blocks.length > 0 &&
-									el(
-										'span',
-										{
-											className:
-												'cnl-page-sections__count',
-										},
-										blocks.length
-									)
+								__( 'On this page' )
 							),
 							isReady &&
 								blocks.length > 0 &&

@@ -496,20 +496,6 @@ $cnl-accent: var(--wp-admin-theme-color, #3858e9);
 	line-height: var(--wpds-typography-line-height-lg);
 }
 
-.cnl-page-sections__count {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 20px;
-	height: 20px;
-	padding: 0 6px;
-	border-radius: 10px;
-	background: var(--wpds-color-background-surface-neutral-strong);
-	color: var(--wpds-color-foreground-content-neutral-weak);
-	font-size: var(--wpds-typography-font-size-xs);
-	font-weight: var(--wpds-typography-font-weight-emphasis);
-}
-
 .cnl-page-sections__hint,
 .cnl-section-library__placement {
 	color: var(--wpds-color-foreground-content-neutral-weak);
@@ -599,6 +585,8 @@ $cnl-accent: var(--wp-admin-theme-color, #3858e9);
 
 .cnl-page-section {
 	--cnl-sketch-accent: #{$cnl-accent};
+	cursor: grab;
+	user-select: none;
 	--cnl-sketch-fill: var(--wpds-color-foreground-content-neutral);
 	--cnl-sketch-on-fill: var(--wpds-color-background-surface-neutral);
 	--cnl-sketch-tint: var(--wpds-color-background-surface-neutral-strong);
@@ -687,6 +675,7 @@ $cnl-accent: var(--wp-admin-theme-color, #3858e9);
 }
 
 .cnl-page-section__main {
+	cursor: inherit;
 	display: flex;
 	flex: 1 1 auto;
 	align-items: center;
@@ -697,7 +686,6 @@ $cnl-accent: var(--wp-admin-theme-color, #3858e9);
 	border-radius: var(--wpds-border-radius-sm);
 	background: transparent;
 	color: inherit;
-	cursor: var(--wpds-cursor-control);
 	font: inherit;
 	text-align: start;
 
@@ -705,6 +693,18 @@ $cnl-accent: var(--wp-admin-theme-color, #3858e9);
 		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
 		outline-offset: 0;
 	}
+}
+
+// Pressed, and all the while a section is being dragged, the hand closes.
+.cnl-page-section:not(.is-site-part):active,
+body.cnl-is-dragging-section,
+body.cnl-is-dragging-section * {
+	cursor: grabbing !important;
+	user-select: none;
+}
+
+.cnl-page-section__menu .components-button {
+	cursor: var(--wpds-cursor-control);
 }
 
 .cnl-page-section__sketch {
@@ -803,6 +803,12 @@ $cnl-accent: var(--wp-admin-theme-color, #3858e9);
 // The site's header and footer: part of the page, but shared by every page,
 // so they are shown but can't be moved.
 .cnl-page-section.is-site-part {
+	cursor: default;
+
+	.cnl-page-section__main {
+		cursor: var(--wpds-cursor-control);
+	}
+
 	border-style: dashed;
 	background: var(--wpds-color-background-surface-neutral-weak);
 	animation: none;
@@ -996,52 +1002,6 @@ $cnl-accent: var(--wp-admin-theme-color, #3858e9);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-}
-
-.cnl-pages-canvas__toolbar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--wpds-dimension-gap-md);
-	min-height: 56px;
-	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-lg);
-	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
-}
-
-.cnl-pages-canvas__document {
-	display: flex;
-	align-items: center;
-	gap: var(--wpds-dimension-gap-sm);
-	min-width: 0;
-
-	svg {
-		flex: 0 0 auto;
-		fill: currentcolor;
-	}
-}
-
-.cnl-pages-canvas__title {
-	overflow: hidden;
-	font-weight: var(--wpds-typography-font-weight-emphasis);
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.cnl-pages-canvas__status {
-	flex: 0 0 auto;
-	color: var(--wpds-color-foreground-content-neutral-weak);
-	font-size: var(--wpds-typography-font-size-sm);
-}
-
-.cnl-pages-canvas__actions {
-	display: flex;
-	flex: 0 0 auto;
-	align-items: center;
-	gap: var(--wpds-dimension-gap-sm);
-}
-
-.cnl-pages-canvas__devices.components-toggle-group-control {
-	min-width: 0;
 }
 
 .cnl-pages-canvas__body {

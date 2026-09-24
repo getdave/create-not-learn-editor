@@ -15,6 +15,7 @@ import {
 } from '@wordpress/blocks';
 import {
 	BlockEditorProvider,
+	BlockIcon,
 	BlockList,
 	BlockTitle,
 	LinkControl,
@@ -156,6 +157,7 @@ export {
 	Badge,
 	blockEditorStore,
 	BlockEditorProvider,
+	BlockIcon,
 	blockDefault as blockDefaultIcon,
 	BlockList,
 	blocksStore,
