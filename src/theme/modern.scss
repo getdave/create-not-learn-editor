@@ -147,14 +147,14 @@ $heading-font-family: "EB Garamond", "Georgia", "Times New Roman", serif;
 
 	/*
 	 * Site previews float on a quiet backdrop as rounded cards, instead of
-	 * filling the canvas edge to edge.
+	 * filling the canvas edge to edge. The homepage preview is the exception:
+	 * it bleeds to the edges of its container like the editor it opens.
 	 */
 	.cnl-editor-canvas__frame-wrap,
 	.routes-navigation-canvas {
 		background: var(--wpds-color-background-surface-neutral-weak);
 	}
 
-	.cnl-editor-preview-canvas__frame-wrap,
 	.routes-navigation-canvas__preview {
 		margin: var(--wpds-dimension-padding-xl);
 		overflow: hidden;
