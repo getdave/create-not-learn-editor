@@ -880,7 +880,6 @@ function cnl_editor_get_routes() {
  */
 function cnl_editor_get_menu_items() {
 	$post_types = cnl_editor_get_content_post_type_data();
-	$first_type = ! empty( $post_types ) ? $post_types[0]['name'] : 'post';
 	$items      = array(
 		array(
 			'id'    => 'home',
@@ -892,7 +891,11 @@ function cnl_editor_get_menu_items() {
 			'id'          => 'content',
 			'icon'        => 'dashicons-admin-post',
 			'label'       => __( 'Content', 'create-not-learn-editor' ),
-			'to'          => '/types/' . $first_type . '/list/default',
+			// A fallback path prefix, shorter than every sub-item's `to`
+			// below so the sidebar's drilldown-restoration logic (which
+			// matches by longest `to` prefix) always prefers the specific
+			// sub-item over this parent.
+			'to'          => '/types',
 			'parent_type' => 'drilldown',
 		),
 	);
@@ -902,7 +905,12 @@ function cnl_editor_get_menu_items() {
 			'id'     => 'page' === $post_type['name'] ? 'pages' : 'content-' . $post_type['name'],
 			'icon'   => $post_type['menuIcon'],
 			'label'  => $post_type['menuName'],
-			'to'     => '/types/' . $post_type['name'] . '/list/default',
+			// The route prefix, not a specific list view: switching tabs or
+			// filters within the list (or editing/creating an item) changes
+			// the URL past this point, and the sidebar's drilldown-restoration
+			// logic matches by longest `to` prefix, so this must cover every
+			// URL under this post type for the drilldown to stay open.
+			'to'     => '/types/' . $post_type['name'],
 			'parent' => 'content',
 		);
 	}
@@ -917,7 +925,10 @@ function cnl_editor_get_menu_items() {
 		'id'          => 'design',
 		'icon'        => 'dashicons-admin-appearance',
 		'label'       => __( 'Design', 'create-not-learn-editor' ),
-		'to'          => '/styles',
+		// Not a real route: only used to identify this parent for the
+		// sidebar's drilldown-restoration logic, which must not mistake it
+		// for one of its sub-items (see the `content` item above).
+		'to'          => '/design',
 		'parent_type' => 'drilldown',
 	);
 	$items[] = array(
@@ -936,7 +947,8 @@ function cnl_editor_get_menu_items() {
 		'id'          => 'advanced',
 		'icon'        => 'dashicons-admin-generic',
 		'label'       => __( 'Advanced', 'create-not-learn-editor' ),
-		'to'          => '/patterns',
+		// Not a real route: see the `design` item above.
+		'to'          => '/advanced',
 		'parent_type' => 'drilldown',
 	);
 	$items[] = array(
