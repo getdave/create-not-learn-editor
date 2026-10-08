@@ -40,6 +40,18 @@ function cnl_editor_register_rest_routes() {
 
 	register_rest_route(
 		CNL_EDITOR_REST_NAMESPACE,
+		'/site-overview',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => 'cnl_editor_rest_get_site_overview',
+			'permission_callback' => static function () {
+				return current_user_can( 'edit_theme_options' );
+			},
+		)
+	);
+
+	register_rest_route(
+		CNL_EDITOR_REST_NAMESPACE,
 		'/setup-defaults',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
@@ -66,6 +78,15 @@ function cnl_editor_register_rest_routes() {
 			),
 		)
 	);
+}
+
+/**
+ * Get every page of the site, hand-made and dynamic, as a graph.
+ *
+ * @return WP_REST_Response Response.
+ */
+function cnl_editor_rest_get_site_overview() {
+	return rest_ensure_response( cnl_editor_get_site_overview() );
 }
 
 /**
