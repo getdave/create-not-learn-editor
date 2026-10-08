@@ -1,5 +1,5 @@
 /**
- * Helpers for the "Colors & fonts" screen.
+ * Helpers for the Site look, Colors, and Fonts screens.
  *
  * Themes ship full style variations, color palettes, and font pairings from
  * one REST endpoint. These helpers sort them apart by the properties each one

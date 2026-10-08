@@ -1939,13 +1939,13 @@ test.describe( 'Create Not Learn Editor', () => {
 		).toBe( patternTitle );
 	} );
 
-	test( 'picks a look in Colors & fonts and previews it before saving', async ( {
+	test( 'picks a look in Site look and previews it before saving', async ( {
 		page,
 	} ) => {
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
 		await page.getByRole( 'button', { name: 'Design' } ).click();
-		await page.getByRole( 'link', { name: 'Colors & fonts' } ).click();
+		await page.getByRole( 'link', { name: 'Site look' } ).click();
 
 		await expect( page ).toHaveURL( /p=.*%2Fstyles/ );
 
@@ -1953,11 +1953,8 @@ test.describe( 'Create Not Learn Editor', () => {
 		const canvas = page.locator( '.cnl-editor-canvas' );
 
 		await expect(
-			stage.getByRole( 'heading', { name: 'Colors & fonts' } )
+			stage.getByRole( 'heading', { name: 'Site look' } )
 		).toBeVisible();
-		await expect(
-			stage.getByRole( 'heading', { name: 'Pick a look' } )
-		).toBeVisible( { timeout: 15000 } );
 		await expect(
 			canvas.locator( '.routes-navigation-canvas__preview' )
 		).toBeVisible( { timeout: 15000 } );
@@ -1988,10 +1985,69 @@ test.describe( 'Create Not Learn Editor', () => {
 			.click();
 		await page
 			.getByRole( 'dialog', { name: 'Review changes' } )
-			.getByRole( 'button', { name: 'Discard change to Colors & fonts' } )
+			.getByRole( 'button', { name: 'Discard change to Site look' } )
 			.click();
 		await expect( themeDefault ).toHaveAttribute( 'aria-pressed', 'true' );
 		await expect( saveControls ).not.toContainText( 'unsaved' );
+	} );
+
+	test( 'keeps colors and fonts on screens of their own', async ( {
+		page,
+	} ) => {
+		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
+
+		const stage = page.locator( '.cnl-editor-stage' );
+
+		await page.getByRole( 'button', { name: 'Design' } ).click();
+		await page.getByRole( 'link', { name: 'Colors', exact: true } ).click();
+
+		await expect( page ).toHaveURL( /p=.*%2Fcolors/ );
+		await expect(
+			stage.getByRole( 'heading', { name: 'Colors' } )
+		).toBeVisible();
+
+		// Colors are the only options here: no font pairings in sight.
+		const themeColors = stage.getByRole( 'button', {
+			name: 'Theme colors',
+		} );
+		await expect( themeColors ).toBeVisible( { timeout: 15000 } );
+		await expect( themeColors ).toHaveAttribute( 'aria-pressed', 'true' );
+		await expect(
+			stage.getByRole( 'button', { name: 'Theme fonts' } )
+		).toBeHidden();
+
+		const palettes = stage.locator( '.routes-styles__palette' );
+
+		if ( ( await palettes.count() ) > 1 ) {
+			await palettes.nth( 1 ).click();
+			await expect( palettes.nth( 1 ) ).toHaveAttribute(
+				'aria-pressed',
+				'true'
+			);
+			await expect( page.locator( '.cnl-save-controls' ) ).toContainText(
+				'1 unsaved change'
+			);
+		}
+
+		// The screens link to each other, so Fonts is one click away.
+		await stage
+			.locator( '.routes-styles__link', {
+				has: page.locator( '.routes-styles__link-title', {
+					hasText: /^Fonts$/,
+				} ),
+			} )
+			.click();
+
+		await expect( page ).toHaveURL( /p=.*%2Ffonts/ );
+		await expect(
+			stage.getByRole( 'heading', { name: 'Fonts' } )
+		).toBeVisible();
+		await expect(
+			stage.getByRole( 'button', { name: 'Theme fonts' } )
+		).toBeVisible( { timeout: 15000 } );
+		await expect(
+			stage.getByRole( 'button', { name: 'Theme colors' } )
+		).toBeHidden();
 	} );
 
 	test( 'updates site name and tagline from Name & logo with a live preview', async ( {

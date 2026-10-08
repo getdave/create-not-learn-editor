@@ -1032,16 +1032,6 @@
 	}
 }
 
-.routes-styles__field {
-	display: flex;
-	flex-direction: column;
-	gap: var(--wpds-dimension-gap-sm);
-}
-
-.routes-styles__sublabel {
-	font-weight: var(--wpds-typography-font-weight-emphasis);
-}
-
 .routes-styles__palettes {
 	display: flex;
 	flex-wrap: wrap;
@@ -1138,39 +1128,51 @@
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-.routes-styles__customize {
+.routes-styles__links {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-xs);
 	border-top: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
 	padding-top: var(--wpds-dimension-padding-lg);
 }
 
-.routes-styles__customize-trigger {
+.components-button.routes-styles__link {
 	display: flex;
-	gap: var(--wpds-dimension-gap-sm);
-	align-items: flex-start;
+	gap: var(--wpds-dimension-gap-md);
+	align-items: center;
 	width: 100%;
-	padding: 0;
-	background: none;
-	border: none;
-	color: inherit;
+	height: auto;
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+	border-radius: var(--wpds-border-radius-sm);
+	color: var(--wpds-color-foreground-interactive-neutral);
 	text-align: start;
-	cursor: pointer;
-}
 
-.routes-styles__customize-icon {
-	flex: 0 0 auto;
-	margin-top: 2px;
-	transition: transform var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
-
-	.routes-styles__customize-trigger[data-panel-open] & {
-		transform: rotate(90deg);
+	&:hover:not(:disabled) {
+		background: var(--wpds-color-background-interactive-neutral-weak-active);
+		color: var(--wpds-color-foreground-interactive-neutral-active);
 	}
 }
 
-.routes-styles__customize-panel {
+.routes-styles__link-text {
 	display: flex;
+	flex: 1 1 auto;
 	flex-direction: column;
-	gap: var(--wpds-dimension-gap-lg);
-	padding-top: var(--wpds-dimension-padding-lg);
+	min-width: 0;
+}
+
+.routes-styles__link-title {
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.routes-styles__link-description {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+}
+
+.routes-styles__link-icon {
+	flex: 0 0 auto;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	fill: currentcolor;
 }
 
 .routes-styles__save {

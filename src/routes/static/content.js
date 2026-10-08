@@ -10,7 +10,7 @@ import { useNavigate } from '@wordpress/route';
 import { withUiTheme } from '../../theme';
 import { getCurrentEditorPath, getStaticScreen } from './screens';
 import { SiteIdentityCanvas, SiteIdentityStage } from './identity';
-import { StylesCanvas, StylesStage } from './styles';
+import { ColorsStage, FontsStage, StylesCanvas, StylesStage } from './styles';
 import {
 	getErrorMessage,
 	getTemplateAuthorText,
@@ -2527,6 +2527,14 @@ function Stage() {
 		return el( StylesStage );
 	}
 
+	if ( getCurrentEditorPath() === '/colors' ) {
+		return el( ColorsStage );
+	}
+
+	if ( getCurrentEditorPath() === '/fonts' ) {
+		return el( FontsStage );
+	}
+
 	if ( getCurrentEditorPath() === '/identity' ) {
 		return el( SiteIdentityStage );
 	}
@@ -2566,7 +2574,11 @@ function Canvas() {
 		return el( TemplatesCanvas );
 	}
 
-	if ( getCurrentEditorPath() === '/styles' ) {
+	if (
+		getCurrentEditorPath() === '/styles' ||
+		getCurrentEditorPath() === '/colors' ||
+		getCurrentEditorPath() === '/fonts'
+	) {
 		return el( StylesCanvas );
 	}
 

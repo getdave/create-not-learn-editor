@@ -44,10 +44,15 @@ function getCreationSteps( frontPageId ) {
 			title: __( 'Name & logo' ),
 			to: '/identity',
 		},
-		styles: {
-			description: __( 'Pick a look, then make it yours' ),
-			title: __( 'Colors & fonts' ),
-			to: '/styles',
+		colors: {
+			description: __( 'Pick the colors your whole site uses' ),
+			title: __( 'Colors' ),
+			to: '/colors',
+		},
+		fonts: {
+			description: __( 'Pick the fonts your whole site uses' ),
+			title: __( 'Fonts' ),
+			to: '/fonts',
 		},
 		homepage: {
 			description: __( 'Make the first page visitors see your own' ),
