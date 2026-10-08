@@ -1,0 +1,178 @@
+/*
+ * Layouts: wireframes in previews, and empty states on the edit canvas.
+ *
+ * Added to the editor settings' styles by `includes/layouts.php`, so it
+ * reaches the preview iframes and the canvas iframe. Ported from Layout
+ * Primitives (https://github.com/getdave/editor-layout-primitives).
+ */
+
+/* Wireframes, drawn by `src/layouts/` in previews. */
+.cnl-layout-wireframe {
+	color: inherit;
+}
+
+.cnl-layout-wireframe svg {
+	display: block;
+	overflow: visible;
+}
+
+.cnl-layout-wireframe rect,
+.cnl-layout-wireframe ellipse,
+.cnl-layout-wireframe path,
+.cnl-layout-wireframe circle {
+	fill: currentColor;
+	fill-opacity: 0.25;
+}
+
+/*
+ * The image icon (image and cover). Targets the shapes themselves so it
+ * out-ranks the generic shape rule above, drawing over the box.
+ */
+.cnl-layout-wireframe .cnl-layout-wireframe__icon * {
+	fill-opacity: 0.35;
+}
+
+.cnl-layout-wireframe .cnl-layout-wireframe__outline {
+	fill: none;
+	stroke: currentColor;
+	stroke-opacity: 0.5;
+	stroke-width: 2;
+}
+
+.cnl-layout-wireframe--heading,
+.cnl-layout-wireframe--paragraph {
+	width: 100%;
+}
+
+/* Breathing room above and below a layout's thumbnail. */
+.is-root-container.is-preview-mode:has(> .cnl-layout) {
+	padding-block: 64px;
+}
+
+/* Columns adds its own bottom margin, which would make the space uneven. */
+.is-root-container.is-preview-mode > .cnl-layout {
+	margin-block: 0;
+}
+
+.cnl-layout-wireframe--image {
+	position: relative;
+	aspect-ratio: 4 / 3;
+	width: 100%;
+}
+
+.cnl-layout-wireframe--image.is-round {
+	aspect-ratio: 1;
+}
+
+/*
+ * The wrapper's aspect ratio sets the size and the drawing fills it. An
+ * in-flow svg with height:100% of an auto-height box falls back to 150px.
+ */
+.cnl-layout-wireframe--image > svg {
+	position: absolute;
+	inset: 0;
+}
+
+/*
+ * Doubled class so this beats core's `.wp-block-cover { min-height }`
+ * regardless of stylesheet order. A cover's own minHeight is inline.
+ */
+.cnl-layout-wireframe.cnl-layout-wireframe--cover {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 360px;
+}
+
+.cnl-layout-wireframe--cover .cnl-layout-wireframe__cover-bg {
+	position: absolute;
+	inset: 0;
+}
+
+.cnl-layout-wireframe--cover .cnl-layout-wireframe__cover-inner {
+	position: relative;
+	width: 100%;
+	padding: 2rem;
+}
+
+/*
+ * Empty states of inserted layouts, on the edit canvas. Everything is scoped
+ * to .cnl-layout and drawn in currentColor, so the theme still decides the
+ * colours. Once media is added, none of it applies.
+ *
+ * Empty images: core's placeholder is a short, page-wide strip with a
+ * diagonal line. Give it the thumbnail's 4:3 shape and centred icon so the
+ * slot reads as "image here". The placeholder still grows to fit its buttons
+ * when selected.
+ */
+.cnl-layout .wp-block-image > .block-editor-media-placeholder {
+	aspect-ratio: 4 / 3;
+}
+
+.cnl-layout .wp-block-image > .block-editor-media-placeholder .components-placeholder__illustration {
+	display: none;
+}
+
+.cnl-layout .wp-block-image > .block-editor-media-placeholder::after,
+.cnl-layout.wp-block-cover:not(.has-text-color):not(:has(> .wp-block-cover__image-background, > .wp-block-cover__video-background, > .wp-block-cover__embed-background)) > .wp-block-cover__background:not([class*="-background-color"]):not(.has-background-gradient):not([style*="background"])::after {
+	content: "";
+	position: absolute;
+	background-color: currentColor;
+	opacity: 0.35;
+	pointer-events: none;
+	/* The thumbnail's mountain and sun, see src/layouts/wireframes/image.js. */
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 24'%3E%3Ccircle cx='8' cy='6' r='3'/%3E%3Cpath d='M0 24 10 12 16 18 22 10 32 24Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.cnl-layout .wp-block-image > .block-editor-media-placeholder::after {
+	top: 50%;
+	left: 50%;
+	width: 48px;
+	height: 36px;
+	transform: translate(-50%, -50%);
+}
+
+/*
+ * Selected images show core's label and buttons instead, except small ones
+ * (the quote portrait) whose placeholder has no room for them.
+ */
+.cnl-layout .wp-block-image.is-selected > .block-editor-media-placeholder:not(.is-small)::after {
+	display: none;
+}
+
+/* The quote's rounded portrait: a circle at the image's own width. */
+.cnl-layout .wp-block-image.is-style-rounded > .block-editor-media-placeholder {
+	aspect-ratio: 1;
+	border-radius: 50%;
+}
+
+.cnl-layout .wp-block-image.is-style-rounded > .block-editor-media-placeholder::after {
+	width: 32px;
+	height: 24px;
+}
+
+/*
+ * Empty covers: with no image the 50% dim draws a flat mid-grey box with
+ * white text on it. Until media is added, swap the dim for a light tint, use
+ * the theme's text colour and show a corner icon, as the thumbnail does.
+ * Only the default black dim is swapped: a chosen overlay colour or gradient
+ * (preset class or inline style) or a text colour keeps core's look. A
+ * cleared custom overlay leaves `style=""`, hence matching on the style's
+ * content, not its presence.
+ */
+.cnl-layout.wp-block-cover:not(.has-text-color):not(:has(> .wp-block-cover__image-background, > .wp-block-cover__video-background, > .wp-block-cover__embed-background)):has(> .wp-block-cover__background:not([class*="-background-color"]):not(.has-background-gradient):not([style*="background"])) {
+	color: inherit;
+}
+
+.cnl-layout.wp-block-cover:not(.has-text-color):not(:has(> .wp-block-cover__image-background, > .wp-block-cover__video-background, > .wp-block-cover__embed-background)) > .wp-block-cover__background:not([class*="-background-color"]):not(.has-background-gradient):not([style*="background"]) {
+	background-color: color-mix(in srgb, currentColor 10%, transparent);
+	opacity: 1;
+}
+
+.cnl-layout.wp-block-cover:not(.has-text-color):not(:has(> .wp-block-cover__image-background, > .wp-block-cover__video-background, > .wp-block-cover__embed-background)) > .wp-block-cover__background:not([class*="-background-color"]):not(.has-background-gradient):not([style*="background"])::after {
+	top: 32px;
+	right: 32px;
+	width: 64px;
+	height: 48px;
+}

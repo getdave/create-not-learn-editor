@@ -1,6 +1,14 @@
 // The "Add a section" modal, on the Pages screen and in the editor. The shell
 // it shares with "Add a page" is in `src/design-picker/style.scss`.
 
+.cnl-section-picker__mode {
+	margin-top: var(--wpds-dimension-padding-lg);
+}
+
+.cnl-section-picker__other-mode {
+	align-self: flex-start;
+}
+
 .cnl-section-picker__search {
 	width: 280px;
 	max-width: 100%;

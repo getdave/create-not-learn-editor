@@ -1,6 +1,8 @@
 /**
  * The "Add a section" picker: every section design the site offers, grouped
- * by what it is for, in one modal.
+ * by what it is for, in one modal. A switch at the top swaps the designs for
+ * plain layouts, grouped by shape and shown as wireframes to fill in with your
+ * own content.
  *
  * Shared by the Pages screen and the editor, so it knows nothing about where
  * the section goes beyond the sentence describing it. Each caller passes the
@@ -12,9 +14,11 @@
  * WordPress dependencies
  */
 import {
+	Button,
 	SearchControl,
 	/* eslint-disable @wordpress/no-unsafe-wp-apis -- The segmented control is still experimental in @wordpress/components and has no @wordpress/ui equivalent yet. */
 	__experimentalToggleGroupControl as ToggleGroupControl,
+	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 	__experimentalToggleGroupControlOptionIcon as ToggleGroupControlOptionIcon,
 	/* eslint-enable @wordpress/no-unsafe-wp-apis */
 } from '@wordpress/components';
@@ -54,6 +58,11 @@ import { useSectionDesigns } from './patterns';
 const PREFERENCES_SCOPE = 'create-not-learn-editor';
 const PER_ROW_PREFERENCE = 'sectionPickerPerRow';
 const DEFAULT_PER_ROW = 3;
+const MODE_PREFERENCE = 'sectionPickerMode';
+
+// What the picker offers: designed sections, or plain layouts to fill in.
+const DESIGNS_MODE = 'designs';
+const LAYOUTS_MODE = 'layouts';
 
 // How far ahead of the visible area a card starts rendering its preview.
 const PREVIEW_MARGIN = '400px 0px';
@@ -179,6 +188,42 @@ function DesignGrid( { onPick, patterns, Preview, scrollRef } ) {
 }
 
 /**
+ * The heading over search results.
+ *
+ * @param {number}  count         How many matched.
+ * @param {string}  search        What was typed.
+ * @param {boolean} isLayoutsMode Whether layouts were searched.
+ * @return {string} The heading.
+ */
+function getResultsLabel( count, search, isLayoutsMode ) {
+	if ( count ) {
+		return isLayoutsMode
+			? sprintf(
+					/* translators: %d: number of layouts. */
+					_n( '%d layout', '%d layouts', count ),
+					count
+				)
+			: sprintf(
+					/* translators: %d: number of section designs. */
+					_n( '%d design', '%d designs', count ),
+					count
+				);
+	}
+
+	return isLayoutsMode
+		? sprintf(
+				/* translators: %s: what was searched for. */
+				__( 'No layouts match “%s”' ),
+				search.trim()
+			)
+		: sprintf(
+				/* translators: %s: what was searched for. */
+				__( 'No designs match “%s”' ),
+				search.trim()
+			);
+}
+
+/**
  * Follow which group is in view as the designs scroll, and jump to a group.
  *
  * A jump holds the group jumped to until the designs are scrolled by hand, so
@@ -294,6 +339,29 @@ function usePerRow() {
 }
 
 /**
+ * Whether the picker shows designs or layouts, remembered as a user
+ * preference.
+ *
+ * @return {Array} `[ mode, setMode ]`.
+ */
+function useMode() {
+	const mode = useSelect(
+		( select ) =>
+			select( preferencesStore ).get(
+				PREFERENCES_SCOPE,
+				MODE_PREFERENCE
+			) || DESIGNS_MODE,
+		[]
+	);
+	const { set } = useDispatch( preferencesStore );
+
+	return [
+		mode,
+		( value ) => set( PREFERENCES_SCOPE, MODE_PREFERENCE, value ),
+	];
+}
+
+/**
  * The "Add a section" modal.
  *
  * @param {Object}   props                    Component props.
@@ -313,26 +381,41 @@ export function SectionPicker( {
 	onPick,
 	onStartFromScratch,
 } ) {
-	const { groups, isLoading, patterns } = useSectionDesigns();
+	const { groups, isLoading, layoutGroups, layouts, patterns } =
+		useSectionDesigns();
 	const [ search, setSearch ] = useState( '' );
 	const [ perRow, setPerRow ] = usePerRow();
+	const [ preferredMode, setMode ] = useMode();
 	const scrollRef = useRef();
 	const idPrefix = `cnl-section-picker-${ useId().replace( /:/g, '' ) }`;
+	const hasLayouts = layouts.length > 0;
+	const isLayoutsMode = hasLayouts && preferredMode === LAYOUTS_MODE;
+	const shownPatterns = isLayoutsMode ? layouts : patterns;
+	const modeGroups = isLayoutsMode ? layoutGroups : groups;
 	const isSearching = !! search.trim();
 	const results = useMemo(
-		() => ( isSearching ? searchSectionDesigns( patterns, search ) : [] ),
-		[ isSearching, patterns, search ]
+		() =>
+			isSearching ? searchSectionDesigns( shownPatterns, search ) : [],
+		[ isSearching, shownPatterns, search ]
 	);
-	const shownGroups = isSearching ? [] : groups;
+	const shownGroups = isSearching ? [] : modeGroups;
 	const [ activeGroup, jumpTo ] = useActiveGroup(
 		scrollRef,
 		shownGroups,
 		idPrefix
 	);
 
+	const switchMode = ( value ) => {
+		setMode( value );
+
+		if ( scrollRef.current ) {
+			scrollRef.current.scrollTop = 0;
+		}
+	};
+
 	let body;
 
-	if ( isLoading && ! patterns.length ) {
+	if ( isLoading && ! patterns.length && ! layouts.length ) {
 		body = el(
 			'div',
 			{ 'aria-hidden': true, className: 'cnl-section-picker__grid' },
@@ -352,18 +435,24 @@ export function SectionPicker( {
 			},
 			el( GroupHeading, {
 				id: `${ idPrefix }-results`,
-				label: results.length
-					? sprintf(
-							/* translators: %d: number of section designs. */
-							_n( '%d design', '%d designs', results.length ),
-							results.length
-						)
-					: sprintf(
-							/* translators: %s: what was searched for. */
-							__( 'No designs match “%s”' ),
-							search.trim()
-						),
+				label: getResultsLabel( results.length, search, isLayoutsMode ),
 			} ),
+			! results.length &&
+				hasLayouts &&
+				el(
+					Button,
+					{
+						className: 'cnl-section-picker__other-mode',
+						onClick: () =>
+							switchMode(
+								isLayoutsMode ? DESIGNS_MODE : LAYOUTS_MODE
+							),
+						variant: 'link',
+					},
+					isLayoutsMode
+						? __( 'Search designs instead' )
+						: __( 'Search layouts instead' )
+				),
 			results.length > 0 &&
 				el( DesignGrid, {
 					onPick,
@@ -372,7 +461,7 @@ export function SectionPicker( {
 					scrollRef,
 				} )
 		);
-	} else if ( ! groups.length ) {
+	} else if ( ! modeGroups.length ) {
 		body = el(
 			Text,
 			{ className: 'cnl-design-picker__empty', variant: 'body-md' },
@@ -381,7 +470,7 @@ export function SectionPicker( {
 			)
 		);
 	} else {
-		body = groups.map( ( group ) =>
+		body = modeGroups.map( ( group ) =>
 			el(
 				'section',
 				{
@@ -433,19 +522,45 @@ export function SectionPicker( {
 				el( SearchControl, {
 					className: 'cnl-section-picker__search',
 					key: 'search',
-					label: __( 'Search section designs' ),
+					label: isLayoutsMode
+						? __( 'Search layouts' )
+						: __( 'Search section designs' ),
 					onChange: setSearch,
-					placeholder: __( 'Search designs…' ),
+					placeholder: isLayoutsMode
+						? __( 'Search layouts…' )
+						: __( 'Search designs…' ),
 					value: search,
 				} ),
 			],
+			belowHeading:
+				hasLayouts &&
+				el(
+					ToggleGroupControl,
+					{
+						__next40pxDefaultSize: true,
+						className: 'cnl-section-picker__mode',
+						hideLabelFromVision: true,
+						isBlock: false,
+						label: __( 'What to choose from' ),
+						onChange: switchMode,
+						value: isLayoutsMode ? LAYOUTS_MODE : DESIGNS_MODE,
+					},
+					el( ToggleGroupControlOption, {
+						label: __( 'Designs' ),
+						value: DESIGNS_MODE,
+					} ),
+					el( ToggleGroupControlOption, {
+						label: __( 'Layouts' ),
+						value: LAYOUTS_MODE,
+					} )
+				),
 			className: 'cnl-section-picker',
 			mainClassName: `is-${ perRow }-per-row`,
 			mainRef: scrollRef,
 			nav: el( DesignPickerNav, {
 				current: activeGroup,
 				isDisabled: isSearching,
-				items: groups.map( ( group ) => ( {
+				items: modeGroups.map( ( group ) => ( {
 					label: group.label,
 					value: group.name,
 				} ) ),
@@ -453,7 +568,14 @@ export function SectionPicker( {
 				onSelect: jumpTo,
 			} ),
 			onClose,
-			subtitle: [ __( 'Choose a design to get started.' ), placement ]
+			subtitle: [
+				isLayoutsMode
+					? __(
+							'Pick a layout and fill in your own words and pictures.'
+						)
+					: __( 'Choose a design to get started.' ),
+				placement,
+			]
 				.filter( Boolean )
 				.join( ' ' ),
 			title: __( 'Add a section' ),

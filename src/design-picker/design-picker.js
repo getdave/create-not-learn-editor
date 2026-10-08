@@ -25,6 +25,7 @@ import { Icon, Text } from '@wordpress/ui';
  * @param {Object}   props               Component props.
  * @param {string}   props.title         Heading.
  * @param {string}   props.subtitle      Line of help under the heading.
+ * @param {Element}  props.belowHeading  Controls under the line of help.
  * @param {Element}  props.actions       Controls beside the close button.
  * @param {Element}  props.nav           The list of kinds, if there is one.
  * @param {Element}  props.children      The designs, or whatever the step
@@ -38,6 +39,7 @@ import { Icon, Text } from '@wordpress/ui';
 export function DesignPicker( {
 	title,
 	subtitle,
+	belowHeading,
 	actions,
 	nav,
 	children,
@@ -92,7 +94,8 @@ export function DesignPicker( {
 								variant: 'body-md',
 							},
 							subtitle
-						)
+						),
+					belowHeading
 				),
 				el(
 					'div',

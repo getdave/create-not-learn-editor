@@ -20,11 +20,16 @@ import {
 	getPatternTitle,
 	isPageLayoutPattern,
 } from '../routes/content/page-layouts';
-import { groupSectionDesigns } from './groups';
+import { groupLayouts, groupSectionDesigns } from './groups';
 
 const EMPTY_ARRAY = [];
 
 const HIDDEN_CATEGORIES = [ 'header', 'footer', 'navigation', 'query' ];
+
+/**
+ * The pattern category of layouts, registered in `includes/layouts.php`.
+ */
+export const LAYOUT_CATEGORY = 'cnl-layouts';
 
 function isHiddenCategory( category ) {
 	return (
@@ -68,10 +73,22 @@ export function isSectionPattern( pattern ) {
 }
 
 /**
- * The patterns that can be added to a page as sections, and the same patterns
- * grouped by what they are for.
+ * Whether a pattern is one of the plain layouts, rather than a design.
  *
- * @return {Object} `{ groups, isLoading, patterns }`.
+ * @param {Object} pattern Block pattern.
+ * @return {boolean} Whether it is a layout.
+ */
+export function isLayoutPattern( pattern ) {
+	return !! pattern?.categories?.includes( LAYOUT_CATEGORY );
+}
+
+/**
+ * The patterns that can be added to a page as sections, split into the plain
+ * layouts and the designs. Designs are grouped by what they are for, and
+ * layouts by their shape.
+ *
+ * @return {Object} `{ groups, isLoading, layoutGroups, layouts, patterns }`,
+ *                  where `patterns` and `groups` hold the designs.
  */
 export function useSectionDesigns() {
 	const { isLoading, patterns, themeName } = useSelect( ( select ) => {
@@ -86,14 +103,20 @@ export function useSectionDesigns() {
 
 	return useMemo( () => {
 		const sectionPatterns = patterns.filter( isSectionPattern );
+		const designs = sectionPatterns.filter(
+			( pattern ) => ! isLayoutPattern( pattern )
+		);
+		const layouts = sectionPatterns.filter( isLayoutPattern );
 
 		return {
 			groups: groupSectionDesigns(
-				sectionPatterns,
+				designs,
 				decodeEntities( themeName || '' )
 			),
 			isLoading,
-			patterns: sectionPatterns,
+			layoutGroups: groupLayouts( layouts ),
+			layouts,
+			patterns: designs,
 		};
 	}, [ isLoading, patterns, themeName ] );
 }

@@ -9,6 +9,7 @@
 		"build",
 		"create-not-learn-editor.php",
 		"includes",
+		"patterns",
 		"README.md"
 	],
 	"scripts": {
