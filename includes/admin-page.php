@@ -707,6 +707,14 @@ function cnl_editor_get_module_map() {
 			'path' => 'routes/home/content.min',
 		),
 		array(
+			'id'   => 'create-not-learn-editor/routes/site-overview/route',
+			'path' => 'routes/site-overview/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/site-overview/content',
+			'path' => 'routes/site-overview/content.min',
+		),
+		array(
 			'id'   => 'create-not-learn-editor/routes/content-base/route',
 			'path' => 'routes/content-base/route.min',
 		),
@@ -810,6 +818,11 @@ function cnl_editor_get_routes() {
 			'content_module' => 'create-not-learn-editor/routes/home/content',
 		),
 		array(
+			'path'           => '/site-overview',
+			'route_module'   => 'create-not-learn-editor/routes/site-overview/route',
+			'content_module' => 'create-not-learn-editor/routes/site-overview/content',
+		),
+		array(
 			'path'           => '/types/$type',
 			'route_module'   => 'create-not-learn-editor/routes/content-base/route',
 			'content_module' => 'create-not-learn-editor/routes/content-base/content',
@@ -886,6 +899,12 @@ function cnl_editor_get_menu_items() {
 			'icon'  => 'dashicons-admin-home',
 			'label' => __( 'My site', 'create-not-learn-editor' ),
 			'to'    => '/',
+		),
+		array(
+			'id'    => 'site-overview',
+			'icon'  => 'dashicons-networking',
+			'label' => __( 'Site Overview', 'create-not-learn-editor' ),
+			'to'    => '/site-overview',
 		),
 		array(
 			'id'          => 'content',

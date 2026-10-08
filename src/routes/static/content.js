@@ -25,6 +25,7 @@ import {
 	InputControl,
 	layoutIcon,
 	Modal,
+	noticesStore,
 	Notice,
 	Page,
 	plusIcon,
@@ -349,7 +350,7 @@ function getTemplateFields() {
 	];
 }
 
-function getTemplateActions( navigate ) {
+function getTemplateActions( navigate, onRename ) {
 	return [
 		{
 			callback: ( items ) => {
@@ -369,7 +370,95 @@ function getTemplateActions( navigate ) {
 			label: __( 'Edit' ),
 			supportsBulk: false,
 		},
+		{
+			callback: ( items ) => onRename( items[ 0 ] ),
+			id: 'rename-template',
+			isEligible: ( item ) => item?.source === 'custom',
+			label: __( 'Rename' ),
+			supportsBulk: false,
+		},
 	];
+}
+
+function RenameTemplateModal( {
+	isSaving,
+	onChangeTitle,
+	onClose,
+	onSave,
+	saveError,
+	templateTitle,
+	title,
+} ) {
+	const canSave =
+		! isSaving && title.trim().length > 0 && title.trim() !== templateTitle;
+	const submit = ( event ) => {
+		event.preventDefault();
+
+		if ( canSave ) {
+			onSave();
+		}
+	};
+
+	return el(
+		Modal,
+		{
+			className: 'routes-template-list__rename-modal',
+			onRequestClose: () => {
+				if ( ! isSaving ) {
+					onClose();
+				}
+			},
+			title: __( 'Rename layout' ),
+		},
+		el(
+			'form',
+			{
+				className: 'routes-template-list__rename-form',
+				onSubmit: submit,
+			},
+			el( InputControl, {
+				autoComplete: 'off',
+				disabled: isSaving,
+				label: __( 'Name' ),
+				onValueChange: onChangeTitle,
+				value: title,
+			} ),
+			saveError &&
+				el(
+					Notice,
+					{
+						isDismissible: false,
+						status: 'error',
+					},
+					saveError
+				),
+			el(
+				'div',
+				{ className: 'routes-template-list__rename-actions' },
+				el(
+					Button,
+					{
+						__next40pxDefaultSize: true,
+						disabled: isSaving,
+						onClick: onClose,
+						variant: 'tertiary',
+					},
+					__( 'Cancel' )
+				),
+				el(
+					Button,
+					{
+						__next40pxDefaultSize: true,
+						disabled: ! canSave,
+						isBusy: isSaving,
+						type: 'submit',
+						variant: 'primary',
+					},
+					__( 'Save' )
+				)
+			)
+		)
+	);
 }
 
 function CreateTemplateModal( { isSaving, onClose, onCreate, saveError } ) {
@@ -522,6 +611,8 @@ function TemplatesStage() {
 	const navigate = useNavigate();
 	const { invalidateResolution, saveEntityRecord } =
 		useDispatch( coreDataStore );
+	const { createErrorNotice, createSuccessNotice } =
+		useDispatch( noticesStore );
 	const { error, isLoading, templates } = useTemplatesData();
 	const [ view, setView ] = useState( DEFAULT_TEMPLATE_VIEW );
 	const [ selectedTemplateId, setSelectedTemplateId ] = useState(
@@ -530,6 +621,10 @@ function TemplatesStage() {
 	const [ isCreateModalOpen, setIsCreateModalOpen ] = useState( false );
 	const [ isCreatingTemplate, setIsCreatingTemplate ] = useState( false );
 	const [ createTemplateError, setCreateTemplateError ] = useState( '' );
+	const [ templateToRename, setTemplateToRename ] = useState( null );
+	const [ renameTitle, setRenameTitle ] = useState( '' );
+	const [ isRenamingTemplate, setIsRenamingTemplate ] = useState( false );
+	const [ renameTemplateError, setRenameTemplateError ] = useState( '' );
 	const canCreateTemplates = useSelect(
 		( select ) =>
 			select( coreDataStore ).canUser?.( 'create', {
@@ -539,8 +634,63 @@ function TemplatesStage() {
 		[]
 	);
 	const fields = useMemo( () => getTemplateFields(), [] );
+	const openRenameModal = ( template ) => {
+		setRenameTemplateError( '' );
+		setRenameTitle( getTitleText( template?.title ) );
+		setTemplateToRename( template );
+	};
+	const closeRenameModal = () => {
+		if ( ! isRenamingTemplate ) {
+			setRenameTemplateError( '' );
+			setTemplateToRename( null );
+		}
+	};
+	const renameTemplate = async () => {
+		const title = renameTitle.trim();
+
+		if ( ! templateToRename?.id || ! title ) {
+			return;
+		}
+
+		setIsRenamingTemplate( true );
+		setRenameTemplateError( '' );
+
+		try {
+			await saveEntityRecord(
+				'postType',
+				'wp_template',
+				{
+					id: templateToRename.id,
+					title,
+				},
+				{ throwOnError: true }
+			);
+			invalidateResolution?.( 'getEntityRecords', [
+				'postType',
+				'wp_template',
+				TEMPLATE_QUERY,
+			] );
+			setTemplateToRename( null );
+			createSuccessNotice( __( 'Layout renamed.' ), {
+				type: 'snackbar',
+			} );
+		} catch ( saveError ) {
+			const message = getErrorMessage( saveError );
+			setRenameTemplateError( message );
+			createErrorNotice(
+				sprintf(
+					/* translators: %s: error message. */
+					__( 'Unable to rename layout (%s).' ),
+					message
+				),
+				{ type: 'snackbar' }
+			);
+		} finally {
+			setIsRenamingTemplate( false );
+		}
+	};
 	const actions = useMemo(
-		() => getTemplateActions( navigate ),
+		() => getTemplateActions( navigate, openRenameModal ),
 		[ navigate ]
 	);
 	const totalPages = Math.max(
@@ -698,6 +848,17 @@ function TemplatesStage() {
 				onClose: closeCreateModal,
 				onCreate: createTemplate,
 				saveError: createTemplateError,
+			} ),
+		templateToRename &&
+			el( RenameTemplateModal, {
+				isSaving: isRenamingTemplate,
+				key: 'rename-template-modal',
+				onChangeTitle: setRenameTitle,
+				onClose: closeRenameModal,
+				onSave: renameTemplate,
+				saveError: renameTemplateError,
+				templateTitle: getTitleText( templateToRename.title ),
+				title: renameTitle,
 			} )
 	);
 }

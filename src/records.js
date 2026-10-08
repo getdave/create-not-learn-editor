@@ -30,6 +30,11 @@ const DEFAULT_STATE = {
 		isRunning: false,
 		result: null,
 	},
+	siteOverview: {
+		error: null,
+		isLoading: false,
+		record: null,
+	},
 	siteSettings: {
 		error: null,
 		isLoading: false,
@@ -111,6 +116,13 @@ const actions = {
 			] );
 	},
 
+	invalidateSiteOverview( restNamespace = defaultNamespace ) {
+		return ( { dispatch } ) =>
+			dispatch.invalidateResolution( 'getSiteOverview', [
+				restNamespace,
+			] );
+	},
+
 	invalidateSiteSettings() {
 		return ( { dispatch } ) =>
 			dispatch.invalidateResolution( 'getSiteSettings', [] );
@@ -150,6 +162,20 @@ const actions = {
 			error,
 			type: 'RECEIVE_PREVIEW_CONTEXT_ERROR',
 			url,
+		};
+	},
+
+	receiveSiteOverview( siteOverview ) {
+		return {
+			siteOverview,
+			type: 'RECEIVE_SITE_OVERVIEW',
+		};
+	},
+
+	receiveSiteOverviewError( error ) {
+		return {
+			error,
+			type: 'RECEIVE_SITE_OVERVIEW_ERROR',
 		};
 	},
 
@@ -251,6 +277,12 @@ const actions = {
 		};
 	},
 
+	startSiteOverviewRequest() {
+		return {
+			type: 'START_SITE_OVERVIEW_REQUEST',
+		};
+	},
+
 	startSiteSettingsRequest() {
 		return {
 			type: 'START_SITE_SETTINGS_REQUEST',
@@ -279,6 +311,14 @@ const selectors = {
 		return state.setupDefaults.result;
 	},
 
+	getSiteOverview( state ) {
+		return state.siteOverview.record;
+	},
+
+	getSiteOverviewError( state ) {
+		return state.siteOverview.error;
+	},
+
 	getSiteSettings( state ) {
 		return state.siteSettings.record;
 	},
@@ -297,6 +337,10 @@ const selectors = {
 
 	isFetchingPreviewContext( state, url ) {
 		return Boolean( state.previewContexts[ requestKey( url ) ]?.isLoading );
+	},
+
+	isFetchingSiteOverview( state ) {
+		return state.siteOverview.isLoading;
 	},
 
 	isFetchingSiteSettings( state ) {
@@ -350,6 +394,23 @@ const resolvers = {
 				dispatch.receivePreviewContext( url, context );
 			} catch ( error ) {
 				dispatch.receivePreviewContextError( url, error );
+				throw error;
+			}
+		},
+
+	getSiteOverview:
+		( restNamespace = defaultNamespace ) =>
+		async ( { dispatch } ) => {
+			dispatch.startSiteOverviewRequest();
+
+			try {
+				const siteOverview = await request( {
+					path: `/${ restNamespace }/site-overview`,
+				} );
+
+				dispatch.receiveSiteOverview( siteOverview );
+			} catch ( error ) {
+				dispatch.receiveSiteOverviewError( error );
 				throw error;
 			}
 		},
@@ -541,6 +602,36 @@ function reducer( state = DEFAULT_STATE, action ) {
 				},
 			};
 
+		case 'RECEIVE_SITE_OVERVIEW':
+			return {
+				...state,
+				siteOverview: {
+					error: null,
+					isLoading: false,
+					record: action.siteOverview,
+				},
+			};
+
+		case 'RECEIVE_SITE_OVERVIEW_ERROR':
+			return {
+				...state,
+				siteOverview: {
+					...state.siteOverview,
+					error: action.error,
+					isLoading: false,
+				},
+			};
+
+		case 'START_SITE_OVERVIEW_REQUEST':
+			return {
+				...state,
+				siteOverview: {
+					...state.siteOverview,
+					error: null,
+					isLoading: true,
+				},
+			};
+
 		case 'START_SITE_SETTINGS_REQUEST':
 			return {
 				...state,
@@ -598,15 +689,23 @@ export function getTemplateDisplayTitle( template ) {
 	return getTitleText( template?.title );
 }
 
+function getTitleCasedSlug( slug ) {
+	return slug
+		.replace( /-/g, ' ' )
+		.replace( /\b\w/g, ( letter ) => letter.toUpperCase() );
+}
+
 export function getTemplateAuthorText( template ) {
 	if ( template?.source === 'theme' && appSettings.themeName ) {
 		return appSettings.themeName;
 	}
 
+	if ( template?.source === 'plugin' && template?.plugin ) {
+		return getTitleCasedSlug( template.plugin );
+	}
+
 	if ( template?.theme ) {
-		return template.theme
-			.replace( /-/g, ' ' )
-			.replace( /\b\w/g, ( letter ) => letter.toUpperCase() );
+		return getTitleCasedSlug( template.theme );
 	}
 
 	return __( 'Site editor' );

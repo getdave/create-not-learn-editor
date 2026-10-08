@@ -13,22 +13,21 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  * Internal dependencies
  */
 import { getErrorMessage, getTemplateDisplayTitle } from '../../../records';
-import {
-	getPatternDescription,
-	getPatternTitle,
-	getPreviewContent,
-	replacePreviewTitleInBlocks,
-} from '../page-layouts';
+import { getPatternTitle } from '../page-layouts';
 import { isPageInMenu } from '../menu-status';
 import useMainMenu, { useAddPageToMenu } from '../use-main-menu';
 import {
-	getPageTitle,
+	createBlankSection,
 	getPatternSectionBlocks,
+	getPlacementText,
+	SectionPicker,
+} from '../../../section-picker';
+import {
+	getPageTitle,
 	usePageLayouts,
 	usePages,
 	usePageSections,
 	usePreviewStructure,
-	useSectionPatterns,
 } from './data';
 import {
 	buildPageTree,
@@ -43,6 +42,8 @@ import {
 	getDropIndex,
 	getSectionSummary,
 	getSectionTitle,
+	getTemplateElementKey,
+	getTemplateElementLabel,
 	insertItems,
 	isSingleBlockSection,
 	moveItem,
@@ -50,6 +51,8 @@ import {
 } from './page-sections';
 import { sectionBridge, useSectionBridge } from './section-bridge';
 import SectionSketch from './section-sketch';
+import { getLayoutDescription, getLayoutOutline } from './layout-outline';
+import LayoutSketch from './layout-sketch';
 import {
 	__,
 	_n,
@@ -64,7 +67,6 @@ import {
 	chevronDownSmallIcon,
 	chevronRightSmallIcon,
 	cloneBlock,
-	closeSmallIcon,
 	copyIcon,
 	coreDataStore,
 	dispatch,
@@ -78,19 +80,19 @@ import {
 	headerIcon,
 	homeIcon,
 	Icon,
+	lockSmallIcon,
 	MenuGroup,
 	MenuItem,
+	memo,
 	moreVerticalIcon,
 	noticesStore,
 	Page,
 	pageIcon,
-	parseBlocks,
 	pencilIcon,
 	plusIcon,
 	postListIcon,
 	searchIcon,
 	select,
-	serialize,
 	Skeleton,
 	sprintf,
 	Stack,
@@ -99,6 +101,7 @@ import {
 	UiButton,
 	useDispatch,
 	useEffect,
+	useId,
 	useMemo,
 	useRef,
 	useSelect,
@@ -927,32 +930,16 @@ function PageSummary( { page, pageId, roles } ) {
 	);
 }
 
-/*
- * The page inside a layout, with the page's title where the layout shows one,
- * rather than a placeholder.
- */
-function getLayoutPreviewContent( pageContent, template, title ) {
-	const content = getPreviewContent( pageContent, template );
+function LayoutCard( { isSelected, label, onPick, outline, sectionCount } ) {
+	const descriptionId = useId();
 
-	if ( ! template?.content?.raw?.includes( 'wp:post-title' ) ) {
-		return content;
-	}
-
-	const { blocks, didReplace } = replacePreviewTitleInBlocks(
-		parseBlocks( content ),
-		title
-	);
-
-	return didReplace ? serialize( blocks ) : content;
-}
-
-function LayoutCard( { content, isSelected, label, onPick } ) {
 	return el(
 		'li',
 		{ className: 'cnl-page-layouts__item' },
 		el(
 			'button',
 			{
+				'aria-describedby': descriptionId,
 				'aria-pressed': isSelected,
 				className: 'cnl-page-layout',
 				disabled: ! onPick,
@@ -961,8 +948,8 @@ function LayoutCard( { content, isSelected, label, onPick } ) {
 			},
 			el(
 				'span',
-				{ 'aria-hidden': true, className: 'cnl-page-layout__preview' },
-				el( LazyEditorPreview, { content, description: label } )
+				{ className: 'cnl-page-layout__preview' },
+				el( LayoutSketch, { outline, sectionCount } )
 			),
 			el(
 				'span',
@@ -974,46 +961,78 @@ function LayoutCard( { content, isSelected, label, onPick } ) {
 						icon: checkIcon,
 						size: 20,
 					} )
+			),
+			el(
+				'span',
+				{ hidden: true, id: descriptionId },
+				getLayoutDescription( outline )
 			)
 		)
 	);
 }
 
 /**
- * The layouts a page can use, shown with the page's own sections in them, so
+ * The layouts a page can use, each drawn with the page's sections in it, so
  * picking one is picking how this page looks. The canvas follows the choice
  * straight away; it is saved with the page.
  *
- * @param {Object}   props             Component props.
- * @param {Object[]} props.blocks      The page's sections.
- * @param {boolean}  props.isFrontPage Whether the page is the homepage.
- * @param {Object}   props.page        Page record, with edits.
- * @param {number}   props.pageId      Page ID.
+ * Layouts are drawn from their templates rather than rendered. Rendering each
+ * one with the page in it, again on every change to the page, made typing on
+ * this screen crawl.
+ *
+ * @param {Object}  props              Component props.
+ * @param {boolean} props.isFrontPage  Whether the page is the homepage.
+ * @param {number}  props.pageId       Page ID.
+ * @param {number}  props.sectionCount How many sections the page has.
+ * @param {string}  props.slug         Page slug.
+ * @param {string}  props.template     The page's chosen template slug, if any.
  * @return {Element} The layout picker.
  */
-function PageLayouts( { blocks, isFrontPage, page, pageId } ) {
+function PageLayouts( {
+	isFrontPage,
+	pageId,
+	sectionCount,
+	slug,
+	template: current = '',
+} ) {
 	const { editEntityRecord } = useDispatch( coreDataStore );
-	const { custom, defaultTemplate, frontPageTemplate, isLoading } =
-		usePageLayouts( page, isFrontPage );
-	const pageContent = useMemo(
-		() => ( { content: { raw: serialize( blocks ) } } ),
-		[ blocks ]
-	);
-	const current = page?.template || '';
-	const options = [
-		defaultTemplate && {
-			label: __( 'Standard' ),
-			template: defaultTemplate,
-			value: '',
-		},
-		...custom
-			.filter( ( template ) => template.content?.raw )
-			.map( ( template ) => ( {
-				label: getTemplateDisplayTitle( template ) || template.slug,
-				template,
-				value: template.slug,
-			} ) ),
-	].filter( Boolean );
+	const { custom, defaultTemplate, frontPageTemplate, isLoading, patterns } =
+		usePageLayouts( slug, isFrontPage );
+	const options = useMemo( () => {
+		const resolvePattern = ( name ) =>
+			patterns.find( ( pattern ) => pattern.name === name )?.content;
+		const toOption = ( template, label, value ) => ( {
+			label,
+			outline: getLayoutOutline( template.content?.raw, {
+				resolvePattern,
+			} ),
+			value,
+		} );
+
+		if ( frontPageTemplate ) {
+			return [
+				toOption(
+					frontPageTemplate,
+					getTemplateDisplayTitle( frontPageTemplate ) ||
+						__( 'Homepage' )
+				),
+			];
+		}
+
+		return [
+			defaultTemplate &&
+				toOption( defaultTemplate, __( 'Standard' ), '' ),
+			...custom
+				.filter( ( template ) => template.content?.raw )
+				.map( ( template ) =>
+					toOption(
+						template,
+						getTemplateDisplayTitle( template ) || template.slug,
+						template.slug
+					)
+				),
+		].filter( Boolean );
+	}, [ custom, defaultTemplate, frontPageTemplate, patterns ] );
 	let body;
 
 	if ( isLoading ) {
@@ -1023,22 +1042,6 @@ function PageLayouts( { blocks, isFrontPage, page, pageId } ) {
 			[ 0, 1 ].map( ( key ) =>
 				el( Skeleton, { key, style: { height: 150 } } )
 			)
-		);
-	} else if ( frontPageTemplate ) {
-		body = el(
-			'ul',
-			{ className: 'cnl-page-layouts__grid', role: 'list' },
-			el( LayoutCard, {
-				content: getLayoutPreviewContent(
-					pageContent,
-					frontPageTemplate,
-					getPageTitle( page )
-				),
-				isSelected: true,
-				label:
-					getTemplateDisplayTitle( frontPageTemplate ) ||
-					__( 'Homepage' ),
-			} )
 		);
 	} else {
 		body = el(
@@ -1050,18 +1053,19 @@ function PageLayouts( { blocks, isFrontPage, page, pageId } ) {
 			},
 			options.map( ( option ) =>
 				el( LayoutCard, {
-					content: getLayoutPreviewContent(
-						pageContent,
-						option.template,
-						getPageTitle( page )
-					),
-					isSelected: option.value === current,
+					isSelected:
+						Boolean( frontPageTemplate ) ||
+						option.value === current,
 					key: option.value || 'default',
 					label: option.label,
-					onPick: () =>
-						editEntityRecord( 'postType', 'page', pageId, {
-							template: option.value,
-						} ),
+					onPick: frontPageTemplate
+						? undefined
+						: () =>
+								editEntityRecord( 'postType', 'page', pageId, {
+									template: option.value,
+								} ),
+					outline: option.outline,
+					sectionCount,
 				} )
 			)
 		);
@@ -1093,6 +1097,9 @@ function PageLayouts( { blocks, isFrontPage, page, pageId } ) {
 		body
 	);
 }
+
+// Typing the title changes the page on every key, but none of what this shows.
+const MemoizedPageLayouts = memo( PageLayouts );
 
 function SectionGap( { index, isActive, onAdd } ) {
 	return el(
@@ -1333,12 +1340,34 @@ function SectionCard( {
 	);
 }
 
-function SitePartCard( { isHovered, isSelected, onEdit, part } ) {
-	const isHeader = part.area === 'header';
-	const title = isHeader ? __( 'Header' ) : __( 'Footer' );
+function getTemplateElementIcon( element ) {
+	// A site part's icon is a plain SVG, like the sections' own icons. Any
+	// other block's icon comes from the block type, normalized to
+	// `{ src, background, foreground }`, which only `BlockIcon` understands.
+	if ( element.area === 'header' ) {
+		return el( Icon, { icon: headerIcon } );
+	}
+
+	if ( element.area === 'footer' ) {
+		return el( Icon, { icon: footerIcon } );
+	}
+
+	return el( BlockIcon, { icon: getBlockType( element.name )?.icon } );
+}
+
+/*
+ * A block the template puts around the page rather than the page itself: its
+ * header or footer, or anything else the layout adds, like a title or a
+ * featured image. Shown, but fixed, since it isn't this page's to move.
+ */
+function TemplateElementCard( { element, isHovered, isSelected, onEdit } ) {
+	const title = getTemplateElementLabel( element );
+	const key = getTemplateElementKey( element );
+	// Only a site part is its own entity with something to open and edit.
+	const isEditable = Boolean( element.area );
 	const className = [
 		'cnl-page-section',
-		'is-site-part',
+		'is-template-element',
 		isSelected && 'is-selected',
 		isHovered && 'is-hovered',
 	]
@@ -1349,7 +1378,7 @@ function SitePartCard( { isHovered, isSelected, onEdit, part } ) {
 		'li',
 		{
 			className,
-			onMouseEnter: () => sectionBridge.hover( part.area ),
+			onMouseEnter: () => sectionBridge.hover( key ),
 			onMouseLeave: () => sectionBridge.hover( null ),
 		},
 		el(
@@ -1364,7 +1393,7 @@ function SitePartCard( { isHovered, isSelected, onEdit, part } ) {
 				{
 					'aria-current': isSelected ? 'true' : undefined,
 					className: 'cnl-page-section__main',
-					onClick: () => sectionBridge.select( part.area, 'stage' ),
+					onClick: () => sectionBridge.select( key, 'stage' ),
 					type: 'button',
 				},
 				el(
@@ -1373,7 +1402,7 @@ function SitePartCard( { isHovered, isSelected, onEdit, part } ) {
 						'aria-hidden': true,
 						className: 'cnl-page-section__part-icon',
 					},
-					el( Icon, { icon: isHeader ? headerIcon : footerIcon } )
+					getTemplateElementIcon( element )
 				),
 				el(
 					'span',
@@ -1386,41 +1415,56 @@ function SitePartCard( { isHovered, isSelected, onEdit, part } ) {
 					el(
 						'span',
 						{ className: 'cnl-page-section__summary' },
-						__( 'The same on every page' )
+						__( 'Same on every page' )
 					)
 				)
 			),
-			el(
-				DropdownMenu,
-				{
-					className: 'cnl-page-section__menu',
-					icon: moreVerticalIcon,
-					label: sprintf(
-						/* translators: %s: site part name, like Header. */
-						__( 'Options for %s' ),
-						title
-					),
-					popoverProps: { placement: 'bottom-end' },
-					toggleProps: { size: 'small' },
-				},
-				( { onClose } ) =>
-					el(
-						MenuGroup,
-						null,
+			el( Icon, {
+				'aria-hidden': true,
+				className: 'cnl-page-section__lock',
+				icon: lockSmallIcon,
+				size: 20,
+			} ),
+			// Without a menu, keep the lock where it sits when one is there.
+			! isEditable &&
+				el( 'span', {
+					'aria-hidden': true,
+					className: 'cnl-page-section__menu-spacer',
+				} ),
+			isEditable &&
+				el(
+					DropdownMenu,
+					{
+						className: 'cnl-page-section__menu',
+						icon: moreVerticalIcon,
+						label: sprintf(
+							/* translators: %s: site part name, like Header. */
+							__( 'Options for %s' ),
+							title
+						),
+						popoverProps: { placement: 'bottom-end' },
+						toggleProps: { size: 'small' },
+					},
+					( { onClose } ) =>
 						el(
-							MenuItem,
-							{
-								icon: pencilIcon,
-								info: __( 'Changes it on every page' ),
-								onClick: () => {
-									onClose();
-									onEdit( part.id );
+							MenuGroup,
+							null,
+							el(
+								MenuItem,
+								{
+									icon: pencilIcon,
+									info: __( 'Changes it on every page' ),
+									onClick: () => {
+										onClose();
+										onEdit( element.id );
+									},
 								},
-							},
-							isHeader ? __( 'Edit header' ) : __( 'Edit footer' )
+								element.area === 'header'
+									? __( 'Edit header' )
+									: __( 'Edit footer' )
+							)
 						)
-					)
-			)
+				)
 		)
 	);
 }
@@ -1713,8 +1757,8 @@ function SectionList( {
 		'button',
 		{
 			className: `cnl-page-sections__add${
-				insertionIndex === blocks.length ? ' is-active' : ''
-			}`,
+				blocks.length ? '' : ' is-empty'
+			}${ insertionIndex === blocks.length ? ' is-active' : '' }`,
 			onBlur: () => sectionBridge.setInsertionIndex( null ),
 			onClick: () => onAdd( blocks.length ),
 			onFocus: () => sectionBridge.setInsertionIndex( blocks.length ),
@@ -1723,18 +1767,35 @@ function SectionList( {
 			onMouseLeave: () => sectionBridge.setInsertionIndex( null ),
 			type: 'button',
 		},
-		el( Icon, { icon: plusIcon } ),
-		__( 'Add a section' )
+		! blocks.length &&
+			el(
+				Text,
+				{
+					className: 'cnl-page-sections__add-hint',
+					variant: 'body-sm',
+				},
+				__(
+					'Nothing here yet. Pages are built from sections, like a banner, a row of pictures or a contact form.'
+				)
+			),
+		el(
+			'span',
+			{ className: 'cnl-page-sections__add-label' },
+			el( Icon, { icon: plusIcon } ),
+			__( 'Add a section' )
+		)
 	);
-	const renderPart = ( part ) =>
-		part &&
-		el( SitePartCard, {
-			isHovered: hoveredId === part.area,
-			isSelected: selectedId === part.area,
-			key: part.area,
+	const renderElement = ( element ) => {
+		const key = getTemplateElementKey( element );
+
+		return el( TemplateElementCard, {
+			element,
+			isHovered: hoveredId === key,
+			isSelected: selectedId === key,
+			key,
 			onEdit: onEditPart,
-			part,
 		} );
+	};
 
 	return el(
 		'ol',
@@ -1743,193 +1804,16 @@ function SectionList( {
 			ref: listRef,
 			className: `cnl-page-sections__list${
 				dragIndex !== null ? ' is-dragging' : ''
-			}${ structure.header ? ' has-header' : '' }`,
+			}`,
 		},
-		renderPart( structure.header ),
+		structure.before.map( renderElement ),
 		items,
 		el(
 			'li',
-			{
-				className: blocks.length
-					? 'cnl-page-sections__add-item'
-					: 'cnl-page-sections__empty',
-				key: 'add',
-			},
-			! blocks.length &&
-				el(
-					Text,
-					{ variant: 'body-sm' },
-					__(
-						'Nothing here yet. Pages are built from sections, like a banner, a row of pictures or a contact form.'
-					)
-				),
+			{ className: 'cnl-page-sections__add-item', key: 'add' },
 			addButton
 		),
-		renderPart( structure.footer )
-	);
-}
-
-function SectionPatternCard( { onPick, pattern } ) {
-	const title = getPatternTitle( pattern );
-	const description = getPatternDescription( pattern );
-
-	return el(
-		'li',
-		{ className: 'cnl-section-library__item' },
-		el(
-			'button',
-			{
-				'aria-label': sprintf(
-					/* translators: %s: section design name. */
-					__( 'Add %s' ),
-					title
-				),
-				className: 'cnl-section-library__card',
-				onClick: () => onPick( pattern ),
-				title: description || undefined,
-				type: 'button',
-			},
-			el(
-				'span',
-				{ className: 'cnl-section-library__preview' },
-				el( LazyEditorPreview, {
-					content: pattern.content,
-					description: title,
-				} )
-			),
-			el(
-				'span',
-				{ className: 'cnl-section-library__card-footer' },
-				el( 'span', { className: 'cnl-section-library__name' }, title ),
-				el(
-					'span',
-					{ className: 'cnl-section-library__add' },
-					el( Icon, { icon: plusIcon, size: 16 } ),
-					__( 'Add' )
-				)
-			)
-		)
-	);
-}
-
-function SectionLibrary( { blocks, index, onClose, onPick } ) {
-	const { groups, isLoading } = useSectionPatterns();
-	const [ category, setCategory ] = useState( null );
-	const activeGroup =
-		groups.find( ( group ) => group.name === category ) || groups[ 0 ];
-	const previous = blocks[ index - 1 ];
-	const next = blocks[ index ];
-	let placement = __( 'It will go at the end of the page.' );
-
-	if ( ! blocks.length ) {
-		placement = __( 'It will be the first thing on the page.' );
-	} else if ( ! previous ) {
-		placement = sprintf(
-			/* translators: %s: section name. */
-			__( 'It will go at the top, above “%s”.' ),
-			getSectionTitle( next )
-		);
-	} else if ( next ) {
-		placement = sprintf(
-			/* translators: %s: section name. */
-			__( 'It will go after “%s”.' ),
-			getSectionTitle( previous )
-		);
-	}
-
-	useEffect( () => {
-		sectionBridge.setInsertionIndex( index );
-
-		return () => sectionBridge.setInsertionIndex( null );
-	}, [ index ] );
-
-	return el(
-		'section',
-		{
-			'aria-label': __( 'Add a section' ),
-			className: 'cnl-section-library',
-		},
-		el(
-			'header',
-			{ className: 'cnl-section-library__header' },
-			el(
-				Stack,
-				{ direction: 'column', gap: 'xs' },
-				el(
-					'h3',
-					{ className: 'cnl-section-library__title' },
-					__( 'Add a section' )
-				),
-				el(
-					Text,
-					{
-						className: 'cnl-section-library__placement',
-						variant: 'body-sm',
-					},
-					placement
-				)
-			),
-			el( Button, {
-				icon: closeSmallIcon,
-				label: __( 'Close' ),
-				onClick: onClose,
-				size: 'compact',
-			} )
-		),
-		isLoading &&
-			! groups.length &&
-			el(
-				Stack,
-				{ direction: 'column', gap: 'md' },
-				[ 0, 1 ].map( ( key ) =>
-					el( Skeleton, { key, style: { height: 160 } } )
-				)
-			),
-		! isLoading &&
-			! groups.length &&
-			el(
-				Text,
-				{ variant: 'body-sm' },
-				__( 'Your theme has no section designs to offer.' )
-			),
-		groups.length > 0 &&
-			el(
-				'div',
-				{
-					'aria-label': __( 'Kinds of section' ),
-					className: 'cnl-section-library__chips',
-					role: 'group',
-				},
-				groups.map( ( group ) =>
-					el(
-						'button',
-						{
-							'aria-pressed': group === activeGroup,
-							className: 'cnl-section-library__chip',
-							key: group.name,
-							onClick: () => setCategory( group.name ),
-							type: 'button',
-						},
-						group.label
-					)
-				)
-			),
-		activeGroup &&
-			el(
-				'ul',
-				{
-					className: 'cnl-section-library__grid',
-					key: activeGroup.name,
-					role: 'list',
-				},
-				activeGroup.patterns.map( ( pattern ) =>
-					el( SectionPatternCard, {
-						key: pattern.name,
-						onPick,
-						pattern,
-					} )
-				)
-			)
+		structure.after.map( renderElement )
 	);
 }
 
@@ -1946,7 +1830,6 @@ export function PageDetailStage( { pageId } ) {
 	const { blocks, isReady, setBlocks } = usePageSections( pageId );
 	const { createSuccessNotice } = useDispatch( noticesStore );
 	const [ insertAt, setInsertAt ] = useState( null );
-	const bodyRef = useRef();
 	const page = useSelect(
 		( selectStore ) =>
 			selectStore( coreDataStore ).getEditedEntityRecord(
@@ -1968,10 +1851,17 @@ export function PageDetailStage( { pageId } ) {
 	// picked by clicking it on the canvas.
 	useEffect( () => () => sectionBridge.reset(), [ pageId ] );
 
-	const openAdd = ( index ) => {
-		setInsertAt( index );
-		bodyRef.current?.scrollTo( { top: 0 } );
-	};
+	// While the picker is open, the canvas marks where the section will go.
+	useEffect( () => {
+		if ( insertAt === null ) {
+			return;
+		}
+
+		sectionBridge.setInsertionIndex( insertAt );
+
+		return () => sectionBridge.setInsertionIndex( null );
+	}, [ insertAt ] );
+
 	const closeAdd = () => setInsertAt( null );
 	const pickPattern = ( pattern ) => {
 		const newBlocks = getPatternSectionBlocks( pattern );
@@ -1998,6 +1888,13 @@ export function PageDetailStage( { pageId } ) {
 		if ( Number.isInteger( sectionIndex ) ) {
 			selectSectionWhenEditorLoads( sectionIndex );
 		}
+	};
+	const startFromScratch = () => {
+		const index = insertAt;
+
+		setBlocks( insertItems( blocks, index, [ createBlankSection() ] ) );
+		setInsertAt( null );
+		editPage( index );
 	};
 	const editPart = ( id ) =>
 		navigate( { search: { postId: id }, to: '/wp_template_part' } );
@@ -2065,80 +1962,79 @@ export function PageDetailStage( { pageId } ) {
 		},
 		el(
 			'div',
-			{
-				className: `cnl-pages-detail__body${
-					insertAt !== null ? ' is-adding' : ''
-				}`,
-				ref: bodyRef,
-			},
-			insertAt === null &&
-				el( PageSummary, {
-					page: listPage ? { ...listPage, ...page } : page,
-					pageId,
-					roles,
-				} ),
-			insertAt === null &&
-				el( PageLayouts, {
-					blocks,
-					isFrontPage: pageId === frontPageId,
-					page,
-					pageId,
-				} ),
-			insertAt === null &&
+			{ className: 'cnl-pages-detail__body' },
+			el( PageSummary, {
+				page: listPage ? { ...listPage, ...page } : page,
+				pageId,
+				roles,
+			} ),
+			el( MemoizedPageLayouts, {
+				isFrontPage: pageId === frontPageId,
+				pageId,
+				sectionCount: blocks.length,
+				slug: page?.slug,
+				template: page?.template,
+			} ),
+			el(
+				'section',
+				{
+					'aria-label': __( 'Sections' ),
+					className: 'cnl-page-sections',
+				},
 				el(
-					'section',
-					{
-						'aria-label': __( 'Sections' ),
-						className: 'cnl-page-sections',
-					},
+					'header',
+					{ className: 'cnl-page-sections__header' },
 					el(
-						'header',
-						{ className: 'cnl-page-sections__header' },
+						Stack,
+						{ direction: 'column', gap: 'xs' },
 						el(
-							Stack,
-							{ direction: 'column', gap: 'xs' },
-							el(
-								'h3',
-								{ className: 'cnl-page-sections__title' },
-								__( 'On this page' )
-							),
-							isReady &&
-								blocks.length > 0 &&
-								el(
-									Text,
-									{
-										className: 'cnl-page-sections__hint',
-										variant: 'body-sm',
-									},
-									__(
-										'Top to bottom, as visitors see it. Drag sections to reorder them, or click one to find it on the page.'
-									)
-								)
+							'h3',
+							{ className: 'cnl-page-sections__title' },
+							__( 'On this page' )
 						),
 						isReady &&
 							blocks.length > 0 &&
-							el( Button, {
-								icon: plusIcon,
-								label: __( 'Add a section at the top' ),
-								onClick: () => openAdd( 0 ),
-								size: 'compact',
-							} )
+							el(
+								Text,
+								{
+									className: 'cnl-page-sections__hint',
+									variant: 'body-sm',
+								},
+								__(
+									'Top to bottom, as visitors see it. Drag sections to reorder them, or click one to find it on the page.'
+								)
+							)
 					),
-					el( SectionList, {
-						blocks,
-						isReady,
-						onAdd: openAdd,
-						onEdit: editPage,
-						onEditPart: editPart,
-						setBlocks,
-					} )
+					isReady &&
+						blocks.length > 0 &&
+						el( Button, {
+							icon: plusIcon,
+							label: __( 'Add a section at the top' ),
+							onClick: () => setInsertAt( 0 ),
+							size: 'compact',
+						} )
 				),
-			insertAt !== null &&
-				el( SectionLibrary, {
+				el( SectionList, {
 					blocks,
-					index: insertAt,
+					isReady,
+					onAdd: setInsertAt,
+					onEdit: editPage,
+					onEditPart: editPart,
+					setBlocks,
+				} )
+			),
+			insertAt !== null &&
+				el( SectionPicker, {
 					onClose: closeAdd,
 					onPick: pickPattern,
+					onStartFromScratch: startFromScratch,
+					placement: getPlacementText(
+						blocks[ insertAt - 1 ] &&
+							getSectionTitle( blocks[ insertAt - 1 ] ),
+						blocks[ insertAt ] &&
+							getSectionTitle( blocks[ insertAt ] )
+					),
+					Preview: LazyEditorPreview,
 				} )
 		)
 	);

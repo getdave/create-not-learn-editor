@@ -3,6 +3,8 @@
 @use "./theme/modern";
 @use "./routes/content/pages/style" as pages;
 @use "./site-canvas/style" as site-canvas;
+@use "./routes/site-overview/style" as site-overview;
+@use "./section-picker/style" as section-picker;
 
 .cnl-editor-page {
 
@@ -335,6 +337,23 @@
 }
 
 .routes-template-list__create-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.routes-template-list__rename-modal {
+	width: min(520px, calc(100vw - 48px));
+}
+
+.routes-template-list__rename-form {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.routes-template-list__rename-actions {
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
