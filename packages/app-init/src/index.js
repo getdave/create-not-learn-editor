@@ -15,6 +15,8 @@ import {
 /**
  * Internal dependencies
  */
+import { registerSectionMenu } from '../../../src/editor-extensions/section-menu';
+import { registerSectionPatterns } from '../../../src/editor-extensions/section-patterns';
 import { registerTemplatePartEditing } from '../../../src/editor-extensions/template-part-editing';
 import { mountEditorLayer } from '../../../src/editor-layer';
 import { mountTopBar } from '../../../src/top-bar';
@@ -22,6 +24,8 @@ import { mountWorkspaces } from '../../../src/workspaces';
 import { enhanceSidebar } from './sidebar';
 
 export async function init() {
+	registerSectionPatterns();
+	registerSectionMenu();
 	registerTemplatePartEditing();
 	mountEditorLayer();
 

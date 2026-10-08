@@ -27,7 +27,7 @@ import { useEffect, useRef } from '@wordpress/element';
  * `@wordpress/editor` here would make the whole editor a static dependency of
  * page boot, which app init loads before the editor is ever needed.
  */
-const EDITOR_STORE = 'core/editor';
+export const EDITOR_STORE = 'core/editor';
 
 /**
  * The block a page's content is rendered through when it is shown inside its
