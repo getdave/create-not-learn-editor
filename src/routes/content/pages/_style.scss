@@ -1004,17 +1004,6 @@ body.cnl-is-dragging-section * {
 	justify-content: center;
 }
 
-.cnl-pages-canvas__body {
-	position: relative;
-	min-height: 0;
-
-	// Match what boot passes the editor for a preview canvas.
-	.interface-interface-skeleton {
-		position: relative;
-		height: 100%;
-	}
-}
-
 .cnl-pages-canvas__hint {
 	position: absolute;
 	right: 0;

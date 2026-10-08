@@ -200,6 +200,8 @@ function cnl_editor_get_post_preview_context( $post_id, $preview_type = '', $sta
 
 	return array(
 		'editLink'           => $edit_route,
+		'editPostId'         => $edit_route ? $post->ID : '',
+		'editPostType'       => $edit_route ? $post->post_type : '',
 		'previewLabel'       => $title,
 		'previewStatus'      => $status ? $status : $post->post_status,
 		'previewStatusLabel' => $status_label ? $status_label : cnl_editor_get_preview_post_status_label( $post ),
@@ -295,6 +297,8 @@ function cnl_editor_get_front_page_preview_context() {
 
 	return array(
 		'editLink'           => $template_id ? '/wp_template?postId=' . rawurlencode( $template_id ) : '',
+		'editPostId'         => $template_id,
+		'editPostType'       => $template_id ? 'wp_template' : '',
 		'previewLabel'       => __( 'Home', 'create-not-learn-editor' ),
 		'previewStatus'      => 'homepage',
 		'previewStatusLabel' => cnl_editor_get_preview_status_label( 'homepage' ),
@@ -320,14 +324,21 @@ function cnl_editor_get_preview_context( $url ) {
 		return array();
 	}
 
+	/*
+	 * Looked up before the path is compared with the home URL, because a page
+	 * without a pretty permalink (a draft, or a site on plain permalinks) is
+	 * addressed as `/?page_id=…`, which shares the home URL's path.
+	 */
+	$post_id = url_to_postid( $url );
+
 	if (
+		! $post_id &&
 		cnl_editor_normalize_url_path( $url ) ===
 		cnl_editor_normalize_url_path( home_url( '/' ) )
 	) {
 		return cnl_editor_get_front_page_preview_context();
 	}
 
-	$post_id = url_to_postid( $url );
 	if ( $post_id ) {
 		$page_on_front = (int) get_option( 'page_on_front' );
 		$page_for_posts = (int) get_option( 'page_for_posts' );
@@ -356,6 +367,8 @@ function cnl_editor_get_preview_context( $url ) {
 
 	return array(
 		'editLink'           => '',
+		'editPostId'         => '',
+		'editPostType'       => '',
 		'previewLabel'       => __( 'Site preview', 'create-not-learn-editor' ),
 		'previewStatus'      => 'preview',
 		'previewStatusLabel' => __( 'Preview', 'create-not-learn-editor' ),
