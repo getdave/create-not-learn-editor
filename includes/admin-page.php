@@ -763,6 +763,22 @@ function cnl_editor_get_module_map() {
 			'path' => 'routes/styles/content.min',
 		),
 		array(
+			'id'   => 'create-not-learn-editor/routes/colors/route',
+			'path' => 'routes/colors/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/colors/content',
+			'path' => 'routes/colors/content.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/fonts/route',
+			'path' => 'routes/fonts/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/fonts/content',
+			'path' => 'routes/fonts/content.min',
+		),
+		array(
 			'id'   => 'create-not-learn-editor/routes/identity/route',
 			'path' => 'routes/identity/route.min',
 		),
@@ -864,6 +880,16 @@ function cnl_editor_get_routes() {
 			'content_module' => 'create-not-learn-editor/routes/styles/content',
 		),
 		array(
+			'path'           => '/colors',
+			'route_module'   => 'create-not-learn-editor/routes/colors/route',
+			'content_module' => 'create-not-learn-editor/routes/colors/content',
+		),
+		array(
+			'path'           => '/fonts',
+			'route_module'   => 'create-not-learn-editor/routes/fonts/route',
+			'content_module' => 'create-not-learn-editor/routes/fonts/content',
+		),
+		array(
 			'path'           => '/identity',
 			'route_module'   => 'create-not-learn-editor/routes/identity/route',
 			'content_module' => 'create-not-learn-editor/routes/identity/content',
@@ -952,8 +978,20 @@ function cnl_editor_get_menu_items() {
 	);
 	$items[] = array(
 		'id'     => 'styles',
-		'label'  => __( 'Colors & fonts', 'create-not-learn-editor' ),
+		'label'  => __( 'Site look', 'create-not-learn-editor' ),
 		'to'     => '/styles',
+		'parent' => 'design',
+	);
+	$items[] = array(
+		'id'     => 'colors',
+		'label'  => __( 'Colors', 'create-not-learn-editor' ),
+		'to'     => '/colors',
+		'parent' => 'design',
+	);
+	$items[] = array(
+		'id'     => 'fonts',
+		'label'  => __( 'Fonts', 'create-not-learn-editor' ),
+		'to'     => '/fonts',
 		'parent' => 'design',
 	);
 	$items[] = array(

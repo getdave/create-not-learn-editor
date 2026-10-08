@@ -68,8 +68,8 @@ function describeChange( record, { site, getEntityConfig } ) {
 
 	if ( kind === 'root' && name === 'globalStyles' ) {
 		return {
-			label: __( 'Colors & fonts' ),
-			detail: __( 'The look of your whole site' ),
+			label: __( 'Site look' ),
+			detail: __( 'The colors, fonts, and spacing of your whole site' ),
 		};
 	}
 

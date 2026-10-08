@@ -1,4 +1,9 @@
 /**
+ * WordPress dependencies
+ */
+import { useNavigate } from '@wordpress/route';
+
+/**
  * Internal dependencies
  */
 import { settings as appSettings } from '../../settings';
@@ -18,7 +23,6 @@ import {
 import {
 	Button,
 	ColorIndicator,
-	Collapsible,
 	Icon,
 	Link,
 	Spinner,
@@ -350,24 +354,117 @@ function FontCard( {
 	);
 }
 
-function SectionHeading( { title, description, variant = 'heading-sm' } ) {
+/*
+ * The three styles screens are siblings, so each one points at the others
+ * rather than leaving them to the sidebar alone.
+ */
+const COLORS_LINK = {
+	description: __( 'Pick the colors your whole site uses.' ),
+	title: __( 'Colors' ),
+	to: '/colors',
+};
+const FONTS_LINK = {
+	description: __( 'Pick the fonts your whole site uses.' ),
+	title: __( 'Fonts' ),
+	to: '/fonts',
+};
+const LOOK_LINK = {
+	description: __( 'Pick a ready-made look for your whole site.' ),
+	title: __( 'Site look' ),
+	to: '/styles',
+};
+
+function ScreenLinks( { links } ) {
+	const navigate = useNavigate();
+
 	return el(
-		Stack,
-		{ direction: 'column', gap: 'xs' },
+		'nav',
+		{
+			'aria-label': __( 'More ways to change how your site looks' ),
+			className: 'routes-styles__links',
+		},
+		links.map( ( { description, title, to } ) =>
+			el(
+				Button,
+				{
+					className: 'routes-styles__link',
+					key: to,
+					onClick: () => navigate( { to } ),
+				},
+				el(
+					'span',
+					{ className: 'routes-styles__link-text' },
+					el(
+						'span',
+						{ className: 'routes-styles__link-title' },
+						title
+					),
+					el(
+						'span',
+						{ className: 'routes-styles__link-description' },
+						description
+					)
+				),
+				el( Icon, {
+					className: 'routes-styles__link-icon',
+					icon: chevronRightIcon,
+				} )
+			)
+		)
+	);
+}
+
+/**
+ * The shell every styles screen shares: its title, the live-preview layout,
+ * and the way out to the full Styles editor.
+ *
+ * @param {Object}  props             Component props.
+ * @param {Node}    props.children    The screen's options, once loaded.
+ * @param {string}  props.description Sentence under the title.
+ * @param {boolean} props.isLoading   Whether the theme's styles are still loading.
+ * @param {string}  props.title       Screen title.
+ * @return {Node} The screen.
+ */
+function StylesScreen( { children, description, isLoading, title } ) {
+	return el(
+		'div',
+		{ className: 'cnl-editor-stage routes-styles' },
 		el(
-			Text,
-			{
-				render: el( 'h2' ),
-				variant,
-			},
-			title
+			Stack,
+			{ direction: 'column', gap: 'xs' },
+			el( Text, { render: el( 'h1' ), variant: 'heading-lg' }, title ),
+			el(
+				Text,
+				{ className: 'routes-styles__muted', variant: 'body-md' },
+				description
+			)
 		),
-		description &&
+		isLoading &&
+			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
+		! isLoading && children,
+		! isLoading &&
 			el(
 				Text,
 				{ className: 'routes-styles__muted', variant: 'body-sm' },
-				description
+				__( 'Want more control? Every style setting is in the' ),
+				' ',
+				el(
+					Link,
+					{
+						href: `${ appSettings.adminUrl }site-editor.php?p=%2Fstyles`,
+					},
+					__( 'full Styles editor' )
+				),
+				'.'
 			)
+	);
+}
+
+function EmptyNote( { children } ) {
+	return el(
+		Text,
+		{ className: 'routes-styles__muted', variant: 'body-sm' },
+		children
 	);
 }
 
@@ -386,11 +483,146 @@ export function StylesStage() {
 	);
 	const basePalette = getVariationPalette( baseStyles );
 	const baseFontFamilies = getVariationFontFamilies( baseStyles );
+
+	return el(
+		StylesScreen,
+		{
+			description: themeName
+				? sprintf(
+						/* translators: %s: Theme name. */
+						__(
+							'Each look sets colors, fonts, and spacing together. Your theme, %s, provides these looks.'
+						),
+						themeName
+					)
+				: __( 'Each look sets colors, fonts, and spacing together.' ),
+			isLoading,
+			title: __( 'Site look' ),
+		},
+		el(
+			'div',
+			{ className: 'routes-styles__looks' },
+			el( LookCard, {
+				basePalette,
+				baseFontFamilies,
+				isSelected: areStyleConfigsEqual( userConfig, {} ),
+				onSelect: () => setConfig( {} ),
+				title: __( 'Theme default' ),
+				variation: baseStyles,
+			} ),
+			groups.looks.map( ( variation, index ) =>
+				el( LookCard, {
+					basePalette,
+					baseFontFamilies,
+					isSelected: areStyleConfigsEqual( userConfig, variation ),
+					key: `${ getVariationTitle( variation ) }-${ index }`,
+					onSelect: () => setConfig( variation ),
+					title: getVariationTitle(
+						variation,
+						sprintf(
+							/* translators: %d: Style number. */
+							__( 'Look %d' ),
+							index + 1
+						)
+					),
+					variation,
+				} )
+			)
+		),
+		! groups.looks.length &&
+			el(
+				EmptyNote,
+				null,
+				__( 'Your theme only offers its default look.' )
+			),
+		el( ScreenLinks, { links: [ COLORS_LINK, FONTS_LINK ] } )
+	);
+}
+
+export function ColorsStage() {
+	const {
+		baseStyles,
+		isLoading,
+		setConfig,
+		themeName,
+		userConfig,
+		variations,
+	} = useStylesData();
+	const groups = useMemo(
+		() => groupStyleVariations( variations ),
+		[ variations ]
+	);
+	const basePalette = getVariationPalette( baseStyles );
 	const activeColors = findActivePreset(
 		userConfig,
 		groups.colors,
 		COLOR_PROPERTIES
 	);
+
+	return el(
+		StylesScreen,
+		{
+			description: themeName
+				? sprintf(
+						/* translators: %s: Theme name. */
+						__(
+							'Changes the whole site at once. Your theme, %s, provides these palettes.'
+						),
+						themeName
+					)
+				: __( 'Changes the whole site at once.' ),
+			isLoading,
+			title: __( 'Colors' ),
+		},
+		el(
+			'div',
+			{ className: 'routes-styles__palettes' },
+			el( PaletteOption, {
+				colors: getSwatches( basePalette ),
+				isSelected: ! activeColors,
+				onSelect: () =>
+					setConfig(
+						applyPreset( userConfig, null, COLOR_PROPERTIES )
+					),
+				title: __( 'Theme colors' ),
+			} ),
+			groups.colors.map( ( preset ) =>
+				el( PaletteOption, {
+					colors: getSwatches( getVariationPalette( preset ) ),
+					isSelected: activeColors === preset,
+					key: getVariationTitle( preset ),
+					onSelect: () =>
+						setConfig(
+							applyPreset( userConfig, preset, COLOR_PROPERTIES )
+						),
+					title: getVariationTitle( preset ),
+				} )
+			)
+		),
+		! groups.colors.length &&
+			el(
+				EmptyNote,
+				null,
+				__( 'Your theme only offers its own palette.' )
+			),
+		el( ScreenLinks, { links: [ LOOK_LINK, FONTS_LINK ] } )
+	);
+}
+
+export function FontsStage() {
+	const {
+		baseStyles,
+		isLoading,
+		setConfig,
+		themeName,
+		userConfig,
+		variations,
+	} = useStylesData();
+	const groups = useMemo(
+		() => groupStyleVariations( variations ),
+		[ variations ]
+	);
+	const baseFontFamilies = getVariationFontFamilies( baseStyles );
 	const activeFonts = findActivePreset(
 		userConfig,
 		groups.fonts,
@@ -398,257 +630,72 @@ export function StylesStage() {
 	);
 
 	return el(
-		'div',
-		{ className: 'cnl-editor-stage routes-styles' },
+		StylesScreen,
+		{
+			description: themeName
+				? sprintf(
+						/* translators: %s: Theme name. */
+						__(
+							'Changes the whole site at once. Your theme, %s, provides these pairings.'
+						),
+						themeName
+					)
+				: __( 'Changes the whole site at once.' ),
+			isLoading,
+			title: __( 'Fonts' ),
+		},
 		el(
-			Stack,
-			{ direction: 'column', gap: 'xs' },
-			el(
-				Text,
-				{ render: el( 'h1' ), variant: 'heading-lg' },
-				__( 'Colors & fonts' )
-			),
-			el(
-				Text,
-				{ className: 'routes-styles__muted', variant: 'body-md' },
-				themeName
-					? sprintf(
-							/* translators: %s: Theme name. */
-							__(
-								'Changes the whole site at once. Your theme, %s, provides these options.'
-							),
-							themeName
-						)
-					: __( 'Changes the whole site at once.' )
-			)
-		),
-		isLoading &&
-			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
-		! isLoading &&
-			el(
-				'section',
-				{ className: 'routes-styles__section' },
-				el( SectionHeading, {
-					description: __(
-						'Each look sets colors, fonts, and spacing together.'
+			'div',
+			{ className: 'routes-styles__fonts' },
+			el( FontCard, {
+				bodyFont: getBodyFontFamily( baseStyles, baseFontFamilies ),
+				bodyFontName: getBodyFontName( baseStyles, baseFontFamilies ),
+				headingFont: getHeadingFontFamily(
+					baseStyles,
+					baseFontFamilies
+				),
+				headingFontName: getHeadingFontName(
+					baseStyles,
+					baseFontFamilies
+				),
+				isSelected: ! activeFonts,
+				onSelect: () =>
+					setConfig(
+						applyPreset( userConfig, null, TYPOGRAPHY_PROPERTIES )
 					),
-					title: __( 'Pick a look' ),
-					variant: 'heading-md',
-				} ),
-				el(
-					'div',
-					{ className: 'routes-styles__looks' },
-					el( LookCard, {
-						basePalette,
-						baseFontFamilies,
-						isSelected: areStyleConfigsEqual( userConfig, {} ),
-						onSelect: () => setConfig( {} ),
-						title: __( 'Theme default' ),
-						variation: baseStyles,
-					} ),
-					groups.looks.map( ( variation, index ) =>
-						el( LookCard, {
-							basePalette,
-							baseFontFamilies,
-							isSelected: areStyleConfigsEqual(
-								userConfig,
-								variation
-							),
-							key: `${ getVariationTitle( variation ) }-${ index }`,
-							onSelect: () => setConfig( variation ),
-							title: getVariationTitle(
-								variation,
-								sprintf(
-									/* translators: %d: Style number. */
-									__( 'Look %d' ),
-									index + 1
-								)
-							),
-							variation,
-						} )
-					)
-				)
-			),
-		! isLoading &&
-			( groups.colors.length > 0 || groups.fonts.length > 0 ) &&
-			el(
-				Collapsible.Root,
-				{ className: 'routes-styles__customize' },
-				el(
-					Collapsible.Trigger,
-					{ className: 'routes-styles__customize-trigger' },
-					el( Icon, {
-						className: 'routes-styles__customize-icon',
-						icon: chevronRightIcon,
-					} ),
-					el(
-						Stack,
-						{ direction: 'column', gap: '3xs' },
-						el(
-							Text,
-							{ render: el( 'span' ), variant: 'heading-sm' },
-							__( 'Customize colors and fonts' )
-						),
-						el(
-							Text,
-							{
-								className: 'routes-styles__muted',
-								variant: 'body-sm',
-							},
-							__( 'Optional. Fine-tune beyond the preset looks.' )
-						)
-					)
-				),
-				el(
-					Collapsible.Panel,
-					{ className: 'routes-styles__customize-panel' },
-					groups.colors.length > 0 &&
-						el(
-							'div',
-							{ className: 'routes-styles__field' },
-							el(
-								Text,
-								{
-									className: 'routes-styles__sublabel',
-									variant: 'body-sm',
-								},
-								__( 'Colors' )
-							),
-							el(
-								'div',
-								{ className: 'routes-styles__palettes' },
-								el( PaletteOption, {
-									colors: getSwatches( basePalette ),
-									isSelected: ! activeColors,
-									onSelect: () =>
-										setConfig(
-											applyPreset(
-												userConfig,
-												null,
-												COLOR_PROPERTIES
-											)
-										),
-									title: __( 'Theme colors' ),
-								} ),
-								groups.colors.map( ( preset ) =>
-									el( PaletteOption, {
-										colors: getSwatches(
-											getVariationPalette( preset )
-										),
-										isSelected: activeColors === preset,
-										key: getVariationTitle( preset ),
-										onSelect: () =>
-											setConfig(
-												applyPreset(
-													userConfig,
-													preset,
-													COLOR_PROPERTIES
-												)
-											),
-										title: getVariationTitle( preset ),
-									} )
-								)
-							)
-						),
-					groups.fonts.length > 0 &&
-						el(
-							'div',
-							{ className: 'routes-styles__field' },
-							el(
-								Text,
-								{
-									className: 'routes-styles__sublabel',
-									variant: 'body-sm',
-								},
-								__( 'Fonts' )
-							),
-							el(
-								'div',
-								{ className: 'routes-styles__fonts' },
-								el( FontCard, {
-									bodyFont: getBodyFontFamily(
-										baseStyles,
-										baseFontFamilies
-									),
-									bodyFontName: getBodyFontName(
-										baseStyles,
-										baseFontFamilies
-									),
-									headingFont: getHeadingFontFamily(
-										baseStyles,
-										baseFontFamilies
-									),
-									headingFontName: getHeadingFontName(
-										baseStyles,
-										baseFontFamilies
-									),
-									isSelected: ! activeFonts,
-									onSelect: () =>
-										setConfig(
-											applyPreset(
-												userConfig,
-												null,
-												TYPOGRAPHY_PROPERTIES
-											)
-										),
-									title: __( 'Theme fonts' ),
-								} ),
-								groups.fonts.map( ( preset ) => {
-									const fontFamilies =
-										getVariationFontFamilies( preset )
-											.length
-											? getVariationFontFamilies( preset )
-											: baseFontFamilies;
+				title: __( 'Theme fonts' ),
+			} ),
+			groups.fonts.map( ( preset ) => {
+				const fontFamilies = getVariationFontFamilies( preset ).length
+					? getVariationFontFamilies( preset )
+					: baseFontFamilies;
 
-									return el( FontCard, {
-										bodyFont: getBodyFontFamily(
-											preset,
-											fontFamilies
-										),
-										bodyFontName: getBodyFontName(
-											preset,
-											fontFamilies
-										),
-										headingFont: getHeadingFontFamily(
-											preset,
-											fontFamilies
-										),
-										headingFontName: getHeadingFontName(
-											preset,
-											fontFamilies
-										),
-										isSelected: activeFonts === preset,
-										key: getVariationTitle( preset ),
-										onSelect: () =>
-											setConfig(
-												applyPreset(
-													userConfig,
-													preset,
-													TYPOGRAPHY_PROPERTIES
-												)
-											),
-										title: getVariationTitle( preset ),
-									} );
-								} )
+				return el( FontCard, {
+					bodyFont: getBodyFontFamily( preset, fontFamilies ),
+					bodyFontName: getBodyFontName( preset, fontFamilies ),
+					headingFont: getHeadingFontFamily( preset, fontFamilies ),
+					headingFontName: getHeadingFontName( preset, fontFamilies ),
+					isSelected: activeFonts === preset,
+					key: getVariationTitle( preset ),
+					onSelect: () =>
+						setConfig(
+							applyPreset(
+								userConfig,
+								preset,
+								TYPOGRAPHY_PROPERTIES
 							)
-						)
-				)
-			),
-		! isLoading &&
+						),
+					title: getVariationTitle( preset ),
+				} );
+			} )
+		),
+		! groups.fonts.length &&
 			el(
-				Text,
-				{ className: 'routes-styles__muted', variant: 'body-sm' },
-				__( 'Want more control? Every style setting is in the' ),
-				' ',
-				el(
-					Link,
-					{
-						href: `${ appSettings.adminUrl }site-editor.php?p=%2Fstyles`,
-					},
-					__( 'full Styles editor' )
-				),
-				'.'
-			)
+				EmptyNote,
+				null,
+				__( 'Your theme only offers its own fonts.' )
+			),
+		el( ScreenLinks, { links: [ LOOK_LINK, COLORS_LINK ] } )
 	);
 }
 

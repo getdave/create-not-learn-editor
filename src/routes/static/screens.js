@@ -6,12 +6,30 @@ import { __ } from '../../wordpress-packages';
 const screens = {
 	'/styles': {
 		description: __(
-			'Pick a look for your whole site, then fine-tune it.'
+			'Pick a look for your whole site. Each look sets colors, fonts, and spacing together.'
 		),
 		icon: 'dashicons-admin-appearance',
 		section: __( 'Design' ),
-		status: __( 'Styles' ),
-		title: __( 'Colors & fonts' ),
+		status: __( 'Site look' ),
+		title: __( 'Site look' ),
+	},
+	'/colors': {
+		description: __(
+			'The colors your whole site uses. Your theme provides these palettes.'
+		),
+		icon: 'dashicons-art',
+		section: __( 'Design' ),
+		status: __( 'Colors' ),
+		title: __( 'Colors' ),
+	},
+	'/fonts': {
+		description: __(
+			'The fonts your whole site uses. Your theme provides these pairings.'
+		),
+		icon: 'dashicons-editor-textcolor',
+		section: __( 'Design' ),
+		status: __( 'Fonts' ),
+		title: __( 'Fonts' ),
 	},
 	'/identity': {
 		description: __(

@@ -6,7 +6,22 @@
  * WordPress and never needs to write anything when the editor loads.
  */
 
-export const CREATION_STEP_IDS = [ 'identity', 'styles', 'homepage', 'pages' ];
+/**
+ * Internal dependencies
+ */
+import {
+	COLOR_PROPERTIES,
+	TYPOGRAPHY_PROPERTIES,
+	filterByProperties,
+} from '../static/style-variations';
+
+export const CREATION_STEP_IDS = [
+	'identity',
+	'colors',
+	'fonts',
+	'homepage',
+	'pages',
+];
 
 /*
  * A fresh install ships with a Home page and the Sample Page, so a site needs
@@ -44,6 +59,44 @@ export function hasCustomGlobalStyles( globalStyles ) {
 }
 
 /**
+ * Whether the user has changed part of the theme's styles.
+ *
+ * The Colors and Fonts screens each own one group of properties, so a step is
+ * done once anything in its group is stored. Picking a whole-site look stores
+ * both groups at once and finishes both steps.
+ *
+ * @param {Object}   globalStyles The user's global styles record.
+ * @param {string[]} properties   Properties the screen controls.
+ * @return {boolean} Whether any of those properties are stored.
+ */
+function hasCustomStyleProperties( globalStyles, properties ) {
+	return hasCustomGlobalStyles( {
+		settings: filterByProperties( globalStyles?.settings, properties ),
+		styles: filterByProperties( globalStyles?.styles, properties ),
+	} );
+}
+
+/**
+ * Whether the user has changed the theme's colors.
+ *
+ * @param {Object} globalStyles The user's global styles record.
+ * @return {boolean} Whether any user colors are stored.
+ */
+export function hasCustomColors( globalStyles ) {
+	return hasCustomStyleProperties( globalStyles, COLOR_PROPERTIES );
+}
+
+/**
+ * Whether the user has changed the theme's fonts.
+ *
+ * @param {Object} globalStyles The user's global styles record.
+ * @return {boolean} Whether any user typography or spacing is stored.
+ */
+export function hasCustomFonts( globalStyles ) {
+	return hasCustomStyleProperties( globalStyles, TYPOGRAPHY_PROPERTIES );
+}
+
+/**
  * Whether a page has been saved again after it was first created.
  *
  * @param {Object} page Page record with `date_gmt` and `modified_gmt`.
@@ -78,7 +131,8 @@ export function getCreationStepStatus( {
 } = {} ) {
 	return {
 		identity: Boolean( site?.description?.trim() || site?.site_logo ),
-		styles: hasCustomGlobalStyles( globalStyles ),
+		colors: hasCustomColors( globalStyles ),
+		fonts: hasCustomFonts( globalStyles ),
 		homepage:
 			site?.show_on_front === 'page' &&
 			Boolean( frontPage ) &&

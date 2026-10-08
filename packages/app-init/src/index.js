@@ -4,12 +4,14 @@
 import { store as bootStore } from '@wordpress/boot';
 import { dispatch } from '@wordpress/data';
 import {
+	color,
 	layout,
 	navigation,
 	siteLogo,
 	styles,
 	symbol,
 	symbolFilled,
+	typography,
 } from '@wordpress/icons';
 
 /**
@@ -32,6 +34,8 @@ export async function init() {
 	mountEditorLayer();
 
 	const menuIcons = {
+		colors: color,
+		fonts: typography,
 		identity: siteLogo,
 		navigation,
 		patterns: symbol,
