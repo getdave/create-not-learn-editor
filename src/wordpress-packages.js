@@ -68,8 +68,10 @@ import { DataViewsPicker, filterSortAndPaginate } from '@wordpress/dataviews';
 import { DataViews } from '@wordpress/dataviews/wp';
 import {
 	createElement as el,
+	memo,
 	useCallback,
 	useEffect,
+	useId,
 	useMemo,
 	useRef,
 	useState,
@@ -228,6 +230,7 @@ export {
 	MenuGroup,
 	MenuItem,
 	MediaUpload,
+	memo,
 	mobile as mobileIcon,
 	moreVertical as moreVerticalIcon,
 	Modal,
@@ -285,6 +288,7 @@ export {
 	useEditorSettings,
 	useEntityBlockEditor,
 	useEffect,
+	useId,
 	useMemo,
 	useRef,
 	useSelect,
