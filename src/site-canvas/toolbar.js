@@ -1,7 +1,7 @@
 /**
  * The site canvas toolbar's controls: switching between Preview and Edit,
- * stepping through pages visited or changes made, the preview's device, and
- * the way out to the full-screen editor.
+ * stepping through pages visited in Preview, the preview's device, and the
+ * way out to the full-screen editor.
  */
 
 /**
@@ -12,7 +12,6 @@ import {
 	Button,
 	chevronLeftIcon,
 	chevronRightIcon,
-	coreDataStore,
 	desktopIcon,
 	el,
 	fullscreenIcon,
@@ -21,8 +20,6 @@ import {
 	ToggleGroupControlOption,
 	ToggleGroupControl,
 	ToggleGroupControlOptionIcon,
-	useDispatch,
-	useSelect,
 } from '../wordpress-packages';
 import { SURFACE_EDIT, SURFACE_PREVIEW } from './constants';
 
@@ -173,38 +170,6 @@ export function PreviewHistory( { history, onMove } ) {
 			icon: chevronRightIcon,
 			label: __( 'Forward in preview' ),
 			onClick: () => onMove( 'forward' ),
-		},
-	} );
-}
-
-/**
- * Step back and forward through changes made while editing.
- *
- * @return {Element} The undo and redo buttons.
- */
-export function EditHistory() {
-	const { hasRedo, hasUndo } = useSelect(
-		( select ) => ( {
-			hasRedo: select( coreDataStore ).hasRedo(),
-			hasUndo: select( coreDataStore ).hasUndo(),
-		} ),
-		[]
-	);
-	const { redo, undo } = useDispatch( coreDataStore );
-
-	return el( HistoryGroup, {
-		label: __( 'Changes' ),
-		back: {
-			disabled: ! hasUndo,
-			icon: chevronLeftIcon,
-			label: __( 'Undo' ),
-			onClick: () => undo(),
-		},
-		forward: {
-			disabled: ! hasRedo,
-			icon: chevronRightIcon,
-			label: __( 'Redo' ),
-			onClick: () => redo(),
 		},
 	} );
 }
