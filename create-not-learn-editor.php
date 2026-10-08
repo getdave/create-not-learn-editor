@@ -69,10 +69,12 @@ function cnl_editor_bootstrap() {
 	require_once CNL_EDITOR_PATH . 'includes/rest-api.php';
 	require_once CNL_EDITOR_PATH . 'includes/admin-page.php';
 	require_once CNL_EDITOR_PATH . 'includes/block-canvas-styles.php';
+	require_once CNL_EDITOR_PATH . 'includes/plugin-compat.php';
 
 	cnl_editor_register_content_type_hooks();
 	cnl_editor_register_block_template_hooks();
 	cnl_editor_register_rest_hooks();
 	cnl_editor_register_admin_page_hooks();
 	cnl_editor_register_block_canvas_style_hooks();
+	cnl_editor_register_plugin_compat_hooks();
 }
