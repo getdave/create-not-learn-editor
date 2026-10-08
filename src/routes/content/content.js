@@ -30,11 +30,17 @@ import {
 import { isPageInMenu } from './menu-status';
 import useMainMenu, { useAddPageToMenu } from './use-main-menu';
 import { PageDetailStage, PagesTree } from './pages/stage';
+import {
+	DesignPicker,
+	DesignPickerNav,
+	GridShapeIcon,
+	GroupHeading,
+	StartFromScratch,
+} from '../../design-picker';
 import PagesCanvas from './pages/canvas';
 import {
 	Badge,
 	Button,
-	Card,
 	CheckboxControl,
 	chevronLeftIcon,
 	chevronRightIcon,
@@ -46,9 +52,7 @@ import {
 	infoIcon,
 	InputControl,
 	MenuItem,
-	Modal,
 	Notice,
-	plusIcon,
 	Popover,
 	SelectControl,
 	Skeleton,
@@ -58,7 +62,6 @@ import {
 	Text,
 	ToggleGroupControl,
 	ToggleGroupControlOptionIcon,
-	UiButton,
 	__,
 	el,
 	layoutIcon,
@@ -73,6 +76,7 @@ import {
 	serialize,
 	useEffect,
 	useDispatch,
+	useId,
 	useMemo,
 	useRef,
 	useSelect,
@@ -133,6 +137,8 @@ const TEMPLATE_QUERY = {
 
 const PAGE_TITLE_PREVIEW_DEBOUNCE_MS = 700;
 
+const BLANK_PAGE_PATTERN = { content: '' };
+
 /*
  * Each density is a grid shape, and that shape doubles as the page size: the
  * design grid never scrolls, so `columns * rows` designs is exactly what fits
@@ -150,48 +156,6 @@ function getPageLayoutDensity( columns ) {
 		PAGE_LAYOUT_DENSITIES.find(
 			( density ) => density.columns === columns
 		) || PAGE_LAYOUT_DENSITIES[ 1 ]
-	);
-}
-
-/*
- * Drawn here rather than pulled from `@wordpress/icons` so all three densities
- * share one stroke style and each icon mirrors its own grid shape.
- */
-function PageLayoutDensityIcon( { columns, rows } ) {
-	const gap = 1.8;
-	const width = ( 14 - gap * ( columns - 1 ) ) / columns;
-	const height = ( 14 - gap * ( rows - 1 ) ) / rows;
-	const cells = [];
-
-	for ( let row = 0; row < rows; row++ ) {
-		for ( let column = 0; column < columns; column++ ) {
-			cells.push( { column, row } );
-		}
-	}
-
-	return el(
-		'svg',
-		{
-			'aria-hidden': true,
-			focusable: false,
-			height: 24,
-			stroke: 'currentColor',
-			strokeWidth: 1.5,
-			style: { fill: 'none' },
-			viewBox: '0 0 24 24',
-			width: 24,
-			xmlns: 'http://www.w3.org/2000/svg',
-		},
-		cells.map( ( { column, row } ) =>
-			el( 'rect', {
-				height,
-				key: `${ row }-${ column }`,
-				rx: Math.min( 1.5, width / 3, height / 3 ),
-				width,
-				x: 5 + column * ( width + gap ),
-				y: 5 + row * ( height + gap ),
-			} )
-		)
 	);
 }
 
@@ -721,31 +685,17 @@ function PageLayoutResultsPlaceholder( { columns, rows } ) {
 		'div',
 		{
 			'aria-hidden': true,
-			className:
-				'cnl-add-page-layout-grid cnl-add-page-layout-grid--placeholder',
+			className: 'cnl-add-page-layout-grid',
 			style: {
 				'--cnl-add-page-layout-columns': columns,
 				'--cnl-add-page-layout-rows': rows,
 			},
 		},
 		Array.from( { length: columns * rows } ).map( ( _, index ) =>
-			el(
-				Card.Root,
-				{
-					className:
-						'cnl-add-page-layout-card cnl-add-page-layout-card-placeholder',
-					key: index,
-				},
-				el(
-					Card.Content,
-					{ className: 'cnl-add-page-layout-card__body' },
-					el(
-						'div',
-						{ className: 'cnl-add-page-layout-card__preview' },
-						el( PageLayoutPreviewPlaceholder )
-					)
-				)
-			)
+			el( Skeleton, {
+				className: 'cnl-add-page-layout-skeleton',
+				key: index,
+			} )
 		)
 	);
 }
@@ -755,12 +705,7 @@ function PageLayoutResultsPlaceholder( { columns, rows } ) {
  * card footer rather than the whole card. That keeps the scroll region and the
  * click target from competing.
  */
-function PageLayoutCard( {
-	isCompact,
-	onSelect,
-	pageTemplateContent,
-	pattern,
-} ) {
+function PageLayoutCard( { onSelect, pageTemplateContent, pattern } ) {
 	const previewContent = getPatternPreviewContent(
 		pattern,
 		pageTemplateContent
@@ -769,71 +714,48 @@ function PageLayoutCard( {
 	const description = getPatternDescription( pattern );
 
 	return el(
-		Card.Root,
-		{ className: 'cnl-add-page-layout-card' },
+		'div',
+		{
+			className: 'cnl-design-picker__card cnl-add-page-layout-card',
+			title: description || undefined,
+		},
 		el(
-			Card.Content,
+			'div',
 			{
-				className: 'cnl-add-page-layout-card__body',
-				render: el( Stack, { direction: 'column', gap: 'lg' } ),
+				className:
+					'cnl-design-picker__preview cnl-add-page-layout-card__preview',
 			},
 			el(
 				'div',
-				{ className: 'cnl-add-page-layout-card__preview' },
-				el(
-					'div',
-					{ className: 'cnl-add-page-layout-preview-page' },
-					previewContent
-						? el( LazyEditorPreview, {
-								content: previewContent,
-								description: title,
-								placeholder: el( PageLayoutPreviewPlaceholder ),
-							} )
-						: el( PageLayoutPreviewPlaceholder )
-				)
-			),
+				{ className: 'cnl-add-page-layout-preview-page' },
+				previewContent
+					? el( LazyEditorPreview, {
+							content: previewContent,
+							description: title,
+							placeholder: el( PageLayoutPreviewPlaceholder ),
+						} )
+					: el( PageLayoutPreviewPlaceholder )
+			)
+		),
+		el(
+			'div',
+			{ className: 'cnl-design-picker__card-footer' },
+			el( 'span', { className: 'cnl-design-picker__name' }, title ),
 			el(
-				Stack,
+				'button',
 				{
-					align: isCompact ? 'stretch' : 'center',
-					className: 'cnl-add-page-layout-card__footer',
-					direction: isCompact ? 'column' : 'row',
-					gap: isCompact ? 'sm' : 'md',
-					justify: 'space-between',
+					className: 'cnl-design-picker__action',
+					onClick: () => onSelect( pattern ),
+					type: 'button',
 				},
-				el(
-					Stack,
-					{
-						className: 'cnl-add-page-layout-card__meta',
-						direction: 'column',
-					},
-					el(
-						Card.Title,
-						{ render: el( Text, { variant: 'body-md' } ) },
-						title
-					),
-					! isCompact &&
-						description &&
-						el(
-							Text,
-							{
-								className:
-									'cnl-add-page-layout-card__description',
-								variant: 'body-sm',
-							},
-							description
-						)
-				),
-				el(
-					UiButton,
-					{
-						onClick: () => onSelect( pattern ),
-						size: 'compact',
-						tone: 'neutral',
-						variant: 'solid',
-					},
-					__( 'Use design' )
-				)
+				__( 'Use design' ),
+				el( Icon, {
+					icon:
+						document.documentElement.dir === 'rtl'
+							? chevronLeftIcon
+							: chevronRightIcon,
+					size: 16,
+				} )
 			)
 		)
 	);
@@ -880,6 +802,7 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 	const [ publishImmediately, setPublishImmediately ] = useState( true );
 	const [ validationError, setValidationError ] = useState();
 	const [ isBusy, setIsBusy ] = useState( false );
+	const idPrefix = `cnl-add-page-${ useId().replace( /:/g, '' ) }`;
 	const { isResolving, patterns } = usePageLayoutPatterns();
 	const pageLayoutGroups = useMemo(
 		() => getPageLayoutGroups( patterns ),
@@ -912,33 +835,6 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 		1,
 		Math.ceil( activePageLayouts.length / pageLayoutPerPage )
 	);
-	const currentPageLayoutPage = Math.min(
-		pageLayoutPage,
-		pageLayoutPageCount
-	);
-	const visiblePageLayouts = activePageLayouts.slice(
-		( currentPageLayoutPage - 1 ) * pageLayoutPerPage,
-		currentPageLayoutPage * pageLayoutPerPage
-	);
-	/*
-	 * Only lay out the rows that actually have designs in them, so a partly
-	 * filled last page stretches to fill the panel instead of leaving a void.
-	 */
-	const visiblePageLayoutRows = Math.max(
-		1,
-		Math.min(
-			activePageLayoutDensity.rows,
-			Math.ceil(
-				visiblePageLayouts.length / activePageLayoutDensity.columns
-			)
-		)
-	);
-	const firstVisiblePageLayoutIndex =
-		( currentPageLayoutPage - 1 ) * pageLayoutPerPage + 1;
-	const lastVisiblePageLayoutIndex = Math.min(
-		currentPageLayoutPage * pageLayoutPerPage,
-		activePageLayouts.length
-	);
 	const isLoadingPageLayouts = isResolving && ! pageLayoutGroups.length;
 	const pageTemplateOptions = useMemo(
 		() => getPageTemplateOptions( templates ),
@@ -948,8 +844,12 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 		() => getSelectedTemplateContent( templates, selectedTemplateSlug ),
 		[ selectedTemplateSlug, templates ]
 	);
+	const isShowingForm = startedBlank || !! selectedLayout;
+	// A blank page still previews, as its layout with nothing in it.
+	const previewPattern =
+		selectedLayout || ( startedBlank ? BLANK_PAGE_PATTERN : undefined );
 	useEffect( () => {
-		if ( ! selectedLayout ) {
+		if ( ! previewPattern ) {
 			setPreviewPageTitle( pageTitle );
 			return undefined;
 		}
@@ -960,21 +860,19 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 		);
 
 		return () => window.clearTimeout( timeoutId );
-	}, [ pageTitle, selectedLayout ] );
-	const selectedLayoutPreviewContent = useMemo(
+	}, [ pageTitle, previewPattern ] );
+	const formPreviewContent = useMemo(
 		() =>
-			selectedLayout
+			previewPattern
 				? getPatternPreviewContentWithTitle(
-						selectedLayout,
+						previewPattern,
 						pageTemplateContent,
 						previewPageTitle,
 						{ parseBlocks, serialize }
 					)
 				: '',
-		[ pageTemplateContent, previewPageTitle, selectedLayout ]
+		[ pageTemplateContent, previewPageTitle, previewPattern ]
 	);
-	const isShowingForm = startedBlank || !! selectedLayout;
-	const isChoosingLayout = ! isShowingForm;
 	const canCreate = pageTitle.trim().length > 0;
 
 	useEffect( () => {
@@ -1015,15 +913,6 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 		setPageTitle( getPatternTitle( pattern ) );
 		setValidationError( undefined );
 	};
-	const visiblePageLayoutCards = visiblePageLayouts.map( ( pattern ) =>
-		el( PageLayoutCard, {
-			isCompact: pageLayoutPerPage > 2,
-			key: pattern.name,
-			onSelect: handleSelectLayout,
-			pageTemplateContent,
-			pattern,
-		} )
-	);
 	const createPage = async () => {
 		const trimmedTitle = pageTitle.trim();
 
@@ -1078,280 +967,85 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 			Math.min( pageLayoutPageCount, page + 1 )
 		);
 
-	return el(
-		Modal,
-		{
-			className: `cnl-add-page-modal${
-				isChoosingLayout ? ' is-layout-picker' : ''
-			}`,
-			headerActions: isChoosingLayout
-				? el(
-						ToggleGroupControl,
-						{
-							__nextHasNoMarginBottom: true,
-							className: 'cnl-add-page-density-switcher',
-							hideLabelFromVision: true,
-							label: __( 'Preview size' ),
-							onChange: ( value ) =>
-								setPageLayoutColumns( Number( value ) ),
-							value: pageLayoutColumns,
-						},
-						PAGE_LAYOUT_DENSITIES.map( ( density ) =>
-							el( ToggleGroupControlOptionIcon, {
-								icon: el( PageLayoutDensityIcon, {
-									columns: density.columns,
-									rows: density.rows,
-								} ),
-								key: density.columns,
-								label: density.label,
-								value: density.columns,
-							} )
-						)
-					)
-				: null,
-			onRequestClose: onClose,
-			size: 'large',
-			title: isChoosingLayout
-				? __( 'Add a page' )
-				: __( 'Name your page' ),
-		},
-		el(
-			'div',
-			{ className: 'cnl-add-page-modal__body' },
-			isChoosingLayout &&
-				el(
-					Tabs.Root,
-					{
-						className: 'cnl-add-page-layout-picker',
-						onValueChange: setSelectedPageType,
-						orientation: 'vertical',
-						value: activePageType,
-					},
-					el(
-						'div',
-						{ className: 'cnl-add-page-layout-sidebar' },
-						el(
-							UiButton,
-							{
-								className: 'cnl-add-page-layout-blank',
-								onClick: handleStartBlank,
-								tone: 'neutral',
-								variant: 'outline',
-							},
-							el( UiButton.Icon, { icon: plusIcon } ),
-							__( 'Add blank' )
-						),
-						isLoadingPageLayouts &&
-							el( PageLayoutSidebarPlaceholder ),
-						! isLoadingPageLayouts &&
-							el(
-								Tabs.List,
-								{
-									'aria-label': __( 'Page types' ),
-									className: 'cnl-add-page-layout-categories',
-								},
-								visiblePageLayoutGroups.map( ( group ) =>
-									el(
-										Tabs.Tab,
-										{
-											key: group.slug,
-											value: group.slug,
-										},
-										group.label
-									)
-								)
-							)
-					),
-					el(
-						Tabs.Panel,
-						{
-							className: 'cnl-add-page-layout-results',
-							value: activePageType,
-						},
-						el(
-							Stack,
-							{
-								align: 'center',
-								className:
-									'cnl-add-page-layout-results__header',
-								direction: 'row',
-								gap: 'md',
-								justify: 'space-between',
-							},
-							pageTemplateOptions.length > 1
-								? el( SelectControl, {
-										__next40pxDefaultSize: true,
-										__nextHasNoMarginBottom: true,
-										className:
-											'cnl-add-page-layout-template-select',
-										label: __( 'Preview with' ),
-										labelPosition: 'side',
-										onChange: ( value ) =>
-											setSelectedTemplateSlug(
-												String( value )
-											),
-										options: pageTemplateOptions,
-										size: 'compact',
-										value: selectedTemplateSlug,
-									} )
-								: el( 'span' ),
-							activePageLayouts.length > pageLayoutPerPage &&
-								el(
-									Stack,
-									{
-										'aria-label': __(
-											'Page design pagination'
-										),
-										align: 'center',
-										className:
-											'cnl-add-page-layout-pagination',
-										direction: 'row',
-										gap: 'xs',
-										render: el( 'nav' ),
-									},
-									el( Button, {
-										accessibleWhenDisabled: true,
-										disabled: currentPageLayoutPage === 1,
-										icon: chevronLeftIcon,
-										label: __( 'Previous designs' ),
-										onClick: goToPreviousPageLayouts,
-										size: 'compact',
-										variant: 'tertiary',
-									} ),
-									el(
-										Text,
-										{
-											className:
-												'cnl-add-page-layout-pagination__label',
-											variant: 'body-sm',
-										},
-										sprintf(
-											/* translators: 1: first visible design number, 2: last visible design number, 3: total designs. */
-											__( '%1$d-%2$d of %3$d designs' ),
-											firstVisiblePageLayoutIndex,
-											lastVisiblePageLayoutIndex,
-											activePageLayouts.length
-										)
-									),
-									el( Button, {
-										accessibleWhenDisabled: true,
-										disabled:
-											currentPageLayoutPage ===
-											pageLayoutPageCount,
-										icon: chevronRightIcon,
-										label: __( 'Next designs' ),
-										onClick: goToNextPageLayouts,
-										size: 'compact',
-										variant: 'tertiary',
-									} )
-								)
-						),
-						isLoadingPageLayouts &&
-							el( PageLayoutResultsPlaceholder, {
-								columns: activePageLayoutDensity.columns,
-								rows: activePageLayoutDensity.rows,
-							} ),
-						! isLoadingPageLayouts &&
-							! activePageLayouts.length &&
-							el(
-								EmptyState.Root,
-								{ className: 'cnl-add-page-layout-empty' },
-								el( EmptyState.Icon, { icon: layoutIcon } ),
-								el(
-									EmptyState.Title,
-									null,
-									__( 'No page designs yet' )
-								),
-								el(
-									EmptyState.Description,
-									null,
-									__(
-										'This theme has no page designs. Start with a blank page and add patterns from the editor.'
-									)
-								),
-								el(
-									EmptyState.Actions,
-									null,
-									el(
-										UiButton,
-										{
-											onClick: handleStartBlank,
-											tone: 'neutral',
-											variant: 'outline',
-										},
-										__( 'Add blank' )
-									)
-								)
+	if ( isShowingForm ) {
+		return el(
+			DesignPicker,
+			{
+				className: 'cnl-add-page-modal',
+				mainClassName: `cnl-add-page-form${
+					formPreviewContent ? ' has-preview' : ''
+				}`,
+				onClose,
+				subtitle: selectedLayout
+					? sprintf(
+							/* translators: %s: page design name. */
+							__(
+								'Your page starts from the “%s” design. You can change its name later.'
 							),
-						! isLoadingPageLayouts &&
-							!! activePageLayouts.length &&
-							el(
-								'div',
-								{
-									className: 'cnl-add-page-layout-grid',
-									style: {
-										'--cnl-add-page-layout-columns':
-											activePageLayoutDensity.columns,
-										'--cnl-add-page-layout-rows':
-											visiblePageLayoutRows,
-									},
-								},
-								visiblePageLayoutCards
-							)
-					)
-				),
-			isShowingForm &&
+							getPatternTitle( selectedLayout )
+						)
+					: __(
+							'Your page starts blank. You can change its name later.'
+						),
+				title: __( 'Name your page' ),
+			},
+			el(
+				'div',
+				{ className: 'cnl-add-page-form__fields' },
+				validationError &&
+					el(
+						Notice,
+						{
+							isDismissible: true,
+							onRemove: () => setValidationError( undefined ),
+							status: 'error',
+						},
+						validationError
+					),
+				el( InputControl, {
+					autoComplete: 'off',
+					className: 'cnl-add-page-form__title',
+					disabled: isBusy,
+					label: __( 'Page title' ),
+					onValueChange: setPageTitle,
+					placeholder: __( 'Enter page title' ),
+					required: true,
+					value: pageTitle,
+				} ),
 				el(
 					'div',
-					{ className: 'cnl-add-page-form' },
-					validationError &&
-						el(
-							Notice,
-							{
-								isDismissible: true,
-								onRemove: () => setValidationError( undefined ),
-								status: 'error',
-							},
-							validationError
-						),
-					selectedLayout &&
-						el(
-							'div',
-							{ className: 'cnl-add-page-form__preview' },
-							el(
-								'div',
-								{
-									className:
-										'cnl-add-page-form__preview-page',
-								},
-								el( LazyEditorPreview, {
-									content: selectedLayoutPreviewContent,
-									description:
-										getPatternTitle( selectedLayout ),
-								} )
-							)
-						),
-					el( InputControl, {
-						autoComplete: 'off',
-						className: 'cnl-add-page-form__title',
-						disabled: isBusy,
-						label: __( 'Page title' ),
-						onValueChange: setPageTitle,
-						placeholder: __( 'Enter page title' ),
-						required: true,
-						value: pageTitle,
-					} ),
+					{ className: 'cnl-add-page-form__settings' },
 					el(
 						'div',
-						{ className: 'cnl-add-page-form__settings' },
+						{ className: 'cnl-add-page-form__checkbox-item' },
+						el( CheckboxControl, {
+							checked: publishImmediately,
+							disabled: isBusy,
+							label: __( 'Publish immediately' ),
+							onChange: setPublishImmediately,
+						} ),
+						el(
+							'p',
+							{ className: 'cnl-add-page-form__checkbox-help' },
+							__(
+								'Your page will be visible to visitors immediately.'
+							)
+						)
+					),
+					mainMenu.menuId &&
 						el(
 							'div',
 							{ className: 'cnl-add-page-form__checkbox-item' },
 							el( CheckboxControl, {
-								checked: publishImmediately,
-								disabled: isBusy,
-								label: __( 'Publish immediately' ),
-								onChange: setPublishImmediately,
+								checked:
+									menuListsAllPages ||
+									( addToMenu && publishImmediately ),
+								disabled:
+									isBusy ||
+									menuListsAllPages ||
+									! publishImmediately,
+								label: __( 'Add to my menu' ),
+								onChange: setAddToMenu,
 							} ),
 							el(
 								'p',
@@ -1359,77 +1053,44 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 									className:
 										'cnl-add-page-form__checkbox-help',
 								},
-								__(
-									'Your page will be visible to visitors immediately.'
-								)
+								getAddToMenuHelp( {
+									menuListsAllPages,
+									menuTitle: mainMenu.menuTitle,
+									publishImmediately,
+								} )
 							)
 						),
-						mainMenu.menuId &&
-							el(
-								'div',
-								{
-									className:
-										'cnl-add-page-form__checkbox-item',
-								},
-								el( CheckboxControl, {
-									checked:
-										menuListsAllPages ||
-										( addToMenu && publishImmediately ),
-									disabled:
-										isBusy ||
-										menuListsAllPages ||
-										! publishImmediately,
-									label: __( 'Add to my menu' ),
-									onChange: setAddToMenu,
-								} ),
-								el(
-									'p',
-									{
-										className:
-											'cnl-add-page-form__checkbox-help',
-									},
-									getAddToMenuHelp( {
-										menuListsAllPages,
-										menuTitle: mainMenu.menuTitle,
-										publishImmediately,
-									} )
-								)
-							),
-						pageTemplateOptions.length > 1 &&
-							el( SelectControl, {
-								__next40pxDefaultSize: true,
-								disabled: isBusy,
-								label: __( 'Layout' ),
-								onChange: ( value ) =>
-									setSelectedTemplateSlug( String( value ) ),
-								options: pageTemplateOptions,
-								value: selectedTemplateSlug,
-							} )
-					)
-				)
-		),
-		isShowingForm &&
-			el(
-				'div',
-				{ className: 'cnl-add-page-modal__footer' },
-				el(
-					Button,
-					{
-						__next40pxDefaultSize: true,
-						disabled: isBusy,
-						icon: chevronLeftIcon,
-						onClick: handleBack,
-						variant: 'tertiary',
-					},
-					__( 'Back to designs' )
+					pageTemplateOptions.length > 1 &&
+						el( SelectControl, {
+							__next40pxDefaultSize: true,
+							__nextHasNoMarginBottom: true,
+							disabled: isBusy,
+							label: __( 'Layout' ),
+							onChange: ( value ) =>
+								setSelectedTemplateSlug( String( value ) ),
+							options: pageTemplateOptions,
+							value: selectedTemplateSlug,
+						} )
 				),
 				el(
 					'div',
-					{ className: 'cnl-add-page-modal__footer-actions' },
+					{ className: 'cnl-add-page-form__actions' },
 					el(
 						Button,
 						{
 							__next40pxDefaultSize: true,
+							disabled: isBusy,
+							icon: chevronLeftIcon,
+							onClick: handleBack,
+							variant: 'tertiary',
+						},
+						__( 'Back to designs' )
+					),
+					el(
+						Button,
+						{
+							__next40pxDefaultSize: true,
+							accessibleWhenDisabled: true,
 							disabled: isBusy || ! canCreate,
 							isBusy,
 							onClick: createPage,
@@ -1438,7 +1099,220 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 						__( 'Create page' )
 					)
 				)
+			),
+			formPreviewContent &&
+				el(
+					'div',
+					{ className: 'cnl-add-page-form__preview' },
+					el(
+						'div',
+						{
+							className:
+								'cnl-design-picker__preview cnl-add-page-form__preview-page',
+						},
+						el( LazyEditorPreview, {
+							content: formPreviewContent,
+							description: selectedLayout
+								? getPatternTitle( selectedLayout )
+								: __( 'Blank page' ),
+						} )
+					)
+				)
+		);
+	}
+
+	const currentPageLayoutPage = Math.min(
+		pageLayoutPage,
+		pageLayoutPageCount
+	);
+	const visiblePageLayouts = activePageLayouts.slice(
+		( currentPageLayoutPage - 1 ) * pageLayoutPerPage,
+		currentPageLayoutPage * pageLayoutPerPage
+	);
+	/*
+	 * Only lay out the rows that actually have designs in them, so a partly
+	 * filled last page stretches to fill the panel instead of leaving a void.
+	 */
+	const visiblePageLayoutRows = Math.max(
+		1,
+		Math.min(
+			activePageLayoutDensity.rows,
+			Math.ceil(
+				visiblePageLayouts.length / activePageLayoutDensity.columns
 			)
+		)
+	);
+	const firstVisiblePageLayoutIndex =
+		( currentPageLayoutPage - 1 ) * pageLayoutPerPage + 1;
+	const lastVisiblePageLayoutIndex = Math.min(
+		currentPageLayoutPage * pageLayoutPerPage,
+		activePageLayouts.length
+	);
+	let designs;
+
+	if ( isLoadingPageLayouts ) {
+		designs = el( PageLayoutResultsPlaceholder, {
+			columns: activePageLayoutDensity.columns,
+			rows: activePageLayoutDensity.rows,
+		} );
+	} else if ( ! activePageLayouts.length ) {
+		designs = el(
+			Text,
+			{ className: 'cnl-design-picker__empty', variant: 'body-md' },
+			__(
+				'Your theme has no page designs to offer, so start from scratch.'
+			)
+		);
+	} else {
+		designs = el(
+			'section',
+			{
+				'aria-labelledby': `${ idPrefix }-heading`,
+				className: 'cnl-add-page-layout-results',
+			},
+			el(
+				GroupHeading,
+				{
+					id: `${ idPrefix }-heading`,
+					label: activePageLayoutGroup?.label,
+				},
+				activePageLayouts.length > pageLayoutPerPage &&
+					el(
+						Stack,
+						{
+							'aria-label': __( 'Page design pagination' ),
+							align: 'center',
+							className: 'cnl-add-page-layout-pagination',
+							direction: 'row',
+							gap: 'xs',
+							render: el( 'nav' ),
+						},
+						el( Button, {
+							accessibleWhenDisabled: true,
+							disabled: currentPageLayoutPage === 1,
+							icon: chevronLeftIcon,
+							label: __( 'Previous designs' ),
+							onClick: goToPreviousPageLayouts,
+							size: 'compact',
+							variant: 'tertiary',
+						} ),
+						el(
+							Text,
+							{
+								className:
+									'cnl-add-page-layout-pagination__label',
+								variant: 'body-sm',
+							},
+							sprintf(
+								/* translators: 1: first visible design number, 2: last visible design number, 3: total designs. */
+								__( '%1$d-%2$d of %3$d designs' ),
+								firstVisiblePageLayoutIndex,
+								lastVisiblePageLayoutIndex,
+								activePageLayouts.length
+							)
+						),
+						el( Button, {
+							accessibleWhenDisabled: true,
+							disabled:
+								currentPageLayoutPage === pageLayoutPageCount,
+							icon: chevronRightIcon,
+							label: __( 'Next designs' ),
+							onClick: goToNextPageLayouts,
+							size: 'compact',
+							variant: 'tertiary',
+						} )
+					)
+			),
+			el(
+				'div',
+				{
+					className: 'cnl-add-page-layout-grid',
+					style: {
+						'--cnl-add-page-layout-columns':
+							activePageLayoutDensity.columns,
+						'--cnl-add-page-layout-rows': visiblePageLayoutRows,
+					},
+				},
+				visiblePageLayouts.map( ( pattern ) =>
+					el( PageLayoutCard, {
+						key: pattern.name,
+						onSelect: handleSelectLayout,
+						pageTemplateContent,
+						pattern,
+					} )
+				)
+			)
+		);
+	}
+
+	return el(
+		DesignPicker,
+		{
+			actions: [
+				pageTemplateOptions.length > 1 &&
+					el( SelectControl, {
+						__next40pxDefaultSize: true,
+						__nextHasNoMarginBottom: true,
+						className: 'cnl-add-page-layout-template-select',
+						key: 'template',
+						label: __( 'Preview with' ),
+						labelPosition: 'side',
+						onChange: ( value ) =>
+							setSelectedTemplateSlug( String( value ) ),
+						options: pageTemplateOptions,
+						value: selectedTemplateSlug,
+					} ),
+				el(
+					ToggleGroupControl,
+					{
+						__next40pxDefaultSize: true,
+						hideLabelFromVision: true,
+						isBlock: false,
+						key: 'density',
+						label: __( 'Preview size' ),
+						onChange: ( value ) =>
+							setPageLayoutColumns( Number( value ) ),
+						value: pageLayoutColumns,
+					},
+					PAGE_LAYOUT_DENSITIES.map( ( density ) =>
+						el( ToggleGroupControlOptionIcon, {
+							icon: el( GridShapeIcon, {
+								columns: density.columns,
+								rows: density.rows,
+							} ),
+							key: density.columns,
+							label: density.label,
+							value: density.columns,
+						} )
+					)
+				),
+			],
+			className: 'cnl-add-page-modal',
+			mainClassName: 'cnl-add-page-layout-main',
+			nav: el(
+				DesignPickerNav,
+				{
+					current: activePageType,
+					items: visiblePageLayoutGroups.map( ( group ) => ( {
+						label: group.label,
+						value: group.slug,
+					} ) ),
+					label: __( 'Page types' ),
+					onSelect: setSelectedPageType,
+				},
+				isLoadingPageLayouts && el( PageLayoutSidebarPlaceholder )
+			),
+			onClose,
+			subtitle: __(
+				'Choose a design to get started. You can change anything on it later.'
+			),
+			title: __( 'Add a page' ),
+		},
+		el( StartFromScratch, {
+			description: __( 'Build your page on a blank canvas' ),
+			onClick: handleStartBlank,
+		} ),
+		designs
 	);
 }
 
