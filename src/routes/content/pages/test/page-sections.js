@@ -1,3 +1,12 @@
+jest.mock( '@wordpress/blocks', () => ( {
+	getBlockType: jest.fn(),
+} ) );
+
+/**
+ * WordPress dependencies
+ */
+import { getBlockType } from '@wordpress/blocks';
+
 /**
  * Internal dependencies
  */
@@ -7,6 +16,8 @@ import {
 	getSectionSketch,
 	getSectionSummary,
 	getSectionTitle,
+	getTemplateElementKey,
+	getTemplateElementLabel,
 	insertItems,
 	isSingleBlockSection,
 	moveItem,
@@ -159,6 +170,27 @@ describe( 'page sections', () => {
 		] );
 		expect( removeItem( list, 1 ) ).toEqual( [ 'a', 'c', 'd' ] );
 		expect( list ).toEqual( [ 'a', 'b', 'c', 'd' ] );
+	} );
+
+	test( 'keys and names template elements by their area or block type', () => {
+		const header = { area: 'header', clientId: 'header-1' };
+		const footer = { area: 'footer', clientId: 'footer-1' };
+		const title = { clientId: 'title-1', name: 'core/post-title' };
+
+		expect( getTemplateElementKey( header ) ).toBe( 'header' );
+		expect( getTemplateElementKey( footer ) ).toBe( 'footer' );
+		expect( getTemplateElementKey( title ) ).toBe( 'title-1' );
+
+		expect( getTemplateElementLabel( header ) ).toBe( 'Header' );
+		expect( getTemplateElementLabel( footer ) ).toBe( 'Footer' );
+
+		getBlockType.mockReturnValue( { title: 'Title' } );
+		expect( getTemplateElementLabel( title ) ).toBe( 'Title' );
+
+		getBlockType.mockReturnValue( undefined );
+		expect(
+			getTemplateElementLabel( { clientId: 'x', name: 'core/unknown' } )
+		).toBe( 'Section' );
 	} );
 
 	test( 'works out where a dropped section lands', () => {

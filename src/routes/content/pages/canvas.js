@@ -22,7 +22,11 @@ import {
 	usePageSections,
 	usePreviewStructure,
 } from './data';
-import { getSectionTitle } from './page-sections';
+import {
+	getSectionTitle,
+	getTemplateElementKey,
+	getTemplateElementLabel,
+} from './page-sections';
 import { sectionBridge, useSectionBridge } from './section-bridge';
 import {
 	__,
@@ -167,14 +171,15 @@ function useCanvasDocument( containerRef, resetKey ) {
  */
 export function getLinkedItems( blocks, structure ) {
 	const items = [];
+	const getElementItem = ( element ) => ( {
+		key: getTemplateElementKey( element ),
+		label: getTemplateElementLabel( element ),
+		previewId: element.clientId,
+	} );
 
-	if ( structure.header ) {
-		items.push( {
-			key: 'header',
-			label: __( 'Header' ),
-			previewId: structure.header.clientId,
-		} );
-	}
+	structure.before.forEach( ( element ) =>
+		items.push( getElementItem( element ) )
+	);
 
 	blocks.forEach( ( block, index ) => {
 		items.push( {
@@ -185,13 +190,9 @@ export function getLinkedItems( blocks, structure ) {
 		} );
 	} );
 
-	if ( structure.footer ) {
-		items.push( {
-			key: 'footer',
-			label: __( 'Footer' ),
-			previewId: structure.footer.clientId,
-		} );
-	}
+	structure.after.forEach( ( element ) =>
+		items.push( getElementItem( element ) )
+	);
 
 	return items;
 }

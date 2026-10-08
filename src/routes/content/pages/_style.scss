@@ -2,6 +2,9 @@
 // and the linked preview canvas.
 
 $cnl-accent: var(--wp-admin-theme-color, #3858e9);
+// Marks content that comes from the template rather than the page itself,
+// like the header, footer, or a title or image the layout adds.
+$cnl-global: #7c3aed;
 
 @keyframes cnl-pages-slide-in {
 
@@ -696,7 +699,7 @@ $cnl-accent: var(--wp-admin-theme-color, #3858e9);
 }
 
 // Pressed, and all the while a section is being dragged, the hand closes.
-.cnl-page-section:not(.is-site-part):active,
+.cnl-page-section:not(.is-template-element):active,
 body.cnl-is-dragging-section,
 body.cnl-is-dragging-section * {
 	cursor: grabbing !important;
@@ -757,19 +760,21 @@ body.cnl-is-dragging-section * {
 
 .cnl-page-sections__add {
 	display: flex;
+	flex-direction: column;
 	box-sizing: border-box;
 	width: 100%;
 	align-items: center;
 	justify-content: center;
 	gap: var(--wpds-dimension-gap-sm);
 	min-height: 56px;
+	padding: var(--wpds-dimension-padding-sm);
 	border: 1px dashed var(--wpds-color-stroke-surface-neutral-strong);
 	border-radius: var(--wpds-border-radius-lg);
 	background: transparent;
 	color: var(--wpds-color-foreground-interactive-neutral);
 	cursor: var(--wpds-cursor-control);
 	font: inherit;
-	font-weight: var(--wpds-typography-font-weight-emphasis);
+	text-align: center;
 	transition:
 		border-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle),
 		background-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle),
@@ -777,6 +782,11 @@ body.cnl-is-dragging-section * {
 
 	svg {
 		fill: currentcolor;
+	}
+
+	&.is-empty {
+		min-height: 112px;
+		padding: var(--wpds-dimension-padding-lg);
 	}
 
 	&:hover,
@@ -792,30 +802,66 @@ body.cnl-is-dragging-section * {
 	}
 }
 
-.cnl-page-sections__empty {
-	display: flex;
-	flex-direction: column;
-	gap: var(--wpds-dimension-gap-md);
-	margin: var(--wpds-dimension-gap-md) 0;
+.cnl-page-sections__add-hint {
+	max-width: 32em;
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-// The site's header and footer: part of the page, but shared by every page,
-// so they are shown but can't be moved.
-.cnl-page-section.is-site-part {
+.cnl-page-sections__add-label {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-sm);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+// Content from the template rather than the page itself - the header,
+// footer, or anything else the layout adds, like a title or image. Shown so
+// the page reads top to bottom as visitors see it, but can't be moved, and
+// carries a purple treatment to set it apart from the page's own sections.
+.cnl-page-section.is-template-element {
 	cursor: default;
+	margin-bottom: var(--wpds-dimension-gap-sm);
 
 	.cnl-page-section__main {
 		cursor: var(--wpds-cursor-control);
 	}
 
 	border-style: dashed;
-	background: var(--wpds-color-background-surface-neutral-weak);
+	border-color: color-mix(in srgb, #{$cnl-global} 30%, transparent);
+	background: color-mix(in srgb, #{$cnl-global} 6%, transparent);
 	animation: none;
 
 	&.is-selected {
 		border-style: solid;
+		border-color: $cnl-global;
 	}
+
+	.cnl-page-section__part-icon {
+		border-color: color-mix(in srgb, #{$cnl-global} 30%, transparent);
+		background: color-mix(in srgb, #{$cnl-global} 12%, transparent);
+		color: $cnl-global;
+	}
+
+	.cnl-page-section__summary {
+		color: $cnl-global;
+	}
+}
+
+.cnl-page-section__lock {
+	flex: 0 0 auto;
+	color: $cnl-global;
+
+	svg {
+		fill: currentcolor;
+	}
+}
+
+// Holds the lock's place where a site part's options menu would otherwise
+// sit, so it lines up the same whether or not that menu is there.
+.cnl-page-section__menu-spacer {
+	flex: 0 0 auto;
+	width: var(--wpds-dimension-size-sm);
+	height: var(--wpds-dimension-size-sm);
 }
 
 .cnl-page-section__part-icon {

@@ -43,6 +43,8 @@ import {
 	getDropIndex,
 	getSectionSummary,
 	getSectionTitle,
+	getTemplateElementKey,
+	getTemplateElementLabel,
 	insertItems,
 	isSingleBlockSection,
 	moveItem,
@@ -78,6 +80,7 @@ import {
 	headerIcon,
 	homeIcon,
 	Icon,
+	lockSmallIcon,
 	MenuGroup,
 	MenuItem,
 	moreVerticalIcon,
@@ -1333,12 +1336,34 @@ function SectionCard( {
 	);
 }
 
-function SitePartCard( { isHovered, isSelected, onEdit, part } ) {
-	const isHeader = part.area === 'header';
-	const title = isHeader ? __( 'Header' ) : __( 'Footer' );
+function getTemplateElementIcon( element ) {
+	// A site part's icon is a plain SVG, like the sections' own icons. Any
+	// other block's icon comes from the block type, normalized to
+	// `{ src, background, foreground }`, which only `BlockIcon` understands.
+	if ( element.area === 'header' ) {
+		return el( Icon, { icon: headerIcon } );
+	}
+
+	if ( element.area === 'footer' ) {
+		return el( Icon, { icon: footerIcon } );
+	}
+
+	return el( BlockIcon, { icon: getBlockType( element.name )?.icon } );
+}
+
+/*
+ * A block the template puts around the page rather than the page itself: its
+ * header or footer, or anything else the layout adds, like a title or a
+ * featured image. Shown, but fixed, since it isn't this page's to move.
+ */
+function TemplateElementCard( { element, isHovered, isSelected, onEdit } ) {
+	const title = getTemplateElementLabel( element );
+	const key = getTemplateElementKey( element );
+	// Only a site part is its own entity with something to open and edit.
+	const isEditable = Boolean( element.area );
 	const className = [
 		'cnl-page-section',
-		'is-site-part',
+		'is-template-element',
 		isSelected && 'is-selected',
 		isHovered && 'is-hovered',
 	]
@@ -1349,7 +1374,7 @@ function SitePartCard( { isHovered, isSelected, onEdit, part } ) {
 		'li',
 		{
 			className,
-			onMouseEnter: () => sectionBridge.hover( part.area ),
+			onMouseEnter: () => sectionBridge.hover( key ),
 			onMouseLeave: () => sectionBridge.hover( null ),
 		},
 		el(
@@ -1364,7 +1389,7 @@ function SitePartCard( { isHovered, isSelected, onEdit, part } ) {
 				{
 					'aria-current': isSelected ? 'true' : undefined,
 					className: 'cnl-page-section__main',
-					onClick: () => sectionBridge.select( part.area, 'stage' ),
+					onClick: () => sectionBridge.select( key, 'stage' ),
 					type: 'button',
 				},
 				el(
@@ -1373,7 +1398,7 @@ function SitePartCard( { isHovered, isSelected, onEdit, part } ) {
 						'aria-hidden': true,
 						className: 'cnl-page-section__part-icon',
 					},
-					el( Icon, { icon: isHeader ? headerIcon : footerIcon } )
+					getTemplateElementIcon( element )
 				),
 				el(
 					'span',
@@ -1386,41 +1411,56 @@ function SitePartCard( { isHovered, isSelected, onEdit, part } ) {
 					el(
 						'span',
 						{ className: 'cnl-page-section__summary' },
-						__( 'The same on every page' )
+						__( 'Same on every page' )
 					)
 				)
 			),
-			el(
-				DropdownMenu,
-				{
-					className: 'cnl-page-section__menu',
-					icon: moreVerticalIcon,
-					label: sprintf(
-						/* translators: %s: site part name, like Header. */
-						__( 'Options for %s' ),
-						title
-					),
-					popoverProps: { placement: 'bottom-end' },
-					toggleProps: { size: 'small' },
-				},
-				( { onClose } ) =>
-					el(
-						MenuGroup,
-						null,
+			el( Icon, {
+				'aria-hidden': true,
+				className: 'cnl-page-section__lock',
+				icon: lockSmallIcon,
+				size: 20,
+			} ),
+			// Without a menu, keep the lock where it sits when one is there.
+			! isEditable &&
+				el( 'span', {
+					'aria-hidden': true,
+					className: 'cnl-page-section__menu-spacer',
+				} ),
+			isEditable &&
+				el(
+					DropdownMenu,
+					{
+						className: 'cnl-page-section__menu',
+						icon: moreVerticalIcon,
+						label: sprintf(
+							/* translators: %s: site part name, like Header. */
+							__( 'Options for %s' ),
+							title
+						),
+						popoverProps: { placement: 'bottom-end' },
+						toggleProps: { size: 'small' },
+					},
+					( { onClose } ) =>
 						el(
-							MenuItem,
-							{
-								icon: pencilIcon,
-								info: __( 'Changes it on every page' ),
-								onClick: () => {
-									onClose();
-									onEdit( part.id );
+							MenuGroup,
+							null,
+							el(
+								MenuItem,
+								{
+									icon: pencilIcon,
+									info: __( 'Changes it on every page' ),
+									onClick: () => {
+										onClose();
+										onEdit( element.id );
+									},
 								},
-							},
-							isHeader ? __( 'Edit header' ) : __( 'Edit footer' )
+								element.area === 'header'
+									? __( 'Edit header' )
+									: __( 'Edit footer' )
+							)
 						)
-					)
-			)
+				)
 		)
 	);
 }
@@ -1713,8 +1753,8 @@ function SectionList( {
 		'button',
 		{
 			className: `cnl-page-sections__add${
-				insertionIndex === blocks.length ? ' is-active' : ''
-			}`,
+				blocks.length ? '' : ' is-empty'
+			}${ insertionIndex === blocks.length ? ' is-active' : '' }`,
 			onBlur: () => sectionBridge.setInsertionIndex( null ),
 			onClick: () => onAdd( blocks.length ),
 			onFocus: () => sectionBridge.setInsertionIndex( blocks.length ),
@@ -1723,18 +1763,35 @@ function SectionList( {
 			onMouseLeave: () => sectionBridge.setInsertionIndex( null ),
 			type: 'button',
 		},
-		el( Icon, { icon: plusIcon } ),
-		__( 'Add a section' )
+		! blocks.length &&
+			el(
+				Text,
+				{
+					className: 'cnl-page-sections__add-hint',
+					variant: 'body-sm',
+				},
+				__(
+					'Nothing here yet. Pages are built from sections, like a banner, a row of pictures or a contact form.'
+				)
+			),
+		el(
+			'span',
+			{ className: 'cnl-page-sections__add-label' },
+			el( Icon, { icon: plusIcon } ),
+			__( 'Add a section' )
+		)
 	);
-	const renderPart = ( part ) =>
-		part &&
-		el( SitePartCard, {
-			isHovered: hoveredId === part.area,
-			isSelected: selectedId === part.area,
-			key: part.area,
+	const renderElement = ( element ) => {
+		const key = getTemplateElementKey( element );
+
+		return el( TemplateElementCard, {
+			element,
+			isHovered: hoveredId === key,
+			isSelected: selectedId === key,
+			key,
 			onEdit: onEditPart,
-			part,
 		} );
+	};
 
 	return el(
 		'ol',
@@ -1743,29 +1800,16 @@ function SectionList( {
 			ref: listRef,
 			className: `cnl-page-sections__list${
 				dragIndex !== null ? ' is-dragging' : ''
-			}${ structure.header ? ' has-header' : '' }`,
+			}`,
 		},
-		renderPart( structure.header ),
+		structure.before.map( renderElement ),
 		items,
 		el(
 			'li',
-			{
-				className: blocks.length
-					? 'cnl-page-sections__add-item'
-					: 'cnl-page-sections__empty',
-				key: 'add',
-			},
-			! blocks.length &&
-				el(
-					Text,
-					{ variant: 'body-sm' },
-					__(
-						'Nothing here yet. Pages are built from sections, like a banner, a row of pictures or a contact form.'
-					)
-				),
+			{ className: 'cnl-page-sections__add-item', key: 'add' },
 			addButton
 		),
-		renderPart( structure.footer )
+		structure.after.map( renderElement )
 	);
 }
 

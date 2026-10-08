@@ -5,6 +5,7 @@
 /**
  * WordPress dependencies
  */
+import { getBlockType } from '@wordpress/blocks';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
@@ -263,6 +264,38 @@ export function getSectionSummary( block ) {
 	}
 
 	return facts.slice( 0, 3 ).join( ' · ' );
+}
+
+/**
+ * The key a template element goes by wherever the sidebar and canvas point
+ * one another to it: a site part's area, since editing a page never swaps out
+ * its header for a different one, or its client ID otherwise.
+ *
+ * @param {Object} element `{ area, clientId }` from `usePreviewStructure`.
+ * @return {string} Key.
+ */
+export function getTemplateElementKey( element ) {
+	return element.area || element.clientId;
+}
+
+/**
+ * The plain-language name for a piece of the template around the page: its
+ * header or footer, or anything else the layout adds, like a title or a
+ * featured image.
+ *
+ * @param {Object} element `{ area, name }` from `usePreviewStructure`.
+ * @return {string} Label.
+ */
+export function getTemplateElementLabel( element ) {
+	if ( element.area === 'header' ) {
+		return __( 'Header' );
+	}
+
+	if ( element.area === 'footer' ) {
+		return __( 'Footer' );
+	}
+
+	return getBlockType( element.name )?.title || __( 'Section' );
 }
 
 /**
