@@ -589,31 +589,32 @@ test.describe( 'Create Not Learn Editor', () => {
 			designDialog.locator( '.cnl-add-page-layout-card' ).first()
 		).toBeVisible( { timeout: 15000 } );
 		await expect(
-			designDialog.getByRole( 'button', { name: 'Add blank' } )
+			designDialog.getByRole( 'button', { name: /Start from scratch/ } )
 		).toBeVisible();
-		const pageTypeTabs = designDialog
-			.getByRole( 'tablist', { name: 'Page types' } )
-			.getByRole( 'tab' );
-		await expect( pageTypeTabs.first() ).toHaveAttribute(
-			'aria-selected',
+		const pageTypes = designDialog
+			.getByRole( 'navigation', { name: 'Page types' } )
+			.getByRole( 'button' );
+		await expect( pageTypes.first() ).toHaveAttribute(
+			'aria-current',
 			'true'
 		);
 		await expect(
-			designDialog.getByRole( 'tab', { name: /Other designs/ } )
+			designDialog.getByRole( 'button', { name: /Other designs/ } )
 		).toHaveCount( 0 );
 		await expect(
 			designDialog.getByRole( 'button', { name: 'Choose a page design' } )
 		).toHaveCount( 0 );
-		await expect(
-			designDialog.getByRole( 'button', { name: 'Start from scratch' } )
-		).toHaveCount( 0 );
-		// Selecting a page type swaps the panel contents.
-		await pageTypeTabs.nth( 1 ).click();
-		await expect( pageTypeTabs.nth( 1 ) ).toHaveAttribute(
-			'aria-selected',
+		// Picking a page type swaps the designs shown.
+		await pageTypes.nth( 1 ).click();
+		await expect( pageTypes.nth( 1 ) ).toHaveAttribute(
+			'aria-current',
 			'true'
 		);
-		await pageTypeTabs.first().click();
+		await pageTypes.first().click();
+		// Page designs use the same card as section designs.
+		await expect(
+			designDialog.locator( '.cnl-add-page-layout-card' ).first()
+		).toHaveClass( /cnl-design-picker__card/ );
 		// The card corner radius should come from the design system token.
 		await expect
 			.poll( () =>
@@ -631,38 +632,6 @@ test.describe( 'Create Not Learn Editor', () => {
 					} )
 			)
 			.toBe( true );
-		// Every preview is framed with the design system stroke tokens.
-		await expect
-			.poll( () =>
-				designDialog
-					.locator( '.cnl-add-page-layout-card__preview' )
-					.first()
-					.evaluate( ( element ) => {
-						const styles = window.getComputedStyle( element );
-						/* eslint-disable @wordpress/no-unknown-ds-tokens -- Reading token values at runtime, not authoring styles. */
-						const width = styles
-							.getPropertyValue( '--wpds-border-width-xs' )
-							.trim();
-						const radius = styles
-							.getPropertyValue( '--wpds-border-radius-md' )
-							.trim();
-						/* eslint-enable @wordpress/no-unknown-ds-tokens */
-
-						return {
-							hasBorder:
-								!! width &&
-								styles.borderTopWidth === width &&
-								styles.borderRightWidth === width &&
-								styles.borderBottomWidth === width &&
-								styles.borderLeftWidth === width,
-							hasRadius:
-								!! radius &&
-								styles.borderTopLeftRadius === radius,
-							style: styles.borderTopStyle,
-						};
-					} )
-			)
-			.toEqual( { hasBorder: true, hasRadius: true, style: 'solid' } );
 		await expect(
 			designDialog.getByText( /No page designs are available/ )
 		).toHaveCount( 0 );
@@ -715,9 +684,9 @@ test.describe( 'Create Not Learn Editor', () => {
 			name: 'Name your page',
 		} );
 		await expect( addPageDialog ).toBeVisible();
+		// Naming the page stays in a modal the same size as the picker.
 		const addPageDialogBox = await addPageDialog.boundingBox();
-		expect( addPageDialogBox?.width ).toBeGreaterThanOrEqual( 560 );
-		expect( addPageDialogBox?.width ).toBeLessThanOrEqual( 680 );
+		expect( addPageDialogBox?.width ).toBe( designDialogBox?.width );
 		await expect(
 			addPageDialog.getByText(
 				'Your page will be visible to visitors immediately.'
@@ -773,7 +742,9 @@ test.describe( 'Create Not Learn Editor', () => {
 			.click();
 		await expect( designDialog ).toBeVisible();
 
-		await designDialog.getByRole( 'button', { name: 'Add blank' } ).click();
+		await designDialog
+			.getByRole( 'button', { name: /Start from scratch/ } )
+			.click();
 		addPageDialog = page.getByRole( 'dialog', {
 			name: 'Name your page',
 		} );

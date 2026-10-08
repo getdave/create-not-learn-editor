@@ -14,7 +14,6 @@ import {
 	archiveIcon,
 	blockDefaultIcon,
 	blocksStore,
-	Breadcrumbs,
 	Button,
 	categoryIcon,
 	CheckboxControl,
@@ -1707,21 +1706,13 @@ function NavigationEditStage() {
 		{
 			actions: menuOptions,
 			ariaLabel: menuTitle,
-			breadcrumbs: el( Breadcrumbs, {
-				items: [
-					{
-						label: __( 'Menus' ),
-						to: '/navigation',
-					},
-					{ label: menuTitle },
-				],
-			} ),
 			className: `cnl-editor-stage routes-navigation-edit${
 				isAutoMenu ? ' is-auto-menu' : ''
 			}`,
 			hasPadding: false,
 			headingLevel: 2,
 			subTitle: __( 'Manage this navigation menu.' ),
+			title: menuTitle,
 		},
 		! isMenuReady &&
 			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),

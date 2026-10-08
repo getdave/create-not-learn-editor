@@ -2,7 +2,7 @@
  * Internal dependencies
  */
 import { cnlEditorStore } from '../../records';
-import { getTemplatePartMenuRefs } from '../navigation/navigation-locations';
+import { getMainMenu } from '../navigation/navigation-locations';
 import {
 	appendNavigationBlocksToContent,
 	createNavigationLinkBlockFromPage,
@@ -32,9 +32,6 @@ function getMenuTitleText( menu ) {
 /**
  * The menu in the site header, and which pages it links to.
  *
- * Falls back to the most recent menu, which is what an unassigned Navigation
- * block shows.
- *
  * @return {Object} Main menu details.
  */
 export default function useMainMenu() {
@@ -49,15 +46,10 @@ export default function useMainMenu() {
 				) || EMPTY_ARRAY,
 		};
 	}, [] );
-	const menu = useMemo( () => {
-		const fallbackMenuId = menus[ 0 ]?.id;
-		const refs = getTemplatePartMenuRefs( templateParts, fallbackMenuId );
-		const headerRef =
-			refs.find( ( { part } ) => part.area === 'header' ) || refs[ 0 ];
-		const menuId = headerRef?.menuIds?.[ 0 ] || fallbackMenuId;
-
-		return menus.find( ( item ) => item.id === menuId ) || null;
-	}, [ menus, templateParts ] );
+	const menu = useMemo(
+		() => getMainMenu( menus, templateParts ),
+		[ menus, templateParts ]
+	);
 	const menuContent = menu
 		? ( menu.content?.raw ?? menu.content ?? '' )
 		: null;

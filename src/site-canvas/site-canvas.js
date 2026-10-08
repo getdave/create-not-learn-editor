@@ -27,7 +27,6 @@ import {
 import { EDITOR_DEVICES } from './constants';
 import {
 	DeviceSwitcher,
-	EditHistory,
 	FullEditorButton,
 	PreviewHistory,
 	SurfaceToggle,
@@ -84,12 +83,11 @@ export function SiteCanvas( {
 					onChange: canvas.requestSurface,
 					surface: canvas.surface,
 				} ),
-				canvas.isEditing
-					? el( EditHistory )
-					: el( PreviewHistory, {
-							history: frame.history,
-							onMove: frame.move,
-						} ),
+				! canvas.isEditing &&
+					el( PreviewHistory, {
+						history: frame.history,
+						onMove: frame.move,
+					} ),
 				canvas.isAwaitingPreview &&
 					el(
 						'span',

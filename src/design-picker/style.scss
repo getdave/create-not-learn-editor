@@ -1,0 +1,353 @@
+// The shell shared by the "Add a page" and "Add a section" modals.
+
+$cnl-picker-accent: var(--wp-admin-theme-color, #3858e9);
+
+@keyframes cnl-design-picker-fade-up {
+
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+}
+
+.cnl-design-picker {
+	background: var(--wpds-color-background-surface-neutral-weak);
+
+	// The layout owns its scrolling: the designs scroll, the header and the
+	// list of kinds stay put.
+	.components-modal__content {
+		overflow: hidden;
+		margin-bottom: 0;
+		padding: 0;
+	}
+}
+
+.cnl-design-picker__layout {
+	display: grid;
+	grid-template-columns: 200px minmax(0, 1fr);
+	grid-template-rows: auto minmax(0, 1fr);
+	column-gap: var(--wpds-dimension-padding-2xl);
+	height: 100%;
+	min-height: 0;
+	padding: var(--wpds-dimension-padding-2xl) var(--wpds-dimension-padding-2xl) 0;
+
+	&.has-no-nav {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	@media (max-width: 781px) {
+		grid-template-columns: minmax(0, 1fr);
+		padding-inline: var(--wpds-dimension-padding-lg);
+	}
+}
+
+.cnl-design-picker__header {
+	display: flex;
+	grid-column: 1 / -1;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--wpds-dimension-padding-lg);
+	padding-bottom: var(--wpds-dimension-padding-2xl);
+}
+
+.cnl-design-picker__title,
+.cnl-design-picker__subtitle {
+	margin: 0;
+}
+
+.cnl-design-picker__subtitle {
+	margin-top: var(--wpds-dimension-padding-xs);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.cnl-design-picker__header-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--wpds-dimension-padding-sm);
+
+	.components-base-control {
+		margin-bottom: 0;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// The list of kinds.
+// ---------------------------------------------------------------------------
+
+.cnl-design-picker__nav {
+	overflow-y: auto;
+	padding-bottom: var(--wpds-dimension-padding-2xl);
+
+	@media (max-width: 781px) {
+		display: none;
+	}
+}
+
+.cnl-design-picker__nav-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.cnl-design-picker__nav-item {
+	width: 100%;
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+	border: 0;
+	border-radius: var(--wpds-border-radius-md);
+	background: transparent;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	cursor: var(--wpds-cursor-control);
+	font: inherit;
+	font-size: var(--wpds-typography-font-size-md);
+	text-align: start;
+	transition:
+		background-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle),
+		color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+
+	&:hover:not(:disabled) {
+		color: var(--wpds-color-foreground-content-neutral);
+	}
+
+	&[aria-current="true"] {
+		background: var(--wpds-color-background-surface-neutral-strong);
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+		color: var(--wpds-color-foreground-content-neutral);
+		font-weight: var(--wpds-typography-font-weight-emphasis);
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: -2px;
+	}
+
+	&:disabled {
+		cursor: default;
+		opacity: 0.5;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// The designs.
+// ---------------------------------------------------------------------------
+
+.cnl-design-picker__main {
+	container-type: inline-size;
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-padding-2xl);
+	min-height: 0;
+	overflow-y: auto;
+	// Room for card hover lifts and focus rings at the edges.
+	margin-inline: -4px;
+	padding: 4px 4px var(--wpds-dimension-padding-2xl);
+}
+
+.cnl-design-picker__scratch {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: var(--wpds-dimension-padding-lg);
+	width: 100%;
+	padding: var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-xl);
+	border: 1px solid transparent;
+	border-radius: var(--wpds-border-radius-lg);
+	background: color-mix(in srgb, #{$cnl-picker-accent} 8%, var(--wpds-color-background-surface-neutral-strong));
+	color: var(--wpds-color-foreground-content-neutral);
+	cursor: var(--wpds-cursor-control);
+	font: inherit;
+	text-align: start;
+	transition:
+		border-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle),
+		box-shadow var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+
+	&:hover {
+		border-color: $cnl-picker-accent;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: 2px;
+	}
+}
+
+.cnl-design-picker__scratch-icon {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	background: var(--wpds-color-background-surface-neutral-strong);
+	color: $cnl-picker-accent;
+
+	svg {
+		fill: currentcolor;
+	}
+}
+
+.cnl-design-picker__scratch-text {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.cnl-design-picker__scratch-title {
+	font-size: var(--wpds-typography-font-size-lg);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.cnl-design-picker__scratch-description {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.cnl-design-picker__scratch-chevron {
+	flex: 0 0 auto;
+	fill: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.cnl-design-picker__group-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--wpds-dimension-padding-md);
+}
+
+.cnl-design-picker__group-heading {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--wpds-dimension-padding-md);
+	margin: 0;
+	scroll-margin-top: var(--wpds-dimension-padding-sm);
+}
+
+.cnl-design-picker__group-label {
+	font-size: var(--wpds-typography-font-size-xl);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.cnl-design-picker__group-description {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-md);
+	font-weight: var(--wpds-typography-font-weight-default);
+}
+
+// A design: its preview on top, its name underneath.
+.cnl-design-picker__card {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	min-width: 0;
+	overflow: hidden;
+	padding: 0;
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-lg);
+	background: var(--wpds-color-background-surface-neutral-strong);
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	animation: cnl-design-picker-fade-up var(--wpds-motion-duration-md) var(--wpds-motion-easing-balanced) both;
+	transition:
+		border-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle),
+		box-shadow var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle),
+		transform var(--wpds-motion-duration-sm) var(--wpds-motion-easing-balanced);
+
+	&:hover,
+	&:focus-within {
+		border-color: $cnl-picker-accent;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+	}
+
+	&:hover {
+		transform: translateY(-1px);
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: 2px;
+	}
+}
+
+.cnl-design-picker__preview {
+	display: block;
+	overflow: hidden;
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	// Most theme backgrounds are white, so a design shorter than its card
+	// doesn't sit on a grey band.
+	background: var(--wpds-color-background-surface-neutral-strong);
+}
+
+.cnl-design-picker__card-footer {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--wpds-dimension-padding-md);
+	min-height: 32px;
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+}
+
+.cnl-design-picker__name {
+	overflow: hidden;
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+// What picking a design does, in the brand colour at the end of its footer.
+.cnl-design-picker__action {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 2px;
+	color: $cnl-picker-accent;
+	font-size: var(--wpds-typography-font-size-sm);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	white-space: nowrap;
+
+	svg {
+		fill: currentcolor;
+	}
+
+	&:is(button) {
+		margin: -4px -6px;
+		padding: 4px 6px;
+		border: 0;
+		border-radius: var(--wpds-border-radius-sm);
+		background: transparent;
+		cursor: var(--wpds-cursor-control);
+		font-family: inherit;
+
+		&:hover {
+			background: color-mix(in srgb, #{$cnl-picker-accent} 8%, transparent);
+		}
+
+		&:focus-visible {
+			outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		}
+	}
+}
+
+.cnl-design-picker__empty {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	.cnl-design-picker__card {
+		animation: none;
+
+		&:hover {
+			transform: none;
+		}
+	}
+}

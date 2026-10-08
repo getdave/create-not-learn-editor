@@ -4,6 +4,7 @@
 @use "./routes/content/pages/style" as pages;
 @use "./site-canvas/style" as site-canvas;
 @use "./routes/site-overview/style" as site-overview;
+@use "./design-picker/style" as design-picker;
 @use "./section-picker/style" as section-picker;
 
 .cnl-editor-page {
@@ -587,129 +588,29 @@
 	margin-top: 8px;
 }
 
-.cnl-add-page-modal {
-	width: 640px;
-	max-width: 94vw;
-	max-height: 85vh;
+// "Add a page". The shell it shares with "Add a section" is in
+// `src/design-picker/style.scss`.
 
-	.components-modal__header {
-		border-bottom: 0;
-	}
-
-	.components-modal__content {
-		box-sizing: border-box;
-		display: flex;
-		flex-direction: column;
-		min-height: 0;
-		overflow: hidden;
-	}
-
-	&.is-layout-picker {
-		width: 1180px;
-		max-width: calc(100vw - 80px);
-		height: min(760px, calc(100vh - 80px));
-		max-height: calc(100vh - 80px);
-
-		.components-modal__content {
-			padding-bottom: var(--wpds-dimension-padding-xl);
-		}
-
-		/*
-		 * Modal wraps children in this container, so it has to pass the fixed
-		 * height down. A zero basis keeps the picker sized by the modal rather
-		 * than by the height of the design previews inside it.
-		 */
-		.components-modal__children-container {
-			display: flex;
-			flex: 1 1 0;
-			flex-direction: column;
-			min-height: 0;
-		}
-
-		.components-modal__header {
-			padding-bottom: var(--wpds-dimension-padding-sm);
-		}
-
-		.components-modal__header-heading {
-			font-family: var(--wpds-typography-font-family-heading);
-			font-size: var(--wpds-typography-font-size-2xl);
-			font-weight: var(--wpds-typography-font-weight-emphasis);
-			line-height: var(--wpds-typography-line-height-2xl);
-		}
-	}
+.cnl-add-page-layout-template-select label {
+	white-space: nowrap;
 }
 
-.components-modal__frame.cnl-add-page-modal {
-	width: 640px;
-	max-width: 94vw;
-	max-height: 85vh;
-}
-
-.components-modal__frame.cnl-add-page-modal.is-layout-picker {
-	width: 1180px;
-	max-width: calc(100vw - 80px);
-	height: min(760px, calc(100vh - 80px));
-	max-height: calc(100vh - 80px);
-}
-
-.cnl-add-page-modal__body {
-	display: flex;
-	flex: 1 1 auto;
-	flex-direction: column;
-	min-height: 0;
-	overflow-x: hidden;
-	overflow-y: auto;
-}
-
-.cnl-add-page-modal.is-layout-picker .cnl-add-page-modal__body {
-	flex: 1 1 0;
-	overflow: hidden;
-}
-
-.cnl-add-page-layout-picker {
-	display: grid;
-	grid-template-columns: 208px minmax(0, 1fr);
-	flex: 1 1 0;
-	gap: var(--wpds-dimension-gap-3xl);
-	height: 100%;
-	min-height: 0;
-	overflow: hidden;
-}
-
-.cnl-add-page-layout-sidebar {
-	display: flex;
-	flex-direction: column;
-	gap: var(--wpds-dimension-gap-xl);
-	min-height: 0;
-	overflow-y: auto;
-}
-
-.cnl-add-page-layout-blank {
-	align-self: flex-start;
-}
-
-.cnl-add-page-layout-categories {
-	min-height: 0;
-}
-
-.cnl-add-page-layout-categories-placeholder {
-	width: 100%;
-	padding-top: var(--wpds-dimension-padding-xs);
-}
-
+/*
+ * The designs fill the space under "Start from scratch" a page at a time
+ * rather than scrolling, so each preview can scroll on its own. Below a
+ * usable height the whole area scrolls instead of squashing them.
+ */
 .cnl-add-page-layout-results {
 	display: flex;
+	flex: 1 1 0;
 	flex-direction: column;
-	gap: var(--wpds-dimension-gap-lg);
-	height: 100%;
-	min-width: 0;
-	min-height: 0;
-	overflow: hidden;
+	gap: var(--wpds-dimension-padding-lg);
+	min-height: 420px;
 }
 
-.cnl-add-page-layout-results__header {
-	flex: 0 0 auto;
-	min-height: var(--wpds-dimension-size-md);
+.cnl-add-page-layout-main > .cnl-add-page-layout-grid {
+	flex: 1 1 0;
+	min-height: 420px;
 }
 
 .cnl-add-page-layout-pagination {
@@ -725,47 +626,18 @@
 	display: grid;
 	grid-template-columns: repeat(var(--cnl-add-page-layout-columns, 2), minmax(0, 1fr));
 	grid-template-rows: repeat(var(--cnl-add-page-layout-rows, 1), minmax(0, 1fr));
-	gap: var(--wpds-dimension-gap-xl);
+	gap: var(--wpds-dimension-padding-xl);
 	flex: 1 1 0;
 	min-height: 0;
-	overflow: hidden;
 }
 
-.cnl-add-page-layout-grid--placeholder {
-	pointer-events: none;
+.cnl-add-page-layout-skeleton {
+	height: 100%;
+	border-radius: var(--wpds-border-radius-lg);
 }
 
 .cnl-add-page-layout-card {
-
-	/* Tighter than the card default so the framed preview gets the room. */
-	--wp-ui-card-padding: var(--wpds-dimension-padding-lg);
-	display: flex;
-	flex-direction: column;
 	min-height: 0;
-}
-
-.cnl-add-page-layout-card-placeholder {
-	pointer-events: none;
-}
-
-.cnl-add-page-layout-card__body {
-	flex: 1 1 0;
-	min-height: 0;
-}
-
-/*
- * Every preview is framed so it reads as a rendering of a page rather than as
- * content belonging to the card around it.
- */
-.cnl-add-page-layout-card__preview,
-.cnl-add-page-form__preview {
-	box-sizing: border-box;
-	overflow: hidden;
-
-	/* `xs` is the 1px hairline the Card border itself uses. */
-	border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
-	border-radius: var(--wpds-border-radius-md);
-	background: var(--wpds-color-background-surface-neutral);
 }
 
 .cnl-add-page-layout-card__preview {
@@ -773,12 +645,12 @@
 	min-height: 0;
 }
 
-.cnl-add-page-layout-preview-page {
+.cnl-add-page-layout-preview-page,
+.cnl-add-page-form__preview-page {
 	width: 100%;
 	height: 100%;
 	overflow-x: hidden;
 	overflow-y: auto;
-	background: var(--wpds-color-background-surface-neutral);
 	overscroll-behavior: contain;
 
 	.lazy-editor-block-preview__container,
@@ -794,30 +666,6 @@
 	iframe {
 		max-height: none !important;
 	}
-}
-
-.cnl-add-page-layout-card__footer {
-	flex: 0 0 auto;
-
-	/* The action keeps its width so a long description never wraps it. */
-	.wp-ui-button,
-	button {
-		flex: 0 0 auto;
-		white-space: nowrap;
-	}
-}
-
-
-.cnl-add-page-layout-card__meta {
-	min-width: 0;
-}
-
-.cnl-add-page-layout-card__description {
-	display: -webkit-box;
-	overflow: hidden;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
-	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 .cnl-add-page-layout-placeholder {
@@ -859,49 +707,35 @@
 	min-height: 130px;
 }
 
-.cnl-add-page-layout-empty {
-	align-self: stretch;
-	max-width: none;
-	margin: auto 0;
+.cnl-add-page-layout-categories-placeholder {
+	width: 100%;
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
 }
 
+// Naming the page: the settings on the left, the design it starts from on the
+// right, in the same modal the design was picked in.
 .cnl-add-page-form {
+	display: grid;
+	grid-template-columns: minmax(0, 440px);
+	align-content: start;
+	gap: var(--wpds-dimension-padding-2xl);
+
+	&.has-preview {
+		grid-template-columns: minmax(280px, 400px) minmax(0, 1fr);
+		align-content: stretch;
+	}
+}
+
+.cnl-add-page-form__fields {
 	display: flex;
 	flex-direction: column;
-	gap: var(--wpds-dimension-gap-lg);
-	max-width: 640px;
-	margin: 0;
-}
-
-.cnl-add-page-form__preview {
-	height: 220px;
-}
-
-.cnl-add-page-form__preview-page {
-	width: 100%;
-	height: 100%;
-	overflow-x: hidden;
-	overflow-y: auto;
-	background: var(--wpds-color-background-surface-neutral);
-
-	.lazy-editor-block-preview__container,
-	.block-editor-block-preview__container,
-	.block-editor-block-preview__content {
-		width: 100%;
-		height: auto;
-		max-height: none !important;
-		min-height: 100%;
-		overflow: visible;
-	}
-
-	iframe {
-		max-height: none !important;
-	}
+	gap: var(--wpds-dimension-padding-xl);
+	min-width: 0;
 }
 
 .cnl-add-page-form__settings {
 	display: grid;
-	gap: var(--wpds-dimension-gap-md);
+	gap: var(--wpds-dimension-padding-lg);
 }
 
 .cnl-add-page-form__checkbox-item {
@@ -921,22 +755,25 @@
 	line-height: var(--wpds-typography-line-height-md);
 }
 
-.cnl-add-page-modal__footer {
-	display: grid;
-	flex: 0 0 auto;
-	grid-template-columns: minmax(0, 1fr) auto;
+.cnl-add-page-form__actions {
+	display: flex;
 	align-items: center;
-	gap: var(--wpds-dimension-gap-lg);
-	width: 100%;
-	margin-top: var(--wpds-dimension-gap-xl);
+	justify-content: space-between;
+	gap: var(--wpds-dimension-padding-lg);
+	padding-top: var(--wpds-dimension-padding-sm);
 }
 
-.cnl-add-page-modal__footer-actions {
+.cnl-add-page-form__preview {
 	display: flex;
-	gap: var(--wpds-dimension-gap-sm);
-	align-items: center;
-	grid-column: 2;
-	justify-self: end;
+	min-height: 0;
+	overflow: hidden;
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-lg);
+	background: var(--wpds-color-background-surface-neutral-strong);
+}
+
+.cnl-add-page-form__preview-page {
+	border-bottom: 0;
 }
 
 .routes-post-list__templates {
@@ -966,33 +803,27 @@
 
 @media (max-width: 782px) {
 
-	.components-modal__frame.cnl-add-page-modal,
-	.cnl-add-page-modal {
-		width: calc(100vw - 32px);
-		max-width: calc(100vw - 32px);
-	}
-
-	.components-modal__frame.cnl-add-page-modal.is-layout-picker,
-	.cnl-add-page-modal.is-layout-picker {
-		width: calc(100vw - 24px);
-		max-width: calc(100vw - 24px);
-		height: calc(100vh - 24px);
-		max-height: calc(100vh - 24px);
-	}
-
-	.cnl-add-page-layout-picker {
-		grid-template-columns: 1fr;
-		gap: var(--wpds-dimension-gap-lg);
-		overflow-y: auto;
+	.cnl-add-page-layout-results,
+	.cnl-add-page-layout-main > .cnl-add-page-layout-grid {
+		flex: 0 0 auto;
+		min-height: 0;
 	}
 
 	.cnl-add-page-layout-grid {
 		grid-template-columns: 1fr;
 		grid-template-rows: none;
-		overflow: visible;
 	}
 
-	.cnl-add-page-layout-card {
+	.cnl-add-page-layout-card,
+	.cnl-add-page-layout-skeleton {
+		height: 360px;
+	}
+
+	.cnl-add-page-form.has-preview {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.cnl-add-page-form__preview {
 		height: 360px;
 	}
 }
