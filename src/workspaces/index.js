@@ -43,7 +43,7 @@ const HIDDEN_PARENT = 'cnl-workspace-hidden';
 export const WORKSPACES = [
 	{
 		id: 'simple',
-		label: __( 'Simple' ),
+		label: __( 'Default' ),
 		icon: pencil,
 		pinLastMenuItem: true,
 		menuItems: {},
