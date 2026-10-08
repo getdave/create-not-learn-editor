@@ -176,18 +176,14 @@ $heading-font-family: "EB Garamond", "Georgia", "Times New Roman", serif;
 	 * Cards lift slightly on hover.
 	 */
 	.dataviews-view-grid__media--clickable:hover,
-	.routes-styles__look:hover .routes-styles__look-preview,
-	.cnl-add-page-layout-card:hover,
-	.cnl-add-page-option-card.components-button:hover {
+	.routes-styles__look:hover .routes-styles__look-preview {
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 	}
 
 	@media not (prefers-reduced-motion) {
 
 		.dataviews-view-grid__media,
-		.routes-styles__look-preview,
-		.cnl-add-page-layout-card,
-		.cnl-add-page-option-card.components-button {
+		.routes-styles__look-preview {
 			transition-duration: var(--wpds-motion-duration-sm);
 			transition-property: border-color, box-shadow;
 			transition-timing-function: var(--wpds-motion-easing-subtle);

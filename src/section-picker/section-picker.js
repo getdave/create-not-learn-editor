@@ -12,8 +12,6 @@
  * WordPress dependencies
  */
 import {
-	Button,
-	Modal,
 	SearchControl,
 	/* eslint-disable @wordpress/no-unsafe-wp-apis -- The segmented control is still experimental in @wordpress/components and has no @wordpress/ui equivalent yet. */
 	__experimentalToggleGroupControl as ToggleGroupControl,
@@ -30,20 +28,20 @@ import {
 	useState,
 } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
-import {
-	chevronLeft as chevronLeftIcon,
-	chevronRight as chevronRightIcon,
-	closeSmall as closeSmallIcon,
-	columns as columnsIcon,
-	grid as gridIcon,
-	plus as plusIcon,
-} from '@wordpress/icons';
+import { plus as plusIcon } from '@wordpress/icons';
 import { store as preferencesStore } from '@wordpress/preferences';
 import { Icon, Skeleton, Text } from '@wordpress/ui';
 
 /**
  * Internal dependencies
  */
+import {
+	DesignPicker,
+	DesignPickerNav,
+	GridShapeIcon,
+	GroupHeading,
+	StartFromScratch,
+} from '../design-picker';
 import {
 	getPatternContent,
 	getPatternDescription,
@@ -128,14 +126,17 @@ function DesignCard( { onPick, pattern, Preview, scrollRef } ) {
 					__( 'Add %s' ),
 					title
 				),
-				className: 'cnl-section-picker__card',
+				className: 'cnl-design-picker__card cnl-section-picker__card',
 				onClick: () => onPick( pattern ),
 				title: description || undefined,
 				type: 'button',
 			},
 			el(
 				'span',
-				{ className: 'cnl-section-picker__preview' },
+				{
+					className:
+						'cnl-design-picker__preview cnl-section-picker__preview',
+				},
 				isNearView &&
 					el( Preview, {
 						content: getPatternContent( pattern ),
@@ -144,13 +145,14 @@ function DesignCard( { onPick, pattern, Preview, scrollRef } ) {
 			),
 			el(
 				'span',
-				{ className: 'cnl-section-picker__card-footer' },
-				el( 'span', { className: 'cnl-section-picker__name' }, title ),
+				{ className: 'cnl-design-picker__card-footer' },
+				el( 'span', { className: 'cnl-design-picker__name' }, title ),
 				el(
 					'span',
 					{
 						'aria-hidden': true,
-						className: 'cnl-section-picker__add',
+						className:
+							'cnl-design-picker__action cnl-section-picker__add',
 					},
 					el( Icon, { icon: plusIcon, size: 16 } ),
 					__( 'Add' )
@@ -173,60 +175,6 @@ function DesignGrid( { onPick, patterns, Preview, scrollRef } ) {
 				scrollRef,
 			} )
 		)
-	);
-}
-
-function StartFromScratch( { onClick } ) {
-	return el(
-		'button',
-		{
-			className: 'cnl-section-picker__scratch',
-			onClick,
-			type: 'button',
-		},
-		el(
-			'span',
-			{
-				'aria-hidden': true,
-				className: 'cnl-section-picker__scratch-icon',
-			},
-			el( Icon, { icon: plusIcon } )
-		),
-		el(
-			'span',
-			{ className: 'cnl-section-picker__scratch-text' },
-			el(
-				'span',
-				{ className: 'cnl-section-picker__scratch-title' },
-				__( 'Start from scratch' )
-			),
-			el(
-				'span',
-				{ className: 'cnl-section-picker__scratch-description' },
-				__( 'Build your section on a blank canvas' )
-			)
-		),
-		el( Icon, {
-			className: 'cnl-section-picker__scratch-chevron',
-			icon:
-				document.documentElement.dir === 'rtl'
-					? chevronLeftIcon
-					: chevronRightIcon,
-		} )
-	);
-}
-
-function GroupHeading( { description, id, label } ) {
-	return el(
-		'h3',
-		{ className: 'cnl-section-picker__group-heading', id },
-		el( 'span', { className: 'cnl-section-picker__group-label' }, label ),
-		description &&
-			el(
-				'span',
-				{ className: 'cnl-section-picker__group-description' },
-				description
-			)
 	);
 }
 
@@ -369,7 +317,6 @@ export function SectionPicker( {
 	const [ search, setSearch ] = useState( '' );
 	const [ perRow, setPerRow ] = usePerRow();
 	const scrollRef = useRef();
-	const titleId = useId();
 	const idPrefix = `cnl-section-picker-${ useId().replace( /:/g, '' ) }`;
 	const isSearching = !! search.trim();
 	const results = useMemo(
@@ -403,28 +350,20 @@ export function SectionPicker( {
 				'aria-labelledby': `${ idPrefix }-results`,
 				className: 'cnl-section-picker__group',
 			},
-			el(
-				'h3',
-				{
-					className: 'cnl-section-picker__group-heading',
-					id: `${ idPrefix }-results`,
-				},
-				el(
-					'span',
-					{ className: 'cnl-section-picker__group-label' },
-					results.length
-						? sprintf(
-								/* translators: %d: number of section designs. */
-								_n( '%d design', '%d designs', results.length ),
-								results.length
-							)
-						: sprintf(
-								/* translators: %s: what was searched for. */
-								__( 'No designs match “%s”' ),
-								search.trim()
-							)
-				)
-			),
+			el( GroupHeading, {
+				id: `${ idPrefix }-results`,
+				label: results.length
+					? sprintf(
+							/* translators: %d: number of section designs. */
+							_n( '%d design', '%d designs', results.length ),
+							results.length
+						)
+					: sprintf(
+							/* translators: %s: what was searched for. */
+							__( 'No designs match “%s”' ),
+							search.trim()
+						),
+			} ),
 			results.length > 0 &&
 				el( DesignGrid, {
 					onPick,
@@ -436,7 +375,7 @@ export function SectionPicker( {
 	} else if ( ! groups.length ) {
 		body = el(
 			Text,
-			{ className: 'cnl-section-picker__empty', variant: 'body-md' },
+			{ className: 'cnl-design-picker__empty', variant: 'body-md' },
 			__(
 				'Your theme has no section designs to offer, so start from scratch.'
 			)
@@ -466,127 +405,63 @@ export function SectionPicker( {
 	}
 
 	return el(
-		Modal,
+		DesignPicker,
 		{
-			__experimentalHideHeader: true,
-			aria: { labelledby: titleId },
-			className: 'cnl-section-picker',
-			focusOnMount: 'firstContentElement',
-			onRequestClose: onClose,
-			size: 'fill',
-		},
-		el(
-			'div',
-			{ className: 'cnl-section-picker__layout' },
-			el(
-				'header',
-				{ className: 'cnl-section-picker__header' },
+			actions: [
 				el(
-					'div',
-					{ className: 'cnl-section-picker__heading' },
-					el(
-						Text,
-						{
-							className: 'cnl-section-picker__title',
-							id: titleId,
-							render: el( 'h2' ),
-							variant: 'heading-xl',
-						},
-						__( 'Add a section' )
-					),
-					el(
-						Text,
-						{
-							className: 'cnl-section-picker__subtitle',
-							render: el( 'p' ),
-							variant: 'body-md',
-						},
-						[ __( 'Choose a design to get started.' ), placement ]
-							.filter( Boolean )
-							.join( ' ' )
-					)
-				),
-				el(
-					'div',
-					{ className: 'cnl-section-picker__header-actions' },
-					el(
-						ToggleGroupControl,
-						{
-							__next40pxDefaultSize: true,
-							hideLabelFromVision: true,
-							isBlock: false,
-							label: __( 'Designs per row' ),
-							onChange: ( value ) => setPerRow( Number( value ) ),
-							value: String( perRow ),
-						},
-						el( ToggleGroupControlOptionIcon, {
-							icon: columnsIcon,
-							label: __( 'Three per row' ),
-							value: '3',
-						} ),
-						el( ToggleGroupControlOptionIcon, {
-							icon: gridIcon,
-							label: __( 'Two per row' ),
-							value: '2',
-						} )
-					),
-					el( SearchControl, {
-						className: 'cnl-section-picker__search',
-						label: __( 'Search section designs' ),
-						onChange: setSearch,
-						placeholder: __( 'Search designs…' ),
-						value: search,
+					ToggleGroupControl,
+					{
+						__next40pxDefaultSize: true,
+						hideLabelFromVision: true,
+						isBlock: false,
+						key: 'per-row',
+						label: __( 'Designs per row' ),
+						onChange: ( value ) => setPerRow( Number( value ) ),
+						value: String( perRow ),
+					},
+					el( ToggleGroupControlOptionIcon, {
+						icon: el( GridShapeIcon, { columns: 3, rows: 2 } ),
+						label: __( 'Three per row' ),
+						value: '3',
 					} ),
-					el( Button, {
-						icon: closeSmallIcon,
-						label: __( 'Close' ),
-						onClick: onClose,
+					el( ToggleGroupControlOptionIcon, {
+						icon: el( GridShapeIcon, { columns: 2, rows: 2 } ),
+						label: __( 'Two per row' ),
+						value: '2',
 					} )
-				)
-			),
-			el(
-				'nav',
-				{
-					'aria-label': __( 'Kinds of section' ),
-					className: `cnl-section-picker__nav${
-						isSearching ? ' is-searching' : ''
-					}`,
-				},
-				el(
-					'ul',
-					{ className: 'cnl-section-picker__nav-list', role: 'list' },
-					groups.map( ( group ) =>
-						el(
-							'li',
-							{ key: group.name },
-							el(
-								'button',
-								{
-									'aria-current':
-										! isSearching &&
-										activeGroup === group.name
-											? 'true'
-											: undefined,
-									className: 'cnl-section-picker__nav-item',
-									disabled: isSearching,
-									onClick: () => jumpTo( group.name ),
-									type: 'button',
-								},
-								group.label
-							)
-						)
-					)
-				)
-			),
-			el(
-				'div',
-				{
-					className: `cnl-section-picker__main is-${ perRow }-per-row`,
-					ref: scrollRef,
-				},
-				el( StartFromScratch, { onClick: onStartFromScratch } ),
-				body
-			)
-		)
+				),
+				el( SearchControl, {
+					className: 'cnl-section-picker__search',
+					key: 'search',
+					label: __( 'Search section designs' ),
+					onChange: setSearch,
+					placeholder: __( 'Search designs…' ),
+					value: search,
+				} ),
+			],
+			className: 'cnl-section-picker',
+			mainClassName: `is-${ perRow }-per-row`,
+			mainRef: scrollRef,
+			nav: el( DesignPickerNav, {
+				current: activeGroup,
+				isDisabled: isSearching,
+				items: groups.map( ( group ) => ( {
+					label: group.label,
+					value: group.name,
+				} ) ),
+				label: __( 'Kinds of section' ),
+				onSelect: jumpTo,
+			} ),
+			onClose,
+			subtitle: [ __( 'Choose a design to get started.' ), placement ]
+				.filter( Boolean )
+				.join( ' ' ),
+			title: __( 'Add a section' ),
+		},
+		el( StartFromScratch, {
+			description: __( 'Build your section on a blank canvas' ),
+			onClick: onStartFromScratch,
+		} ),
+		body
 	);
 }
