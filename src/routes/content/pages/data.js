@@ -282,15 +282,15 @@ const PAGE_TEMPLATES_QUERY = { per_page: -1, post_type: 'page' };
  * and site's custom page templates.
  *
  * A homepage shown by a `front-page` template always uses it, whatever the
- * page asks for, so that one is reported separately.
+ * page asks for, so that one is reported separately. Patterns come too, to
+ * look inside any a template uses.
  *
- * @param {Object}  page        Page record.
+ * @param {string}  slug        Page slug.
  * @param {boolean} isFrontPage Whether the page is the site's homepage.
- * @return {Object} `{ custom, defaultTemplate, frontPageTemplate, isLoading }`.
+ * @return {Object} `{ custom, defaultTemplate, frontPageTemplate, isLoading,
+ *                  patterns }`.
  */
-export function usePageLayouts( page, isFrontPage ) {
-	const slug = page?.slug;
-
+export function usePageLayouts( slug, isFrontPage ) {
 	return useSelect(
 		( select ) => {
 			const store = select( coreDataStore );
@@ -318,6 +318,7 @@ export function usePageLayouts( page, isFrontPage ) {
 				frontPageTemplate:
 					frontTemplate?.slug === 'front-page' ? frontTemplate : null,
 				isLoading: ! custom || ! defaultTemplate,
+				patterns: store.getBlockPatterns?.() || EMPTY_ARRAY,
 			};
 		},
 		[ isFrontPage, slug ]

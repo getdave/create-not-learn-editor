@@ -436,16 +436,30 @@ $cnl-global: #7c3aed;
 	}
 }
 
+// A wireframe of the layout: what the template adds in the purple used for
+// everything that is the same on every page, around the page's own sections.
 .cnl-page-layout__preview {
+	--cnl-layout-sketch-global: #{$cnl-global};
+	--cnl-layout-sketch-global-tint: color-mix(in srgb, #{$cnl-global} 14%, transparent);
+	--cnl-layout-sketch-page: color-mix(in srgb, var(--wpds-color-foreground-content-neutral) 8%, transparent);
 	display: block;
 	overflow: hidden;
 	height: 110px;
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-md) 0;
+	box-sizing: border-box;
 	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	background: var(--wpds-color-background-surface-neutral-weak);
+	color: var(--wpds-color-foreground-content-neutral);
 	pointer-events: none;
+}
 
-	.lazy-editor-block-preview__container {
-		height: 100%;
-	}
+.cnl-layout-sketch {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border-radius: var(--wpds-border-radius-sm) var(--wpds-border-radius-sm) 0 0;
+	background: var(--wpds-color-background-surface-neutral);
+	box-shadow: 0 0 0 1px var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 .cnl-page-layout__footer {
