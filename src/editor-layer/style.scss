@@ -43,4 +43,24 @@ body:has(#{$edit-canvas}) {
 		) {
 		display: none;
 	}
+
+	/**
+	 * On a page, a section's options menu offers "Edit section" and "Add
+	 * section" (`src/editor-extensions/section-menu.js`), so core's "Detach"
+	 * and its link out to the pattern library are hidden.
+	 *
+	 * The link is picked out by where it goes, and "Detach" as the menu item
+	 * right before it, which is where core always renders it. Synced patterns
+	 * keep both, since they have no replacements.
+	 */
+	&:has(.cnl-editor-layer[data-post-type="page"]:not([data-selected-block="core/block"]))
+	.block-editor-block-settings-menu__popover {
+
+		$manage-patterns: 'a.components-menu-item__button:is([href*="p=%2Fpattern"], [href*="post_type=wp_block"])';
+
+		#{$manage-patterns},
+		.components-menu-item__button:has(+ #{$manage-patterns}) {
+			display: none;
+		}
+	}
 }
