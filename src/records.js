@@ -598,15 +598,23 @@ export function getTemplateDisplayTitle( template ) {
 	return getTitleText( template?.title );
 }
 
+function getTitleCasedSlug( slug ) {
+	return slug
+		.replace( /-/g, ' ' )
+		.replace( /\b\w/g, ( letter ) => letter.toUpperCase() );
+}
+
 export function getTemplateAuthorText( template ) {
 	if ( template?.source === 'theme' && appSettings.themeName ) {
 		return appSettings.themeName;
 	}
 
+	if ( template?.source === 'plugin' && template?.plugin ) {
+		return getTitleCasedSlug( template.plugin );
+	}
+
 	if ( template?.theme ) {
-		return template.theme
-			.replace( /-/g, ' ' )
-			.replace( /\b\w/g, ( letter ) => letter.toUpperCase() );
+		return getTitleCasedSlug( template.theme );
 	}
 
 	return __( 'Site editor' );
