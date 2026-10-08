@@ -57,6 +57,10 @@ $cnl-picker-accent: var(--wp-admin-theme-color, #3858e9);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
+.cnl-section-picker__mode {
+	margin-top: var(--wpds-dimension-padding-lg);
+}
+
 .cnl-section-picker__header-actions {
 	display: flex;
 	align-items: center;
@@ -354,6 +358,10 @@ $cnl-picker-accent: var(--wp-admin-theme-color, #3858e9);
 	.cnl-section-picker__card:focus-visible & {
 		opacity: 1;
 	}
+}
+
+.cnl-section-picker__other-mode {
+	align-self: flex-start;
 }
 
 .cnl-section-picker__empty {

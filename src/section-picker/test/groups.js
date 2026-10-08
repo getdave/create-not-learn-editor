@@ -7,8 +7,12 @@ jest.mock( '@wordpress/core-data', () => ( { store: {} } ) );
 /**
  * Internal dependencies
  */
-import { groupSectionDesigns, searchSectionDesigns } from '../groups';
-import { isSectionPattern } from '../patterns';
+import {
+	groupLayouts,
+	groupSectionDesigns,
+	searchSectionDesigns,
+} from '../groups';
+import { isLayoutPattern, isSectionPattern } from '../patterns';
 import { getPlacementText } from '../placement';
 
 function pattern( name, categories, extra = {} ) {
@@ -138,6 +142,49 @@ describe( 'isSectionPattern', () => {
 		);
 		expect( isSectionPattern( pattern( 'c', [ 'query' ] ) ) ).toBe( false );
 		expect( isSectionPattern( pattern( 'd', [ 'banner' ] ) ) ).toBe( true );
+	} );
+} );
+
+describe( 'groupLayouts', () => {
+	it( 'groups layouts by shape, in the order of the groups', () => {
+		const groups = groupLayouts( [
+			pattern( 'intro', [ 'cnl-layouts', 'cnl-layouts-text' ] ),
+			pattern( 'hero', [ 'cnl-layouts', 'cnl-layouts-banners' ] ),
+			pattern( 'quote', [ 'cnl-layouts', 'cnl-layouts-text' ] ),
+		] );
+
+		expect( summarise( groups ) ).toEqual( [
+			[ 'layout-banners', [ 'hero' ] ],
+			[ 'layout-text', [ 'intro', 'quote' ] ],
+		] );
+	} );
+
+	it( 'puts layouts without a known group last', () => {
+		const groups = groupLayouts( [
+			pattern( 'odd', [ 'cnl-layouts' ] ),
+			pattern( 'hero', [ 'cnl-layouts', 'cnl-layouts-banners' ] ),
+		] );
+
+		expect( summarise( groups ) ).toEqual( [
+			[ 'layout-banners', [ 'hero' ] ],
+			[ 'layout-more', [ 'odd' ] ],
+		] );
+	} );
+} );
+
+describe( 'isLayoutPattern', () => {
+	it( 'tells layouts apart from designs', () => {
+		expect( isLayoutPattern( pattern( 'a', [ 'cnl-layouts' ] ) ) ).toBe(
+			true
+		);
+		expect( isLayoutPattern( pattern( 'b', [ 'banner' ] ) ) ).toBe( false );
+		expect( isLayoutPattern( pattern( 'c' ) ) ).toBe( false );
+	} );
+
+	it( 'counts layouts as sections', () => {
+		expect( isSectionPattern( pattern( 'a', [ 'cnl-layouts' ] ) ) ).toBe(
+			true
+		);
 	} );
 } );
 
