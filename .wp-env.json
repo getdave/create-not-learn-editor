@@ -4,6 +4,9 @@
 		"https://downloads.wordpress.org/plugin/gutenberg.24.0.0.zip",
 		"."
 	],
+	"themes": [
+		"https://github.com/WordPress/ipsum/archive/refs/heads/trunk.zip"
+	],
 	"config": {
 		"WP_DEBUG": true,
 		"SCRIPT_DEBUG": true
