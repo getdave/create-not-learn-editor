@@ -13,17 +13,21 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  * Internal dependencies
  */
 import { getErrorMessage, getTemplateDisplayTitle } from '../../../records';
-import { getPatternDescription, getPatternTitle } from '../page-layouts';
+import { getPatternTitle } from '../page-layouts';
 import { isPageInMenu } from '../menu-status';
 import useMainMenu, { useAddPageToMenu } from '../use-main-menu';
 import {
-	getPageTitle,
+	createBlankSection,
 	getPatternSectionBlocks,
+	getPlacementText,
+	SectionPicker,
+} from '../../../section-picker';
+import {
+	getPageTitle,
 	usePageLayouts,
 	usePages,
 	usePageSections,
 	usePreviewStructure,
-	useSectionPatterns,
 } from './data';
 import {
 	buildPageTree,
@@ -63,7 +67,6 @@ import {
 	chevronDownSmallIcon,
 	chevronRightSmallIcon,
 	cloneBlock,
-	closeSmallIcon,
 	copyIcon,
 	coreDataStore,
 	dispatch,
@@ -1814,170 +1817,6 @@ function SectionList( {
 	);
 }
 
-function SectionPatternCard( { onPick, pattern } ) {
-	const title = getPatternTitle( pattern );
-	const description = getPatternDescription( pattern );
-
-	return el(
-		'li',
-		{ className: 'cnl-section-library__item' },
-		el(
-			'button',
-			{
-				'aria-label': sprintf(
-					/* translators: %s: section design name. */
-					__( 'Add %s' ),
-					title
-				),
-				className: 'cnl-section-library__card',
-				onClick: () => onPick( pattern ),
-				title: description || undefined,
-				type: 'button',
-			},
-			el(
-				'span',
-				{ className: 'cnl-section-library__preview' },
-				el( LazyEditorPreview, {
-					content: pattern.content,
-					description: title,
-				} )
-			),
-			el(
-				'span',
-				{ className: 'cnl-section-library__card-footer' },
-				el( 'span', { className: 'cnl-section-library__name' }, title ),
-				el(
-					'span',
-					{ className: 'cnl-section-library__add' },
-					el( Icon, { icon: plusIcon, size: 16 } ),
-					__( 'Add' )
-				)
-			)
-		)
-	);
-}
-
-function SectionLibrary( { blocks, index, onClose, onPick } ) {
-	const { groups, isLoading } = useSectionPatterns();
-	const [ category, setCategory ] = useState( null );
-	const activeGroup =
-		groups.find( ( group ) => group.name === category ) || groups[ 0 ];
-	const previous = blocks[ index - 1 ];
-	const next = blocks[ index ];
-	let placement = __( 'It will go at the end of the page.' );
-
-	if ( ! blocks.length ) {
-		placement = __( 'It will be the first thing on the page.' );
-	} else if ( ! previous ) {
-		placement = sprintf(
-			/* translators: %s: section name. */
-			__( 'It will go at the top, above “%s”.' ),
-			getSectionTitle( next )
-		);
-	} else if ( next ) {
-		placement = sprintf(
-			/* translators: %s: section name. */
-			__( 'It will go after “%s”.' ),
-			getSectionTitle( previous )
-		);
-	}
-
-	useEffect( () => {
-		sectionBridge.setInsertionIndex( index );
-
-		return () => sectionBridge.setInsertionIndex( null );
-	}, [ index ] );
-
-	return el(
-		'section',
-		{
-			'aria-label': __( 'Add a section' ),
-			className: 'cnl-section-library',
-		},
-		el(
-			'header',
-			{ className: 'cnl-section-library__header' },
-			el(
-				Stack,
-				{ direction: 'column', gap: 'xs' },
-				el(
-					'h3',
-					{ className: 'cnl-section-library__title' },
-					__( 'Add a section' )
-				),
-				el(
-					Text,
-					{
-						className: 'cnl-section-library__placement',
-						variant: 'body-sm',
-					},
-					placement
-				)
-			),
-			el( Button, {
-				icon: closeSmallIcon,
-				label: __( 'Close' ),
-				onClick: onClose,
-				size: 'compact',
-			} )
-		),
-		isLoading &&
-			! groups.length &&
-			el(
-				Stack,
-				{ direction: 'column', gap: 'md' },
-				[ 0, 1 ].map( ( key ) =>
-					el( Skeleton, { key, style: { height: 160 } } )
-				)
-			),
-		! isLoading &&
-			! groups.length &&
-			el(
-				Text,
-				{ variant: 'body-sm' },
-				__( 'Your theme has no section designs to offer.' )
-			),
-		groups.length > 0 &&
-			el(
-				'div',
-				{
-					'aria-label': __( 'Kinds of section' ),
-					className: 'cnl-section-library__chips',
-					role: 'group',
-				},
-				groups.map( ( group ) =>
-					el(
-						'button',
-						{
-							'aria-pressed': group === activeGroup,
-							className: 'cnl-section-library__chip',
-							key: group.name,
-							onClick: () => setCategory( group.name ),
-							type: 'button',
-						},
-						group.label
-					)
-				)
-			),
-		activeGroup &&
-			el(
-				'ul',
-				{
-					className: 'cnl-section-library__grid',
-					key: activeGroup.name,
-					role: 'list',
-				},
-				activeGroup.patterns.map( ( pattern ) =>
-					el( SectionPatternCard, {
-						key: pattern.name,
-						onPick,
-						pattern,
-					} )
-				)
-			)
-	);
-}
-
 /**
  * A page opened up: what it is, and the sections it is made of.
  *
@@ -1991,7 +1830,6 @@ export function PageDetailStage( { pageId } ) {
 	const { blocks, isReady, setBlocks } = usePageSections( pageId );
 	const { createSuccessNotice } = useDispatch( noticesStore );
 	const [ insertAt, setInsertAt ] = useState( null );
-	const bodyRef = useRef();
 	const page = useSelect(
 		( selectStore ) =>
 			selectStore( coreDataStore ).getEditedEntityRecord(
@@ -2013,10 +1851,17 @@ export function PageDetailStage( { pageId } ) {
 	// picked by clicking it on the canvas.
 	useEffect( () => () => sectionBridge.reset(), [ pageId ] );
 
-	const openAdd = ( index ) => {
-		setInsertAt( index );
-		bodyRef.current?.scrollTo( { top: 0 } );
-	};
+	// While the picker is open, the canvas marks where the section will go.
+	useEffect( () => {
+		if ( insertAt === null ) {
+			return;
+		}
+
+		sectionBridge.setInsertionIndex( insertAt );
+
+		return () => sectionBridge.setInsertionIndex( null );
+	}, [ insertAt ] );
+
 	const closeAdd = () => setInsertAt( null );
 	const pickPattern = ( pattern ) => {
 		const newBlocks = getPatternSectionBlocks( pattern );
@@ -2043,6 +1888,13 @@ export function PageDetailStage( { pageId } ) {
 		if ( Number.isInteger( sectionIndex ) ) {
 			selectSectionWhenEditorLoads( sectionIndex );
 		}
+	};
+	const startFromScratch = () => {
+		const index = insertAt;
+
+		setBlocks( insertItems( blocks, index, [ createBlankSection() ] ) );
+		setInsertAt( null );
+		editPage( index );
 	};
 	const editPart = ( id ) =>
 		navigate( { search: { postId: id }, to: '/wp_template_part' } );
@@ -2110,81 +1962,79 @@ export function PageDetailStage( { pageId } ) {
 		},
 		el(
 			'div',
-			{
-				className: `cnl-pages-detail__body${
-					insertAt !== null ? ' is-adding' : ''
-				}`,
-				ref: bodyRef,
-			},
-			insertAt === null &&
-				el( PageSummary, {
-					page: listPage ? { ...listPage, ...page } : page,
-					pageId,
-					roles,
-				} ),
-			insertAt === null &&
-				el( MemoizedPageLayouts, {
-					isFrontPage: pageId === frontPageId,
-					pageId,
-					sectionCount: blocks.length,
-					slug: page?.slug,
-					template: page?.template,
-				} ),
-			insertAt === null &&
+			{ className: 'cnl-pages-detail__body' },
+			el( PageSummary, {
+				page: listPage ? { ...listPage, ...page } : page,
+				pageId,
+				roles,
+			} ),
+			el( MemoizedPageLayouts, {
+				isFrontPage: pageId === frontPageId,
+				pageId,
+				sectionCount: blocks.length,
+				slug: page?.slug,
+				template: page?.template,
+			} ),
+			el(
+				'section',
+				{
+					'aria-label': __( 'Sections' ),
+					className: 'cnl-page-sections',
+				},
 				el(
-					'section',
-					{
-						'aria-label': __( 'Sections' ),
-						className: 'cnl-page-sections',
-					},
+					'header',
+					{ className: 'cnl-page-sections__header' },
 					el(
-						'header',
-						{ className: 'cnl-page-sections__header' },
+						Stack,
+						{ direction: 'column', gap: 'xs' },
 						el(
-							Stack,
-							{ direction: 'column', gap: 'xs' },
-							el(
-								'h3',
-								{ className: 'cnl-page-sections__title' },
-								__( 'On this page' )
-							),
-							isReady &&
-								blocks.length > 0 &&
-								el(
-									Text,
-									{
-										className: 'cnl-page-sections__hint',
-										variant: 'body-sm',
-									},
-									__(
-										'Top to bottom, as visitors see it. Drag sections to reorder them, or click one to find it on the page.'
-									)
-								)
+							'h3',
+							{ className: 'cnl-page-sections__title' },
+							__( 'On this page' )
 						),
 						isReady &&
 							blocks.length > 0 &&
-							el( Button, {
-								icon: plusIcon,
-								label: __( 'Add a section at the top' ),
-								onClick: () => openAdd( 0 ),
-								size: 'compact',
-							} )
+							el(
+								Text,
+								{
+									className: 'cnl-page-sections__hint',
+									variant: 'body-sm',
+								},
+								__(
+									'Top to bottom, as visitors see it. Drag sections to reorder them, or click one to find it on the page.'
+								)
+							)
 					),
-					el( SectionList, {
-						blocks,
-						isReady,
-						onAdd: openAdd,
-						onEdit: editPage,
-						onEditPart: editPart,
-						setBlocks,
-					} )
+					isReady &&
+						blocks.length > 0 &&
+						el( Button, {
+							icon: plusIcon,
+							label: __( 'Add a section at the top' ),
+							onClick: () => setInsertAt( 0 ),
+							size: 'compact',
+						} )
 				),
-			insertAt !== null &&
-				el( SectionLibrary, {
+				el( SectionList, {
 					blocks,
-					index: insertAt,
+					isReady,
+					onAdd: setInsertAt,
+					onEdit: editPage,
+					onEditPart: editPart,
+					setBlocks,
+				} )
+			),
+			insertAt !== null &&
+				el( SectionPicker, {
 					onClose: closeAdd,
 					onPick: pickPattern,
+					onStartFromScratch: startFromScratch,
+					placement: getPlacementText(
+						blocks[ insertAt - 1 ] &&
+							getSectionTitle( blocks[ insertAt - 1 ] ),
+						blocks[ insertAt ] &&
+							getSectionTitle( blocks[ insertAt ] )
+					),
+					Preview: LazyEditorPreview,
 				} )
 		)
 	);

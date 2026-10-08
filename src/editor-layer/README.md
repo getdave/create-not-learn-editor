@@ -21,6 +21,7 @@ All of it is scoped to boot's full-screen edit canvas, so stage screens and prev
 | `portal-host.js` | `usePortalHost()` and `EDITOR_REGIONS`. |
 | `settings-guard.js` | `useForcedBlockEditorSettings()`. |
 | `section-wording.js` | `useSectionWording()`: core's pattern strings, said as sections while a page is open. |
+| `section-picker.js` | `openSectionPicker()` and `EditorSectionPicker`: the shared "Add a section" picker (`src/section-picker/`), opened from a section's options menu. |
 | `style.scss` | The layer's stylesheet, loaded with app init. |
 
 ## Recipes
