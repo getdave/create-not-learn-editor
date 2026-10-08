@@ -13,12 +13,7 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  * Internal dependencies
  */
 import { getErrorMessage, getTemplateDisplayTitle } from '../../../records';
-import {
-	getPatternDescription,
-	getPatternTitle,
-	getPreviewContent,
-	replacePreviewTitleInBlocks,
-} from '../page-layouts';
+import { getPatternDescription, getPatternTitle } from '../page-layouts';
 import { isPageInMenu } from '../menu-status';
 import useMainMenu, { useAddPageToMenu } from '../use-main-menu';
 import {
@@ -52,6 +47,8 @@ import {
 } from './page-sections';
 import { sectionBridge, useSectionBridge } from './section-bridge';
 import SectionSketch from './section-sketch';
+import { getLayoutDescription, getLayoutOutline } from './layout-outline';
+import LayoutSketch from './layout-sketch';
 import {
 	__,
 	_n,
@@ -83,17 +80,16 @@ import {
 	lockSmallIcon,
 	MenuGroup,
 	MenuItem,
+	memo,
 	moreVerticalIcon,
 	noticesStore,
 	Page,
 	pageIcon,
-	parseBlocks,
 	pencilIcon,
 	plusIcon,
 	postListIcon,
 	searchIcon,
 	select,
-	serialize,
 	Skeleton,
 	sprintf,
 	Stack,
@@ -102,6 +98,7 @@ import {
 	UiButton,
 	useDispatch,
 	useEffect,
+	useId,
 	useMemo,
 	useRef,
 	useSelect,
@@ -930,32 +927,16 @@ function PageSummary( { page, pageId, roles } ) {
 	);
 }
 
-/*
- * The page inside a layout, with the page's title where the layout shows one,
- * rather than a placeholder.
- */
-function getLayoutPreviewContent( pageContent, template, title ) {
-	const content = getPreviewContent( pageContent, template );
+function LayoutCard( { isSelected, label, onPick, outline, sectionCount } ) {
+	const descriptionId = useId();
 
-	if ( ! template?.content?.raw?.includes( 'wp:post-title' ) ) {
-		return content;
-	}
-
-	const { blocks, didReplace } = replacePreviewTitleInBlocks(
-		parseBlocks( content ),
-		title
-	);
-
-	return didReplace ? serialize( blocks ) : content;
-}
-
-function LayoutCard( { content, isSelected, label, onPick } ) {
 	return el(
 		'li',
 		{ className: 'cnl-page-layouts__item' },
 		el(
 			'button',
 			{
+				'aria-describedby': descriptionId,
 				'aria-pressed': isSelected,
 				className: 'cnl-page-layout',
 				disabled: ! onPick,
@@ -964,8 +945,8 @@ function LayoutCard( { content, isSelected, label, onPick } ) {
 			},
 			el(
 				'span',
-				{ 'aria-hidden': true, className: 'cnl-page-layout__preview' },
-				el( LazyEditorPreview, { content, description: label } )
+				{ className: 'cnl-page-layout__preview' },
+				el( LayoutSketch, { outline, sectionCount } )
 			),
 			el(
 				'span',
@@ -977,46 +958,78 @@ function LayoutCard( { content, isSelected, label, onPick } ) {
 						icon: checkIcon,
 						size: 20,
 					} )
+			),
+			el(
+				'span',
+				{ hidden: true, id: descriptionId },
+				getLayoutDescription( outline )
 			)
 		)
 	);
 }
 
 /**
- * The layouts a page can use, shown with the page's own sections in them, so
+ * The layouts a page can use, each drawn with the page's sections in it, so
  * picking one is picking how this page looks. The canvas follows the choice
  * straight away; it is saved with the page.
  *
- * @param {Object}   props             Component props.
- * @param {Object[]} props.blocks      The page's sections.
- * @param {boolean}  props.isFrontPage Whether the page is the homepage.
- * @param {Object}   props.page        Page record, with edits.
- * @param {number}   props.pageId      Page ID.
+ * Layouts are drawn from their templates rather than rendered. Rendering each
+ * one with the page in it, again on every change to the page, made typing on
+ * this screen crawl.
+ *
+ * @param {Object}  props              Component props.
+ * @param {boolean} props.isFrontPage  Whether the page is the homepage.
+ * @param {number}  props.pageId       Page ID.
+ * @param {number}  props.sectionCount How many sections the page has.
+ * @param {string}  props.slug         Page slug.
+ * @param {string}  props.template     The page's chosen template slug, if any.
  * @return {Element} The layout picker.
  */
-function PageLayouts( { blocks, isFrontPage, page, pageId } ) {
+function PageLayouts( {
+	isFrontPage,
+	pageId,
+	sectionCount,
+	slug,
+	template: current = '',
+} ) {
 	const { editEntityRecord } = useDispatch( coreDataStore );
-	const { custom, defaultTemplate, frontPageTemplate, isLoading } =
-		usePageLayouts( page, isFrontPage );
-	const pageContent = useMemo(
-		() => ( { content: { raw: serialize( blocks ) } } ),
-		[ blocks ]
-	);
-	const current = page?.template || '';
-	const options = [
-		defaultTemplate && {
-			label: __( 'Standard' ),
-			template: defaultTemplate,
-			value: '',
-		},
-		...custom
-			.filter( ( template ) => template.content?.raw )
-			.map( ( template ) => ( {
-				label: getTemplateDisplayTitle( template ) || template.slug,
-				template,
-				value: template.slug,
-			} ) ),
-	].filter( Boolean );
+	const { custom, defaultTemplate, frontPageTemplate, isLoading, patterns } =
+		usePageLayouts( slug, isFrontPage );
+	const options = useMemo( () => {
+		const resolvePattern = ( name ) =>
+			patterns.find( ( pattern ) => pattern.name === name )?.content;
+		const toOption = ( template, label, value ) => ( {
+			label,
+			outline: getLayoutOutline( template.content?.raw, {
+				resolvePattern,
+			} ),
+			value,
+		} );
+
+		if ( frontPageTemplate ) {
+			return [
+				toOption(
+					frontPageTemplate,
+					getTemplateDisplayTitle( frontPageTemplate ) ||
+						__( 'Homepage' )
+				),
+			];
+		}
+
+		return [
+			defaultTemplate &&
+				toOption( defaultTemplate, __( 'Standard' ), '' ),
+			...custom
+				.filter( ( template ) => template.content?.raw )
+				.map( ( template ) =>
+					toOption(
+						template,
+						getTemplateDisplayTitle( template ) || template.slug,
+						template.slug
+					)
+				),
+		].filter( Boolean );
+	}, [ custom, defaultTemplate, frontPageTemplate, patterns ] );
 	let body;
 
 	if ( isLoading ) {
@@ -1026,22 +1039,6 @@ function PageLayouts( { blocks, isFrontPage, page, pageId } ) {
 			[ 0, 1 ].map( ( key ) =>
 				el( Skeleton, { key, style: { height: 150 } } )
 			)
-		);
-	} else if ( frontPageTemplate ) {
-		body = el(
-			'ul',
-			{ className: 'cnl-page-layouts__grid', role: 'list' },
-			el( LayoutCard, {
-				content: getLayoutPreviewContent(
-					pageContent,
-					frontPageTemplate,
-					getPageTitle( page )
-				),
-				isSelected: true,
-				label:
-					getTemplateDisplayTitle( frontPageTemplate ) ||
-					__( 'Homepage' ),
-			} )
 		);
 	} else {
 		body = el(
@@ -1053,18 +1050,19 @@ function PageLayouts( { blocks, isFrontPage, page, pageId } ) {
 			},
 			options.map( ( option ) =>
 				el( LayoutCard, {
-					content: getLayoutPreviewContent(
-						pageContent,
-						option.template,
-						getPageTitle( page )
-					),
-					isSelected: option.value === current,
+					isSelected:
+						Boolean( frontPageTemplate ) ||
+						option.value === current,
 					key: option.value || 'default',
 					label: option.label,
-					onPick: () =>
-						editEntityRecord( 'postType', 'page', pageId, {
-							template: option.value,
-						} ),
+					onPick: frontPageTemplate
+						? undefined
+						: () =>
+								editEntityRecord( 'postType', 'page', pageId, {
+									template: option.value,
+								} ),
+					outline: option.outline,
+					sectionCount,
 				} )
 			)
 		);
@@ -1096,6 +1094,9 @@ function PageLayouts( { blocks, isFrontPage, page, pageId } ) {
 		body
 	);
 }
+
+// Typing the title changes the page on every key, but none of what this shows.
+const MemoizedPageLayouts = memo( PageLayouts );
 
 function SectionGap( { index, isActive, onAdd } ) {
 	return el(
@@ -2122,11 +2123,12 @@ export function PageDetailStage( { pageId } ) {
 					roles,
 				} ),
 			insertAt === null &&
-				el( PageLayouts, {
-					blocks,
+				el( MemoizedPageLayouts, {
 					isFrontPage: pageId === frontPageId,
-					page,
 					pageId,
+					sectionCount: blocks.length,
+					slug: page?.slug,
+					template: page?.template,
 				} ),
 			insertAt === null &&
 				el(
