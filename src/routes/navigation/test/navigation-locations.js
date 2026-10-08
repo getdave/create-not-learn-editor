@@ -5,6 +5,7 @@ import {
 	assignNavigationMenuToFirstBlock,
 	buildNavigationLocationsMap,
 	getLocationsSummary,
+	getMainMenu,
 	getReferencedMenuIdsFromContent,
 	getTemplatePartMenuRefs,
 	removeNavigationMenuFromFirstBlock,
@@ -94,6 +95,18 @@ describe( 'navigation location helpers', () => {
 				( ref ) => ref.part.id
 			)
 		).toEqual( [ 'theme//header', 'theme//footer' ] );
+	} );
+
+	test( 'finds the menu in the site header', () => {
+		const menus = [ { id: 30 }, { id: 20 }, { id: 10 } ];
+
+		expect( getMainMenu( menus, [ footerPart, headerPart ] ) ).toBe(
+			menus[ 2 ]
+		);
+		expect( getMainMenu( menus, [ footerPart ] ) ).toBe( menus[ 1 ] );
+		expect( getMainMenu( menus, [] ) ).toBe( menus[ 0 ] );
+		expect( getMainMenu( [ { id: 30 } ], [ headerPart ] ) ).toBeNull();
+		expect( getMainMenu( [], [] ) ).toBeNull();
 	} );
 
 	test( 'summarizes usage counts for navigation menu rows', () => {
