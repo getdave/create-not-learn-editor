@@ -315,6 +315,34 @@ function getLaneDescription( lane, group ) {
 	);
 }
 
+// How far each sheet behind a single page sits from the one in front.
+const STACK_OFFSETS = [ 12, 24 ];
+
+/**
+ * Sheets behind a single page, so it reads as one of many: the page every
+ * post, or every product, is shown on. Drawn before the cards, so behind
+ * them, and not one per item.
+ *
+ * @param {Object} props      Component props.
+ * @param {Object} props.node Single page node.
+ * @return {Element[]} Sheets, back first.
+ */
+function StackSheets( { node } ) {
+	return [ ...STACK_OFFSETS ].reverse().map( ( offset ) =>
+		el( 'div', {
+			'aria-hidden': true,
+			className: 'cnl-site-overview__stack-sheet',
+			key: offset,
+			style: {
+				height: node.height,
+				left: node.x + offset,
+				top: node.y + offset,
+				width: node.width,
+			},
+		} )
+	);
+}
+
 function Lane( { lane } ) {
 	const kind = { home: 'is-home', page: 'is-pages' }[ lane.name ];
 
@@ -339,20 +367,14 @@ function Lane( { lane } ) {
  * @param {Object} props.group    Content type the lane shows.
  * @param {Object} props.lane     Lane, on the canvas.
  * @param {Object} props.nextLane Lane to its right, if any, which the name
- *                                must stop short of. Without one, the name
- *                                keeps to its own lane's width.
+ *                                must stop short of.
  * @param {Object} props.view     Current view.
  * @return {Element} Lane label.
  */
 function LaneLabel( { group, lane, nextLane, view } ) {
-	let width = lane.width * view.k;
-
-	if ( lane.name === 'home' ) {
-		// Alone above the rest, with room either side.
-		width = Infinity;
-	} else if ( nextLane ) {
-		width = ( nextLane.x - lane.x ) * view.k - LANE_LABEL_GAP;
-	}
+	const width = nextLane
+		? ( nextLane.x - lane.x ) * view.k - LANE_LABEL_GAP
+		: Infinity;
 
 	return el(
 		'div',
@@ -1071,6 +1093,14 @@ export default function Canvas() {
 							groupsByName,
 							nodesById,
 						} ),
+						layout.nodes
+							.filter( ( node ) => node.kind === 'single' )
+							.map( ( node ) =>
+								el( StackSheets, {
+									key: `stack-${ node.id }`,
+									node,
+								} )
+							),
 						layout.nodes.map( ( node ) =>
 							el( SiteOverviewCard, {
 								group: groupsByName.get( node.group ),
