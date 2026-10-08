@@ -38,7 +38,8 @@ function cnl_editor_add_block_hover_label_style( $settings ) {
 }
 
 /**
- * Get the CSS that shows a block's name in a small label on hover.
+ * Get the CSS that shows a block's name in a small label on hover, for as long
+ * as no block is selected.
  *
  * Relies on the `data-title` attribute Gutenberg already renders on every
  * block wrapper (the block type's human-readable title), so no JavaScript is
@@ -52,7 +53,15 @@ function cnl_editor_get_block_hover_label_css() {
 			position: relative;
 		}
 
-		.block-editor-block-list__block:hover:not(.is-selected):not(:has(.block-editor-block-list__block:hover))::before {
+		/*
+		 * Labels are an aid to finding your way around a page nothing has been
+		 * picked out of yet. Once a block is selected the toolbar names it and
+		 * the outline marks it, so every label goes, not only the one on the
+		 * selected block: a name floating over whatever the pointer passes on
+		 * the way to the toolbar only competes with the selection.
+		 */
+		.is-root-container:not(:has(.block-editor-block-list__block:is(.is-selected, .is-multi-selected)))
+			.block-editor-block-list__block:hover:not(:has(.block-editor-block-list__block:hover))::before {
 			content: attr(data-title);
 			position: absolute;
 			top: 0;
@@ -78,8 +87,10 @@ function cnl_editor_get_block_hover_label_css() {
 		 * the editor already uses to mark them, matching the outline core draws
 		 * around the same two blocks.
 		 */
-		.block-editor-block-list__block.wp-block-template-part:hover:not(.is-selected):not(:has(.block-editor-block-list__block:hover))::before,
-		.block-editor-block-list__block.is-reusable:hover:not(.is-selected):not(:has(.block-editor-block-list__block:hover))::before {
+		.is-root-container:not(:has(.block-editor-block-list__block:is(.is-selected, .is-multi-selected)))
+			.block-editor-block-list__block.wp-block-template-part:hover:not(:has(.block-editor-block-list__block:hover))::before,
+		.is-root-container:not(:has(.block-editor-block-list__block:is(.is-selected, .is-multi-selected)))
+			.block-editor-block-list__block.is-reusable:hover:not(:has(.block-editor-block-list__block:hover))::before {
 			background: var(--wp-block-synced-color, #7a00df);
 		}
 
@@ -88,7 +99,8 @@ function cnl_editor_get_block_hover_label_css() {
 		 * be drawn outside the canvas and clipped. That one sits just inside
 		 * the block instead.
 		 */
-		.is-root-container > .block-editor-block-list__block:first-child:hover:not(.is-selected):not(:has(.block-editor-block-list__block:hover))::before {
+		.is-root-container:not(:has(.block-editor-block-list__block:is(.is-selected, .is-multi-selected)))
+			> .block-editor-block-list__block:first-child:hover:not(:has(.block-editor-block-list__block:hover))::before {
 			transform: none;
 		}
 	';
