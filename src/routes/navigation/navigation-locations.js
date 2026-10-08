@@ -371,6 +371,28 @@ export function getTemplatePartMenuRefs( templateParts, fallbackMenuId ) {
 		);
 }
 
+/**
+ * The menu in the site header.
+ *
+ * Falls back to the most recent menu, which is what an unassigned Navigation
+ * block shows.
+ *
+ * @param {Object[]} menus         Navigation menus, most recent first.
+ * @param {Object[]} templateParts Template parts to look for menu refs in.
+ * @return {Object|null} The header menu, or null if it is not in `menus`.
+ */
+export function getMainMenu( menus, templateParts ) {
+	const fallbackMenuId = menus?.[ 0 ]?.id;
+	const refs = getTemplatePartMenuRefs( templateParts, fallbackMenuId );
+	const headerRef =
+		refs.find( ( { part } ) => part.area === 'header' ) || refs[ 0 ];
+	const menuId = headerRef?.menuIds?.[ 0 ] || fallbackMenuId;
+
+	return (
+		( menus || EMPTY_ARRAY ).find( ( menu ) => menu.id === menuId ) || null
+	);
+}
+
 export function templatePartHasNavigationBlock( part, editedContent ) {
 	const rawContent = getTemplatePartContentForMutation( part, editedContent );
 
