@@ -6,7 +6,8 @@
  * layer's stylesheet hides on pages. "Detach" asks a beginner to understand
  * that a section is linked to something, and "Manage patterns" leaves this
  * editor for core's pattern library. Editing a section and adding another are
- * what those menu entries are reached for.
+ * what those menu entries are reached for. "Add section" opens the section
+ * picker, the same one the Pages screen uses, rather than core's inserter.
  *
  * Only unsynced patterns count as sections here. Synced patterns keep core's
  * own controls.
@@ -33,6 +34,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
+import { openSectionPicker } from '../editor-layer/section-picker';
 import { unlock } from '../lock-unlock';
 
 /*
@@ -90,20 +92,13 @@ function SectionMenuItems( { clientId } ) {
 			clientId
 		);
 
-	/*
-	 * Closed first, because the inserter only reads which tab to open on when
-	 * it mounts.
-	 */
 	const addSection = () => {
 		const { getBlockIndex, getBlockRootClientId } =
 			registry.select( blockEditorStore );
-		const { setIsInserterOpened } = registry.dispatch( EDITOR_STORE );
 
-		setIsInserterOpened( false );
-		setIsInserterOpened( {
+		openSectionPicker( {
+			index: getBlockIndex( clientId ) + 1,
 			rootClientId: getBlockRootClientId( clientId ),
-			insertionIndex: getBlockIndex( clientId ) + 1,
-			tab: 'patterns',
 		} );
 	};
 

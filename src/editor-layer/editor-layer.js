@@ -3,12 +3,13 @@
  */
 import { store as blockEditorStore } from '@wordpress/block-editor';
 import { useSelect } from '@wordpress/data';
-import { createElement as el } from '@wordpress/element';
+import { createElement as el, Fragment, useEffect } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
 import { useIsEditCanvas } from './canvas-mode';
+import { closeSectionPicker, EditorSectionPicker } from './section-picker';
 import { useSectionWording } from './section-wording';
 import { EDITOR_STORE, useForcedBlockEditorSettings } from './settings-guard';
 
@@ -23,8 +24,9 @@ const NOT_EDITING = {};
 /**
  * The editor layer's composition root.
  *
- * Mounted once, outside boot's tree. It renders no chrome of its own yet.
- * What it owns is the editor state the layer's stylesheet keys off, published
+ * Mounted once, outside boot's tree. The only UI it renders itself is the
+ * section picker, opened from a section's options menu. Otherwise, what it
+ * owns is the editor state the layer's stylesheet keys off, published
  * as data attributes on its own element, the settings it forces, and the
  * section wording core's pattern strings take while a page is open. Custom
  * chrome is portalled from here into the editor's regions with
@@ -58,9 +60,21 @@ export function EditorLayer() {
 	);
 	useSectionWording( postType === 'page' );
 
-	return el( 'div', {
-		className: 'cnl-editor-layer',
-		'data-post-type': postType || undefined,
-		'data-selected-block': selectedBlockName || undefined,
-	} );
+	// A picker asked for in one editor doesn't outlive it.
+	useEffect( () => {
+		if ( ! isEditCanvas ) {
+			closeSectionPicker();
+		}
+	}, [ isEditCanvas ] );
+
+	return el(
+		Fragment,
+		null,
+		el( 'div', {
+			className: 'cnl-editor-layer',
+			'data-post-type': postType || undefined,
+			'data-selected-block': selectedBlockName || undefined,
+		} ),
+		isEditCanvas && el( EditorSectionPicker )
+	);
 }
