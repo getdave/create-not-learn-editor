@@ -2,6 +2,7 @@
 @use "./vendor/gutenberg/list-view/style" as list-view;
 @use "./theme/modern";
 @use "./routes/content/pages/style" as pages;
+@use "./routes/site-overview/style" as site-overview;
 
 .cnl-editor-page {
 

@@ -65,6 +65,7 @@ function cnl_editor_bootstrap() {
 	require_once CNL_EDITOR_PATH . 'includes/block-templates.php';
 	require_once CNL_EDITOR_PATH . 'includes/setup-defaults.php';
 	require_once CNL_EDITOR_PATH . 'includes/preview-context.php';
+	require_once CNL_EDITOR_PATH . 'includes/site-overview.php';
 	require_once CNL_EDITOR_PATH . 'includes/rest-api.php';
 	require_once CNL_EDITOR_PATH . 'includes/admin-page.php';
 	require_once CNL_EDITOR_PATH . 'includes/block-canvas-styles.php';

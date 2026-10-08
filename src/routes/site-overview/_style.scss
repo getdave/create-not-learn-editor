@@ -1,0 +1,486 @@
+// The Site Overview: every page of the site on a pan and zoom canvas, with the
+// sidebar outline that mirrors it.
+
+$cnl-site-overview-accent: var(--wp-admin-theme-color, #3858e9);
+$cnl-site-overview-line: #a7aaad;
+
+// ---------------------------------------------------------------------------
+// Canvas.
+// ---------------------------------------------------------------------------
+
+.cnl-site-overview-canvas {
+	overflow: hidden;
+	height: 100%;
+	background: #f6f7f7;
+}
+
+// Holds the canvas, with the selected page floating over it.
+.cnl-site-overview__body {
+	position: relative;
+	display: grid;
+	min-height: 0;
+
+	> .cnl-site-overview__viewport {
+		grid-area: 1 / 1;
+	}
+}
+
+.cnl-site-overview__heading {
+	min-width: 0;
+}
+
+.cnl-site-overview__title {
+	margin: 0;
+	font-size: var(--wpds-typography-font-size-lg);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	line-height: 1.3;
+}
+
+.cnl-site-overview__summary {
+	margin: 2px 0 0;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: 12px;
+}
+
+.cnl-site-overview__zoom {
+	display: flex;
+	gap: 2px;
+	align-items: center;
+}
+
+.cnl-site-overview__zoom-level.components-button {
+	justify-content: center;
+	min-width: 56px;
+	font-variant-numeric: tabular-nums;
+}
+
+.cnl-site-overview__viewport {
+	position: relative;
+	overflow: hidden;
+	min-height: 0;
+	background-color: #f6f7f7;
+	background-image: radial-gradient(circle, #c3c4c7 1px, transparent 1.2px);
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid $cnl-site-overview-accent;
+		outline-offset: calc(-1 * var(--wpds-border-width-focus));
+	}
+
+	&.is-panning {
+		cursor: grabbing;
+
+		.cnl-site-overview-card {
+			cursor: grabbing;
+		}
+	}
+}
+
+.cnl-site-overview__world {
+	position: absolute;
+	top: 0;
+	inset-inline-start: 0;
+	transform-origin: 0 0;
+	will-change: transform;
+
+	&.is-animating {
+		transition: transform 0.28s cubic-bezier(0.2, 0, 0, 1);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+
+		&.is-animating {
+			transition: none;
+		}
+	}
+}
+
+.cnl-site-overview__status {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0;
+}
+
+// ---------------------------------------------------------------------------
+// Lanes: one per content type.
+// ---------------------------------------------------------------------------
+
+.cnl-site-overview__lane {
+	position: absolute;
+	box-sizing: border-box;
+	border: 1px solid #e0e0e0;
+	border-radius: 16px;
+	background: rgba(255, 255, 255, 0.6);
+
+	&.is-dynamic {
+		border-style: dashed;
+		border-color: #c3c4c7;
+		background: color-mix(in srgb, #{$cnl-site-overview-accent} 4%, transparent);
+	}
+}
+
+.cnl-site-overview__lane-labels {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	pointer-events: none;
+
+	// Moves with the canvas, which animates the same way.
+	&.is-animating .cnl-site-overview__lane-header {
+		transition-duration: 0.28s;
+		transition-property: left, top, max-width;
+		transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+
+		&.is-animating .cnl-site-overview__lane-header {
+			transition: none;
+		}
+	}
+}
+
+// Sits just above the lane, lined up with its left edge. The background hides
+// any line that runs behind it into the lane.
+.cnl-site-overview__lane-header {
+	position: absolute;
+	display: flex;
+	gap: 2px;
+	align-items: center;
+	box-sizing: border-box;
+	min-width: 0;
+	padding: 0 2px 0 0;
+	background: #f6f7f7;
+	white-space: nowrap;
+	transform: translateY(calc(-100% - 6px));
+}
+
+.cnl-site-overview__lane-icon {
+	flex: none;
+	margin-inline-end: 4px;
+	fill: #1e1e1e;
+}
+
+.cnl-site-overview__lane-label {
+	overflow: hidden;
+	min-width: 0;
+	color: #1e1e1e;
+	font-size: 15px;
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	line-height: 20px;
+	text-overflow: ellipsis;
+}
+
+.cnl-site-overview__lane-help {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: none;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	cursor: help;
+	fill: currentcolor;
+	pointer-events: auto;
+
+	&:hover {
+		color: #1e1e1e;
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid $cnl-site-overview-accent;
+		outline-offset: 0;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Lines between pages.
+// ---------------------------------------------------------------------------
+
+.cnl-site-overview__edges {
+	position: absolute;
+	top: 0;
+	inset-inline-start: 0;
+	overflow: visible;
+	width: 1px;
+	height: 1px;
+	pointer-events: none;
+}
+
+.cnl-site-overview__edge {
+	fill: none;
+	stroke: $cnl-site-overview-line;
+	stroke-width: 2;
+	stroke-linecap: round;
+	transition: stroke 0.12s ease;
+
+	&.is-items {
+		stroke-dasharray: 2 7;
+		stroke-width: 2.5;
+	}
+
+	&.is-active {
+		stroke: $cnl-site-overview-accent;
+		stroke-width: 3;
+	}
+}
+
+.cnl-site-overview__edge-label {
+	position: absolute;
+	padding: 3px 10px;
+	border: 1px solid #dcdcde;
+	border-radius: 999px;
+	background: #fff;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: 12px;
+	line-height: 1.4;
+	white-space: nowrap;
+	transform: translate(-50%, -50%);
+	pointer-events: none;
+
+	&.is-active {
+		border-color: $cnl-site-overview-accent;
+		color: $cnl-site-overview-accent;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Page cards.
+// ---------------------------------------------------------------------------
+
+.cnl-site-overview-card {
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	border: 1px solid #dcdcde;
+	border-radius: 10px;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.04);
+	cursor: pointer;
+	transition: box-shadow 0.12s ease, border-color 0.12s ease;
+
+	&:hover,
+	&.is-related {
+		border-color: color-mix(in srgb, #{$cnl-site-overview-accent} 50%, #dcdcde);
+	}
+
+	&:hover {
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 10px 24px rgba(0, 0, 0, 0.08);
+	}
+
+	&.is-selected {
+		border-color: $cnl-site-overview-accent;
+		box-shadow: 0 0 0 2px $cnl-site-overview-accent, 0 10px 24px rgba(0, 0, 0, 0.08);
+	}
+
+	&:focus-within {
+		box-shadow: 0 0 0 var(--wpds-border-width-focus) $cnl-site-overview-accent;
+	}
+
+	&.is-unpublished .cnl-site-overview-card__thumbnail {
+		opacity: 0.7;
+	}
+
+	// A single page stands for every item, so it's drawn as a stack.
+	&.is-single::before,
+	&.is-single::after {
+		content: "";
+		position: absolute;
+		z-index: -1;
+		box-sizing: border-box;
+		border: 1px solid #dcdcde;
+		border-radius: 10px;
+		background: #fff;
+	}
+
+	&.is-single::before {
+		inset: 6px -6px -6px 6px;
+	}
+
+	&.is-single::after {
+		inset: 12px -12px -12px 12px;
+		z-index: -2;
+	}
+
+	&.is-home {
+		border-width: 2px;
+		border-color: #1e1e1e;
+	}
+
+	&.is-home.is-selected {
+		border-color: $cnl-site-overview-accent;
+	}
+}
+
+.cnl-site-overview-card__thumbnail {
+	position: relative;
+	overflow: hidden;
+	flex: none;
+	height: 150px;
+	border-bottom: 1px solid #f0f0f0;
+	border-radius: 9px 9px 0 0;
+	background: #f6f7f7;
+}
+
+.cnl-site-overview-card__placeholder {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	align-items: center;
+	justify-content: center;
+	color: #a7aaad;
+	font-size: 12px;
+	fill: currentcolor;
+}
+
+.cnl-site-overview-card__frame {
+	position: absolute;
+	top: 0;
+	inset-inline-start: 0;
+	border: 0;
+	background: #fff;
+	opacity: 0;
+	transform-origin: 0 0;
+	transition: opacity 0.2s ease;
+	pointer-events: none;
+
+	.is-loaded > & {
+		opacity: 1;
+	}
+}
+
+.cnl-site-overview-card__caption {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 4px;
+	justify-content: center;
+	min-width: 0;
+	padding: 8px 12px;
+}
+
+.cnl-site-overview-card__select {
+	overflow: hidden;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: #1e1e1e;
+	font: inherit;
+	font-size: 14px;
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	line-height: 1.3;
+	text-align: start;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: inherit;
+
+	// The whole card is the button's target.
+	&::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+	}
+
+	&:focus {
+		outline: none;
+	}
+}
+
+.cnl-site-overview-card__meta {
+	display: flex;
+	gap: 4px;
+	align-items: center;
+	min-width: 0;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: 12px;
+	white-space: nowrap;
+	fill: currentcolor;
+
+	.is-dynamic & {
+		color: $cnl-site-overview-accent;
+	}
+}
+
+.cnl-site-overview-card__count {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+
+	&::before {
+		content: "·";
+		margin-inline-end: 4px;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// How to move around.
+// ---------------------------------------------------------------------------
+
+.cnl-site-overview__help {
+	position: absolute;
+	bottom: 16px;
+	inset-inline-start: 16px;
+	max-width: calc(100% - 32px);
+	box-sizing: border-box;
+	margin: 0;
+	padding: 8px 12px;
+	border: 1px solid #e0e0e0;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.92);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: 12px;
+	pointer-events: none;
+}
+
+// ---------------------------------------------------------------------------
+// Selected page.
+// ---------------------------------------------------------------------------
+
+.cnl-site-overview__selected {
+	position: absolute;
+	z-index: 1;
+	inset-block-start: 16px;
+	inset-inline-end: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-md);
+	box-sizing: border-box;
+	width: 320px;
+	max-width: calc(100% - 32px);
+	max-height: calc(100% - 32px);
+	overflow-y: auto;
+	padding: var(--wpds-dimension-padding-lg);
+	border: 1px solid var(--wpds-color-stroke-surface-neutral);
+	border-radius: var(--wpds-border-radius-lg);
+	background: var(--wpds-color-background-surface-neutral);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.1);
+	animation: cnl-pages-fade-up 0.18s ease;
+
+	svg {
+		flex: none;
+		fill: currentcolor;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+
+.cnl-site-overview__selected-title {
+	overflow-wrap: anywhere;
+}
+
+.cnl-site-overview__selected-detail {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
