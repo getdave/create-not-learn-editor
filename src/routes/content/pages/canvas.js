@@ -2,20 +2,25 @@
  * The Pages canvas: the page being worked on, always in view, and linked to
  * the sidebar section by section.
  *
- * Point at a section here and it lights up in the sidebar, and the other way
- * round. Click one here to pick it there. While a section is being added or
- * dragged, a marker shows where it will land.
+ * It is a site canvas: Preview shows the saved page as visitors see it, and
+ * Edit changes it in place. Following a link in the preview to another page
+ * opens that page in the sidebar, and picking a page there moves the preview.
+ *
+ * In Edit, a section picked in the sidebar is marked on the page, and while a
+ * section is being added or dragged, a marker shows where it will land. Both
+ * switch the canvas to Edit, where they can be seen, as do changes made from
+ * the sidebar.
  */
 
 /**
  * WordPress dependencies
  */
 import { useNavigate, useSearch } from '@wordpress/route';
-import { Editor as LazyEditor } from '@wordpress/lazy-editor';
 
 /**
  * Internal dependencies
  */
+import { SiteCanvas, useSiteCanvas } from '../../../site-canvas';
 import {
 	getPageTitle,
 	usePages,
@@ -27,16 +32,12 @@ import {
 	getTemplateElementKey,
 	getTemplateElementLabel,
 } from './page-sections';
-import { sectionBridge, useSectionBridge } from './section-bridge';
+import { useSectionBridge } from './section-bridge';
 import {
 	__,
 	Button,
 	chevronDownIcon,
-	chevronLeftIcon,
-	chevronRightIcon,
 	coreDataStore,
-	desktopIcon,
-	dispatch,
 	Dropdown,
 	el,
 	EmptyState,
@@ -46,13 +47,8 @@ import {
 	linkIcon,
 	MenuGroup,
 	MenuItem,
-	mobileIcon,
 	noticesStore,
 	pageIcon,
-	pencilIcon,
-	tabletIcon,
-	ToggleGroupControl,
-	ToggleGroupControlOptionIcon,
 	useDispatch,
 	useEffect,
 	useMemo,
@@ -62,12 +58,6 @@ import {
 } from '../../../wordpress-packages';
 
 const LIST_PATH = '/types/page/list/all';
-
-/*
- * Kept at module scope because the editor provider pushes settings into the
- * store whenever their identity changes.
- */
-const PREVIEW_EDITOR_SETTINGS = { isPreviewMode: true };
 
 const HOVERED = 'cnl-section-is-hovered';
 const SELECTED = 'cnl-section-is-selected';
@@ -82,12 +72,7 @@ const MARKER_CLASSES = [ HOVERED, SELECTED, INSERT_BEFORE, INSERT_AFTER ];
 function getCanvasStyles( accent ) {
 	return `
 :root { --cnl-section-accent: ${ accent }; }
-.cnl-sections-linked [data-cnl-section] { cursor: pointer; transition: outline-color .15s ease, box-shadow .15s ease; outline: 2px solid transparent; outline-offset: -2px; }
-.cnl-sections-linked a { cursor: pointer; }
-.cnl-sections-linked :is(.is-hovered, .is-hovered-draggable):not([data-cnl-section])::before,
-.cnl-sections-linked [data-cnl-section]:is(.is-hovered, .is-hovered-draggable):not(.${ INSERT_BEFORE }):not(.${ INSERT_AFTER })::before,
-.cnl-sections-linked :is(.is-hovered, .is-hovered-draggable)::after { content: none !important; }
-.cnl-sections-linked .block-editor-block-list__block:hover:not(.${ INSERT_BEFORE }):not(.${ INSERT_AFTER })::before { content: none !important; }
+[data-cnl-section] { transition: outline-color .15s ease, box-shadow .15s ease; outline: 2px solid transparent; outline-offset: -2px; }
 [data-cnl-section].${ HOVERED } { outline-color: var(--cnl-section-accent); }
 [data-cnl-section].${ SELECTED } { outline: 3px solid var(--cnl-section-accent); outline-offset: -3px; }
 [data-cnl-section].${ HOVERED }, [data-cnl-section].${ SELECTED }, [data-cnl-section].${ INSERT_BEFORE }, [data-cnl-section].${ INSERT_AFTER } { position: relative; }
@@ -111,14 +96,6 @@ function getAccentColor() {
 			.getPropertyValue( '--wp-admin-theme-color' )
 			.trim() || '#3858e9'
 	);
-}
-
-function getDeviceOptions() {
-	return [
-		{ icon: desktopIcon, label: __( 'Desktop view' ), value: 'Desktop' },
-		{ icon: tabletIcon, label: __( 'Tablet view' ), value: 'Tablet' },
-		{ icon: mobileIcon, label: __( 'Mobile view' ), value: 'Mobile' },
-	];
 }
 
 /**
@@ -198,28 +175,22 @@ export function getLinkedItems( blocks, structure ) {
 }
 
 /**
- * Link the page's parts on the canvas to the sidebar: label them, mark them
- * as the bridge says, and report pointing and clicking back to it.
+ * Link the page's parts on the canvas to the sidebar: label them, and mark
+ * them as the bridge says.
  *
  * @param {Object}   options
  * @param {Document} options.canvasDocument The editor's canvas document.
  * @param {Object[]} options.items          Result of `getLinkedItems`.
- * @param {Function} options.onPick         Called with a clicked item's key.
  */
-function useLinkedSections( { canvasDocument, items, onPick } ) {
+function useLinkedSections( { canvasDocument, items } ) {
 	const hoveredKey = useSectionBridge( ( state ) => state.hoveredId );
 	const selectedKey = useSectionBridge( ( state ) => state.selectedId );
 	const insertionIndex = useSectionBridge(
 		( state ) => state.insertionIndex
 	);
 	const scrollRequest = useSectionBridge( ( state ) => state.scrollRequest );
-	const itemsRef = useRef( items );
-	const onPickRef = useRef( onPick );
 
-	itemsRef.current = items;
-	onPickRef.current = onPick;
-
-	// Styles and pointer handling, once per canvas document.
+	// Styles for the markers, once per canvas document.
 	useEffect( () => {
 		if ( ! canvasDocument?.body ) {
 			return undefined;
@@ -229,89 +200,8 @@ function useLinkedSections( { canvasDocument, items, onPick } ) {
 		style.id = 'cnl-linked-sections';
 		style.textContent = getCanvasStyles( getAccentColor() );
 		canvasDocument.head.appendChild( style );
-		canvasDocument.body.classList.add( 'cnl-sections-linked' );
 
-		const findItem = ( target ) => {
-			const keys = new Map(
-				itemsRef.current
-					.filter( ( item ) => item.previewId )
-					.map( ( item ) => [ item.previewId, item.key ] )
-			);
-			let node = target?.closest?.( '[data-block]' );
-
-			while ( node ) {
-				const key = keys.get( node.getAttribute( 'data-block' ) );
-
-				if ( key ) {
-					return key;
-				}
-
-				node = node.parentElement?.closest( '[data-block]' );
-			}
-
-			return null;
-		};
-		// Handled before the editor sees it, so it doesn't outline the block
-		// under the pointer as if it could be edited here.
-		const onMouseOver = ( event ) => {
-			event.stopPropagation();
-			sectionBridge.hover( findItem( event.target ) );
-		};
-		const onMouseLeave = () => sectionBridge.hover( null );
-		const onClick = ( event ) => {
-			// Nothing on a preview should navigate away or start editing.
-			event.preventDefault();
-			event.stopPropagation();
-
-			const key = findItem( event.target );
-
-			if ( key ) {
-				onPickRef.current( key );
-			}
-		};
-		const stop = ( event ) => {
-			event.preventDefault();
-			event.stopPropagation();
-		};
-		const stopPropagation = ( event ) => event.stopPropagation();
-
-		// Clear any outline the editor drew before these listeners took over.
-		canvasDocument
-			.querySelectorAll( '.is-hovered, .is-hovered-draggable' )
-			.forEach( ( node ) =>
-				node.classList.remove( 'is-hovered', 'is-hovered-draggable' )
-			);
-		canvasDocument.addEventListener( 'mouseover', onMouseOver, true );
-		canvasDocument.addEventListener( 'mouseout', stopPropagation, true );
-		canvasDocument.documentElement.addEventListener(
-			'mouseleave',
-			onMouseLeave
-		);
-		canvasDocument.addEventListener( 'click', onClick, true );
-		canvasDocument.addEventListener( 'mousedown', stop, true );
-		canvasDocument.addEventListener( 'dblclick', stop, true );
-
-		return () => {
-			style.remove();
-			canvasDocument.body?.classList.remove( 'cnl-sections-linked' );
-			canvasDocument.removeEventListener(
-				'mouseover',
-				onMouseOver,
-				true
-			);
-			canvasDocument.removeEventListener(
-				'mouseout',
-				stopPropagation,
-				true
-			);
-			canvasDocument.documentElement?.removeEventListener(
-				'mouseleave',
-				onMouseLeave
-			);
-			canvasDocument.removeEventListener( 'click', onClick, true );
-			canvasDocument.removeEventListener( 'mousedown', stop, true );
-			canvasDocument.removeEventListener( 'dblclick', stop, true );
-		};
+		return () => style.remove();
 	}, [ canvasDocument ] );
 
 	const getNode = ( key ) => {
@@ -501,50 +391,6 @@ function getStatusLabel( status ) {
 	}
 }
 
-/*
- * Stepping back and forward through changes made to the page here, in the
- * place the Home preview steps through pages visited.
- */
-function PageHistory() {
-	const { hasRedo, hasUndo } = useSelect(
-		( select ) => ( {
-			hasRedo: select( coreDataStore ).hasRedo(),
-			hasUndo: select( coreDataStore ).hasUndo(),
-		} ),
-		[]
-	);
-	const { redo, undo } = useDispatch( coreDataStore );
-
-	return el(
-		'div',
-		{
-			'aria-label': __( 'Page changes' ),
-			className: 'cnl-editor-homepage-toolbar__history',
-			role: 'group',
-		},
-		el( Button, {
-			accessibleWhenDisabled: true,
-			className: 'cnl-editor-homepage-toolbar__history-button',
-			disabled: ! hasUndo,
-			icon: chevronLeftIcon,
-			label: __( 'Undo' ),
-			onClick: () => undo(),
-			showTooltip: true,
-			variant: 'tertiary',
-		} ),
-		el( Button, {
-			accessibleWhenDisabled: true,
-			className: 'cnl-editor-homepage-toolbar__history-button',
-			disabled: ! hasRedo,
-			icon: chevronRightIcon,
-			label: __( 'Redo' ),
-			onClick: () => redo(),
-			showTooltip: true,
-			variant: 'tertiary',
-		} )
-	);
-}
-
 function PageOptions( { link } ) {
 	const { createSuccessNotice } = useDispatch( noticesStore );
 
@@ -621,13 +467,65 @@ function CanvasEmptyState() {
 	);
 }
 
+/**
+ * Where the preview shows a page. A page that isn't published only shows to
+ * those who can edit it, as a preview.
+ *
+ * @param {Object} page Page record.
+ * @return {string} The page's URL, or an empty string.
+ */
+function getPagePreviewUrl( page ) {
+	if ( ! page?.link ) {
+		return '';
+	}
+
+	if ( page.status === 'publish' ) {
+		return page.link;
+	}
+
+	const url = new URL( page.link, window.location.origin );
+	url.searchParams.set( 'preview', 'true' );
+
+	return url.href;
+}
+
+function PageDocument( { isFrontPage, page } ) {
+	const isPublished = page?.status === 'publish';
+	const meta = [ __( 'Page' ), getStatusLabel( page?.status ) ]
+		.filter( Boolean )
+		.join( ' · ' );
+
+	return el(
+		'div',
+		{ className: 'cnl-editor-homepage-document' },
+		el(
+			'div',
+			{ className: 'cnl-editor-homepage-document__text' },
+			el(
+				'div',
+				{ className: 'cnl-editor-homepage-document__heading' },
+				el( Icon, {
+					className: 'cnl-editor-homepage-document__icon',
+					icon: isFrontPage ? homeIcon : pageIcon,
+				} ),
+				el(
+					'h1',
+					{ className: 'cnl-editor-homepage-document__title' },
+					getPageTitle( page )
+				)
+			),
+			el( 'p', { className: 'cnl-editor-homepage-document__meta' }, meta )
+		),
+		el( PageOptions, { link: isPublished ? page?.link : '' } )
+	);
+}
+
 function PagesCanvas() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
 	const drilledId = Number( searchParams.postId ) || 0;
 	const { frontPageId, isLoading, pages } = usePages();
-	const [ device, setDevice ] = useState( 'Desktop' );
-	const containerRef = useRef();
+	const editorRef = useRef();
 	const fallbackId =
 		frontPageId ||
 		Number(
@@ -648,173 +546,72 @@ function PagesCanvas() {
 				: null,
 		[ pageId ]
 	);
-	const canvasDocument = useCanvasDocument( containerRef, pageId );
+	const pinnedEntity = useMemo(
+		() => ( pageId ? { postId: pageId, postType: 'page' } : null ),
+		[ pageId ]
+	);
+	const canvas = useSiteCanvas( {
+		pinnedEntity,
+		url: getPagePreviewUrl( page ),
+	} );
+	const canvasDocument = useCanvasDocument( editorRef, pageId );
 	const structure = usePreviewStructure();
 	const items = useMemo(
 		() => getLinkedItems( blocks, structure ),
 		[ blocks, structure ]
 	);
+	const scrollRequest = useSectionBridge( ( state ) => state.scrollRequest );
+	const insertionIndex = useSectionBridge(
+		( state ) => state.insertionIndex
+	);
+	const previewPageId =
+		canvas.previewEntity?.postType === 'page'
+			? Number( canvas.previewEntity.postId )
+			: 0;
 
+	useLinkedSections( { canvasDocument, items } );
+
+	// A link followed in the preview to another page opens it in the sidebar.
 	useEffect( () => {
-		dispatch( 'core/editor' )?.setDeviceType?.( device );
-	}, [ device ] );
+		if ( previewPageId && previewPageId !== pageId && ! canvas.isEditing ) {
+			navigate( {
+				search: { ...searchParams, postId: previewPageId },
+				to: LIST_PATH,
+			} );
+		}
+		// Only the preview arriving on a page should open it, not the sidebar
+		// moving on from the page the preview is still showing.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ previewPageId ] );
 
-	useLinkedSections( {
-		canvasDocument,
-		items,
-		onPick: ( key ) => {
-			if ( ! drilledId ) {
-				navigate( {
-					search: { ...searchParams, postId: pageId },
-					to: LIST_PATH,
-				} );
-			}
-
-			sectionBridge.select( key, 'canvas' );
-		},
-	} );
+	// A section picked, or about to be added, can only be marked in Edit.
+	useEffect( () => {
+		if ( scrollRequest || insertionIndex !== null ) {
+			canvas.showEdit();
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ scrollRequest, insertionIndex ] );
 
 	if ( ! pageId ) {
 		return isLoading ? null : el( CanvasEmptyState );
 	}
 
-	const title = getPageTitle( page );
-	const isPublished = page?.status === 'publish';
-	const meta = [ __( 'Page' ), getStatusLabel( page?.status ) ]
-		.filter( Boolean )
-		.join( ' · ' );
-
-	return el(
-		'section',
-		{
-			className: `cnl-pages-canvas${ drilledId ? ' is-drilled' : '' }`,
-		},
-		el(
-			'header',
-			{
-				className:
-					'cnl-editor-canvas__toolbar cnl-editor-homepage-toolbar',
-			},
-			el(
-				'div',
-				{ className: 'cnl-editor-homepage-toolbar__left' },
-				el(
-					Button,
-					{
-						className: 'cnl-editor-homepage-toolbar__edit',
-						icon: pencilIcon,
-						onClick: () =>
-							navigate( { to: `/types/page/edit/${ pageId }` } ),
-						variant: 'primary',
-					},
-					__( 'Edit' )
-				),
-				el( PageHistory )
-			),
-			el(
-				'div',
-				{ className: 'cnl-editor-homepage-toolbar__center' },
-				el(
-					'div',
-					{ className: 'cnl-editor-homepage-document' },
-					el(
-						'div',
-						{ className: 'cnl-editor-homepage-document__text' },
-						el(
-							'div',
-							{
-								className:
-									'cnl-editor-homepage-document__heading',
-							},
-							el( Icon, {
-								className: 'cnl-editor-homepage-document__icon',
-								icon:
-									pageId === frontPageId
-										? homeIcon
-										: pageIcon,
-							} ),
-							el(
-								'h1',
-								{
-									className:
-										'cnl-editor-homepage-document__title',
-								},
-								title
-							)
-						),
-						el(
-							'p',
-							{ className: 'cnl-editor-homepage-document__meta' },
-							meta
-						)
-					),
-					el( PageOptions, {
-						link: isPublished ? page?.link : '',
-					} )
-				)
-			),
-			el(
-				'div',
-				{ className: 'cnl-editor-homepage-toolbar__right' },
-				el(
-					'div',
-					{
-						className:
-							'cnl-editor-preview-canvas__device-switcher cnl-editor-homepage-device-switcher',
-					},
-					el(
-						ToggleGroupControl,
-						{
-							__next40pxDefaultSize: true,
-							__nextHasNoMarginBottom: true,
-							hideLabelFromVision: true,
-							label: __( 'Preview device' ),
-							onChange: setDevice,
-							value: device,
-						},
-						getDeviceOptions().map( ( option ) =>
-							el( ToggleGroupControlOptionIcon, {
-								icon: option.icon,
-								key: option.value,
-								label: option.label,
-								value: option.value,
-							} )
-						)
-					)
-				),
-				el( Button, {
-					className: 'cnl-editor-homepage-toolbar__external',
-					disabled: ! isPublished || ! page?.link,
-					href: isPublished ? page?.link : undefined,
-					icon: externalIcon,
-					label: isPublished
-						? __( 'View page in new tab' )
-						: __( 'Publish the page to view it on your site' ),
-					rel: 'noreferrer',
-					showTooltip: true,
-					target: '_blank',
-					variant: 'tertiary',
-				} )
-			)
-		),
-		el(
-			'div',
-			{ className: 'cnl-pages-canvas__body', ref: containerRef },
-			el( LazyEditor, {
-				initialViewport: device,
-				key: pageId,
-				postId: pageId,
-				postType: 'page',
-				settings: PREVIEW_EDITOR_SETTINGS,
-			} ),
+	return el( SiteCanvas, {
+		canvas,
+		className: `cnl-pages-canvas${ drilledId ? ' is-drilled' : '' }`,
+		document: el( PageDocument, {
+			isFrontPage: pageId === frontPageId,
+			page,
+		} ),
+		editorChildren:
 			! drilledId &&
-				el(
-					'p',
-					{ className: 'cnl-pages-canvas__hint' },
-					__( 'Click any part of the page to start changing it.' )
-				)
-		)
-	);
+			el(
+				'p',
+				{ className: 'cnl-pages-canvas__hint' },
+				__( 'Click any part of the page to change it.' )
+			),
+		editorRef,
+	} );
 }
 
 export default PagesCanvas;
