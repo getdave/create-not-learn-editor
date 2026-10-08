@@ -43,11 +43,16 @@ npm run check:list-view
 npm run lint:js
 npm run lint:css
 npm run plugin-zip
-WP_ENV_PORT="<dev-port>" WP_ENV_TESTS_PORT="<test-port>" npm run wp-env start
+npm run wp-env start -- --auto-port
 ```
 
 `npm run dev` is the watch build. Stop it before finishing unless the user explicitly wants it left running.
-Replace `<dev-port>` and `<test-port>` with available non-default local ports when starting `wp-env`.
+
+When developing, spin up a `wp-env` instance to preview changes rather than reasoning about behaviour from code alone. Pass the `--auto-port` flag when starting `wp-env` so it automatically picks available ports instead of colliding with other running environments; `wp-env start` prints the port it picked. Inspect the editor at:
+
+```text
+http://localhost:<port>/wp-admin/admin.php?page=create-not-learn-editor
+```
 
 ## Verification Expectations
 
@@ -61,17 +66,7 @@ npm run lint:css
 find . -path ./node_modules -prune -o -path ./build -prune -o -name '*.php' -print | xargs -n1 php -l
 ```
 
-For runtime checks, use wp-env:
-
-```sh
-WP_ENV_PORT="<dev-port>" WP_ENV_TESTS_PORT="<test-port>" npm run wp-env start
-```
-
-Then inspect:
-
-```text
-http://localhost:<dev-port>/wp-admin/admin.php?page=create-not-learn-editor
-```
+For runtime checks, use the `wp-env` instance from Development Commands above.
 
 ## Editor Architecture
 
