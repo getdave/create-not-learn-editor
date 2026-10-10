@@ -1,0 +1,9 @@
+/**
+ * The size beside each name in the toolbar's font size dropdown
+ * (`font-size-toolbar.js`), right aligned, as a menu item's shortcut is.
+ */
+.cnl-font-size-hint {
+	margin-left: auto;
+	padding-left: var(--wpds-dimension-padding-2xl);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}

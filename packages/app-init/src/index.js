@@ -17,6 +17,7 @@ import {
 /**
  * Internal dependencies
  */
+import { registerFontSizeToolbar } from '../../../src/editor-extensions/font-size-toolbar';
 import { registerSectionMenu } from '../../../src/editor-extensions/section-menu';
 import { registerSectionPatterns } from '../../../src/editor-extensions/section-patterns';
 import { registerTemplatePartEditing } from '../../../src/editor-extensions/template-part-editing';
@@ -29,6 +30,7 @@ import { enhanceSidebar } from './sidebar';
 export async function init() {
 	registerSectionPatterns();
 	registerSectionMenu();
+	registerFontSizeToolbar();
 	registerTemplatePartEditing();
 	registerLayoutWireframes();
 	mountEditorLayer();
