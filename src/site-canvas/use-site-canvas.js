@@ -26,6 +26,7 @@ import {
 	blockEditorStore,
 	coreDataStore,
 	dispatch,
+	flushSync,
 	select,
 	useCallback,
 	useEffect,
@@ -43,6 +44,10 @@ import { getEditRoute, getLiveUrl, isSameLocation } from './urls';
 import { usePreviewFrame } from './use-preview-frame';
 
 const EMPTY_OBJECT = {};
+
+// Where Edit takes over the stage, and the switch can be animated.
+const ANIMATED_SURFACES_QUERY =
+	'(min-width: 782px) and (prefers-reduced-motion: no-preference)';
 
 function getContextUrl( url ) {
 	const live = getLiveUrl( url );
@@ -104,7 +109,17 @@ function isSameEntity( a, b ) {
  * @return {Object} The canvas's state and actions.
  */
 export function useSiteCanvas( { url, pinnedEntity = null } ) {
-	const [ surface, setSurface ] = useState( SURFACE_PREVIEW );
+	/*
+	 * `isTakingOver` is Edit taking over the stage as well as the canvas. Only
+	 * asking for Edit does that: Edit brought on from the stage, to mark a
+	 * section there, say, leaves the stage in place to carry on with.
+	 */
+	const [ layout, setLayout ] = useState( {
+		isTakingOver: false,
+		surface: SURFACE_PREVIEW,
+	} );
+	const layoutRef = useRef( layout );
+	const { surface } = layout;
 	const [ device, setDevice ] = useState( DEFAULT_DEVICE );
 	const [ isDialogOpen, setIsDialogOpen ] = useState( false );
 	const [ isAwaitingPreview, setIsAwaitingPreview ] = useState( false );
@@ -190,15 +205,55 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		}
 	}, [ surface ] );
 
+	/*
+	 * Taking over the stage runs as a view transition, so boot's own surface
+	 * animations play: the stage zooms away as the canvas grows into its
+	 * room, and back again.
+	 */
+	const changeSurface = useCallback( ( next, { takeOver = false } = {} ) => {
+		const current = layoutRef.current;
+		const nextLayout = {
+			// Once taken over, the stage stays hidden until Preview.
+			isTakingOver:
+				next === SURFACE_EDIT && ( takeOver || current.isTakingOver ),
+			surface: next,
+		};
+
+		if (
+			nextLayout.surface === current.surface &&
+			nextLayout.isTakingOver === current.isTakingOver
+		) {
+			return;
+		}
+
+		layoutRef.current = nextLayout;
+
+		if (
+			nextLayout.isTakingOver === current.isTakingOver ||
+			! document.startViewTransition ||
+			! window.matchMedia( ANIMATED_SURFACES_QUERY ).matches
+		) {
+			setLayout( nextLayout );
+			return;
+		}
+
+		document.startViewTransition( () =>
+			flushSync( () => setLayout( nextLayout ) )
+		);
+	}, [] );
+
 	const cancelWait = useCallback( () => {
 		waitRef.current += 1;
 		setIsAwaitingPreview( false );
 	}, [] );
 
-	const showEdit = useCallback( () => {
-		cancelWait();
-		setSurface( SURFACE_EDIT );
-	}, [ cancelWait ] );
+	const showEdit = useCallback(
+		( options ) => {
+			cancelWait();
+			changeSurface( SURFACE_EDIT, options );
+		},
+		[ cancelWait, changeSurface ]
+	);
 
 	// Changes made while previewing can only be seen in Edit.
 	const changeCountRef = useRef( changes.length );
@@ -257,7 +312,7 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 			}
 
 			setIsAwaitingPreview( false );
-			setSurface( SURFACE_PREVIEW );
+			changeSurface( SURFACE_PREVIEW );
 		} );
 	};
 
@@ -265,7 +320,7 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		// Asked again while waiting: show it now.
 		if ( isAwaitingPreview ) {
 			cancelWait();
-			setSurface( SURFACE_PREVIEW );
+			changeSurface( SURFACE_PREVIEW );
 			return;
 		}
 
@@ -274,14 +329,14 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		if ( destination || isPreviewStale ) {
 			showPreviewWhenLoaded( destination );
 		} else {
-			setSurface( SURFACE_PREVIEW );
+			changeSurface( SURFACE_PREVIEW );
 		}
 	};
 
 	const requestSurface = ( next ) => {
 		if ( next === SURFACE_EDIT ) {
 			if ( canEdit ) {
-				showEdit();
+				showEdit( { takeOver: true } );
 			}
 
 			return;
@@ -328,7 +383,7 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 			frame.reload();
 		}
 
-		setSurface( SURFACE_PREVIEW );
+		changeSurface( SURFACE_PREVIEW );
 	};
 
 	const editRoute = getEditRoute( editorEntity );
@@ -348,6 +403,7 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		frame,
 		isAwaitingPreview,
 		isEditing: surface === SURFACE_EDIT,
+		isTakingOver: layout.isTakingOver,
 		isLoadingContext,
 		liveUrl: getLiveUrl( frame.location ) || url,
 		previewContext,
