@@ -53,6 +53,7 @@ import {
 	MenuItem,
 	noticesStore,
 	pageIcon,
+	Tooltip,
 	useCallback,
 	useDispatch,
 	useEffect,
@@ -396,6 +397,26 @@ function getStatusLabel( status ) {
 	}
 }
 
+/**
+ * The part of a page's address after the domain, as visitors would type it.
+ *
+ * @param {string} link Page URL.
+ * @return {string} The path, or an empty string without a link.
+ */
+function getPagePath( link ) {
+	if ( ! link ) {
+		return '';
+	}
+
+	try {
+		const url = new URL( link );
+
+		return decodeURI( url.pathname + url.search ) || '/';
+	} catch {
+		return link;
+	}
+}
+
 function PageOptions( { link } ) {
 	const { createSuccessNotice } = useDispatch( noticesStore );
 
@@ -527,6 +548,7 @@ function isLayoutChange( change, select ) {
 
 function PageDocument( { isFrontPage, page } ) {
 	const isPublished = page?.status === 'publish';
+	const path = isPublished ? getPagePath( page?.link ) : '';
 	const meta = [ __( 'Page' ), getStatusLabel( page?.status ) ]
 		.filter( Boolean )
 		.join( ' · ' );
@@ -545,9 +567,17 @@ function PageDocument( { isFrontPage, page } ) {
 					icon: isFrontPage ? homeIcon : pageIcon,
 				} ),
 				el(
-					'h1',
-					{ className: 'cnl-editor-homepage-document__title' },
-					getPageTitle( page )
+					Tooltip.Root,
+					{ disabled: ! path },
+					el(
+						Tooltip.Trigger,
+						{
+							className: 'cnl-editor-homepage-document__title',
+							render: el( 'h1' ),
+						},
+						getPageTitle( page )
+					),
+					el( Tooltip.Popup, null, path )
 				)
 			),
 			el( 'p', { className: 'cnl-editor-homepage-document__meta' }, meta )
