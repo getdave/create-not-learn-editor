@@ -2,6 +2,7 @@
  * Internal dependencies
  */
 import SitePreviewCanvas from './site-preview';
+import { DesignScreenHeading } from './design-heading';
 import {
 	Button,
 	InputControl,
@@ -181,23 +182,16 @@ export function SiteIdentityStage() {
 
 	return el(
 		'div',
-		{ className: 'cnl-editor-stage routes-styles cnl-editor-identity' },
-		el(
-			Stack,
-			{ direction: 'column', gap: 'xs' },
-			el(
-				Text,
-				{ render: el( 'h1' ), variant: 'heading-lg' },
-				__( 'Name & logo' )
+		{
+			className:
+				'cnl-editor-stage cnl-drilldown-stage routes-styles cnl-editor-identity',
+		},
+		el( DesignScreenHeading, {
+			description: __(
+				'How your site introduces itself. Shown in your header, browser tabs, and search results.'
 			),
-			el(
-				Text,
-				{ className: 'routes-styles__muted', variant: 'body-md' },
-				__(
-					'How your site introduces itself. Shown in your header, browser tabs, and search results.'
-				)
-			)
-		),
+			title: __( 'Name & logo' ),
+		} ),
 		isLoading &&
 			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
 		! isLoading &&

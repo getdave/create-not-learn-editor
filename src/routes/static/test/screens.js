@@ -20,25 +20,30 @@ function visit( path ) {
 
 describe( 'static screens', () => {
 	test( 'reads the editor path from the query string', () => {
-		visit( '/colors' );
-		expect( getCurrentEditorPath() ).toBe( '/colors' );
+		visit( '/design/colors' );
+		expect( getCurrentEditorPath() ).toBe( '/design/colors' );
 	} );
 
 	test( 'gives colors and fonts a screen of their own', () => {
-		visit( '/colors' );
+		visit( '/design/colors' );
 		expect( getStaticScreen().title ).toBe( 'Colors' );
 
-		visit( '/fonts' );
+		visit( '/design/fonts' );
 		expect( getStaticScreen().title ).toBe( 'Fonts' );
 	} );
 
-	test( 'leaves the whole-site looks on their own screen', () => {
-		visit( '/styles' );
-		expect( getStaticScreen().title ).toBe( 'Site look' );
+	test( 'puts the whole-site looks on the Design screen', () => {
+		visit( '/design' );
+		expect( getStaticScreen().title ).toBe( 'Design' );
 	} );
 
-	test( 'files all three under Design', () => {
-		[ '/styles', '/colors', '/fonts' ].forEach( ( path ) => {
+	test( 'files every design screen under Design', () => {
+		[
+			'/design',
+			'/design/colors',
+			'/design/fonts',
+			'/design/identity',
+		].forEach( ( path ) => {
 			visit( path );
 			expect( getStaticScreen().section ).toBe( 'Design' );
 		} );

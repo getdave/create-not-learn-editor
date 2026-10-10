@@ -57,6 +57,22 @@ async function getAddPageFormPreviewFrameTexts( page ) {
 	return getPreviewFrameTexts( page, '.cnl-add-page-form__preview iframe' );
 }
 
+/**
+ * Follow one of the links under the site look on the Design screen.
+ *
+ * @param {import('@playwright/test').Locator} stage The white panel.
+ * @param {string}                             title The link's title.
+ */
+async function openDesignLink( stage, title ) {
+	await stage
+		.locator( '.routes-styles__link', {
+			has: stage.page().locator( '.routes-styles__link-title', {
+				hasText: new RegExp( `^${ title }$` ),
+			} ),
+		} )
+		.click();
+}
+
 async function getDesignGridColumnCount( page ) {
 	return page
 		.locator( '.cnl-add-page-layout-grid' )
@@ -1939,24 +1955,26 @@ test.describe( 'Create Not Learn Editor', () => {
 		).toBe( patternTitle );
 	} );
 
-	test( 'picks a look in Site look and previews it before saving', async ( {
+	test( 'picks a look on Design and previews it before saving', async ( {
 		page,
 	} ) => {
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
-		await page.getByRole( 'button', { name: 'Design' } ).click();
-		await page.getByRole( 'link', { name: 'Site look' } ).click();
+		await page.getByRole( 'link', { name: 'Design', exact: true } ).click();
 
-		await expect( page ).toHaveURL( /p=.*%2Fstyles/ );
+		await expect( page ).toHaveURL( /p=%2Fdesign$/ );
 
 		const stage = page.locator( '.cnl-editor-stage' );
 		const canvas = page.locator( '.cnl-editor-canvas' );
 
 		await expect(
-			stage.getByRole( 'heading', { name: 'Site look' } )
+			stage.getByRole( 'heading', { level: 1, name: 'Design' } )
 		).toBeVisible();
 		await expect(
-			canvas.locator( '.routes-navigation-canvas__preview' )
+			stage.getByRole( 'region', { name: 'Site look' } )
+		).toBeVisible();
+		await expect(
+			canvas.locator( 'iframe[name="editor-canvas"]' )
 		).toBeVisible( { timeout: 15000 } );
 
 		const looks = stage.locator( '.routes-styles__look' );
@@ -1998,10 +2016,10 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		const stage = page.locator( '.cnl-editor-stage' );
 
-		await page.getByRole( 'button', { name: 'Design' } ).click();
-		await page.getByRole( 'link', { name: 'Colors', exact: true } ).click();
+		await page.getByRole( 'link', { name: 'Design', exact: true } ).click();
+		await openDesignLink( stage, 'Colors' );
 
-		await expect( page ).toHaveURL( /p=.*%2Fcolors/ );
+		await expect( page ).toHaveURL( /p=%2Fdesign%2Fcolors/ );
 		await expect(
 			stage.getByRole( 'heading', { name: 'Colors' } )
 		).toBeVisible();
@@ -2029,16 +2047,15 @@ test.describe( 'Create Not Learn Editor', () => {
 			);
 		}
 
-		// The screens link to each other, so Fonts is one click away.
+		// The breadcrumb leads back to Design, which links on to Fonts.
 		await stage
-			.locator( '.routes-styles__link', {
-				has: page.locator( '.routes-styles__link-title', {
-					hasText: /^Fonts$/,
-				} ),
-			} )
+			.getByRole( 'navigation', { name: 'Breadcrumbs' } )
+			.getByRole( 'link', { name: 'Design' } )
 			.click();
+		await expect( page ).toHaveURL( /p=%2Fdesign$/ );
+		await openDesignLink( stage, 'Fonts' );
 
-		await expect( page ).toHaveURL( /p=.*%2Ffonts/ );
+		await expect( page ).toHaveURL( /p=%2Fdesign%2Ffonts/ );
 		await expect(
 			stage.getByRole( 'heading', { name: 'Fonts' } )
 		).toBeVisible();
@@ -2059,14 +2076,14 @@ test.describe( 'Create Not Learn Editor', () => {
 
 		await page.goto( '/wp-admin/admin.php?page=create-not-learn-editor' );
 
-		await page.getByRole( 'button', { name: 'Design' } ).click();
-		await page.getByRole( 'link', { name: 'Name & logo' } ).click();
-
-		await expect( page ).toHaveURL( /p=.*%2Fidentity/ );
-
 		const stage = page.locator( '.cnl-editor-stage' );
+
+		await page.getByRole( 'link', { name: 'Design', exact: true } ).click();
+		await openDesignLink( stage, 'Name & logo' );
+
+		await expect( page ).toHaveURL( /p=%2Fdesign%2Fidentity/ );
 		const preview = page.frameLocator(
-			'.routes-navigation-canvas__preview iframe[name="editor-canvas"]'
+			'.cnl-site-canvas iframe[name="editor-canvas"]'
 		);
 
 		await expect( stage.getByText( 'Logo', { exact: true } ) ).toBeVisible(
@@ -2126,7 +2143,7 @@ test.describe( 'Create Not Learn Editor', () => {
 		page,
 	} ) => {
 		await page.goto(
-			'/wp-admin/admin.php?page=create-not-learn-editor&p=%2Fidentity'
+			'/wp-admin/admin.php?page=create-not-learn-editor&p=%2Fdesign%2Fidentity'
 		);
 
 		const stage = page.locator( '.cnl-editor-stage' );

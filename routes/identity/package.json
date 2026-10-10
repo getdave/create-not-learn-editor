@@ -1,1 +1,1 @@
-{ "route": { "path": "/identity", "page": "create-not-learn-editor" } }
+{ "route": { "path": "/design/identity", "page": "create-not-learn-editor" } }

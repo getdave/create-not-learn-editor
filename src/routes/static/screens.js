@@ -4,16 +4,16 @@
 import { __ } from '../../wordpress-packages';
 
 const screens = {
-	'/styles': {
+	'/design': {
 		description: __(
-			'Pick a look for your whole site. Each look sets colors, fonts, and spacing together.'
+			'How your whole site looks. Pick a look, then fine-tune its colors and fonts.'
 		),
 		icon: 'dashicons-admin-appearance',
 		section: __( 'Design' ),
 		status: __( 'Site look' ),
-		title: __( 'Site look' ),
+		title: __( 'Design' ),
 	},
-	'/colors': {
+	'/design/colors': {
 		description: __(
 			'The colors your whole site uses. Your theme provides these palettes.'
 		),
@@ -22,7 +22,7 @@ const screens = {
 		status: __( 'Colors' ),
 		title: __( 'Colors' ),
 	},
-	'/fonts': {
+	'/design/fonts': {
 		description: __(
 			'The fonts your whole site uses. Your theme provides these pairings.'
 		),
@@ -31,7 +31,7 @@ const screens = {
 		status: __( 'Fonts' ),
 		title: __( 'Fonts' ),
 	},
-	'/identity': {
+	'/design/identity': {
 		description: __(
 			'Your site’s name, tagline, and logo. Shown in your header, browser tabs, and search results.'
 		),

@@ -755,12 +755,12 @@ function cnl_editor_get_module_map() {
 			'path' => 'routes/template-edit/route.min',
 		),
 		array(
-			'id'   => 'create-not-learn-editor/routes/styles/route',
-			'path' => 'routes/styles/route.min',
+			'id'   => 'create-not-learn-editor/routes/design/route',
+			'path' => 'routes/design/route.min',
 		),
 		array(
-			'id'   => 'create-not-learn-editor/routes/styles/content',
-			'path' => 'routes/styles/content.min',
+			'id'   => 'create-not-learn-editor/routes/design/content',
+			'path' => 'routes/design/content.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/colors/route',
@@ -875,22 +875,22 @@ function cnl_editor_get_routes() {
 			'route_module' => 'create-not-learn-editor/routes/template-part-edit/route',
 		),
 		array(
-			'path'           => '/styles',
-			'route_module'   => 'create-not-learn-editor/routes/styles/route',
-			'content_module' => 'create-not-learn-editor/routes/styles/content',
+			'path'           => '/design',
+			'route_module'   => 'create-not-learn-editor/routes/design/route',
+			'content_module' => 'create-not-learn-editor/routes/design/content',
 		),
 		array(
-			'path'           => '/colors',
+			'path'           => '/design/colors',
 			'route_module'   => 'create-not-learn-editor/routes/colors/route',
 			'content_module' => 'create-not-learn-editor/routes/colors/content',
 		),
 		array(
-			'path'           => '/fonts',
+			'path'           => '/design/fonts',
 			'route_module'   => 'create-not-learn-editor/routes/fonts/route',
 			'content_module' => 'create-not-learn-editor/routes/fonts/content',
 		),
 		array(
-			'path'           => '/identity',
+			'path'           => '/design/identity',
 			'route_module'   => 'create-not-learn-editor/routes/identity/route',
 			'content_module' => 'create-not-learn-editor/routes/identity/content',
 		),
@@ -964,44 +964,20 @@ function cnl_editor_get_menu_items() {
 		'to'    => '/navigation',
 	);
 	$items[] = array(
-		'id'          => 'design',
-		'icon'        => 'dashicons-admin-appearance',
-		'label'       => __( 'Design', 'create-not-learn-editor' ),
-		// Not a real route: only used to identify this parent for the
-		// sidebar's drilldown-restoration logic, which must not mistake it
-		// for one of its sub-items.
-		'to'          => '/design',
-		'parent_type' => 'drilldown',
-	);
-	$items[] = array(
-		'id'     => 'styles',
-		'label'  => __( 'Site look', 'create-not-learn-editor' ),
-		'to'     => '/styles',
-		'parent' => 'design',
-	);
-	$items[] = array(
-		'id'     => 'colors',
-		'label'  => __( 'Colors', 'create-not-learn-editor' ),
-		'to'     => '/colors',
-		'parent' => 'design',
-	);
-	$items[] = array(
-		'id'     => 'fonts',
-		'label'  => __( 'Fonts', 'create-not-learn-editor' ),
-		'to'     => '/fonts',
-		'parent' => 'design',
-	);
-	$items[] = array(
-		'id'     => 'identity',
-		'label'  => __( 'Name & logo', 'create-not-learn-editor' ),
-		'to'     => '/identity',
-		'parent' => 'design',
+		'id'    => 'design',
+		'icon'  => 'dashicons-admin-appearance',
+		'label' => __( 'Design', 'create-not-learn-editor' ),
+		// Colors, Fonts and Name & logo live under this path, linked from the
+		// Design screen itself, so the item stays current on all of them.
+		'to'    => '/design',
 	);
 	$items[] = array(
 		'id'          => 'advanced',
 		'icon'        => 'dashicons-admin-generic',
 		'label'       => __( 'Advanced', 'create-not-learn-editor' ),
-		// Not a real route: see the `design` item above.
+		// Not a real route: only used to identify this parent for the
+		// sidebar's drilldown-restoration logic, which must not mistake it
+		// for one of its sub-items.
 		'to'          => '/advanced',
 		'parent_type' => 'drilldown',
 	);
