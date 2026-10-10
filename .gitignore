@@ -6,6 +6,7 @@ node_modules/
 .wp-env.override.json
 .wp-env/
 .tmp-list-view-*/
+docs/plans/
 
 # Build/package artifacts.
 build/
