@@ -185,7 +185,7 @@ $heading-font-family: "EB Garamond", "Georgia", "Times New Roman", serif;
 		.dataviews-view-grid__media,
 		.routes-styles__look-preview {
 			transition-duration: var(--wpds-motion-duration-sm);
-			transition-property: border-color, box-shadow;
+			transition-property: border-color, box-shadow, outline-color;
 			transition-timing-function: var(--wpds-motion-easing-subtle);
 		}
 	}

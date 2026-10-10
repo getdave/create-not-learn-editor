@@ -10,7 +10,7 @@ import { useNavigate } from '@wordpress/route';
 import { withUiTheme } from '../../theme';
 import { getCurrentEditorPath, getStaticScreen } from './screens';
 import { SiteIdentityCanvas, SiteIdentityStage } from './identity';
-import { ColorsStage, FontsStage, StylesCanvas, StylesStage } from './styles';
+import { ColorsStage, DesignStage, FontsStage, StylesCanvas } from './styles';
 import {
 	getErrorMessage,
 	getTemplateAuthorText,
@@ -2523,19 +2523,19 @@ function Stage() {
 		return el( TemplatesStage );
 	}
 
-	if ( getCurrentEditorPath() === '/styles' ) {
-		return el( StylesStage );
+	if ( getCurrentEditorPath() === '/design' ) {
+		return el( DesignStage );
 	}
 
-	if ( getCurrentEditorPath() === '/colors' ) {
+	if ( getCurrentEditorPath() === '/design/colors' ) {
 		return el( ColorsStage );
 	}
 
-	if ( getCurrentEditorPath() === '/fonts' ) {
+	if ( getCurrentEditorPath() === '/design/fonts' ) {
 		return el( FontsStage );
 	}
 
-	if ( getCurrentEditorPath() === '/identity' ) {
+	if ( getCurrentEditorPath() === '/design/identity' ) {
 		return el( SiteIdentityStage );
 	}
 
@@ -2575,14 +2575,14 @@ function Canvas() {
 	}
 
 	if (
-		getCurrentEditorPath() === '/styles' ||
-		getCurrentEditorPath() === '/colors' ||
-		getCurrentEditorPath() === '/fonts'
+		getCurrentEditorPath() === '/design' ||
+		getCurrentEditorPath() === '/design/colors' ||
+		getCurrentEditorPath() === '/design/fonts'
 	) {
 		return el( StylesCanvas );
 	}
 
-	if ( getCurrentEditorPath() === '/identity' ) {
+	if ( getCurrentEditorPath() === '/design/identity' ) {
 		return el( SiteIdentityCanvas );
 	}
 

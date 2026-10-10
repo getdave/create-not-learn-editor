@@ -7,12 +7,13 @@ import { useNavigate } from '@wordpress/route';
  * Internal dependencies
  */
 import { settings as appSettings } from '../../settings';
+import { DesignScreenHeading } from './design-heading';
 import SitePreviewCanvas from './site-preview';
 import {
 	COLOR_PROPERTIES,
 	TYPOGRAPHY_PROPERTIES,
 	applyPreset,
-	areStyleConfigsEqual,
+	findActiveLook,
 	findActivePreset,
 	getStyleConfig,
 	getVariationFontFamilies,
@@ -26,13 +27,16 @@ import {
 	Icon,
 	Link,
 	Spinner,
-	Stack,
 	Text,
 	__,
+	checkIcon,
 	chevronRightIcon,
+	colorIcon,
 	coreDataStore,
 	el,
+	siteLogoIcon,
 	sprintf,
+	typographyIcon,
 	useDispatch,
 	useMemo,
 	useSelect,
@@ -207,9 +211,23 @@ function useStylesData() {
 	return { ...data, setConfig };
 }
 
+/**
+ * The tick in the corner of the option in use.
+ *
+ * @return {Element} The tick.
+ */
+function SelectedCheck() {
+	return el(
+		'span',
+		{ 'aria-hidden': true, className: 'routes-styles__check' },
+		el( Icon, { icon: checkIcon, size: 16 } )
+	);
+}
+
 function LookCard( {
 	basePalette,
 	baseFontFamilies,
+	isChanged,
 	isSelected,
 	onSelect,
 	title,
@@ -241,17 +259,21 @@ function LookCard( {
 		Button,
 		{
 			'aria-pressed': isSelected,
-			className: `routes-styles__look${
-				isSelected ? ' is-selected' : ''
-			}`,
-			onClick: onSelect,
+			className: `routes-styles__look${ isSelected ? ' is-selected' : '' }`,
+			// Picking the look in use changes nothing, unless its colors or
+			// fonts were changed since: then it puts them back.
+			onClick: () => ( ! isSelected || isChanged ) && onSelect(),
 		},
 		el(
 			'span',
 			{
 				'aria-hidden': true,
 				className: 'routes-styles__look-preview',
-				style: { background, color: text },
+				style: {
+					'--cnl-look-background': background,
+					background,
+					color: text,
+				},
 			},
 			el(
 				'span',
@@ -273,6 +295,7 @@ function LookCard( {
 				)
 			)
 		),
+		isSelected && el( SelectedCheck ),
 		el( 'span', { className: 'routes-styles__look-title' }, title )
 	);
 }
@@ -286,7 +309,8 @@ function PaletteOption( { colors, isSelected, onSelect, title } ) {
 				isSelected ? ' is-selected' : ''
 			}`,
 			label: title,
-			onClick: onSelect,
+			// Picking what is already in use changes nothing.
+			onClick: () => ! isSelected && onSelect(),
 			showTooltip: true,
 		},
 		colors.length
@@ -307,7 +331,8 @@ function PaletteOption( { colors, isSelected, onSelect, title } ) {
 						className: 'routes-styles__palette-default',
 					},
 					__( 'Theme' )
-				)
+				),
+		isSelected && el( SelectedCheck )
 	);
 }
 
@@ -324,11 +349,10 @@ function FontCard( {
 		Button,
 		{
 			'aria-pressed': isSelected,
-			className: `routes-styles__font${
-				isSelected ? ' is-selected' : ''
-			}`,
+			className: `routes-styles__font${ isSelected ? ' is-selected' : '' }`,
 			label: title,
-			onClick: onSelect,
+			// Picking what is already in use changes nothing.
+			onClick: () => ! isSelected && onSelect(),
 			showTooltip: true,
 		},
 		el(
@@ -350,29 +374,35 @@ function FontCard( {
 				},
 				bodyFontName
 			)
-		)
+		),
+		isSelected && el( SelectedCheck )
 	);
 }
 
 /*
- * The three styles screens are siblings, so each one points at the others
- * rather than leaving them to the sidebar alone.
+ * Design leads with the site look, the one choice that changes everything at
+ * once, and links on to the screens for the finer choices.
  */
-const COLORS_LINK = {
-	description: __( 'Pick the colors your whole site uses.' ),
-	title: __( 'Colors' ),
-	to: '/colors',
-};
-const FONTS_LINK = {
-	description: __( 'Pick the fonts your whole site uses.' ),
-	title: __( 'Fonts' ),
-	to: '/fonts',
-};
-const LOOK_LINK = {
-	description: __( 'Pick a ready-made look for your whole site.' ),
-	title: __( 'Site look' ),
-	to: '/styles',
-};
+const DESIGN_LINKS = [
+	{
+		description: __( 'Pick the colors your whole site uses.' ),
+		icon: colorIcon,
+		title: __( 'Colors' ),
+		to: '/design/colors',
+	},
+	{
+		description: __( 'Pick the fonts your whole site uses.' ),
+		icon: typographyIcon,
+		title: __( 'Fonts' ),
+		to: '/design/fonts',
+	},
+	{
+		description: __( 'Name your site and add a logo.' ),
+		icon: siteLogoIcon,
+		title: __( 'Name & logo' ),
+		to: '/design/identity',
+	},
+];
 
 function ScreenLinks( { links } ) {
 	const navigate = useNavigate();
@@ -380,10 +410,10 @@ function ScreenLinks( { links } ) {
 	return el(
 		'nav',
 		{
-			'aria-label': __( 'More ways to change how your site looks' ),
+			'aria-label': __( 'More design options' ),
 			className: 'routes-styles__links',
 		},
-		links.map( ( { description, title, to } ) =>
+		links.map( ( { description, icon, title, to } ) =>
 			el(
 				Button,
 				{
@@ -391,6 +421,10 @@ function ScreenLinks( { links } ) {
 					key: to,
 					onClick: () => navigate( { to } ),
 				},
+				el( Icon, {
+					className: 'routes-styles__link-icon',
+					icon,
+				} ),
 				el(
 					'span',
 					{ className: 'routes-styles__link-text' },
@@ -406,7 +440,7 @@ function ScreenLinks( { links } ) {
 					)
 				),
 				el( Icon, {
-					className: 'routes-styles__link-icon',
+					className: 'routes-styles__link-chevron',
 					icon: chevronRightIcon,
 				} )
 			)
@@ -422,23 +456,27 @@ function ScreenLinks( { links } ) {
  * @param {Node}    props.children    The screen's options, once loaded.
  * @param {string}  props.description Sentence under the title.
  * @param {boolean} props.isLoading   Whether the theme's styles are still loading.
+ * @param {boolean} props.isTopLevel  Whether this is the Design screen itself.
  * @param {string}  props.title       Screen title.
  * @return {Node} The screen.
  */
-function StylesScreen( { children, description, isLoading, title } ) {
+function StylesScreen( {
+	children,
+	description,
+	isLoading,
+	isTopLevel,
+	title,
+} ) {
 	return el(
 		'div',
-		{ className: 'cnl-editor-stage routes-styles' },
-		el(
-			Stack,
-			{ direction: 'column', gap: 'xs' },
-			el( Text, { render: el( 'h1' ), variant: 'heading-lg' }, title ),
-			el(
-				Text,
-				{ className: 'routes-styles__muted', variant: 'body-md' },
-				description
-			)
-		),
+		{
+			// Choosing colors, fonts and so on is a task, so the sidebar
+			// steps back to an icon strip, as it does for a page or menu.
+			className: `cnl-editor-stage routes-styles${
+				isTopLevel ? '' : ' cnl-drilldown-stage'
+			}`,
+		},
+		el( DesignScreenHeading, { description, isTopLevel, title } ),
 		isLoading &&
 			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
 		! isLoading && children,
@@ -468,18 +506,39 @@ function EmptyNote( { children } ) {
 	);
 }
 
-export function StylesStage() {
-	const {
-		baseStyles,
-		isLoading,
-		setConfig,
-		themeName,
-		userConfig,
-		variations,
-	} = useStylesData();
+// The theme's own look, as an empty user config.
+const THEME_DEFAULT_LOOK = {};
+
+function getLookTitle( look, index ) {
+	return look === THEME_DEFAULT_LOOK
+		? __( 'Theme default' )
+		: getVariationTitle(
+				look,
+				sprintf(
+					/* translators: %d: Style number. */
+					__( 'Look %d' ),
+					index
+				)
+			);
+}
+
+export function DesignStage() {
+	const { baseStyles, isLoading, setConfig, userConfig, variations } =
+		useStylesData();
 	const groups = useMemo(
 		() => groupStyleVariations( variations ),
 		[ variations ]
+	);
+	const looks = useMemo(
+		() => [ THEME_DEFAULT_LOOK, ...groups.looks ],
+		[ groups ]
+	);
+	const active = useMemo(
+		() => findActiveLook( userConfig, looks ),
+		[ userConfig, looks ]
+	);
+	const isChanged = Boolean(
+		active && ( active.hasColorChanges || active.hasFontChanges )
 	);
 	const basePalette = getVariationPalette( baseStyles );
 	const baseFontFamilies = getVariationFontFamilies( baseStyles );
@@ -487,55 +546,44 @@ export function StylesStage() {
 	return el(
 		StylesScreen,
 		{
-			description: themeName
-				? sprintf(
-						/* translators: %s: Theme name. */
-						__(
-							'Each look sets colors, fonts, and spacing together. Your theme, %s, provides these looks.'
-						),
-						themeName
-					)
-				: __( 'Each look sets colors, fonts, and spacing together.' ),
+			description: __( 'How your whole site looks.' ),
 			isLoading,
-			title: __( 'Site look' ),
+			isTopLevel: true,
+			title: __( 'Design' ),
 		},
 		el(
-			'div',
-			{ className: 'routes-styles__looks' },
-			el( LookCard, {
-				basePalette,
-				baseFontFamilies,
-				isSelected: areStyleConfigsEqual( userConfig, {} ),
-				onSelect: () => setConfig( {} ),
-				title: __( 'Theme default' ),
-				variation: baseStyles,
-			} ),
-			groups.looks.map( ( variation, index ) =>
-				el( LookCard, {
-					basePalette,
-					baseFontFamilies,
-					isSelected: areStyleConfigsEqual( userConfig, variation ),
-					key: `${ getVariationTitle( variation ) }-${ index }`,
-					onSelect: () => setConfig( variation ),
-					title: getVariationTitle(
-						variation,
-						sprintf(
-							/* translators: %d: Style number. */
-							__( 'Look %d' ),
-							index + 1
-						)
-					),
-					variation,
-				} )
-			)
-		),
-		! groups.looks.length &&
+			'section',
+			{
+				'aria-label': __( 'Site look' ),
+				className: 'routes-styles__section',
+			},
 			el(
-				EmptyNote,
-				null,
-				__( 'Your theme only offers its default look.' )
+				'div',
+				{ className: 'routes-styles__looks' },
+				looks.map( ( look, index ) => {
+					const isSelected = active?.look === look;
+
+					return el( LookCard, {
+						basePalette,
+						baseFontFamilies,
+						isChanged: isSelected && isChanged,
+						isSelected,
+						key: `${ getLookTitle( look, index ) }-${ index }`,
+						onSelect: () => setConfig( look ),
+						title: getLookTitle( look, index ),
+						variation:
+							look === THEME_DEFAULT_LOOK ? baseStyles : look,
+					} );
+				} )
 			),
-		el( ScreenLinks, { links: [ COLORS_LINK, FONTS_LINK ] } )
+			! groups.looks.length &&
+				el(
+					EmptyNote,
+					null,
+					__( 'Your theme only offers its default look.' )
+				)
+		),
+		el( ScreenLinks, { links: DESIGN_LINKS } )
 	);
 }
 
@@ -604,8 +652,7 @@ export function ColorsStage() {
 				EmptyNote,
 				null,
 				__( 'Your theme only offers its own palette.' )
-			),
-		el( ScreenLinks, { links: [ LOOK_LINK, FONTS_LINK ] } )
+			)
 	);
 }
 
@@ -690,12 +737,7 @@ export function FontsStage() {
 			} )
 		),
 		! groups.fonts.length &&
-			el(
-				EmptyNote,
-				null,
-				__( 'Your theme only offers its own fonts.' )
-			),
-		el( ScreenLinks, { links: [ LOOK_LINK, COLORS_LINK ] } )
+			el( EmptyNote, null, __( 'Your theme only offers its own fonts.' ) )
 	);
 }
 

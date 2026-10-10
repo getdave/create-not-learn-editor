@@ -6,6 +6,7 @@ import {
 	TYPOGRAPHY_PROPERTIES,
 	applyPreset,
 	areStyleConfigsEqual,
+	findActiveLook,
 	findActivePreset,
 	groupStyleVariations,
 	setValueAtPath,
@@ -69,6 +70,96 @@ describe( 'style variations', () => {
 		expect(
 			findActivePreset( config, [ literata ], TYPOGRAPHY_PROPERTIES )
 		).toBe( literata );
+	} );
+
+	test( 'matches a palette by its colors when a look styled more with them', () => {
+		const config = applyPreset(
+			{
+				settings: eveningLook.settings,
+				styles: {
+					...eveningLook.styles,
+					blocks: {
+						'core/group': {
+							color: { background: 'var(--accent)' },
+						},
+					},
+				},
+			},
+			null,
+			TYPOGRAPHY_PROPERTIES
+		);
+
+		expect(
+			findActivePreset( config, [ evening ], COLOR_PROPERTIES )
+		).toBe( evening );
+	} );
+
+	test( 'matches no palette when the theme colors are in use', () => {
+		expect(
+			findActivePreset( {}, [ evening ], COLOR_PROPERTIES )
+		).toBeUndefined();
+	} );
+
+	describe( 'findActiveLook', () => {
+		const themeDefault = {};
+		const looks = [ themeDefault, eveningLook ];
+
+		test( 'finds the look in use, unchanged', () => {
+			expect( findActiveLook( eveningLook, looks ) ).toEqual( {
+				hasColorChanges: false,
+				hasFontChanges: false,
+				look: eveningLook,
+			} );
+			expect( findActiveLook( {}, looks ) ).toEqual( {
+				hasColorChanges: false,
+				hasFontChanges: false,
+				look: themeDefault,
+			} );
+		} );
+
+		test( 'keeps the look when only its colors were changed', () => {
+			const config = applyPreset( {}, evening, COLOR_PROPERTIES );
+
+			expect( findActiveLook( config, looks ) ).toEqual( {
+				hasColorChanges: true,
+				hasFontChanges: false,
+				look: themeDefault,
+			} );
+		} );
+
+		test( 'keeps the look when only its fonts were changed', () => {
+			const config = applyPreset(
+				eveningLook,
+				literata,
+				TYPOGRAPHY_PROPERTIES
+			);
+
+			expect( findActiveLook( config, looks ) ).toEqual( {
+				hasColorChanges: false,
+				hasFontChanges: true,
+				look: eveningLook,
+			} );
+		} );
+
+		test( 'tells apart looks that differ only in colors', () => {
+			expect(
+				findActiveLook( evening, [ themeDefault, evening ] )
+			).toEqual( {
+				hasColorChanges: false,
+				hasFontChanges: false,
+				look: evening,
+			} );
+		} );
+
+		test( 'finds no look when the rest of the styles match none', () => {
+			const config = {
+				styles: {
+					blocks: { 'core/image': { border: { radius: '9px' } } },
+				},
+			};
+
+			expect( findActiveLook( config, looks ) ).toBeNull();
+		} );
 	} );
 
 	test( 'resets a group of properties when no preset is given', () => {

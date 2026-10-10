@@ -42,17 +42,17 @@ function getCreationSteps( frontPageId ) {
 		identity: {
 			description: __( 'Name your site and add a logo' ),
 			title: __( 'Name & logo' ),
-			to: '/identity',
+			to: '/design/identity',
 		},
 		colors: {
 			description: __( 'Pick the colors your whole site uses' ),
 			title: __( 'Colors' ),
-			to: '/colors',
+			to: '/design/colors',
 		},
 		fonts: {
 			description: __( 'Pick the fonts your whole site uses' ),
 			title: __( 'Fonts' ),
-			to: '/fonts',
+			to: '/design/fonts',
 		},
 		homepage: {
 			description: __( 'Make the first page visitors see your own' ),

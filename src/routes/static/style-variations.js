@@ -253,6 +253,45 @@ export function applyPreset( config, preset, properties ) {
 	};
 }
 
+function getPart( config, properties ) {
+	const { settings, styles } = getStyleConfig( config );
+
+	return {
+		settings: filterByProperties( settings, properties ),
+		styles: filterByProperties( styles, properties ),
+	};
+}
+
+/**
+ * Whether a preset's share of the config is the one in use.
+ *
+ * An exact match counts. So does a match on settings alone: the settings hold
+ * what a preset is, its palette or its fonts, while the styles only say where
+ * they go. A full look carries extra styles for the same palette, so its
+ * colors would otherwise match none of the palettes.
+ *
+ * @param {Object}   config     User global styles config.
+ * @param {Object}   preset     Preset or look to compare against.
+ * @param {string[]} properties Properties the preset controls.
+ * @return {boolean} Whether the preset's properties are in use.
+ */
+function isPresetInUse( config, preset, properties ) {
+	const current = getPart( config, properties );
+	const candidate = getPart( preset, properties );
+
+	if ( areStyleConfigsEqual( current, candidate ) ) {
+		return true;
+	}
+
+	return (
+		Object.keys( current.settings ).length > 0 &&
+		areStyleConfigsEqual(
+			{ settings: current.settings },
+			{ settings: candidate.settings }
+		)
+	);
+}
+
 /**
  * Find the preset that matches the user's current config.
  *
@@ -262,20 +301,73 @@ export function applyPreset( config, preset, properties ) {
  * @return {Object|undefined} The matching preset.
  */
 export function findActivePreset( config, presets, properties ) {
-	const current = getStyleConfig( config );
-	const currentPart = {
-		settings: filterByProperties( current.settings, properties ),
-		styles: filterByProperties( current.styles, properties ),
+	const current = getPart( config, properties );
+	const exactMatch = presets.find( ( preset ) =>
+		areStyleConfigsEqual( current, getPart( preset, properties ) )
+	);
+
+	return (
+		exactMatch ||
+		presets.find( ( preset ) =>
+			isPresetInUse( config, preset, properties )
+		)
+	);
+}
+
+/**
+ * Find the look the site is built on, and whether its colors or fonts have
+ * since been changed.
+ *
+ * Picking a palette or fonts on top of a look changes only those, so the
+ * look still shows in everything else: its buttons, borders and the like.
+ * The look whose everything-else matches is the one in use. Looks that
+ * differ only in colors and fonts are told apart by those, colors first,
+ * then by their order.
+ *
+ * @param {Object}   config User global styles config.
+ * @param {Object[]} looks  Looks to compare against, the theme's default
+ *                          (an empty config) included.
+ * @return {{ look: Object, hasColorChanges: boolean, hasFontChanges: boolean }|null}
+ *   The look in use, or null when the site's styles match none.
+ */
+export function findActiveLook( config, looks ) {
+	const presetProperties = [ ...COLOR_PROPERTIES, ...TYPOGRAPHY_PROPERTIES ];
+	const getRest = ( value ) => {
+		const { settings, styles } = getStyleConfig( value );
+
+		return {
+			settings: omitByProperties( settings, presetProperties ),
+			styles: omitByProperties( styles, presetProperties ),
+		};
 	};
+	const rest = getRest( config );
+	let best = null;
+	let bestScore = -1;
 
-	return presets.find( ( preset ) => {
-		const presetConfig = getStyleConfig( preset );
+	looks.forEach( ( look ) => {
+		if ( ! areStyleConfigsEqual( rest, getRest( look ) ) ) {
+			return;
+		}
 
-		return areStyleConfigsEqual( currentPart, {
-			settings: filterByProperties( presetConfig.settings, properties ),
-			styles: filterByProperties( presetConfig.styles, properties ),
-		} );
+		const hasColorChanges = ! isPresetInUse(
+			config,
+			look,
+			COLOR_PROPERTIES
+		);
+		const hasFontChanges = ! isPresetInUse(
+			config,
+			look,
+			TYPOGRAPHY_PROPERTIES
+		);
+		const score = ( hasColorChanges ? 0 : 2 ) + ( hasFontChanges ? 0 : 1 );
+
+		if ( score > bestScore ) {
+			best = { hasColorChanges, hasFontChanges, look };
+			bestScore = score;
+		}
 	} );
+
+	return best;
 }
 
 export function getValueAtPath( value, path ) {
