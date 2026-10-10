@@ -1,3 +1,5 @@
+@use "../editor-layer/edit-original";
+
 .cnl-site-canvas {
 	height: 100%;
 	overflow: hidden;
@@ -80,6 +82,16 @@
 	.interface-interface-skeleton__actions {
 		display: none;
 	}
+}
+
+/*
+ * The full-screen editor leaves its "Edit original" handler in the shared
+ * block editor settings, so core shows the button here too once it has been
+ * open. Hidden for template parts, as it is in the full-screen editor.
+ */
+.cnl-inline-editor[data-selected-block="core/template-part"] {
+
+	@include edit-original.hide-edit-original;
 }
 
 /*

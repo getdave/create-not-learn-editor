@@ -23,6 +23,7 @@ All of it is scoped to boot's full-screen edit canvas, so stage screens and prev
 | `section-wording.js` | `useSectionWording()`: core's pattern strings, said as sections while a page is open. |
 | `section-picker.js` | `openSectionPicker()` and `EditorSectionPicker`: the shared "Add a section" picker (`src/section-picker/`), opened from a section's options menu. |
 | `style.scss` | The layer's stylesheet, loaded with app init. |
+| `_edit-original.scss` | The rule hiding core's "Edit original", shared with the stage's inline editor (`src/site-canvas/`). |
 
 ## Recipes
 

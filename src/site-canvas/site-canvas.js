@@ -18,11 +18,13 @@ import { useNavigate } from '@wordpress/route';
 import { getErrorMessage } from '../records';
 import {
 	__,
+	blockEditorStore,
 	Button,
 	el,
 	externalIcon,
 	Notice,
 	Spinner,
+	useSelect,
 } from '../wordpress-packages';
 import { EDITOR_DEVICES } from './constants';
 import {
@@ -64,6 +66,19 @@ export function SiteCanvas( {
 } ) {
 	const navigate = useNavigate();
 	const { device, editorEntity, frame } = canvas;
+
+	// Published for the stylesheet, which hides core chrome by block.
+	const selectedBlockName = useSelect(
+		( select ) => {
+			const { getBlockName, getSelectedBlockClientId } =
+				select( blockEditorStore );
+
+			return canvas.isEditing
+				? getBlockName( getSelectedBlockClientId() )
+				: null;
+		},
+		[ canvas.isEditing ]
+	);
 
 	return el(
 		'section',
@@ -147,6 +162,7 @@ export function SiteCanvas( {
 				'div',
 				{
 					className: 'cnl-site-canvas__editor cnl-inline-editor',
+					'data-selected-block': selectedBlockName || undefined,
 					ref: editorRef,
 				},
 				editorEntity &&
