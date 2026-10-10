@@ -4,7 +4,12 @@
 import { store as bootStore } from '@wordpress/boot';
 import { Button, Dropdown, MenuGroup, MenuItem } from '@wordpress/components';
 import { useSelect } from '@wordpress/data';
-import { createElement as el, createRoot } from '@wordpress/element';
+import {
+	createElement as el,
+	createRoot,
+	useEffect,
+	useState,
+} from '@wordpress/element';
 import { __, isRTL, sprintf } from '@wordpress/i18n';
 import {
 	category,
@@ -14,7 +19,7 @@ import {
 	chevronUpDown,
 	wordpress,
 } from '@wordpress/icons';
-import { Icon } from '@wordpress/ui';
+import { Icon, Tooltip } from '@wordpress/ui';
 
 /**
  * Internal dependencies
@@ -25,6 +30,66 @@ import {
 	resetRouteToHome,
 	setActiveWorkspace,
 } from '../../../src/workspaces';
+
+/*
+ * What can be pointed at in the sidebar while it is a strip of icons, a
+ * drilled-in screen being open. Matches the rule in `src/style.scss`.
+ */
+const STRIP_ITEM_SELECTOR =
+	'#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) > [class*="__sidebar"] :is([class*="__item-wrapper"] > *, .cnl-sidebar-workspace__toggle)';
+
+/**
+ * Name the icon pointed at, or focused, in the sidebar's strip of icons.
+ *
+ * Boot's menu items aren't ours to wrap in a tooltip, so one tooltip follows
+ * whichever item is under the pointer or has focus. The Dashboard link and
+ * boot's Back button already show their own.
+ *
+ * @return {?Element} The tooltip.
+ */
+function StripTooltip() {
+	const [ item, setItem ] = useState( null );
+
+	useEffect( () => {
+		const follow = ( event ) => {
+			setItem(
+				window.matchMedia( '(min-width: 782px)' ).matches
+					? event.target.closest?.( STRIP_ITEM_SELECTOR ) || null
+					: null
+			);
+		};
+		const hide = () => setItem( null );
+
+		document.addEventListener( 'pointerover', follow );
+		document.addEventListener( 'focusin', follow );
+		document.addEventListener( 'click', hide );
+
+		return () => {
+			document.removeEventListener( 'pointerover', follow );
+			document.removeEventListener( 'focusin', follow );
+			document.removeEventListener( 'click', hide );
+		};
+	}, [] );
+
+	if ( ! item ) {
+		return null;
+	}
+
+	return el(
+		Tooltip.Root,
+		{ open: true },
+		el(
+			Tooltip.Popup,
+			{
+				positioner: el( Tooltip.Positioner, {
+					anchor: item,
+					side: 'right',
+				} ),
+			},
+			item.getAttribute( 'aria-label' ) || item.textContent.trim()
+		)
+	);
+}
 
 /**
  * Link back to wp-admin: a back arrow followed by the WordPress logo.
@@ -143,6 +208,12 @@ function createDashboardLink() {
 	return container;
 }
 
+function mountStripTooltip() {
+	const container = document.createElement( 'div' );
+	document.body.append( container );
+	createRoot( container ).render( el( StripTooltip ) );
+}
+
 function createWorkspaceSwitcher() {
 	const container = document.createElement( 'div' );
 	container.className = 'cnl-sidebar-workspace';
@@ -159,6 +230,7 @@ function createWorkspaceSwitcher() {
  * - A greeting above the main menu, hidden inside menu sections by CSS.
  * - A workspace switcher in its own section below the menu, outside boot's
  *   navigation screens so it stays put when drilling in and out.
+ * - A tooltip naming each icon while the sidebar is a strip of icons.
  *
  * Boot's sidebar has no slot for extra content, so these are placed relative
  * to boot's own Dashboard link and the menu that follows it. The sidebar can remount, on narrow screens for
@@ -171,6 +243,8 @@ export function enhanceSidebar( { userName } = {} ) {
 	const dashboardLink = createDashboardLink();
 	const welcome = createWelcome( userName );
 	const workspaceSwitcher = createWorkspaceSwitcher();
+
+	mountStripTooltip();
 
 	let isScheduled = false;
 	const place = () => {

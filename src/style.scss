@@ -3031,6 +3031,84 @@ $workspace-toggle-inset: var(--wpds-dimension-gap-xs);
 	}
 }
 
+/*
+ * The sidebar as a strip of icons, while a screen drilled into one page or
+ * menu is open. On a task, the way to other areas stays in reach without
+ * taking the room. Labels are hidden visually but kept for screen readers,
+ * and app-init shows each one as a tooltip. On narrow screens the sidebar is
+ * a drawer instead.
+ */
+$sidebar-strip-width: 64px;
+
+@mixin cnl-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	border: 0;
+	white-space: nowrap;
+}
+
+@media (min-width: 782px) {
+
+	#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) > [class*="__sidebar"] {
+		width: $sidebar-strip-width;
+
+		.cnl-sidebar-welcome,
+		.cnl-sidebar-dashboard__link > :first-child,
+		.cnl-sidebar-workspace__toggle > :not(:first-child) {
+			display: none;
+		}
+
+		[class*="__title-icon"] h1,
+		[class*="__item-wrapper"] > * > * > :not(:first-child) {
+
+			@include cnl-visually-hidden;
+		}
+
+		.cnl-sidebar-dashboard,
+		.cnl-sidebar-workspace {
+			display: flex;
+			justify-content: center;
+			margin-inline: 0;
+			padding-inline: 0;
+		}
+
+		.components-button.cnl-sidebar-dashboard__link,
+		.components-button.cnl-sidebar-workspace__toggle {
+			justify-content: center;
+			width: 40px;
+			margin-inline: 0;
+			padding-inline: 0;
+		}
+
+		[class*="__title-icon"],
+		[class*="__item-wrapper"] > * > * {
+			justify-content: center;
+		}
+
+		[class*="__title-icon"],
+		[class*="__item-wrapper"] {
+			box-sizing: border-box;
+			padding-inline: var(--wpds-dimension-gap-sm);
+		}
+
+		[class*="__item-wrapper"] > * {
+			padding-inline: 0;
+		}
+	}
+}
+
+@media (min-width: 782px) and (not (prefers-reduced-motion)) {
+
+	#create-not-learn-editor-app [class*="__layout"] > [class*="__sidebar"] {
+		transition: width var(--wpds-motion-duration-md) var(--wpds-motion-easing-subtle);
+	}
+}
+
 .routes-post-list__tab-label {
 	display: inline-flex;
 	gap: var(--wpds-dimension-gap-sm);

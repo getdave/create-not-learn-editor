@@ -24,7 +24,8 @@ import {
 	Notice,
 	Spinner,
 } from '../wordpress-packages';
-import { EDITOR_DEVICES } from './constants';
+import { EDITOR_DEVICES, SURFACE_PREVIEW } from './constants';
+import { StageStrip } from './stage-strip';
 import {
 	DeviceSwitcher,
 	FullEditorButton,
@@ -152,6 +153,9 @@ export function SiteCanvas( {
 					} ),
 				canvas.isEditing && editorChildren
 			),
+			el( StageStrip, {
+				onExpand: () => canvas.requestSurface( SURFACE_PREVIEW ),
+			} ),
 			/*
 			 * `aria-hidden` rather than `hidden`: `hidden` is `display: none`,
 			 * which would cut the fade short.
