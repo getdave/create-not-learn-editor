@@ -932,32 +932,29 @@ function cnl_editor_get_menu_items() {
 			'label' => __( 'Site Overview', 'create-not-learn-editor' ),
 			'to'    => '/site-overview',
 		),
-		array(
-			'id'          => 'content',
-			'icon'        => 'dashicons-admin-post',
-			'label'       => __( 'Content', 'create-not-learn-editor' ),
-			// A fallback path prefix, shorter than every sub-item's `to`
-			// below so the sidebar's drilldown-restoration logic (which
-			// matches by longest `to` prefix) always prefers the specific
-			// sub-item over this parent.
-			'to'          => '/types',
-			'parent_type' => 'drilldown',
-		),
 	);
 
 	foreach ( $post_types as $post_type ) {
-		$items[] = array(
-			'id'     => 'page' === $post_type['name'] ? 'pages' : 'content-' . $post_type['name'],
-			'icon'   => $post_type['menuIcon'],
-			'label'  => $post_type['menuName'],
+		$is_pages = 'page' === $post_type['name'];
+		$item     = array(
+			'id'    => $is_pages ? 'pages' : 'content-' . $post_type['name'],
+			'icon'  => $post_type['menuIcon'],
+			'label' => $post_type['menuName'],
 			// The route prefix, not a specific list view: switching tabs or
 			// filters within the list (or editing/creating an item) changes
 			// the URL past this point, and the sidebar's drilldown-restoration
 			// logic matches by longest `to` prefix, so this must cover every
 			// URL under this post type for the drilldown to stay open.
-			'to'     => '/types/' . $post_type['name'],
-			'parent' => 'content',
+			'to'    => '/types/' . $post_type['name'],
 		);
+
+		// Pages is a top-level destination; other content types (Posts and
+		// any custom post types) live under Advanced.
+		if ( ! $is_pages ) {
+			$item['parent'] = 'advanced';
+		}
+
+		$items[] = $item;
 	}
 
 	$items[] = array(
@@ -972,7 +969,7 @@ function cnl_editor_get_menu_items() {
 		'label'       => __( 'Design', 'create-not-learn-editor' ),
 		// Not a real route: only used to identify this parent for the
 		// sidebar's drilldown-restoration logic, which must not mistake it
-		// for one of its sub-items (see the `content` item above).
+		// for one of its sub-items.
 		'to'          => '/design',
 		'parent_type' => 'drilldown',
 	);
