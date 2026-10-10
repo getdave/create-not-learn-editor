@@ -37,6 +37,15 @@
 	gap: 0;
 }
 
+/*
+ * The device switcher and overflow menu read as one cluster. Flush: each
+ * 40px button already carries its own padding around a smaller icon, so no
+ * extra gap is needed between them.
+ */
+.cnl-site-canvas .cnl-editor-homepage-toolbar__right {
+	gap: 0;
+}
+
 .cnl-site-canvas__awaiting {
 	display: inline-flex;
 	align-items: center;
@@ -46,7 +55,7 @@
 	}
 }
 
-.cnl-site-canvas__full-editor-button.components-button.has-icon {
+.cnl-site-canvas__more-menu-toggle.components-button.has-icon {
 	width: 40px;
 	height: 40px;
 	min-width: 40px;
