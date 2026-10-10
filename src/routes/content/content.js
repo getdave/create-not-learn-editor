@@ -5,7 +5,7 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  * Internal dependencies
  */
 import { withUiTheme } from '../../theme';
-import { getPostType, settings } from '../../settings';
+import { getPostType } from '../../settings';
 import {
 	getErrorMessage,
 	getTemplateAuthorText,
@@ -22,8 +22,6 @@ import {
 	getPatternPreviewContent,
 	getPatternPreviewContentWithTitle,
 	getPatternTitle,
-	getPreviewContent,
-	getPreviewTemplateForPost,
 	getSelectedTemplateContent,
 	isPageLayoutPattern,
 } from './page-layouts';
@@ -84,12 +82,9 @@ import {
 } from '../../wordpress-packages';
 
 const DEFAULT_CONTENT_VIEW = {
-	fields: [ 'status', 'date' ],
+	fields: [ 'author', 'status', 'date' ],
 	filters: [],
-	layout: {
-		previewSize: 160,
-	},
-	mediaField: 'content-preview',
+	layout: {},
 	page: 1,
 	perPage: 20,
 	search: '',
@@ -98,13 +93,10 @@ const DEFAULT_CONTENT_VIEW = {
 		field: 'date',
 	},
 	titleField: 'title',
-	type: 'grid',
+	type: 'table',
 };
 
 const DEFAULT_CONTENT_LAYOUTS = {
-	grid: {
-		showMedia: true,
-	},
 	list: true,
 	table: {
 		layout: {
@@ -445,23 +437,6 @@ function getTemplateStatusLabel( template ) {
 	return getStatusLabel( template?.status );
 }
 
-function renderContentPreview( { item }, templates ) {
-	const template = getPreviewTemplateForPost( item, templates, settings );
-	const content = getPreviewContent( item, template );
-	const description = getTitleText( item.title );
-
-	return el(
-		'div',
-		{
-			className: 'cnl-editor-dataviews-preview',
-		},
-		el( LazyEditorPreview, {
-			content,
-			description,
-		} )
-	);
-}
-
 function getStatusIntent( status ) {
 	switch ( status ) {
 		case 'draft':
@@ -511,7 +486,7 @@ function renderSiteRoleBadges( item, siteRoles ) {
 	);
 }
 
-function getContentFields( templates, siteRoles = {} ) {
+function getContentFields( siteRoles = {} ) {
 	return [
 		{
 			enableGlobalSearch: true,
@@ -578,15 +553,6 @@ function getContentFields( templates, siteRoles = {} ) {
 			label: __( 'Date' ),
 			render: ( { item } ) => getDateLabel( item ),
 			type: 'datetime',
-		},
-		{
-			enableHiding: false,
-			enableSorting: false,
-			filterBy: false,
-			id: 'content-preview',
-			label: __( 'Content preview' ),
-			render: ( props ) => renderContentPreview( props, templates ),
-			type: 'media',
 		},
 	].filter( Boolean );
 }
@@ -1545,19 +1511,13 @@ function Stage() {
 	const isPages = type?.name === 'page';
 	const contentFields = useMemo(
 		() =>
-			getContentFields( previewTemplates, {
+			getContentFields( {
 				frontPageId,
 				isPages,
 				menuPages: mainMenu.menuPages,
 				postsPageId,
 			} ),
-		[
-			frontPageId,
-			isPages,
-			mainMenu.menuPages,
-			postsPageId,
-			previewTemplates,
-		]
+		[ frontPageId, isPages, mainMenu.menuPages, postsPageId ]
 	);
 	const contentActions = useMemo(
 		() => ( type ? getContentActions( navigate, type ) : [] ),
