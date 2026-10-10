@@ -55,7 +55,6 @@ export const WORKSPACES = [
 		// Writing first: Posts at the top level, the look of the site under
 		// Design, and everything else out of the way.
 		menuItems: {
-			content: { parent: HIDDEN_PARENT },
 			pages: { parent: HIDDEN_PARENT },
 			'content-post': { parent: undefined },
 			navigation: { parent: HIDDEN_PARENT },
@@ -66,9 +65,11 @@ export const WORKSPACES = [
 		id: 'builder',
 		label: __( 'Builder' ),
 		icon: tool,
-		// Lift the site-building destinations out of Advanced to the top level.
+		// Lift the site-building destinations out of Advanced to the top
+		// level. Posts comes with it so hiding Advanced doesn't also bury it.
 		menuItems: {
 			advanced: { parent: HIDDEN_PARENT },
+			'content-post': { parent: undefined },
 			patterns: { parent: undefined },
 			templateParts: { parent: undefined },
 			templates: { parent: undefined },
