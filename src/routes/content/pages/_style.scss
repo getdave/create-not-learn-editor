@@ -164,7 +164,7 @@ $cnl-pages-tree-row-gap: 2px;
 	box-shadow: inset 0 0 0 2px $cnl-accent;
 }
 
-.cnl-pages-tree__list.is-dragging .cnl-pages-tree__edit {
+.cnl-pages-tree__list.is-dragging .cnl-pages-tree__actions {
 	visibility: hidden;
 }
 
@@ -188,8 +188,8 @@ $cnl-pages-tree-row-gap: 2px;
 	gap: var(--wpds-dimension-gap-sm);
 	min-width: 0;
 	min-height: 40px;
-	// Room at the end for the edit button.
-	padding: 0 48px 0 var(--wpds-dimension-padding-sm);
+	// Room at the end for the edit and delete buttons.
+	padding: 0 88px 0 var(--wpds-dimension-padding-sm);
 	border: 0;
 	border-radius: var(--wpds-border-radius-sm);
 	background: transparent;
@@ -243,12 +243,13 @@ $cnl-pages-tree-row-gap: 2px;
 	flex: 0 0 auto;
 }
 
-// Opens the page up in the panel. Shown while its row is hovered or focused.
-.cnl-pages-tree__edit.components-button {
+// Opens the page up, or deletes it. Shown while its row is hovered or focused.
+.cnl-pages-tree__actions {
 	position: absolute;
 	top: 50%;
 	inset-inline-end: var(--wpds-dimension-padding-sm);
-	color: var(--wpds-color-foreground-content-neutral-weak);
+	display: flex;
+	gap: var(--wpds-dimension-gap-xs);
 	opacity: 0;
 	transform: translateY(-50%);
 	transition: opacity var(--wpds-motion-duration-md) var(--wpds-motion-easing-subtle);
@@ -266,9 +267,21 @@ $cnl-pages-tree-row-gap: 2px;
 		opacity: 1;
 		transform: translateY(-50%);
 	}
+}
+
+.cnl-pages-tree__edit.components-button {
+	color: var(--wpds-color-foreground-content-neutral-weak);
 
 	&:hover {
 		color: var(--wpds-color-foreground-interactive-neutral);
+	}
+}
+
+.cnl-pages-tree__delete.components-button {
+	color: var(--wpds-color-foreground-interactive-error);
+
+	&:hover {
+		color: var(--wpds-color-foreground-interactive-error-active);
 	}
 }
 
