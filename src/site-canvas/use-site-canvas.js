@@ -116,12 +116,16 @@ function isSameEntity( a, b ) {
  *                                            from `useChanges`, and the
  *                                            registry's `select`. Whether
  *                                            the preview shows it unsaved.
+ * @param {string}   options.initialSurface   The surface on show to begin
+ *                                            with. Edit starts beside the
+ *                                            stage, not over it.
  * @return {Object} The canvas's state and actions.
  */
 export function useSiteCanvas( {
 	url,
 	pinnedEntity = null,
 	isShownInPreview = NOTHING_SHOWN,
+	initialSurface = SURFACE_PREVIEW,
 } ) {
 	/*
 	 * `isTakingOver` is Edit taking over the stage as well as the canvas.
@@ -131,7 +135,7 @@ export function useSiteCanvas( {
 	 */
 	const [ layout, setLayout ] = useState( {
 		isTakingOver: false,
-		surface: SURFACE_PREVIEW,
+		surface: initialSurface,
 	} );
 	const layoutRef = useRef( layout );
 	const { surface } = layout;
@@ -192,11 +196,15 @@ export function useSiteCanvas( {
 		}
 	}, [ url, frame ] );
 
-	// The editor follows the page the preview is on, while it is on show.
+	/*
+	 * The editor follows the page the preview is on, while it is on show.
+	 * Starting in Edit, the preview loads out of sight all the same, and the
+	 * editor opens its first page.
+	 */
 	useEffect( () => {
 		if (
 			! pinnedEntity &&
-			surface === SURFACE_PREVIEW &&
+			( surface === SURFACE_PREVIEW || ! followedEntity ) &&
 			! isLoadingContext &&
 			previewEntity &&
 			! isSameEntity( previewEntity, followedEntity )

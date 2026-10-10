@@ -2,7 +2,7 @@
  * Internal dependencies
  */
 import { settings } from '../../settings';
-import { SiteCanvas, useSiteCanvas } from '../../site-canvas';
+import { SURFACE_EDIT, SiteCanvas, useSiteCanvas } from '../../site-canvas';
 import { getHomepageDocumentIconStatus } from '../home/preview';
 import { Icon, __, el, homeIcon, postListIcon } from '../../wordpress-packages';
 
@@ -97,10 +97,16 @@ function EmptyPreview() {
  * and Pages use, so the preview behaves and looks the same everywhere it
  * appears.
  *
+ * It opens in Edit. The changes made here, to the site's look and identity,
+ * stay unsaved until the user saves them, and only Edit shows those.
+ *
  * @return {Element} The preview canvas.
  */
 export default function SitePreviewCanvas() {
-	const canvas = useSiteCanvas( { url: settings.homeUrl } );
+	const canvas = useSiteCanvas( {
+		initialSurface: SURFACE_EDIT,
+		url: settings.homeUrl,
+	} );
 
 	return el( SiteCanvas, {
 		canvas,
