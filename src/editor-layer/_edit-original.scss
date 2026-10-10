@@ -1,0 +1,28 @@
+/**
+ * Hide core's "Edit original" from a block toolbar.
+ *
+ * The whole toolbar group goes, not just the slot inside it. A group emptied
+ * of its contents still draws its own borders, which reads as a broken gap.
+ *
+ * "Edit original" is the sole fill in the toolbar's "other" group for a
+ * selected template part, and every slot shares one class name, so the group
+ * is picked out as the last one holding a slot, which is where the "other"
+ * group is rendered. Earlier slot groups carry controls that should stay, and
+ * the "Edit Header" replacement sits in the last-item slot, outside all of
+ * them.
+ *
+ * Synced patterns share the `is-synced` toolbar class, so include this only
+ * where a template part is known to be the selected block.
+ *
+ * Shared by the full-screen edit canvas (`style.scss`) and the stage's inline
+ * editor (`src/site-canvas/_style.scss`).
+ */
+@mixin hide-edit-original {
+
+	.block-editor-block-toolbar.is-synced
+		.components-toolbar-group:has(> .block-editor-block-toolbar__slot):not(
+			:has(~ .components-toolbar-group > .block-editor-block-toolbar__slot)
+		) {
+		display: none;
+	}
+}

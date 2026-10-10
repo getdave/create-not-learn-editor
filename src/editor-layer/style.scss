@@ -14,6 +14,8 @@
  * `.cnl-editor-layer`, and read here through `:has()`.
  */
 
+@use "./edit-original";
+
 $edit-canvas: '[class*="__has-full-canvas"]';
 
 body:has(#{$edit-canvas}) {
@@ -21,27 +23,11 @@ body:has(#{$edit-canvas}) {
 	/**
 	 * Template parts are edited through this plugin's own "Edit Header"
 	 * button, so core's "Edit original" is hidden while one is selected.
-	 *
-	 * The whole toolbar group goes, not just the slot inside it. A group
-	 * emptied of its contents still draws its own borders, which reads as a
-	 * broken gap.
-	 *
-	 * "Edit original" is the sole fill in the toolbar's "other" group for a
-	 * selected template part, and every slot shares one class name, so the
-	 * group is picked out as the last one holding a slot, which is where the
-	 * "other" group is rendered. Earlier slot groups carry controls that
-	 * should stay, and the replacement button sits in the last-item slot,
-	 * outside all of them.
-	 *
-	 * Keyed on the selected block's name, so synced patterns, which share the
-	 * `is-synced` toolbar class, keep theirs.
+	 * Keyed on the selected block's name, so synced patterns keep theirs.
 	 */
-	&:has(.cnl-editor-layer[data-selected-block="core/template-part"])
-		.block-editor-block-toolbar.is-synced
-		.components-toolbar-group:has(> .block-editor-block-toolbar__slot):not(
-			:has(~ .components-toolbar-group > .block-editor-block-toolbar__slot)
-		) {
-		display: none;
+	&:has(.cnl-editor-layer[data-selected-block="core/template-part"]) {
+
+		@include edit-original.hide-edit-original;
 	}
 
 	/**
