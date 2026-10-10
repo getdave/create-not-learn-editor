@@ -6,6 +6,7 @@
 @use "./routes/site-overview/style" as site-overview;
 @use "./design-picker/style" as design-picker;
 @use "./section-picker/style" as section-picker;
+@use "./editor-extensions/style" as editor-extensions;
 
 .cnl-editor-page {
 
