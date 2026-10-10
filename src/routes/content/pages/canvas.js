@@ -569,7 +569,7 @@ function PagesCanvas() {
 				pages[ 0 ]?.id
 		) ||
 		0;
-	const pageId = drilledId || fallbackId;
+	const pageId = drilledId || Number( searchParams.previewId ) || fallbackId;
 	const { blocks } = usePageSections( pageId );
 	const page = useSelect(
 		( select ) =>
@@ -620,11 +620,16 @@ function PagesCanvas() {
 
 	useLinkedSections( { canvasDocument, items } );
 
-	// A link followed in the preview to another page opens it in the sidebar.
+	// A link followed in the preview to another page picks it in the sidebar,
+	// and opens it there if a page was already open.
 	useEffect( () => {
 		if ( previewPageId && previewPageId !== pageId && ! canvas.isEditing ) {
 			navigate( {
-				search: { ...searchParams, postId: previewPageId },
+				search: {
+					...searchParams,
+					postId: drilledId ? previewPageId : undefined,
+					previewId: previewPageId,
+				},
 				to: LIST_PATH,
 			} );
 		}
