@@ -1805,7 +1805,7 @@ function Stage() {
 			subTitle:
 				( type.name === 'page' &&
 					__(
-						'Every page on your site. Pick one to see what is on it and change it.'
+						'Every page on your site. Pick one to see it, or edit it to change what is on it.'
 					) ) ||
 				( type.name === 'post' &&
 					__( 'Your blog posts, newest first.' ) ) ||

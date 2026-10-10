@@ -245,7 +245,8 @@ function PageTreeRow( {
 	depth,
 	dnd,
 	node,
-	onOpen,
+	onEdit,
+	onPreview,
 	onToggle,
 	previewedId,
 	roles,
@@ -321,8 +322,9 @@ function PageTreeRow( {
 								'Press Alt and an arrow key to move this page. Left and right move it out of, or under, another page.'
 							)
 						: undefined,
+					'aria-current': previewedId === id ? 'page' : undefined,
 					className: 'cnl-pages-tree__link',
-					onClick: () => onOpen( id ),
+					onClick: () => onPreview( id ),
 					onKeyDown: ( event ) => dnd.onKeyDown( event, id ),
 					type: 'button',
 				},
@@ -341,12 +343,19 @@ function PageTreeRow( {
 							intent: status.intent,
 						},
 						status.label
-					),
-				el( Icon, {
-					className: 'cnl-pages-tree__chevron',
-					icon: chevronRightSmallIcon,
-				} )
-			)
+					)
+			),
+			el( Button, {
+				className: 'cnl-pages-tree__edit',
+				icon: pencilIcon,
+				label: sprintf(
+					/* translators: %s: page title. */
+					__( 'Edit %s' ),
+					title
+				),
+				onClick: () => onEdit( id ),
+				size: 'compact',
+			} )
 		),
 		children.length > 0 &&
 			! isCollapsed &&
@@ -360,7 +369,8 @@ function PageTreeRow( {
 						dnd,
 						key: child.page.id,
 						node: child,
-						onOpen,
+						onEdit,
+						onPreview,
 						onToggle,
 						previewedId,
 						roles,
@@ -429,7 +439,11 @@ export function PagesTree( { canCreate, onAddPage } ) {
 		() => filterPageTree( tree, search, getPageTitle ),
 		[ search, tree ]
 	);
-	const previewedId = frontPageId || Number( tree[ 0 ]?.page.id ) || 0;
+	const previewedId =
+		Number( searchParams.previewId ) ||
+		frontPageId ||
+		Number( tree[ 0 ]?.page.id ) ||
+		0;
 	const canMove = ! search.trim();
 
 	// Forget a move once the saved page reflects it.
@@ -470,9 +484,14 @@ export function PagesTree( { canCreate, onAddPage } ) {
 		setFocusId( null );
 	}, [ focusId, tree ] );
 
-	const openPage = ( pageId ) =>
+	const previewPage = ( pageId ) =>
 		navigate( {
-			search: { ...searchParams, postId: pageId },
+			search: { ...searchParams, previewId: pageId },
+			to: LIST_PATH,
+		} );
+	const editPage = ( pageId ) =>
+		navigate( {
+			search: { ...searchParams, postId: pageId, previewId: pageId },
 			to: LIST_PATH,
 		} );
 	const toggle = ( pageId ) =>
@@ -737,7 +756,8 @@ export function PagesTree( { canCreate, onAddPage } ) {
 					dnd,
 					key: node.page.id,
 					node,
-					onOpen: openPage,
+					onEdit: editPage,
+					onPreview: previewPage,
 					onToggle: toggle,
 					previewedId,
 					roles,
@@ -761,9 +781,11 @@ export function PagesTree( { canCreate, onAddPage } ) {
 			' · ',
 			canMove
 				? __(
-						'Pick a page to change what is on it. Drag pages to reorder them, or onto another page to put them under it.'
+						'Pick a page to see it, or use the pencil to change what is on it. Drag pages to reorder them, or onto another page to put them under it.'
 					)
-				: __( 'Pick a page to change what is on it.' )
+				: __(
+						'Pick a page to see it, or use the pencil to change what is on it.'
+					)
 		)
 	);
 }
