@@ -30,6 +30,17 @@ This is a standalone WordPress plugin repo for Create Not Learn Editor.
 - `*.zip` plugin packages are generated and ignored by git.
 - Do not commit `node_modules/`, `build/`, or plugin zip files.
 - Run `npm run build` before runtime checks or `npm run plugin-zip`.
+- `.wp-env/plugins/canvas` is a generated local checkout and ignored by git; see Canvas Plugin in wp-env below.
+
+## Canvas Plugin in wp-env
+
+The `wp-env` instance auto-installs and activates the [Automattic/canvas](https://github.com/Automattic/canvas) plugin alongside Gutenberg on every start.
+
+- Canvas ships no release zip and requires `npm ci && npm run build` before WordPress can activate it. wp-env only clones git-sourced plugins — it never builds them — so `scripts/ensure-canvas-plugin.mjs` clones/updates Canvas into `.wp-env/plugins/canvas` and builds it before `wp-env` runs. It skips the rebuild when the checked-out commit hasn't changed.
+- The `npm run wp-env` script runs that ensure script first, then forwards to the real `wp-env` command (`"wp-env": "node scripts/ensure-canvas-plugin.mjs && wp-env"` in `package.json`). Always invoke wp-env through `npm run wp-env ...`, not the `wp-env` binary directly, or Canvas won't get built.
+- `.wp-env.json` points its plugin entry at the local built copy (`./.wp-env/plugins/canvas`), not a bare `Automattic/canvas` or GitHub URL string — wp-env's git-source shorthand only clones, so pointing there directly reproduces the missing-build-assets failure.
+- Canvas requires WordPress 7.1+, which is why `.wp-env.json` pins `core` to `https://wordpress.org/wordpress-7.1.zip`. Don't lower it back to 7.0 without also dropping Canvas.
+- wp-env activates every entry in `"plugins"` as one `set -eo pipefail` batch — if any plugin fails to activate (including Canvas, if its build step is skipped), the whole `wp-env start` aborts and tears down, so the plugin listed after it (`.`, this plugin) never activates either. Keep Canvas's build step working, don't just drop it from the plugins list to "fix" a failed start.
 
 ## Development Commands
 
