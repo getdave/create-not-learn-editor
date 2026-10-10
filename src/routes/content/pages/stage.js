@@ -77,9 +77,11 @@ import {
 	externalIcon,
 	getBlockType,
 	footerIcon,
+	Fragment,
 	headerIcon,
 	homeIcon,
 	Icon,
+	InputControl,
 	lockSmallIcon,
 	MenuGroup,
 	MenuItem,
@@ -146,51 +148,6 @@ function getPageRole( page, { frontPageId, postsPageId } ) {
 
 	if ( Number( page.id ) === postsPageId ) {
 		return __( 'Blog' );
-	}
-
-	return '';
-}
-
-function getPagePath( link ) {
-	if ( ! link ) {
-		return '';
-	}
-
-	try {
-		const url = new URL( link );
-
-		return decodeURI( url.pathname + url.search ) || '/';
-	} catch {
-		return link;
-	}
-}
-
-function getRelativeTime( date ) {
-	if ( ! date ) {
-		return '';
-	}
-
-	const seconds = ( Date.now() - new Date( date ).getTime() ) / 1000;
-	const formatter = new Intl.RelativeTimeFormat( undefined, {
-		numeric: 'auto',
-	} );
-	const steps = [
-		[ 60, 'second' ],
-		[ 60, 'minute' ],
-		[ 24, 'hour' ],
-		[ 7, 'day' ],
-		[ 4.35, 'week' ],
-		[ 12, 'month' ],
-		[ Infinity, 'year' ],
-	];
-	let value = seconds;
-
-	for ( const [ size, unit ] of steps ) {
-		if ( Math.abs( value ) < size ) {
-			return formatter.format( -Math.round( value ), unit );
-		}
-
-		value /= size;
 	}
 
 	return '';
@@ -942,13 +899,72 @@ export function PagesTree( { canCreate, onAddPage } ) {
  * ---------------------------------------------------------------------------
  */
 
-function PageSummary( { page, pageId, roles } ) {
+function RenamePageModal( { onClose, pageId, title } ) {
 	const { editEntityRecord } = useDispatch( coreDataStore );
+	const [ value, setValue ] = useState( title );
+	const rename = ( event ) => {
+		event.preventDefault();
+		editEntityRecord( 'postType', 'page', pageId, {
+			title: value.trim(),
+		} );
+		onClose();
+	};
+
+	return el(
+		Modal,
+		{
+			className: 'routes-navigation-edit__item-modal',
+			onRequestClose: onClose,
+			title: __( 'Rename page' ),
+		},
+		el(
+			'form',
+			{ onSubmit: rename },
+			el( InputControl, {
+				label: __( 'Page title' ),
+				onValueChange: ( next ) => setValue( next ?? '' ),
+				value,
+			} ),
+			el(
+				'div',
+				{ className: 'routes-navigation-edit__modal-actions' },
+				el(
+					Button,
+					{ onClick: onClose, type: 'button', variant: 'tertiary' },
+					__( 'Cancel' )
+				),
+				el(
+					Button,
+					{
+						disabled: ! value.trim() || value.trim() === title,
+						type: 'submit',
+						variant: 'primary',
+					},
+					__( 'Rename' )
+				)
+			)
+		)
+	);
+}
+
+/**
+ * What can be done with an opened page, behind its options button.
+ *
+ * Adding to the menu is only offered for published pages the menu does not
+ * already reach.
+ *
+ * @param {Object}   props        Component props.
+ * @param {Object}   props.page   Page record.
+ * @param {number}   props.pageId Page ID.
+ * @param {Function} props.onEdit Opens the page in the full editor.
+ * @return {Element} The options menu.
+ */
+function PageOptions( { page, pageId, onEdit } ) {
 	const { createErrorNotice, createSuccessNotice } =
 		useDispatch( noticesStore );
 	const mainMenu = useMainMenu();
 	const addPageToMenu = useAddPageToMenu();
-	const [ isAddingToMenu, setIsAddingToMenu ] = useState( false );
+	const [ isRenaming, setIsRenaming ] = useState( false );
 	const title = useSelect(
 		( selectStore ) =>
 			selectStore( coreDataStore ).getEditedEntityRecord(
@@ -958,17 +974,12 @@ function PageSummary( { page, pageId, roles } ) {
 			)?.title ?? '',
 		[ pageId ]
 	);
-	const status = page?.status;
-	const isPublished = status === 'publish';
-	const inMenu = isPageInMenu( page, mainMenu.menuPages );
-	const role = page ? getPageRole( page, roles ) : '';
-	const path = getPagePath( page?.link );
-	const edited = getRelativeTime( page?.modified );
-	const statusBadge = getStatusBadge( status );
+	const canAddToMenu =
+		Boolean( mainMenu.menuId && mainMenu.menuPages ) &&
+		page?.status === 'publish' &&
+		! isPageInMenu( page, mainMenu.menuPages );
 
 	const addToMenu = async () => {
-		setIsAddingToMenu( true );
-
 		try {
 			await addPageToMenu( mainMenu.menuId, page );
 			createSuccessNotice(
@@ -983,118 +994,88 @@ function PageSummary( { page, pageId, roles } ) {
 			createErrorNotice( getErrorMessage( error ), {
 				type: 'snackbar',
 			} );
-		} finally {
-			setIsAddingToMenu( false );
 		}
 	};
 
-	let menuFact = null;
-
-	if ( mainMenu.menuPages ) {
-		if ( inMenu ) {
-			menuFact = el(
-				Text,
-				{ variant: 'body-sm' },
-				__( 'Visitors can find it in your menu.' )
-			);
-		} else if ( ! isPublished ) {
-			menuFact = el(
-				Text,
-				{ variant: 'body-sm' },
-				__( 'Not in your menu. Publish it first to add it.' )
-			);
-		} else {
-			menuFact = el(
-				Stack,
-				{ align: 'center', direction: 'row', gap: 'sm', wrap: 'wrap' },
-				el(
-					Text,
-					{ variant: 'body-sm' },
-					__( 'Not in your menu yet.' )
-				),
-				el(
-					Button,
-					{
-						disabled: isAddingToMenu,
-						isBusy: isAddingToMenu,
-						onClick: addToMenu,
-						variant: 'link',
-					},
-					__( 'Add it' )
-				)
-			);
-		}
-	}
-
 	return el(
-		'section',
-		{
-			'aria-label': __( 'About this page' ),
-			className: 'cnl-page-summary',
-		},
+		Fragment,
+		null,
 		el(
-			'label',
-			{ className: 'cnl-page-summary__title' },
-			el(
-				'span',
-				{ className: 'cnl-page-summary__title-label' },
-				__( 'Page title' )
-			),
-			el( 'input', {
-				onChange: ( event ) =>
-					editEntityRecord( 'postType', 'page', pageId, {
-						title: event.target.value,
-					} ),
-				placeholder: __( 'Add a title' ),
-				type: 'text',
-				value: typeof title === 'string' ? title : '',
-			} )
-		),
-		el(
-			Stack,
+			DropdownMenu,
 			{
-				align: 'center',
-				className: 'cnl-page-summary__meta',
-				direction: 'row',
-				gap: 'sm',
-				wrap: 'wrap',
+				icon: moreVerticalIcon,
+				label: __( 'Page options' ),
+				popoverProps: { placement: 'bottom-end' },
+				toggleProps: { size: 'compact' },
 			},
-			role && el( Badge, { intent: 'informational' }, role ),
-			statusBadge
-				? el( Badge, { intent: statusBadge.intent }, statusBadge.label )
-				: el( Badge, { intent: 'stable' }, __( 'Published' ) ),
-			path &&
-				isPublished &&
+			( { onClose } ) =>
 				el(
-					'a',
-					{
-						className: 'cnl-page-summary__link',
-						href: page.link,
-						rel: 'noreferrer',
-						target: '_blank',
-					},
-					path,
-					el( Icon, { icon: externalIcon, size: 16 } )
+					Fragment,
+					null,
+					el(
+						MenuGroup,
+						null,
+						el(
+							MenuItem,
+							{
+								onClick: () => {
+									onClose();
+									setIsRenaming( true );
+								},
+							},
+							__( 'Rename' )
+						),
+						canAddToMenu &&
+							el(
+								MenuItem,
+								{
+									onClick: () => {
+										onClose();
+										addToMenu();
+									},
+								},
+								__( 'Add to menu' )
+							)
+					),
+					el(
+						MenuGroup,
+						null,
+						el(
+							MenuItem,
+							{
+								icon: pencilIcon,
+								onClick: () => {
+									onClose();
+									onEdit();
+								},
+							},
+							__( 'Open in full editor' )
+						),
+						page?.link &&
+							el(
+								MenuItem,
+								{
+									icon: externalIcon,
+									onClick: () => {
+										onClose();
+										window.open(
+											page.link,
+											'_blank',
+											'noopener,noreferrer'
+										);
+									},
+								},
+								__( 'View on your site' )
+							)
+					)
 				)
 		),
-		el(
-			'dl',
-			{ className: 'cnl-page-summary__facts' },
-			menuFact &&
-				el(
-					'div',
-					null,
-					el( 'dt', null, __( 'Menu' ) ),
-					el( 'dd', null, menuFact )
-				),
-			edited &&
-				el(
-					'div',
-					null,
-					el( 'dt', null, __( 'Last changed' ) ),
-					el( 'dd', null, el( Text, { variant: 'body-sm' }, edited ) )
-				)
-		)
+		isRenaming &&
+			el( RenamePageModal, {
+				onClose: () => setIsRenaming( false ),
+				pageId,
+				title: typeof title === 'string' ? title : '',
+			} )
 	);
 }
 
@@ -1994,7 +1975,7 @@ function SectionList( {
  */
 export function PageDetailStage( { pageId } ) {
 	const navigate = useNavigate();
-	const { frontPageId, pages, postsPageId } = usePages();
+	const { frontPageId, pages } = usePages();
 	const { blocks, isReady, setBlocks } = usePageSections( pageId );
 	const { createSuccessNotice } = useDispatch( noticesStore );
 	const [ insertAt, setInsertAt ] = useState( null );
@@ -2008,10 +1989,6 @@ export function PageDetailStage( { pageId } ) {
 		[ pageId ]
 	);
 	const listPage = pages.find( ( item ) => Number( item.id ) === pageId );
-	const roles = useMemo(
-		() => ( { frontPageId, postsPageId } ),
-		[ frontPageId, postsPageId ]
-	);
 	const title = getPageTitle( listPage || page );
 	const ancestors = getPageAncestorTitles( pages, pageId, getPageTitle );
 
@@ -2066,51 +2043,11 @@ export function PageDetailStage( { pageId } ) {
 	};
 	const editPart = ( id ) =>
 		navigate( { search: { postId: id }, to: '/wp_template_part' } );
-	const actions = el(
-		Stack,
-		{ align: 'center', direction: 'row', gap: 'sm' },
-		el(
-			DropdownMenu,
-			{
-				icon: moreVerticalIcon,
-				label: __( 'Page options' ),
-				popoverProps: { placement: 'bottom-end' },
-				toggleProps: { size: 'compact' },
-			},
-			( { onClose } ) =>
-				el(
-					MenuGroup,
-					null,
-					el(
-						MenuItem,
-						{
-							icon: pencilIcon,
-							onClick: () => {
-								onClose();
-								editPage();
-							},
-						},
-						__( 'Open in full editor' )
-					),
-					listPage?.link &&
-						el(
-							MenuItem,
-							{
-								icon: externalIcon,
-								onClick: () => {
-									onClose();
-									window.open(
-										listPage.link,
-										'_blank',
-										'noopener,noreferrer'
-									);
-								},
-							},
-							__( 'View on your site' )
-						)
-				)
-		)
-	);
+	const actions = el( PageOptions, {
+		onEdit: () => editPage(),
+		page: listPage ? { ...listPage, ...page } : page,
+		pageId,
+	} );
 
 	return el(
 		Page,
@@ -2131,11 +2068,6 @@ export function PageDetailStage( { pageId } ) {
 		el(
 			'div',
 			{ className: 'cnl-pages-detail__body' },
-			el( PageSummary, {
-				page: listPage ? { ...listPage, ...page } : page,
-				pageId,
-				roles,
-			} ),
 			el( MemoizedPageLayouts, {
 				isFrontPage: pageId === frontPageId,
 				pageId,

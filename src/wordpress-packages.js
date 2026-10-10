@@ -69,6 +69,7 @@ import { DataViews } from '@wordpress/dataviews/wp';
 import {
 	createElement as el,
 	flushSync,
+	Fragment,
 	memo,
 	useCallback,
 	useEffect,
@@ -216,6 +217,7 @@ export {
 	fetchLinkSuggestions,
 	flushSync,
 	footer as footerIcon,
+	Fragment,
 	fullscreen as fullscreenIcon,
 	getBlockType,
 	getPath,
