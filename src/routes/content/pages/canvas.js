@@ -20,7 +20,11 @@ import { useNavigate, useSearch } from '@wordpress/route';
 /**
  * Internal dependencies
  */
-import { SiteCanvas, useSiteCanvas } from '../../../site-canvas';
+import {
+	SiteCanvas,
+	TEMPLATE_PARAM,
+	useSiteCanvas,
+} from '../../../site-canvas';
 import {
 	getPageTitle,
 	usePages,
@@ -49,6 +53,7 @@ import {
 	MenuItem,
 	noticesStore,
 	pageIcon,
+	useCallback,
 	useDispatch,
 	useEffect,
 	useMemo,
@@ -469,24 +474,55 @@ function CanvasEmptyState() {
 
 /**
  * Where the preview shows a page. A page that isn't published only shows to
- * those who can edit it, as a preview.
+ * those who can edit it, as a preview. A layout chosen but not saved yet is
+ * passed along, so the preview shows the page in it.
  *
- * @param {Object} page Page record.
+ * @param {Object} page          Page record, with its unsaved edits.
+ * @param {string} savedTemplate The page's saved layout.
  * @return {string} The page's URL, or an empty string.
  */
-function getPagePreviewUrl( page ) {
+function getPagePreviewUrl( page, savedTemplate ) {
 	if ( ! page?.link ) {
 		return '';
 	}
 
-	if ( page.status === 'publish' ) {
-		return page.link;
+	const url = new URL( page.link, window.location.origin );
+
+	if ( page.status !== 'publish' ) {
+		url.searchParams.set( 'preview', 'true' );
 	}
 
-	const url = new URL( page.link, window.location.origin );
-	url.searchParams.set( 'preview', 'true' );
+	if ( ( page.template || '' ) !== ( savedTemplate || '' ) ) {
+		url.searchParams.set( TEMPLATE_PARAM, page.template || 'default' );
+	}
 
 	return url.href;
+}
+
+/**
+ * Whether the preview shows an unsaved change: a page whose only edit is its
+ * layout, which `getPagePreviewUrl` passes along.
+ *
+ * @param {Object}   change Unsaved change, from `useChanges`.
+ * @param {Function} select The registry's `select`.
+ * @return {boolean} Whether the preview shows it.
+ */
+function isLayoutChange( change, select ) {
+	const { kind, name, key } = change;
+
+	if ( kind !== 'postType' || name !== 'page' ) {
+		return false;
+	}
+
+	const edits = Object.keys(
+		select( coreDataStore ).getEntityRecordNonTransientEdits(
+			kind,
+			name,
+			key
+		) || {}
+	);
+
+	return edits.length > 0 && edits.every( ( edit ) => edit === 'template' );
 }
 
 function PageDocument( { isFrontPage, page } ) {
@@ -546,13 +582,26 @@ function PagesCanvas() {
 				: null,
 		[ pageId ]
 	);
+	const savedTemplate = useSelect(
+		( select ) =>
+			pageId
+				? select( coreDataStore ).getEntityRecord(
+						'postType',
+						'page',
+						pageId
+					)?.template
+				: '',
+		[ pageId ]
+	);
 	const pinnedEntity = useMemo(
 		() => ( pageId ? { postId: pageId, postType: 'page' } : null ),
 		[ pageId ]
 	);
+	const isShownInPreview = useCallback( isLayoutChange, [] );
 	const canvas = useSiteCanvas( {
+		isShownInPreview,
 		pinnedEntity,
-		url: getPagePreviewUrl( page ),
+		url: getPagePreviewUrl( page, savedTemplate ),
 	} );
 	const canvasDocument = useCanvasDocument( editorRef, pageId );
 	const structure = usePreviewStructure();

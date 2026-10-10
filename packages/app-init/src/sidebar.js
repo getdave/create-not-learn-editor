@@ -34,19 +34,24 @@ import {
 } from '../../../src/workspaces';
 
 /*
- * What can be pointed at in the sidebar while it is a strip of icons, a
- * drilled-in screen being open and the sidebar not expanded again. Matches
- * the rule in `src/style.scss`.
+ * On a task: a screen drilled into one page or menu, or a canvas in Edit.
+ * The sidebar is a strip of icons then.
  */
-const STRIP_ITEM_SELECTOR =
-	'body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) > [class*="__sidebar"] :is([class*="__item-wrapper"] > *, .cnl-sidebar-workspace__toggle)';
+const ON_TASK_SELECTOR = '.cnl-drilldown-stage, .cnl-site-canvas.is-editing';
+
+/*
+ * What can be pointed at in the sidebar while it is a strip of icons, being
+ * on a task and the sidebar not expanded again. Matches the rule in
+ * `src/style.scss`.
+ */
+const STRIP_ITEM_SELECTOR = `body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(${ ON_TASK_SELECTOR }) > [class*="__sidebar"] :is([class*="__item-wrapper"] > *, .cnl-sidebar-workspace__toggle)`;
 
 const EXPANDED_CLASS = 'cnl-sidebar-is-expanded';
 
 /*
- * Whether the sidebar has been expanded again on a drilled-in screen. Held
- * as a class on <body>, which the strip's rule keys off, and lasts until the
- * drilled-in screen is left.
+ * Whether the sidebar has been expanded again while on a task. Held as a
+ * class on <body>, which the strip's rule keys off, and lasts until the task
+ * is left.
  */
 const expansion = {
 	listeners: new Set(),
@@ -65,7 +70,7 @@ const expansion = {
 
 /**
  * Expand the sidebar from its strip of icons, or fold it back. Sits where
- * the greeting does, and only shows on drilled-in screens.
+ * the greeting does, and only shows while on a task.
  *
  * @return {Element} The toggle.
  */
@@ -271,6 +276,40 @@ function createSidebarToggle() {
 	return container;
 }
 
+/**
+ * Going back to the sidebar's top level takes the stage back to its top level
+ * too, the "Your site" hub, so the two never disagree about where you are.
+ *
+ * Boot's sidebar moves between its levels without changing the route, so its
+ * Back button is watched instead. Its levels can nest, so the route only
+ * changes once the top level, which has no title, is the one on show.
+ */
+function returnHomeWithSidebar() {
+	document.addEventListener( 'click', ( event ) => {
+		if (
+			! event.target.closest?.(
+				'[class*="__sidebar"] [class*="__title-icon"] button'
+			)
+		) {
+			return;
+		}
+
+		window.requestAnimationFrame( () => {
+			const isTopLevel = document.querySelector(
+				'[class*="__sidebar"] [class*="__title-icon"] h1:empty'
+			);
+			// No route at all is home too.
+			const isHome =
+				( new URL( window.location.href ).searchParams.get( 'p' ) ??
+					'/' ) === '/';
+
+			if ( isTopLevel && ! isHome ) {
+				resetRouteToHome();
+			}
+		} );
+	} );
+}
+
 function createWorkspaceSwitcher() {
 	const container = document.createElement( 'div' );
 	container.className = 'cnl-sidebar-workspace';
@@ -285,11 +324,12 @@ function createWorkspaceSwitcher() {
  * - A Dashboard link showing the WordPress logo, replacing boot's text link,
  *   which `src/style.scss` hides.
  * - A greeting above the main menu, hidden inside menu sections by CSS.
- * - A toggle in the greeting's row, on drilled-in screens, to expand the
- *   sidebar from its strip of icons and fold it back.
+ * - A toggle in the greeting's row, while on a task, to expand the sidebar
+ *   from its strip of icons and fold it back.
  * - A workspace switcher in its own section below the menu, outside boot's
  *   navigation screens so it stays put when drilling in and out.
  * - A tooltip naming each icon while the sidebar is a strip of icons.
+ * - Going back to the sidebar's top level takes the stage home too.
  *
  * Boot's sidebar has no slot for extra content, so these are placed relative
  * to boot's own Dashboard link and the menu that follows it. The sidebar can remount, on narrow screens for
@@ -305,6 +345,7 @@ export function enhanceSidebar( { userName } = {} ) {
 	const workspaceSwitcher = createWorkspaceSwitcher();
 
 	mountStripTooltip();
+	returnHomeWithSidebar();
 
 	let isScheduled = false;
 	const place = () => {
@@ -330,8 +371,8 @@ export function enhanceSidebar( { userName } = {} ) {
 			welcome.after( sidebarToggle );
 		}
 
-		// Leaving the drilled-in screen folds the sidebar again next time.
-		if ( ! document.querySelector( '.cnl-drilldown-stage' ) ) {
+		// Leaving the task folds the sidebar again next time.
+		if ( ! document.querySelector( ON_TASK_SELECTOR ) ) {
 			expansion.set( false );
 		}
 

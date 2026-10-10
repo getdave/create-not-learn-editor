@@ -2905,8 +2905,15 @@ $sidebar-heading-height: 56px;
  */
 $chevron-inset: 10px;
 
+/*
+ * The space below the logo sets where the heading row sits. It lines the
+ * row's middle up with the headers of the white surfaces beside it, which sit
+ * 31px below the top bar: the canvas toolbar's 1px border and 60px height.
+ */
+$sidebar-heading-offset: 3px;
+
 .cnl-sidebar-dashboard {
-	margin-block: var(--wpds-dimension-gap-lg) var(--wpds-dimension-gap-sm);
+	margin-block: var(--wpds-dimension-gap-lg) $sidebar-heading-offset;
 	margin-inline: calc(var(--wpds-dimension-padding-xl) - #{$chevron-inset}) var(--wpds-dimension-gap-md);
 }
 
@@ -3032,12 +3039,12 @@ $workspace-toggle-inset: var(--wpds-dimension-gap-xs);
 }
 
 /*
- * The sidebar as a strip of icons, while a screen drilled into one page or
- * menu is open. On a task, the way to other areas stays in reach without
- * taking the room. Labels are hidden visually but kept for screen readers,
- * and app-init shows each one as a tooltip. A toggle in the greeting's row
- * expands it again until the drilled-in screen is left. On narrow screens the
- * sidebar is a drawer instead.
+ * The sidebar as a strip of icons while on a task: a screen drilled into one
+ * page or menu, or a canvas in Edit. The way to other areas stays in reach
+ * without taking the room. Labels are hidden visually but kept for screen
+ * readers, and app-init shows each one as a tooltip. A toggle in the
+ * greeting's row expands it again until the task is left. On narrow screens
+ * the sidebar is a drawer instead.
  */
 $sidebar-strip-width: 64px;
 
@@ -3055,11 +3062,11 @@ $sidebar-strip-width: 64px;
 
 @media (min-width: 782px) {
 
-	#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) .cnl-sidebar-toggle {
+	#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage, .cnl-site-canvas.is-editing) .cnl-sidebar-toggle {
 		display: flex;
 	}
 
-	body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) > [class*="__sidebar"] {
+	body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage, .cnl-site-canvas.is-editing) > [class*="__sidebar"] {
 		width: $sidebar-strip-width;
 
 		// The toggle stands in for the Back button and section title.

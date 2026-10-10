@@ -69,8 +69,8 @@ export function SiteCanvas( {
 		'section',
 		{
 			className: `cnl-site-canvas cnl-editor-canvas cnl-editor-preview-canvas ${
-				canvas.isTakingOver ? 'is-taking-over ' : ''
-			}${ className }`,
+				canvas.isEditing ? 'is-editing ' : ''
+			}${ canvas.isTakingOver ? 'is-taking-over ' : '' }${ className }`,
 		},
 		el(
 			'header',

@@ -9,16 +9,19 @@
  * Because the preview only shows what is saved:
  *
  * - Going back to Preview with unsaved changes asks to save or discard them.
+ *   A change the caller shows in the preview anyway, such as a page's
+ *   layout passed along in its URL, doesn't count.
  * - Going back to Preview after saving, or from a page the preview isn't on,
  *   holds Edit until the preview has loaded the page, so it never shows an
  *   out-of-date page.
  * - Changes made while previewing, from the sidebar, switch to Edit, the
- *   surface that can show them.
+ *   surface that can show them, unless the preview shows them too.
  */
 
 /**
  * Internal dependencies
  */
+import { unlock } from '../lock-unlock';
 import { cnlEditorStore } from '../records';
 import { namespace, settings } from '../settings';
 import { useChanges } from '../top-bar/use-changes';
@@ -44,6 +47,8 @@ import { getEditRoute, getLiveUrl, isSameLocation } from './urls';
 import { usePreviewFrame } from './use-preview-frame';
 
 const EMPTY_OBJECT = {};
+
+const NOTHING_SHOWN = () => false;
 
 // Where Edit takes over the stage, and the switch can be animated.
 const ANIMATED_SURFACES_QUERY =
@@ -100,15 +105,24 @@ function isSameEntity( a, b ) {
 }
 
 /**
- * @param {Object}  options
- * @param {string}  options.url          Page the preview should show. The
- *                                       preview goes there when it changes.
- * @param {?Object} options.pinnedEntity `{ postType, postId }` to keep the
- *                                       editor on, rather than following the
- *                                       preview. Its page is `url`.
+ * @param {Object}   options
+ * @param {string}   options.url              Page the preview should show. The
+ *                                            preview goes there when it changes.
+ * @param {?Object}  options.pinnedEntity     `{ postType, postId }` to keep
+ *                                            the editor on, rather than
+ *                                            following the preview. Its page
+ *                                            is `url`.
+ * @param {Function} options.isShownInPreview Called with an unsaved change,
+ *                                            from `useChanges`, and the
+ *                                            registry's `select`. Whether
+ *                                            the preview shows it unsaved.
  * @return {Object} The canvas's state and actions.
  */
-export function useSiteCanvas( { url, pinnedEntity = null } ) {
+export function useSiteCanvas( {
+	url,
+	pinnedEntity = null,
+	isShownInPreview = NOTHING_SHOWN,
+} ) {
 	/*
 	 * `isTakingOver` is Edit taking over the stage as well as the canvas.
 	 * Asking for Edit does that, and the toolbar can show the stage again.
@@ -129,7 +143,18 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 	const savedVersionRef = useRef( 0 );
 	const waitRef = useRef( 0 );
 	const { changes, isSaving, save, discardAll } = useChanges();
-	const isDirty = changes.length > 0;
+	/*
+	 * Counted in a selector so that it follows a record's own edits: a page
+	 * already changed is the same one change whatever else is edited on it.
+	 */
+	const unseenChangeCount = useSelect(
+		( registrySelect ) =>
+			changes.filter(
+				( change ) => ! isShownInPreview( change, registrySelect )
+			).length,
+		[ changes, isShownInPreview ]
+	);
+	const isDirty = unseenChangeCount > 0;
 
 	// Every save that finishes leaves the preview showing an older site.
 	const wasSavingRef = useRef( isSaving );
@@ -199,10 +224,18 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		dispatch( 'core/editor' )?.setDeviceType?.( EDITOR_DEVICES[ device ] );
 	}, [ device, editorEntity?.postId ] );
 
-	// Nothing stays selected under the preview, to pop a toolbar over it.
+	/*
+	 * Nothing stays selected under the preview, to pop a toolbar over it, and
+	 * nothing stays entered. A header or footer being edited disables every
+	 * block outside it, so left entered it would greet the next Edit with the
+	 * rest of the page locked.
+	 */
 	useEffect( () => {
 		if ( surface === SURFACE_PREVIEW ) {
 			dispatch( blockEditorStore ).clearSelectedBlock();
+			unlock(
+				dispatch( blockEditorStore )
+			).stopEditingContentOnlySection();
 		}
 	}, [ surface ] );
 
@@ -263,21 +296,22 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		} );
 	}, [ changeSurface ] );
 
-	// Changes made while previewing can only be seen in Edit.
-	const changeCountRef = useRef( changes.length );
+	// Changes made while previewing that it can't show can only be seen in
+	// Edit.
+	const changeCountRef = useRef( unseenChangeCount );
 	useEffect( () => {
 		if (
-			changes.length > changeCountRef.current &&
+			unseenChangeCount > changeCountRef.current &&
 			surface === SURFACE_PREVIEW &&
 			editorEntity
 		) {
 			showEdit();
 		}
 
-		changeCountRef.current = changes.length;
+		changeCountRef.current = unseenChangeCount;
 		// Only a new change should switch, not the surface changing.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ changes.length ] );
+	}, [ unseenChangeCount ] );
 
 	/**
 	 * The page the editor has open, if the preview isn't already on it.
