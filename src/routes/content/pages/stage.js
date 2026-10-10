@@ -84,6 +84,7 @@ import {
 	MenuGroup,
 	MenuItem,
 	memo,
+	Modal,
 	moreVerticalIcon,
 	noticesStore,
 	Page,
@@ -245,6 +246,7 @@ function PageTreeRow( {
 	depth,
 	dnd,
 	node,
+	onDelete,
 	onEdit,
 	onPreview,
 	onToggle,
@@ -345,17 +347,32 @@ function PageTreeRow( {
 						status.label
 					)
 			),
-			el( Button, {
-				className: 'cnl-pages-tree__edit',
-				icon: pencilIcon,
-				label: sprintf(
-					/* translators: %s: page title. */
-					__( 'Edit %s' ),
-					title
-				),
-				onClick: () => onEdit( id ),
-				size: 'compact',
-			} )
+			el(
+				'div',
+				{ className: 'cnl-pages-tree__actions' },
+				el( Button, {
+					className: 'cnl-pages-tree__edit',
+					icon: pencilIcon,
+					label: sprintf(
+						/* translators: %s: page title. */
+						__( 'Edit %s' ),
+						title
+					),
+					onClick: () => onEdit( id ),
+					size: 'compact',
+				} ),
+				el( Button, {
+					className: 'cnl-pages-tree__delete',
+					icon: trashIcon,
+					label: sprintf(
+						/* translators: %s: page title. */
+						__( 'Delete %s' ),
+						title
+					),
+					onClick: () => onDelete( id ),
+					size: 'compact',
+				} )
+			)
 		),
 		children.length > 0 &&
 			! isCollapsed &&
@@ -369,6 +386,7 @@ function PageTreeRow( {
 						dnd,
 						key: child.page.id,
 						node: child,
+						onDelete,
 						onEdit,
 						onPreview,
 						onToggle,
@@ -407,11 +425,14 @@ export function PagesTree( { canCreate, onAddPage } ) {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
 	const { frontPageId, isLoading, pages, postsPageId } = usePages();
-	const { saveEntityRecord } = useDispatch( coreDataStore );
+	const { deleteEntityRecord, saveEntityRecord } =
+		useDispatch( coreDataStore );
 	const { createErrorNotice, createSuccessNotice } =
 		useDispatch( noticesStore );
 	const [ search, setSearch ] = useState( '' );
 	const [ collapsed, setCollapsed ] = useState( () => new Set() );
+	const [ deleteId, setDeleteId ] = useState( null );
+	const [ isDeleting, setIsDeleting ] = useState( false );
 	const [ dragId, setDragId ] = useState( null );
 	const [ drop, setDrop ] = useState( null );
 	// Moves shown before the saved pages come back, keyed by page ID.
@@ -614,6 +635,82 @@ export function PagesTree( { canCreate, onAddPage } ) {
 		}
 	};
 
+	const closeDeleteModal = () => {
+		if ( ! isDeleting ) {
+			setDeleteId( null );
+		}
+	};
+
+	const deletePage = async () => {
+		const page = effectivePages.find(
+			( item ) => Number( item.id ) === deleteId
+		);
+
+		if ( ! page ) {
+			setDeleteId( null );
+
+			return;
+		}
+
+		const title = getPageTitle( page );
+		const parent = Number( page.parent ) || 0;
+		// Its children move up a level rather than vanishing with it.
+		const children = effectivePages.filter(
+			( item ) => ( Number( item.parent ) || 0 ) === deleteId
+		);
+
+		setIsDeleting( true );
+
+		try {
+			await Promise.all(
+				children.map( ( child ) =>
+					saveEntityRecord(
+						'postType',
+						'page',
+						{ id: child.id, parent },
+						{ throwOnError: true }
+					)
+				)
+			);
+			await deleteEntityRecord(
+				'postType',
+				'page',
+				deleteId,
+				{},
+				{ throwOnError: true }
+			);
+
+			if ( previewedId === deleteId ) {
+				navigate( {
+					search: { ...searchParams, previewId: parent || undefined },
+					to: LIST_PATH,
+				} );
+			}
+
+			createSuccessNotice(
+				sprintf(
+					/* translators: %s: page title. */
+					__( '“%s” moved to Trash.' ),
+					title
+				),
+				{ type: 'snackbar' }
+			);
+			setDeleteId( null );
+		} catch ( error ) {
+			createErrorNotice(
+				sprintf(
+					/* translators: 1: page title, 2: error message. */
+					__( 'Unable to delete “%1$s” (%2$s).' ),
+					title,
+					getErrorMessage( error )
+				),
+				{ type: 'snackbar' }
+			);
+		} finally {
+			setIsDeleting( false );
+		}
+	};
+
 	const dnd = {
 		drop,
 		dragId,
@@ -756,6 +853,7 @@ export function PagesTree( { canCreate, onAddPage } ) {
 					dnd,
 					key: node.page.id,
 					node,
+					onDelete: setDeleteId,
 					onEdit: editPage,
 					onPreview: previewPage,
 					onToggle: toggle,
@@ -786,7 +884,55 @@ export function PagesTree( { canCreate, onAddPage } ) {
 				: __(
 						'Pick a page to see it, or use the pencil to change what is on it.'
 					)
-		)
+		),
+		deleteId &&
+			el(
+				Modal,
+				{
+					className: 'routes-navigation-edit__item-modal',
+					onRequestClose: closeDeleteModal,
+					title: __( 'Delete page' ),
+				},
+				el(
+					'p',
+					null,
+					sprintf(
+						/* translators: %s: page title. */
+						__(
+							'Are you sure you want to delete “%s”? It will be moved to the Trash.'
+						),
+						getPageTitle(
+							effectivePages.find(
+								( item ) => Number( item.id ) === deleteId
+							) || {}
+						)
+					)
+				),
+				el(
+					'div',
+					{ className: 'routes-navigation-edit__modal-actions' },
+					el(
+						Button,
+						{
+							disabled: isDeleting,
+							onClick: closeDeleteModal,
+							variant: 'tertiary',
+						},
+						__( 'Cancel' )
+					),
+					el(
+						Button,
+						{
+							disabled: isDeleting,
+							isBusy: isDeleting,
+							isDestructive: true,
+							onClick: deletePage,
+							variant: 'primary',
+						},
+						__( 'Move to Trash' )
+					)
+				)
+			)
 	);
 }
 
