@@ -68,7 +68,6 @@ import { DataViewsPicker, filterSortAndPaginate } from '@wordpress/dataviews';
 import { DataViews } from '@wordpress/dataviews/wp';
 import {
 	createElement as el,
-	createPortal,
 	flushSync,
 	memo,
 	useCallback,
@@ -195,7 +194,6 @@ export {
 	copy as copyIcon,
 	coreDataStore,
 	createBlock,
-	createPortal,
 	createReduxStore,
 	DataViews,
 	DataViewsPicker,

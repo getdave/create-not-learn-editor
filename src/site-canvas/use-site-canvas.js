@@ -110,9 +110,10 @@ function isSameEntity( a, b ) {
  */
 export function useSiteCanvas( { url, pinnedEntity = null } ) {
 	/*
-	 * `isTakingOver` is Edit taking over the stage as well as the canvas. Only
-	 * asking for Edit does that: Edit brought on from the stage, to mark a
-	 * section there, say, leaves the stage in place to carry on with.
+	 * `isTakingOver` is Edit taking over the stage as well as the canvas.
+	 * Asking for Edit does that, and the toolbar can show the stage again.
+	 * Edit brought on from the stage, to mark a section there, say, leaves the
+	 * stage in place to carry on with.
 	 */
 	const [ layout, setLayout ] = useState( {
 		isTakingOver: false,
@@ -210,12 +211,12 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 	 * animations play: the stage zooms away as the canvas grows into its
 	 * room, and back again.
 	 */
-	const changeSurface = useCallback( ( next, { takeOver = false } = {} ) => {
+	const changeSurface = useCallback( ( next, { takeOver } = {} ) => {
 		const current = layoutRef.current;
 		const nextLayout = {
-			// Once taken over, the stage stays hidden until Preview.
+			// Unless asked otherwise, the stage stays as it is until Preview.
 			isTakingOver:
-				next === SURFACE_EDIT && ( takeOver || current.isTakingOver ),
+				next === SURFACE_EDIT && ( takeOver ?? current.isTakingOver ),
 			surface: next,
 		};
 
@@ -254,6 +255,13 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		},
 		[ cancelWait, changeSurface ]
 	);
+
+	// Show the stage beside Edit, or let Edit take it over again.
+	const toggleStage = useCallback( () => {
+		changeSurface( SURFACE_EDIT, {
+			takeOver: ! layoutRef.current.isTakingOver,
+		} );
+	}, [ changeSurface ] );
 
 	// Changes made while previewing can only be seen in Edit.
 	const changeCountRef = useRef( changes.length );
@@ -413,5 +421,6 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		setDevice,
 		showEdit,
 		surface,
+		toggleStage,
 	};
 }

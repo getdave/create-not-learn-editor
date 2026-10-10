@@ -24,12 +24,12 @@ import {
 	Notice,
 	Spinner,
 } from '../wordpress-packages';
-import { EDITOR_DEVICES, SURFACE_PREVIEW } from './constants';
-import { StageStrip } from './stage-strip';
+import { EDITOR_DEVICES } from './constants';
 import {
 	DeviceSwitcher,
 	FullEditorButton,
 	PreviewHistory,
+	StageToggle,
 	SurfaceToggle,
 } from './toolbar';
 import { UnsavedChangesDialog } from './unsaved-changes-dialog';
@@ -81,6 +81,11 @@ export function SiteCanvas( {
 			el(
 				'div',
 				{ className: 'cnl-editor-homepage-toolbar__left' },
+				canvas.isEditing &&
+					el( StageToggle, {
+						isShown: ! canvas.isTakingOver,
+						onToggle: canvas.toggleStage,
+					} ),
 				el( SurfaceToggle, {
 					canEdit: canvas.canEdit,
 					onChange: canvas.requestSurface,
@@ -153,9 +158,6 @@ export function SiteCanvas( {
 					} ),
 				canvas.isEditing && editorChildren
 			),
-			el( StageStrip, {
-				onExpand: () => canvas.requestSurface( SURFACE_PREVIEW ),
-			} ),
 			/*
 			 * `aria-hidden` rather than `hidden`: `hidden` is `display: none`,
 			 * which would cut the fade short.

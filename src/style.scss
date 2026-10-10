@@ -3035,8 +3035,9 @@ $workspace-toggle-inset: var(--wpds-dimension-gap-xs);
  * The sidebar as a strip of icons, while a screen drilled into one page or
  * menu is open. On a task, the way to other areas stays in reach without
  * taking the room. Labels are hidden visually but kept for screen readers,
- * and app-init shows each one as a tooltip. On narrow screens the sidebar is
- * a drawer instead.
+ * and app-init shows each one as a tooltip. A toggle in the greeting's row
+ * expands it again until the drilled-in screen is left. On narrow screens the
+ * sidebar is a drawer instead.
  */
 $sidebar-strip-width: 64px;
 
@@ -3054,8 +3055,22 @@ $sidebar-strip-width: 64px;
 
 @media (min-width: 782px) {
 
-	#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) > [class*="__sidebar"] {
+	#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) .cnl-sidebar-toggle {
+		display: flex;
+	}
+
+	body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) > [class*="__sidebar"] {
 		width: $sidebar-strip-width;
+
+		// The toggle stands in for the Back button and section title.
+		[class*="__title-icon"] > * {
+			visibility: hidden;
+		}
+
+		.cnl-sidebar-toggle {
+			justify-content: center;
+			padding-inline: 0;
+		}
 
 		.cnl-sidebar-welcome,
 		.cnl-sidebar-dashboard__link > :first-child,
@@ -3099,6 +3114,33 @@ $sidebar-strip-width: 64px;
 		[class*="__item-wrapper"] > * {
 			padding-inline: 0;
 		}
+	}
+}
+
+/*
+ * Laid over the greeting's row like the greeting is, at its far end, so it
+ * neither moves the menu nor covers the Back button.
+ */
+.cnl-sidebar-toggle {
+	position: relative;
+	z-index: 2;
+	display: none;
+	box-sizing: border-box;
+	align-items: center;
+	justify-content: flex-end;
+	height: $sidebar-heading-height;
+	margin-block-end: (-$sidebar-heading-height);
+	padding-inline: var(--wpds-dimension-gap-md);
+	pointer-events: none;
+}
+
+.components-button.cnl-sidebar-toggle__button {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	pointer-events: auto;
+
+	&:hover:not(:disabled),
+	&:focus-visible {
+		color: var(--wpds-color-foreground-content-neutral);
 	}
 }
 
