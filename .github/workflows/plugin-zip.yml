@@ -1,0 +1,70 @@
+name: Plugin zip
+
+# Builds an installable plugin zip on every push to trunk and attaches it to
+# the workflow run as an artifact.
+
+on:
+  push:
+    branches:
+      - trunk
+  workflow_dispatch:
+
+# Only one build at a time. A newer push to trunk cancels the build in progress.
+concurrency:
+  group: plugin-zip-trunk
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  ZIP_NAME: create-not-learn-editor.zip
+
+jobs:
+  build:
+    name: Build plugin zip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      - name: Create plugin zip
+        run: npm run plugin-zip
+
+      - name: Check zip contents
+        run: |
+          unzip -l "$ZIP_NAME" > zip-contents.txt
+          for path in \
+            create-not-learn-editor/create-not-learn-editor.php \
+            create-not-learn-editor/build/pages.php \
+            create-not-learn-editor/build/routes.php; do
+            grep -q " $path$" zip-contents.txt || { echo "::error::Missing $path in $ZIP_NAME"; exit 1; }
+          done
+
+      # Uploaded as-is rather than wrapped in a second zip, so the download
+      # installs directly via Plugins > Add New > Upload Plugin.
+      - name: Upload plugin zip
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.ZIP_NAME }}
+          archive: false
+          if-no-files-found: error
+
+      - name: Add download link to summary
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        run: |
+          echo "Download [${ZIP_NAME}](${ARTIFACT_URL}) built from \`${GITHUB_SHA::7}\`." >> "$GITHUB_STEP_SUMMARY"
