@@ -59,6 +59,7 @@ export const WORKSPACES = [
 			'content-post': { parent: undefined },
 			navigation: { parent: HIDDEN_PARENT },
 			advanced: { parent: HIDDEN_PARENT },
+			'site-overview': { parent: HIDDEN_PARENT },
 		},
 	},
 	{
