@@ -19,6 +19,7 @@ defined( 'ABSPATH' ) || exit;
 function cnl_editor_register_preview_frame_hooks() {
 	add_action( 'wp_head', 'cnl_editor_output_preview_frame_styles', 999 );
 	add_action( 'wp_footer', 'cnl_editor_output_preview_navigation_script', 999 );
+	add_filter( 'page_template_hierarchy', 'cnl_editor_preview_page_template' );
 }
 
 /**
@@ -36,6 +37,50 @@ function cnl_editor_is_preview_frame_request() {
 		'cnl-editor-preview',
 		FILTER_SANITIZE_FULL_SPECIAL_CHARS
 	);
+}
+
+/**
+ * Show a page in a layout it hasn't been saved with yet.
+ *
+ * Choosing a layout in the Pages sidebar is an unsaved change, so what is
+ * saved can't show it. The canvas passes the chosen layout's slug along as
+ * `cnl-editor-template` instead, `default` for the theme's own choice, and the
+ * preview puts it first in line, for those who could save it.
+ *
+ * @param string[] $templates Template candidates, most specific first.
+ * @return string[] The candidates, with the chosen layout leading.
+ */
+function cnl_editor_preview_page_template( $templates ) {
+	if ( ! cnl_editor_is_preview_frame_request() ) {
+		return $templates;
+	}
+
+	$slug = filter_input( INPUT_GET, 'cnl-editor-template', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+
+	if ( ! is_string( $slug ) || '' === $slug ) {
+		return $templates;
+	}
+
+	$post_id = get_queried_object_id();
+
+	if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
+		return $templates;
+	}
+
+	// The saved layout no longer gets a say.
+	$saved = get_page_template_slug( $post_id );
+
+	if ( $saved ) {
+		$templates = array_values( array_diff( $templates, array( $saved ) ) );
+	}
+
+	$slug = sanitize_title( $slug );
+
+	if ( 'default' !== $slug ) {
+		array_unshift( $templates, $slug );
+	}
+
+	return $templates;
 }
 
 /**

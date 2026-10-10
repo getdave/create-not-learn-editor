@@ -68,6 +68,7 @@ import { DataViewsPicker, filterSortAndPaginate } from '@wordpress/dataviews';
 import { DataViews } from '@wordpress/dataviews/wp';
 import {
 	createElement as el,
+	flushSync,
 	memo,
 	useCallback,
 	useEffect,
@@ -97,6 +98,7 @@ import {
 	chevronUp,
 	closeSmall,
 	copy,
+	drawerLeft,
 	customLink,
 	desktop,
 	dragHandle,
@@ -199,6 +201,7 @@ export {
 	dispatch,
 	desktop as desktopIcon,
 	dragHandle as dragHandleIcon,
+	drawerLeft as drawerLeftIcon,
 	Dropdown,
 	DropdownMenu,
 	el,
@@ -208,6 +211,7 @@ export {
 	file as fileIcon,
 	filterSortAndPaginate,
 	fetchLinkSuggestions,
+	flushSync,
 	footer as footerIcon,
 	fullscreen as fullscreenIcon,
 	getBlockType,

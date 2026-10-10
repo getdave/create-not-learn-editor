@@ -2905,8 +2905,15 @@ $sidebar-heading-height: 56px;
  */
 $chevron-inset: 10px;
 
+/*
+ * The space below the logo sets where the heading row sits. It lines the
+ * row's middle up with the headers of the white surfaces beside it, which sit
+ * 31px below the top bar: the canvas toolbar's 1px border and 60px height.
+ */
+$sidebar-heading-offset: 3px;
+
 .cnl-sidebar-dashboard {
-	margin-block: var(--wpds-dimension-gap-lg) var(--wpds-dimension-gap-sm);
+	margin-block: var(--wpds-dimension-gap-lg) $sidebar-heading-offset;
 	margin-inline: calc(var(--wpds-dimension-padding-xl) - #{$chevron-inset}) var(--wpds-dimension-gap-md);
 }
 
@@ -3028,6 +3035,126 @@ $workspace-toggle-inset: var(--wpds-dimension-gap-xs);
 		transition:
 			opacity var(--wpds-motion-duration-md) var(--wpds-motion-easing-subtle),
 			visibility var(--wpds-motion-duration-md);
+	}
+}
+
+/*
+ * The sidebar as a strip of icons while on a task: a screen drilled into one
+ * page or menu, or a canvas in Edit. The way to other areas stays in reach
+ * without taking the room. Labels are hidden visually but kept for screen
+ * readers, and app-init shows each one as a tooltip. A toggle in the
+ * greeting's row expands it again until the task is left. On narrow screens
+ * the sidebar is a drawer instead.
+ */
+$sidebar-strip-width: 64px;
+
+@mixin cnl-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	border: 0;
+	white-space: nowrap;
+}
+
+@media (min-width: 782px) {
+
+	#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage, .cnl-site-canvas.is-editing) .cnl-sidebar-toggle {
+		display: flex;
+	}
+
+	body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage, .cnl-site-canvas.is-editing) > [class*="__sidebar"] {
+		width: $sidebar-strip-width;
+
+		// The toggle stands in for the Back button and section title.
+		[class*="__title-icon"] > * {
+			visibility: hidden;
+		}
+
+		.cnl-sidebar-toggle {
+			justify-content: center;
+			padding-inline: 0;
+		}
+
+		.cnl-sidebar-welcome,
+		.cnl-sidebar-dashboard__link > :first-child,
+		.cnl-sidebar-workspace__toggle > :not(:first-child) {
+			display: none;
+		}
+
+		[class*="__title-icon"] h1,
+		[class*="__item-wrapper"] > * > * > :not(:first-child) {
+
+			@include cnl-visually-hidden;
+		}
+
+		.cnl-sidebar-dashboard,
+		.cnl-sidebar-workspace {
+			display: flex;
+			justify-content: center;
+			margin-inline: 0;
+			padding-inline: 0;
+		}
+
+		.components-button.cnl-sidebar-dashboard__link,
+		.components-button.cnl-sidebar-workspace__toggle {
+			justify-content: center;
+			width: 40px;
+			margin-inline: 0;
+			padding-inline: 0;
+		}
+
+		[class*="__title-icon"],
+		[class*="__item-wrapper"] > * > * {
+			justify-content: center;
+		}
+
+		[class*="__title-icon"],
+		[class*="__item-wrapper"] {
+			box-sizing: border-box;
+			padding-inline: var(--wpds-dimension-gap-sm);
+		}
+
+		[class*="__item-wrapper"] > * {
+			padding-inline: 0;
+		}
+	}
+}
+
+/*
+ * Laid over the greeting's row like the greeting is, at its far end, so it
+ * neither moves the menu nor covers the Back button.
+ */
+.cnl-sidebar-toggle {
+	position: relative;
+	z-index: 2;
+	display: none;
+	box-sizing: border-box;
+	align-items: center;
+	justify-content: flex-end;
+	height: $sidebar-heading-height;
+	margin-block-end: (-$sidebar-heading-height);
+	padding-inline: var(--wpds-dimension-gap-md);
+	pointer-events: none;
+}
+
+.components-button.cnl-sidebar-toggle__button {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	pointer-events: auto;
+
+	&:hover:not(:disabled),
+	&:focus-visible {
+		color: var(--wpds-color-foreground-content-neutral);
+	}
+}
+
+@media (min-width: 782px) and (not (prefers-reduced-motion)) {
+
+	#create-not-learn-editor-app [class*="__layout"] > [class*="__sidebar"] {
+		transition: width var(--wpds-motion-duration-md) var(--wpds-motion-easing-subtle);
 	}
 }
 

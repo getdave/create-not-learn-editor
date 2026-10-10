@@ -13,6 +13,7 @@ import {
 	chevronLeftIcon,
 	chevronRightIcon,
 	desktopIcon,
+	drawerLeftIcon,
 	el,
 	fullscreenIcon,
 	mobileIcon,
@@ -29,6 +30,27 @@ function getDeviceOptions() {
 		{ icon: tabletIcon, label: __( 'Tablet view' ), value: 'tablet' },
 		{ icon: mobileIcon, label: __( 'Mobile view' ), value: 'mobile' },
 	];
+}
+
+/**
+ * Show the stage beside Edit, or hide it again so Edit has its room.
+ *
+ * @param {Object}   props
+ * @param {boolean}  props.isShown  Whether the stage is on show.
+ * @param {Function} props.onToggle Shows or hides the stage.
+ * @return {Element} The toggle.
+ */
+export function StageToggle( { isShown, onToggle } ) {
+	return el( Button, {
+		'aria-expanded': isShown,
+		className: 'cnl-site-canvas__stage-toggle',
+		icon: drawerLeftIcon,
+		isPressed: isShown,
+		label: isShown ? __( 'Hide panel' ) : __( 'Show panel' ),
+		onClick: onToggle,
+		showTooltip: true,
+		size: 'compact',
+	} );
 }
 
 /**

@@ -29,6 +29,7 @@ import {
 	DeviceSwitcher,
 	FullEditorButton,
 	PreviewHistory,
+	StageToggle,
 	SurfaceToggle,
 } from './toolbar';
 import { UnsavedChangesDialog } from './unsaved-changes-dialog';
@@ -67,7 +68,9 @@ export function SiteCanvas( {
 	return el(
 		'section',
 		{
-			className: `cnl-site-canvas cnl-editor-canvas cnl-editor-preview-canvas ${ className }`,
+			className: `cnl-site-canvas cnl-editor-canvas cnl-editor-preview-canvas ${
+				canvas.isEditing ? 'is-editing ' : ''
+			}${ canvas.isTakingOver ? 'is-taking-over ' : '' }${ className }`,
 		},
 		el(
 			'header',
@@ -78,6 +81,11 @@ export function SiteCanvas( {
 			el(
 				'div',
 				{ className: 'cnl-editor-homepage-toolbar__left' },
+				canvas.isEditing &&
+					el( StageToggle, {
+						isShown: ! canvas.isTakingOver,
+						onToggle: canvas.toggleStage,
+					} ),
 				el( SurfaceToggle, {
 					canEdit: canvas.canEdit,
 					onChange: canvas.requestSurface,

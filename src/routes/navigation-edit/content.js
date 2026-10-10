@@ -1706,7 +1706,7 @@ function NavigationEditStage() {
 		{
 			actions: menuOptions,
 			ariaLabel: menuTitle,
-			className: `cnl-editor-stage routes-navigation-edit${
+			className: `cnl-editor-stage cnl-drilldown-stage routes-navigation-edit${
 				isAutoMenu ? ' is-auto-menu' : ''
 			}`,
 			hasPadding: false,

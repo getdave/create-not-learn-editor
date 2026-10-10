@@ -4,6 +4,19 @@
 	background: #fff;
 }
 
+/*
+ * Asking for Edit takes over the stage beside the canvas too, leaving only
+ * the sidebar, so there is room to work on the page. The canvas toolbar can
+ * show the stage again. Boot's layout is matched by its CSS-module suffixes.
+ * On narrow screens each surface already fills the screen.
+ */
+@media (min-width: 782px) {
+
+	#create-not-learn-editor-app [class*="__stage"]:has(~ [class*="__canvas"] .cnl-site-canvas.is-taking-over) {
+		display: none;
+	}
+}
+
 // Smaller than the 40px default, to sit lightly in the toolbar.
 .cnl-site-canvas__surface-toggle {
 	flex: 0 0 auto;

@@ -36,6 +36,23 @@ describe( 'site canvas URLs', () => {
 		).toBe( `${ ORIGIN }/about/` );
 	} );
 
+	test( 'leaves an unsaved layout out of the live URL', () => {
+		expect(
+			getLiveUrl(
+				`${ ORIGIN }/about/?cnl-editor-preview=1&cnl-editor-template=page-no-title`
+			)
+		).toBe( `${ ORIGIN }/about/` );
+	} );
+
+	test( 'treats an unsaved layout as a different view to load', () => {
+		expect(
+			isSameLocation(
+				`${ ORIGIN }/about/?cnl-editor-preview=1`,
+				`${ ORIGIN }/about/?cnl-editor-template=page-no-title`
+			)
+		).toBe( false );
+	} );
+
 	test( 'matches a page however it is viewed', () => {
 		expect(
 			isSameLocation(

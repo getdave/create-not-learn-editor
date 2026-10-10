@@ -9,16 +9,19 @@
  * Because the preview only shows what is saved:
  *
  * - Going back to Preview with unsaved changes asks to save or discard them.
+ *   A change the caller shows in the preview anyway, such as a page's
+ *   layout passed along in its URL, doesn't count.
  * - Going back to Preview after saving, or from a page the preview isn't on,
  *   holds Edit until the preview has loaded the page, so it never shows an
  *   out-of-date page.
  * - Changes made while previewing, from the sidebar, switch to Edit, the
- *   surface that can show them.
+ *   surface that can show them, unless the preview shows them too.
  */
 
 /**
  * Internal dependencies
  */
+import { unlock } from '../lock-unlock';
 import { cnlEditorStore } from '../records';
 import { namespace, settings } from '../settings';
 import { useChanges } from '../top-bar/use-changes';
@@ -26,6 +29,7 @@ import {
 	blockEditorStore,
 	coreDataStore,
 	dispatch,
+	flushSync,
 	select,
 	useCallback,
 	useEffect,
@@ -43,6 +47,12 @@ import { getEditRoute, getLiveUrl, isSameLocation } from './urls';
 import { usePreviewFrame } from './use-preview-frame';
 
 const EMPTY_OBJECT = {};
+
+const NOTHING_SHOWN = () => false;
+
+// Where Edit takes over the stage, and the switch can be animated.
+const ANIMATED_SURFACES_QUERY =
+	'(min-width: 782px) and (prefers-reduced-motion: no-preference)';
 
 function getContextUrl( url ) {
 	const live = getLiveUrl( url );
@@ -95,16 +105,36 @@ function isSameEntity( a, b ) {
 }
 
 /**
- * @param {Object}  options
- * @param {string}  options.url          Page the preview should show. The
- *                                       preview goes there when it changes.
- * @param {?Object} options.pinnedEntity `{ postType, postId }` to keep the
- *                                       editor on, rather than following the
- *                                       preview. Its page is `url`.
+ * @param {Object}   options
+ * @param {string}   options.url              Page the preview should show. The
+ *                                            preview goes there when it changes.
+ * @param {?Object}  options.pinnedEntity     `{ postType, postId }` to keep
+ *                                            the editor on, rather than
+ *                                            following the preview. Its page
+ *                                            is `url`.
+ * @param {Function} options.isShownInPreview Called with an unsaved change,
+ *                                            from `useChanges`, and the
+ *                                            registry's `select`. Whether
+ *                                            the preview shows it unsaved.
  * @return {Object} The canvas's state and actions.
  */
-export function useSiteCanvas( { url, pinnedEntity = null } ) {
-	const [ surface, setSurface ] = useState( SURFACE_PREVIEW );
+export function useSiteCanvas( {
+	url,
+	pinnedEntity = null,
+	isShownInPreview = NOTHING_SHOWN,
+} ) {
+	/*
+	 * `isTakingOver` is Edit taking over the stage as well as the canvas.
+	 * Asking for Edit does that, and the toolbar can show the stage again.
+	 * Edit brought on from the stage, to mark a section there, say, leaves the
+	 * stage in place to carry on with.
+	 */
+	const [ layout, setLayout ] = useState( {
+		isTakingOver: false,
+		surface: SURFACE_PREVIEW,
+	} );
+	const layoutRef = useRef( layout );
+	const { surface } = layout;
 	const [ device, setDevice ] = useState( DEFAULT_DEVICE );
 	const [ isDialogOpen, setIsDialogOpen ] = useState( false );
 	const [ isAwaitingPreview, setIsAwaitingPreview ] = useState( false );
@@ -113,7 +143,18 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 	const savedVersionRef = useRef( 0 );
 	const waitRef = useRef( 0 );
 	const { changes, isSaving, save, discardAll } = useChanges();
-	const isDirty = changes.length > 0;
+	/*
+	 * Counted in a selector so that it follows a record's own edits: a page
+	 * already changed is the same one change whatever else is edited on it.
+	 */
+	const unseenChangeCount = useSelect(
+		( registrySelect ) =>
+			changes.filter(
+				( change ) => ! isShownInPreview( change, registrySelect )
+			).length,
+		[ changes, isShownInPreview ]
+	);
+	const isDirty = unseenChangeCount > 0;
 
 	// Every save that finishes leaves the preview showing an older site.
 	const wasSavingRef = useRef( isSaving );
@@ -183,38 +224,94 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		dispatch( 'core/editor' )?.setDeviceType?.( EDITOR_DEVICES[ device ] );
 	}, [ device, editorEntity?.postId ] );
 
-	// Nothing stays selected under the preview, to pop a toolbar over it.
+	/*
+	 * Nothing stays selected under the preview, to pop a toolbar over it, and
+	 * nothing stays entered. A header or footer being edited disables every
+	 * block outside it, so left entered it would greet the next Edit with the
+	 * rest of the page locked.
+	 */
 	useEffect( () => {
 		if ( surface === SURFACE_PREVIEW ) {
 			dispatch( blockEditorStore ).clearSelectedBlock();
+			unlock(
+				dispatch( blockEditorStore )
+			).stopEditingContentOnlySection();
 		}
 	}, [ surface ] );
+
+	/*
+	 * Taking over the stage runs as a view transition, so boot's own surface
+	 * animations play: the stage zooms away as the canvas grows into its
+	 * room, and back again.
+	 */
+	const changeSurface = useCallback( ( next, { takeOver } = {} ) => {
+		const current = layoutRef.current;
+		const nextLayout = {
+			// Unless asked otherwise, the stage stays as it is until Preview.
+			isTakingOver:
+				next === SURFACE_EDIT && ( takeOver ?? current.isTakingOver ),
+			surface: next,
+		};
+
+		if (
+			nextLayout.surface === current.surface &&
+			nextLayout.isTakingOver === current.isTakingOver
+		) {
+			return;
+		}
+
+		layoutRef.current = nextLayout;
+
+		if (
+			nextLayout.isTakingOver === current.isTakingOver ||
+			! document.startViewTransition ||
+			! window.matchMedia( ANIMATED_SURFACES_QUERY ).matches
+		) {
+			setLayout( nextLayout );
+			return;
+		}
+
+		document.startViewTransition( () =>
+			flushSync( () => setLayout( nextLayout ) )
+		);
+	}, [] );
 
 	const cancelWait = useCallback( () => {
 		waitRef.current += 1;
 		setIsAwaitingPreview( false );
 	}, [] );
 
-	const showEdit = useCallback( () => {
-		cancelWait();
-		setSurface( SURFACE_EDIT );
-	}, [ cancelWait ] );
+	const showEdit = useCallback(
+		( options ) => {
+			cancelWait();
+			changeSurface( SURFACE_EDIT, options );
+		},
+		[ cancelWait, changeSurface ]
+	);
 
-	// Changes made while previewing can only be seen in Edit.
-	const changeCountRef = useRef( changes.length );
+	// Show the stage beside Edit, or let Edit take it over again.
+	const toggleStage = useCallback( () => {
+		changeSurface( SURFACE_EDIT, {
+			takeOver: ! layoutRef.current.isTakingOver,
+		} );
+	}, [ changeSurface ] );
+
+	// Changes made while previewing that it can't show can only be seen in
+	// Edit.
+	const changeCountRef = useRef( unseenChangeCount );
 	useEffect( () => {
 		if (
-			changes.length > changeCountRef.current &&
+			unseenChangeCount > changeCountRef.current &&
 			surface === SURFACE_PREVIEW &&
 			editorEntity
 		) {
 			showEdit();
 		}
 
-		changeCountRef.current = changes.length;
+		changeCountRef.current = unseenChangeCount;
 		// Only a new change should switch, not the surface changing.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ changes.length ] );
+	}, [ unseenChangeCount ] );
 
 	/**
 	 * The page the editor has open, if the preview isn't already on it.
@@ -257,7 +354,7 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 			}
 
 			setIsAwaitingPreview( false );
-			setSurface( SURFACE_PREVIEW );
+			changeSurface( SURFACE_PREVIEW );
 		} );
 	};
 
@@ -265,7 +362,7 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		// Asked again while waiting: show it now.
 		if ( isAwaitingPreview ) {
 			cancelWait();
-			setSurface( SURFACE_PREVIEW );
+			changeSurface( SURFACE_PREVIEW );
 			return;
 		}
 
@@ -274,14 +371,14 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		if ( destination || isPreviewStale ) {
 			showPreviewWhenLoaded( destination );
 		} else {
-			setSurface( SURFACE_PREVIEW );
+			changeSurface( SURFACE_PREVIEW );
 		}
 	};
 
 	const requestSurface = ( next ) => {
 		if ( next === SURFACE_EDIT ) {
 			if ( canEdit ) {
-				showEdit();
+				showEdit( { takeOver: true } );
 			}
 
 			return;
@@ -328,7 +425,7 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 			frame.reload();
 		}
 
-		setSurface( SURFACE_PREVIEW );
+		changeSurface( SURFACE_PREVIEW );
 	};
 
 	const editRoute = getEditRoute( editorEntity );
@@ -348,6 +445,7 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		frame,
 		isAwaitingPreview,
 		isEditing: surface === SURFACE_EDIT,
+		isTakingOver: layout.isTakingOver,
 		isLoadingContext,
 		liveUrl: getLiveUrl( frame.location ) || url,
 		previewContext,
@@ -357,5 +455,6 @@ export function useSiteCanvas( { url, pinnedEntity = null } ) {
 		setDevice,
 		showEdit,
 		surface,
+		toggleStage,
 	};
 }
