@@ -19,17 +19,15 @@ import { getErrorMessage } from '../records';
 import {
 	__,
 	blockEditorStore,
-	Button,
 	el,
-	externalIcon,
 	Notice,
 	Spinner,
 	useSelect,
 } from '../wordpress-packages';
 import { EDITOR_DEVICES } from './constants';
 import {
+	CanvasMoreMenu,
 	DeviceSwitcher,
-	FullEditorButton,
 	PreviewHistory,
 	StageToggle,
 	SurfaceToggle,
@@ -138,20 +136,10 @@ export function SiteCanvas( {
 					device,
 					onChange: canvas.setDevice,
 				} ),
-				el( Button, {
-					className: 'cnl-editor-homepage-toolbar__external',
-					disabled: ! canvas.liveUrl,
-					href: canvas.liveUrl || undefined,
-					icon: externalIcon,
-					label: __( 'Open in a new tab' ),
-					rel: 'noreferrer',
-					showTooltip: true,
-					target: '_blank',
-					variant: 'tertiary',
-				} ),
-				el( FullEditorButton, {
-					disabled: ! canvas.editRoute,
-					onClick: () => navigate( canvas.editRoute ),
+				el( CanvasMoreMenu, {
+					editRoute: canvas.editRoute,
+					liveUrl: canvas.liveUrl,
+					onOpenFullEditor: () => navigate( canvas.editRoute ),
 				} )
 			)
 		),

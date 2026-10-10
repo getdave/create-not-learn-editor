@@ -15,9 +15,13 @@ import {
 	desktopIcon,
 	drawerLeftIcon,
 	el,
+	externalIcon,
 	fullscreenIcon,
 	mobileIcon,
-	tabletIcon,
+	DropdownMenu,
+	MenuGroup,
+	MenuItem,
+	moreVerticalIcon,
 	ToggleGroupControlOption,
 	ToggleGroupControl,
 	ToggleGroupControlOptionIcon,
@@ -27,7 +31,6 @@ import { SURFACE_EDIT, SURFACE_PREVIEW } from './constants';
 function getDeviceOptions() {
 	return [
 		{ icon: desktopIcon, label: __( 'Desktop view' ), value: 'desktop' },
-		{ icon: tabletIcon, label: __( 'Tablet view' ), value: 'tablet' },
 		{ icon: mobileIcon, label: __( 'Mobile view' ), value: 'mobile' },
 	];
 }
@@ -126,24 +129,60 @@ export function DeviceSwitcher( { device, onChange } ) {
 }
 
 /**
- * Open what is on the canvas in the full-screen editor.
+ * Less common ways to view or leave the canvas, tucked behind a menu so the
+ * toolbar's everyday controls, the surface and device toggles, keep the room.
  *
  * @param {Object}   props
- * @param {boolean}  props.disabled Whether there is nothing to open.
- * @param {Function} props.onClick  Opens the editor.
- * @return {Element} The button.
+ * @param {string}   props.liveUrl          The live site's URL, to open in a
+ *                                          new tab. Empty when there isn't one.
+ * @param {string}   props.editRoute        Route to the full-screen editor.
+ *                                          Empty when there isn't one.
+ * @param {Function} props.onOpenFullEditor Opens the full-screen editor.
+ * @return {Element} The menu.
  */
-export function FullEditorButton( { disabled, onClick } ) {
-	return el( Button, {
-		accessibleWhenDisabled: true,
-		className: 'cnl-site-canvas__full-editor-button',
-		disabled,
-		icon: fullscreenIcon,
-		label: __( 'Edit in full screen' ),
-		onClick,
-		showTooltip: true,
-		variant: 'tertiary',
-	} );
+export function CanvasMoreMenu( { liveUrl, editRoute, onOpenFullEditor } ) {
+	return el(
+		DropdownMenu,
+		{
+			className: 'cnl-site-canvas__more-menu',
+			icon: moreVerticalIcon,
+			label: __( 'More options' ),
+			popoverProps: { placement: 'bottom-end' },
+			toggleProps: {
+				className: 'cnl-site-canvas__more-menu-toggle',
+				showTooltip: true,
+			},
+		},
+		( { onClose } ) =>
+			el(
+				MenuGroup,
+				null,
+				el(
+					MenuItem,
+					{
+						disabled: ! liveUrl,
+						href: liveUrl || undefined,
+						icon: externalIcon,
+						onClick: onClose,
+						rel: 'noreferrer',
+						target: '_blank',
+					},
+					__( 'Open in a new tab' )
+				),
+				el(
+					MenuItem,
+					{
+						disabled: ! editRoute,
+						icon: fullscreenIcon,
+						onClick: () => {
+							onClose();
+							onOpenFullEditor();
+						},
+					},
+					__( 'Edit in full screen' )
+				)
+			)
+	);
 }
 
 function HistoryGroup( { label, back, forward } ) {
