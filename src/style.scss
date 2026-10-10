@@ -2906,7 +2906,14 @@ $chevron-inset: 10px;
 $sidebar-heading-offset: 3px;
 
 .cnl-sidebar-dashboard {
-	margin-block: var(--wpds-dimension-gap-lg) $sidebar-heading-offset;
+
+	/*
+	 * Top margin centres the 40px button on the 56px top bar, so its icon
+	 * sits level with the search field's icon there. The bottom margin
+	 * makes up the rest of gap-lg plus the heading offset above, so the
+	 * row below still starts in the same place.
+	 */
+	margin-block: var(--wpds-dimension-gap-sm) calc(var(--wpds-dimension-gap-lg) - var(--wpds-dimension-gap-sm) + #{$sidebar-heading-offset});
 	margin-inline: calc(var(--wpds-dimension-padding-xl) - #{$chevron-inset}) var(--wpds-dimension-gap-md);
 }
 
