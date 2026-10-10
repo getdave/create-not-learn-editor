@@ -23,7 +23,7 @@
 		"lint:js": "wp-scripts lint-js src routes scripts playwright.config.js jest-unit.config.js tests/e2e tests/unit",
 		"lint:css": "wp-scripts lint-style 'src/**/*.scss' 'packages/*/src/**/*.scss'",
 		"plugin-zip": "wp-scripts plugin-zip",
-		"wp-env": "wp-env"
+		"wp-env": "node scripts/ensure-canvas-plugin.mjs && wp-env"
 	},
 	"wpPlugin": {
 		"name": "cnl_editor",
