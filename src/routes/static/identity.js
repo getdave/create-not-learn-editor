@@ -279,8 +279,5 @@ export function SiteIdentityStage() {
 }
 
 export function SiteIdentityCanvas() {
-	return el( SitePreviewCanvas, {
-		description: __( 'Your header updates as you type.' ),
-		title: __( 'Live preview' ),
-	} );
+	return el( SitePreviewCanvas );
 }

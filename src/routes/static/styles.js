@@ -700,10 +700,5 @@ export function FontsStage() {
 }
 
 export function StylesCanvas() {
-	return el( SitePreviewCanvas, {
-		description: __(
-			'Your homepage, with the changes you are trying out.'
-		),
-		title: __( 'Live preview' ),
-	} );
+	return el( SitePreviewCanvas );
 }

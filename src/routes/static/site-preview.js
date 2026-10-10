@@ -1,110 +1,110 @@
 /**
- * WordPress dependencies
- */
-import { Editor as LazyEditor } from '@wordpress/lazy-editor';
-
-/**
  * Internal dependencies
  */
-import {
-	ToggleGroupControl,
-	ToggleGroupControlOptionIcon,
-	__,
-	desktopIcon,
-	el,
-	mobileIcon,
-	tabletIcon,
-	useState,
-} from '../../wordpress-packages';
+import { settings } from '../../settings';
+import { SiteCanvas, useSiteCanvas } from '../../site-canvas';
+import { getHomepageDocumentIconStatus } from '../home/preview';
+import { Icon, __, el, homeIcon, postListIcon } from '../../wordpress-packages';
 
-const SITE_PREVIEW_EDITOR_SETTINGS = { isPreviewMode: true };
+const DOCUMENT_ICON_BY_STATUS = {
+	'home-latest-posts': homeIcon,
+	'home-static': homeIcon,
+	'posts-page': postListIcon,
+};
 
-function getDeviceOptions() {
-	return [
-		{ icon: desktopIcon, label: __( 'Desktop view' ), value: 'Desktop' },
-		{ icon: tabletIcon, label: __( 'Tablet view' ), value: 'Tablet' },
-		{ icon: mobileIcon, label: __( 'Mobile view' ), value: 'Mobile' },
-	];
+/**
+ * The toolbar's centered document label: whatever page the preview is
+ * showing, defaulting to the homepage before the preview has loaded or while
+ * it is still resolving what is on show.
+ *
+ * @param {Object} props        Component props.
+ * @param {Object} props.canvas Result of `useSiteCanvas`.
+ * @return {Element} The document label.
+ */
+function PreviewDocument( { canvas } ) {
+	const { isLoadingContext, previewContext } = canvas;
+	const previewLabel = previewContext?.previewLabel || __( 'Home' );
+	const previewStatusLabel = isLoadingContext
+		? __( 'Loading preview details' )
+		: previewContext?.previewStatusLabel || __( 'Preview' );
+	const previewTypeLabel = previewContext?.previewTypeLabel || '';
+	const previewMetaLabel = isLoadingContext
+		? previewStatusLabel
+		: [ previewTypeLabel, previewStatusLabel ]
+				.filter( Boolean )
+				.join( ' · ' );
+	const documentIcon =
+		DOCUMENT_ICON_BY_STATUS[
+			getHomepageDocumentIconStatus(
+				previewContext?.previewDocumentStatus
+			)
+		];
+
+	return el(
+		'div',
+		{ className: 'cnl-editor-homepage-document' },
+		el(
+			'div',
+			{ className: 'cnl-editor-homepage-document__text' },
+			el(
+				'div',
+				{ className: 'cnl-editor-homepage-document__heading' },
+				documentIcon &&
+					el( Icon, {
+						className: 'cnl-editor-homepage-document__icon',
+						icon: documentIcon,
+					} ),
+				el(
+					'h1',
+					{ className: 'cnl-editor-homepage-document__title' },
+					previewLabel
+				)
+			),
+			previewMetaLabel &&
+				el(
+					'p',
+					{ className: 'cnl-editor-homepage-document__meta' },
+					previewMetaLabel
+				)
+		)
+	);
+}
+
+function EmptyPreview() {
+	return el(
+		'div',
+		{ className: 'cnl-editor-canvas-placeholder' },
+		el( 'span', {
+			'aria-hidden': true,
+			className:
+				'cnl-editor-canvas-placeholder__icon dashicons dashicons-admin-home',
+		} ),
+		el(
+			'div',
+			{ className: 'cnl-editor-canvas-placeholder__title' },
+			__( 'Preview unavailable' )
+		),
+		el(
+			'p',
+			{ className: 'cnl-editor-canvas-placeholder__description' },
+			__( 'Configure the site URL before previewing your site.' )
+		)
+	);
 }
 
 /**
- * The site's front page rendered by the block editor, read-only.
+ * The site's front page, live-previewed through the same site canvas Home
+ * and Pages use, so the preview behaves and looks the same everywhere it
+ * appears.
  *
- * Unlike an iframe of the live site, this reads unsaved edits from the
- * editor's data store, so changes to styles, the site name, or the logo show
- * up before they are saved.
- *
- * @param {Object} props             Component props.
- * @param {string} props.title       Canvas heading.
- * @param {string} props.description Text under the heading.
  * @return {Element} The preview canvas.
  */
-export default function SitePreviewCanvas( { description, title } ) {
-	const [ device, setDevice ] = useState( 'Desktop' );
+export default function SitePreviewCanvas() {
+	const canvas = useSiteCanvas( { url: settings.homeUrl } );
 
-	return el(
-		'section',
-		{
-			className:
-				'cnl-editor-canvas routes-navigation-canvas cnl-editor-site-preview',
-		},
-		el(
-			'header',
-			{
-				className:
-					'cnl-editor-canvas__toolbar routes-navigation-canvas-toolbar',
-			},
-			el(
-				'div',
-				{ className: 'routes-navigation-canvas-toolbar__document' },
-				el(
-					'h2',
-					{ className: 'routes-navigation-canvas-toolbar__title' },
-					title
-				),
-				description &&
-					el(
-						'p',
-						{ className: 'routes-navigation-canvas-toolbar__meta' },
-						description
-					)
-			),
-			el(
-				'div',
-				{ className: 'routes-navigation-canvas-toolbar__actions' },
-				el(
-					ToggleGroupControl,
-					{
-						__next40pxDefaultSize: true,
-						__nextHasNoMarginBottom: true,
-						hideLabelFromVision: true,
-						label: __( 'Preview device' ),
-						onChange: setDevice,
-						value: device,
-					},
-					getDeviceOptions().map( ( option ) =>
-						el( ToggleGroupControlOptionIcon, {
-							icon: option.icon,
-							key: option.value,
-							label: option.label,
-							value: option.value,
-						} )
-					)
-				)
-			)
-		),
-		el(
-			'div',
-			{
-				className: 'routes-navigation-canvas__preview',
-				// Nothing in a preview is reachable by pointer or keyboard.
-				inert: 'true',
-			},
-			el( LazyEditor, {
-				initialViewport: device,
-				key: device,
-				settings: SITE_PREVIEW_EDITOR_SETTINGS,
-			} )
-		)
-	);
+	return el( SiteCanvas, {
+		canvas,
+		document: el( PreviewDocument, { canvas } ),
+		emptyPreview: el( EmptyPreview ),
+	} );
 }
