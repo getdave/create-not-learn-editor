@@ -146,6 +146,18 @@ function StripTooltip() {
 }
 
 /**
+ * Clicking an item in the sidebar's strip of icons is navigating somewhere
+ * else, so expand the sidebar back out to show where that landed.
+ */
+function expandOnStripNavigation() {
+	document.addEventListener( 'click', ( event ) => {
+		if ( event.target.closest?.( STRIP_ITEM_SELECTOR ) ) {
+			expansion.set( true );
+		}
+	} );
+}
+
+/**
  * Link back to wp-admin: a back arrow followed by the WordPress logo.
  *
  * @return {Element} The Dashboard link.
@@ -330,6 +342,7 @@ function createWorkspaceSwitcher() {
  *   navigation screens so it stays put when drilling in and out.
  * - A tooltip naming each icon while the sidebar is a strip of icons.
  * - Going back to the sidebar's top level takes the stage home too.
+ * - Clicking an icon in the strip expands the sidebar back out.
  *
  * Boot's sidebar has no slot for extra content, so these are placed relative
  * to boot's own Dashboard link and the menu that follows it. The sidebar can remount, on narrow screens for
@@ -346,6 +359,7 @@ export function enhanceSidebar( { userName } = {} ) {
 
 	mountStripTooltip();
 	returnHomeWithSidebar();
+	expandOnStripNavigation();
 
 	let isScheduled = false;
 	const place = () => {
