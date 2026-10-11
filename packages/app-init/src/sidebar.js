@@ -2,7 +2,14 @@
  * WordPress dependencies
  */
 import { store as bootStore } from '@wordpress/boot';
-import { Button, Dropdown, MenuGroup, MenuItem } from '@wordpress/components';
+import {
+	Button,
+	Dropdown,
+	MenuGroup,
+	MenuItem,
+	Path,
+	SVG,
+} from '@wordpress/components';
 import { useSelect } from '@wordpress/data';
 import {
 	createElement as el,
@@ -68,6 +75,20 @@ const expansion = {
 	},
 };
 
+/*
+ * `drawerLeft` with the sidebar folded down to a narrow bar, shown while the
+ * sidebar is a strip of icons. `drawerLeft` itself shows it expanded.
+ */
+const drawerLeftCollapsed = el(
+	SVG,
+	{ xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24' },
+	el( Path, {
+		fillRule: 'evenodd',
+		clipRule: 'evenodd',
+		d: 'M18 4H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm.5 14c0 .3-.2.5-.5.5H6c-.3 0-.5-.2-.5-.5V6c0-.3.2-.5.5-.5h12c.3 0 .5.2.5.5v12zM7.5 8.75a.75.75 0 0 1 1.5 0v6.5a.75.75 0 0 1-1.5 0z',
+	} )
+);
+
 /**
  * Expand the sidebar from its strip of icons, or fold it back. Sits where
  * the greeting does, and only shows while on a task.
@@ -84,7 +105,7 @@ function SidebarToggle() {
 		__next40pxDefaultSize: true,
 		'aria-expanded': isExpanded,
 		className: 'cnl-sidebar-toggle__button',
-		icon: drawerLeft,
+		icon: isExpanded ? drawerLeft : drawerLeftCollapsed,
 		label: isExpanded ? __( 'Collapse sidebar' ) : __( 'Expand sidebar' ),
 		onClick: () => expansion.set( ! isExpanded ),
 		showTooltip: true,
