@@ -139,6 +139,7 @@ Generated `build/` assets and plugin zips are intentionally ignored by git. The 
 - `npm run lint:js` runs JavaScript linting.
 - `npm run lint:css` runs stylesheet linting.
 - `npm run plugin-zip` creates an installable plugin zip.
+- `npm run test:e2e` runs every end-to-end test against the `wp-env` tests site. `test:e2e:smoke`, `test:e2e:views` and `test:e2e:interactions` run one group. See [the end-to-end tests guide](tests/e2e/README.md).
 - `npm run wp-env` proxies to `wp-env`.
 
 ## Vendored ListView Bridge

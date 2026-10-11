@@ -901,7 +901,9 @@ export function PagesTree( { canCreate, onAddPage } ) {
 
 function RenamePageModal( { onClose, pageId, title } ) {
 	const { editEntityRecord } = useDispatch( coreDataStore );
-	const [ value, setValue ] = useState( title );
+	// Unset until typed in, so a title that loads after opening still shows.
+	const [ typed, setTyped ] = useState();
+	const value = typed ?? title;
 	const rename = ( event ) => {
 		event.preventDefault();
 		editEntityRecord( 'postType', 'page', pageId, {
@@ -922,7 +924,7 @@ function RenamePageModal( { onClose, pageId, title } ) {
 			{ onSubmit: rename },
 			el( InputControl, {
 				label: __( 'Page title' ),
-				onValueChange: ( next ) => setValue( next ?? '' ),
+				onValueChange: ( next ) => setTyped( next ?? '' ),
 				value,
 			} ),
 			el(
@@ -966,12 +968,19 @@ function PageOptions( { page, pageId, onEdit } ) {
 	const addPageToMenu = useAddPageToMenu();
 	const [ isRenaming, setIsRenaming ] = useState( false );
 	const title = useSelect(
-		( selectStore ) =>
-			selectStore( coreDataStore ).getEditedEntityRecord(
-				'postType',
-				'page',
-				pageId
-			)?.title ?? '',
+		( selectStore ) => {
+			const { getEditedEntityRecord, getEntityRecord } =
+				selectStore( coreDataStore );
+
+			// Edited records aren't fetched on their own. Opened from a link,
+			// nothing else may have asked for the page yet, and Rename would
+			// open empty.
+			getEntityRecord( 'postType', 'page', pageId );
+
+			return (
+				getEditedEntityRecord( 'postType', 'page', pageId )?.title ?? ''
+			);
+		},
 		[ pageId ]
 	);
 	const canAddToMenu =

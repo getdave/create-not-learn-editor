@@ -1,6 +1,7 @@
 const { execFileSync } = require( 'node:child_process' );
 const path = require( 'node:path' );
 const { defineConfig } = require( '@playwright/test' );
+const { STORAGE_STATE_PATH } = require( './tests/e2e/global-setup' );
 
 function getBaseURL() {
 	if ( process.env.WP_BASE_URL ) {
@@ -41,9 +42,15 @@ function getBaseURL() {
 
 module.exports = defineConfig( {
 	testDir: './tests/e2e',
+	globalSetup: require.resolve( './tests/e2e/global-setup' ),
 	timeout: 60 * 1000,
+	// Every test shares one WordPress site. Running them side by side makes
+	// the editor open pages empty now and then, so run one at a time.
+	workers: 1,
 	use: {
 		baseURL: getBaseURL(),
+		storageState: STORAGE_STATE_PATH,
+		screenshot: 'only-on-failure',
 		trace: 'retain-on-failure',
 	},
 } );
