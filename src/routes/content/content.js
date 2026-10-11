@@ -25,6 +25,7 @@ import {
 	getSelectedTemplateContent,
 	isPageLayoutPattern,
 } from './page-layouts';
+import { requestDistractionFreeEntry } from '../../editor-layer/distraction-free';
 import { isPageInMenu } from './menu-status';
 import useMainMenu, { useAddPageToMenu } from './use-main-menu';
 import { PageDetailStage, PagesTree } from './pages/stage';
@@ -82,7 +83,7 @@ import {
 } from '../../wordpress-packages';
 
 const DEFAULT_CONTENT_VIEW = {
-	fields: [ 'author', 'status', 'date' ],
+	fields: [ 'author', 'status', 'comments', 'date' ],
 	filters: [],
 	layout: {},
 	page: 1,
@@ -118,7 +119,7 @@ const STATUS_OPTIONS = [
 ];
 
 const POST_QUERY_FIELDS =
-	'id,author,link,title,status,type,date,modified,date_gmt,modified_gmt,content,template,slug,parent';
+	'id,author,link,title,status,type,date,modified,date_gmt,modified_gmt,content,template,slug,parent,comment_count';
 
 const TEMPLATE_QUERY = {
 	context: 'edit',
@@ -546,6 +547,15 @@ function getContentFields( siteRoles = {} ) {
 			label: __( 'Details' ),
 			render: ( { item } ) => renderSiteRoleBadges( item, siteRoles ),
 			type: 'text',
+		},
+		{
+			enableSorting: false,
+			filterBy: false,
+			getValue: ( { item } ) => Number( item.comment_count ) || 0,
+			id: 'comments',
+			label: __( 'Comments' ),
+			render: ( { item } ) => Number( item.comment_count ) || 0,
+			type: 'integer',
 		},
 		{
 			getValue: ( { item } ) => item.date || item.modified || '',
@@ -1569,6 +1579,12 @@ function Stage() {
 			},
 			to: listPath,
 		} );
+	const openEditor = ( postId ) => {
+		requestDistractionFreeEntry();
+		navigate( {
+			to: `/types/${ type.name }/edit/${ postId }`,
+		} );
+	};
 	const selectTemplate = ( templateId ) =>
 		navigate( {
 			search: {
@@ -1744,7 +1760,10 @@ function Stage() {
 					}`,
 					onChangeSelection: () => {},
 					onChangeView: onChangeContentView,
-					onClickItem: ( item ) => selectPost( item.id ),
+					onClickItem: ( item ) =>
+						type.blockEditor
+							? openEditor( item.id )
+							: selectPost( item.id ),
 					paginationInfo: {
 						totalItems: posts.length,
 						totalPages,

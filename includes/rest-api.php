@@ -12,6 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 function cnl_editor_register_rest_hooks() {
 	add_action( 'rest_api_init', 'cnl_editor_register_rest_routes' );
+	add_action( 'rest_api_init', 'cnl_editor_register_comment_count_field' );
 	add_filter( 'show_admin_bar', 'cnl_editor_hide_admin_bar_in_preview', PHP_INT_MAX );
 }
 
@@ -78,6 +79,34 @@ function cnl_editor_register_rest_routes() {
 			),
 		)
 	);
+}
+
+/**
+ * Expose each post's comment count through the REST API, so the editor's
+ * content list can show a Comments column without a request per row. Core
+ * doesn't include this field itself; it only exposes `comment_status`.
+ */
+function cnl_editor_register_comment_count_field() {
+	foreach ( get_post_types( array( 'show_in_rest' => true ) ) as $post_type ) {
+		if ( ! post_type_supports( $post_type, 'comments' ) ) {
+			continue;
+		}
+
+		register_rest_field(
+			$post_type,
+			'comment_count',
+			array(
+				'get_callback' => static function ( $post ) {
+					return (int) get_comments_number( $post['id'] );
+				},
+				'schema'       => array(
+					'type'        => 'integer',
+					'description' => __( 'Number of comments on the post.', 'create-not-learn-editor' ),
+					'context'     => array( 'view', 'edit' ),
+				),
+			)
+		);
+	}
 }
 
 /**
