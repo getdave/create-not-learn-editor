@@ -9,6 +9,7 @@ import { createElement as el, Fragment, useEffect } from '@wordpress/element';
  * Internal dependencies
  */
 import { useIsEditCanvas } from './canvas-mode';
+import { useDistractionFreeEntry } from './distraction-free';
 import { closeSectionPicker, EditorSectionPicker } from './section-picker';
 import { useSectionWording } from './section-wording';
 import { EDITOR_STORE, useForcedBlockEditorSettings } from './settings-guard';
@@ -58,6 +59,7 @@ export function EditorLayer() {
 	useForcedBlockEditorSettings(
 		isEditCanvas ? FORCED_BLOCK_EDITOR_SETTINGS : null
 	);
+	useDistractionFreeEntry( isEditCanvas );
 	useSectionWording( postType === 'page' );
 
 	// A picker asked for in one editor doesn't outlive it.
