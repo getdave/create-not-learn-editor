@@ -48,8 +48,10 @@ import {
 	fullscreenIcon,
 	helpIcon,
 	homeIcon,
+	memo,
 	minusIcon,
 	plusIcon,
+	select,
 	sprintf,
 	useCallback,
 	useDispatch,
@@ -299,6 +301,13 @@ function SiteOverviewCard( {
 	);
 }
 
+/*
+ * The map's contents only change with the layout, the selection and hover.
+ * Memoised so that panning and zooming, which re-render the map on every
+ * wheel or pointer event, only move the world rather than redraw it.
+ */
+const MemoizedSiteOverviewCard = memo( SiteOverviewCard );
+
 function getLaneDescription( lane, group ) {
 	if ( lane.name === 'home' ) {
 		return __( 'The first page visitors see' );
@@ -483,6 +492,10 @@ function Edges( { activeId, edges, nodesById, groupsByName } ) {
 			),
 	];
 }
+
+const MemoizedLane = memo( Lane );
+const MemoizedStackSheets = memo( StackSheets );
+const MemoizedEdges = memo( Edges );
 
 function ZoomControls( { onFit, onReset, onZoom, zoom } ) {
 	return el(
@@ -679,9 +692,19 @@ export default function Canvas() {
 	viewRef.current = view;
 	sizeRef.current = size;
 
-	// Pages may have changed since the map was last fetched.
+	/*
+	 * Pages may have changed since the map was last fetched. Only a map
+	 * fetched on an earlier visit is fetched again: on the first, the request
+	 * is still on its way, and invalidating it would send a second.
+	 */
 	useEffect( () => {
-		invalidateSiteOverview( namespace );
+		if (
+			select( cnlEditorStore ).hasFinishedResolution( 'getSiteOverview', [
+				namespace,
+			] )
+		) {
+			invalidateSiteOverview( namespace );
+		}
 	}, [ invalidateSiteOverview ] );
 
 	const layout = useMemo(
@@ -1085,9 +1108,9 @@ export default function Canvas() {
 							},
 						},
 						layout.lanes.map( ( lane ) =>
-							el( Lane, { key: lane.name, lane } )
+							el( MemoizedLane, { key: lane.name, lane } )
 						),
-						el( Edges, {
+						el( MemoizedEdges, {
 							activeId,
 							edges: layout.edges,
 							groupsByName,
@@ -1096,13 +1119,13 @@ export default function Canvas() {
 						layout.nodes
 							.filter( ( node ) => node.kind === 'single' )
 							.map( ( node ) =>
-								el( StackSheets, {
+								el( MemoizedStackSheets, {
 									key: `stack-${ node.id }`,
 									node,
 								} )
 							),
 						layout.nodes.map( ( node ) =>
-							el( SiteOverviewCard, {
+							el( MemoizedSiteOverviewCard, {
 								group: groupsByName.get( node.group ),
 								isActive: node.id === hoveredId,
 								isRelated: relatedIds.has( node.id ),

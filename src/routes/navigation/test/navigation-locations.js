@@ -4,6 +4,7 @@
 import {
 	assignNavigationMenuToFirstBlock,
 	buildNavigationLocationsMap,
+	createEditedTemplatePartsCache,
 	getLocationsSummary,
 	getMainMenu,
 	getReferencedMenuIdsFromContent,
@@ -177,5 +178,27 @@ describe( 'navigation location helpers', () => {
 
 		expect( getReferencedMenuIdsFromContent( content, 55 ) ).toEqual( [] );
 		expect( content ).toContain( 'rsm-unassigned' );
+	} );
+} );
+
+describe( 'createEditedTemplatePartsCache', () => {
+	it( 'returns the same list until a part or its edits change', () => {
+		const mergeEdits = createEditedTemplatePartsCache();
+		const parts = [ headerPart, footerPart ];
+		const edits = {};
+		const getEdited = ( id ) => edits[ id ];
+
+		const first = mergeEdits( parts, getEdited );
+
+		expect( mergeEdits( parts, getEdited ) ).toBe( first );
+
+		edits[ headerPart.id ] = { title: 'Edited header' };
+		const edited = mergeEdits( parts, getEdited );
+
+		expect( edited ).not.toBe( first );
+		expect( edited[ 0 ].title ).toBe( 'Edited header' );
+		expect( edited[ 0 ].content ).toBe( headerPart.content );
+		expect( mergeEdits( parts, getEdited ) ).toBe( edited );
+		expect( mergeEdits( [ headerPart ], getEdited ) ).toHaveLength( 1 );
 	} );
 } );

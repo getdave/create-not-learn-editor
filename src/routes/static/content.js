@@ -22,6 +22,7 @@ import {
 	coreDataStore,
 	DataViews,
 	EmptyState,
+	filterSortAndPaginate,
 	InputControl,
 	layoutIcon,
 	Modal,
@@ -693,9 +694,13 @@ function TemplatesStage() {
 		() => getTemplateActions( navigate, openRenameModal ),
 		[ navigate ]
 	);
-	const totalPages = Math.max(
-		1,
-		Math.ceil( templates.length / ( view.perPage || 20 ) )
+	/*
+	 * One page of cards at a time. Each card is a live preview, so handing
+	 * DataViews the whole list renders every one of them at once.
+	 */
+	const { data: shownTemplates, paginationInfo } = useMemo(
+		() => filterSortAndPaginate( templates, view, fields ),
+		[ fields, templates, view ]
 	);
 	const selectedTemplate =
 		templates.find(
@@ -824,7 +829,7 @@ function TemplatesStage() {
 			DataViews,
 			{
 				actions,
-				data: templates,
+				data: shownTemplates,
 				defaultLayouts: DEFAULT_TEMPLATE_LAYOUTS,
 				empty,
 				fields,
@@ -833,10 +838,7 @@ function TemplatesStage() {
 				onChangeSelection: ( items ) => selectTemplate( items[ 0 ] ),
 				onChangeView,
 				onClickItem: ( item ) => selectTemplate( item.id ),
-				paginationInfo: {
-					totalItems: templates.length,
-					totalPages,
-				},
+				paginationInfo,
 				selection,
 				view,
 			},
@@ -1350,9 +1352,9 @@ function TemplatePartsStage() {
 		() => getTemplatePartActions( navigate ),
 		[ navigate ]
 	);
-	const totalPages = Math.max(
-		1,
-		Math.ceil( visibleTemplateParts.length / ( view.perPage || 20 ) )
+	const { data: shownTemplateParts, paginationInfo } = useMemo(
+		() => filterSortAndPaginate( visibleTemplateParts, view, fields ),
+		[ fields, view, visibleTemplateParts ]
 	);
 	const selectedTemplatePart =
 		visibleTemplateParts.find(
@@ -1533,7 +1535,7 @@ function TemplatePartsStage() {
 			DataViews,
 			{
 				actions,
-				data: visibleTemplateParts,
+				data: shownTemplateParts,
 				defaultLayouts: DEFAULT_TEMPLATE_LAYOUTS,
 				empty,
 				fields,
@@ -1543,10 +1545,7 @@ function TemplatePartsStage() {
 					selectTemplatePart( items[ 0 ] ),
 				onChangeView,
 				onClickItem: ( item ) => selectTemplatePart( item.id ),
-				paginationInfo: {
-					totalItems: visibleTemplateParts.length,
-					totalPages,
-				},
+				paginationInfo,
 				selection,
 				view,
 			},
@@ -2084,40 +2083,29 @@ function PatternsDataViewsLayout() {
 }
 
 function usePatternsData() {
-	return useSelect( ( select ) => {
+	/*
+	 * Only the store's own values are selected. Anything built from them is
+	 * new on every call, which would re-render the grid, and every preview in
+	 * it, whenever anything in core data changed.
+	 */
+	const {
+		blockCategories,
+		error,
+		isLoading,
+		themePatterns,
+		userCategories,
+		userPatterns,
+	} = useSelect( ( select ) => {
 		const store = select( coreDataStore );
 		const userPatternArgs = [ 'postType', 'wp_block', USER_PATTERN_QUERY ];
-		const themePatterns = store.getBlockPatterns?.() || EMPTY_ARRAY;
-		const userPatterns =
-			store.getEntityRecords( ...userPatternArgs ) || EMPTY_ARRAY;
-		const blockCategories =
-			store.getBlockPatternCategories?.() || EMPTY_ARRAY;
-		const userCategories =
-			store.getUserPatternCategories?.() || EMPTY_ARRAY;
-		const categoryMap = new Map();
-
-		[ ...blockCategories, ...userCategories ].forEach( ( category ) => {
-			if ( category?.name && ! categoryMap.has( category.name ) ) {
-				categoryMap.set(
-					category.name,
-					category.label || category.name
-				);
-			}
-		} );
+		const resolutionError = store.getResolutionError?.(
+			'getEntityRecords',
+			userPatternArgs
+		);
 
 		return {
-			categoryMap,
-			error: store.getResolutionError?.(
-				'getEntityRecords',
-				userPatternArgs
-			)
-				? getErrorMessage(
-						store.getResolutionError?.(
-							'getEntityRecords',
-							userPatternArgs
-						)
-					)
-				: null,
+			blockCategories: store.getBlockPatternCategories?.() || EMPTY_ARRAY,
+			error: resolutionError ? getErrorMessage( resolutionError ) : null,
 			isLoading:
 				Boolean( store.isResolving?.( 'getBlockPatterns', [] ) ) ||
 				store.isResolving( 'getEntityRecords', userPatternArgs ) ||
@@ -2125,16 +2113,38 @@ function usePatternsData() {
 					'getEntityRecords',
 					userPatternArgs
 				),
-			patterns: [
-				...userPatterns.map( ( pattern ) =>
-					normalizeUserPattern( pattern, userCategories )
-				),
-				...themePatterns
-					.filter( ( pattern ) => pattern?.inserter !== false )
-					.map( normalizeThemePattern ),
-			],
+			themePatterns: store.getBlockPatterns?.() || EMPTY_ARRAY,
+			userCategories: store.getUserPatternCategories?.() || EMPTY_ARRAY,
+			userPatterns:
+				store.getEntityRecords( ...userPatternArgs ) || EMPTY_ARRAY,
 		};
 	}, [] );
+
+	const categoryMap = useMemo( () => {
+		const map = new Map();
+
+		[ ...blockCategories, ...userCategories ].forEach( ( category ) => {
+			if ( category?.name && ! map.has( category.name ) ) {
+				map.set( category.name, category.label || category.name );
+			}
+		} );
+
+		return map;
+	}, [ blockCategories, userCategories ] );
+
+	const patterns = useMemo(
+		() => [
+			...userPatterns.map( ( pattern ) =>
+				normalizeUserPattern( pattern, userCategories )
+			),
+			...themePatterns
+				.filter( ( pattern ) => pattern?.inserter !== false )
+				.map( normalizeThemePattern ),
+		],
+		[ themePatterns, userCategories, userPatterns ]
+	);
+
+	return { categoryMap, error, isLoading, patterns };
 }
 
 function getPatternTabFromSearch() {
@@ -2200,9 +2210,9 @@ function PatternsStage() {
 		() => getPatternActions( navigate ),
 		[ navigate ]
 	);
-	const totalPages = Math.max(
-		1,
-		Math.ceil( visiblePatterns.length / ( view.perPage || 20 ) )
+	const { data: shownPatterns, paginationInfo } = useMemo(
+		() => filterSortAndPaginate( visiblePatterns, view, fields ),
+		[ fields, view, visiblePatterns ]
 	);
 	const selectedPattern =
 		visiblePatterns.find(
@@ -2379,7 +2389,7 @@ function PatternsStage() {
 			DataViews,
 			{
 				actions,
-				data: visiblePatterns,
+				data: shownPatterns,
 				defaultLayouts: DEFAULT_TEMPLATE_LAYOUTS,
 				empty,
 				fields,
@@ -2388,10 +2398,7 @@ function PatternsStage() {
 				onChangeSelection: ( items ) => selectPattern( items[ 0 ] ),
 				onChangeView,
 				onClickItem: ( item ) => selectPattern( item.id ),
-				paginationInfo: {
-					totalItems: visiblePatterns.length,
-					totalPages,
-				},
+				paginationInfo,
 				selection,
 				view,
 			},

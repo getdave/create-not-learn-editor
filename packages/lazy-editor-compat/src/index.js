@@ -6,6 +6,7 @@ import { store as coreDataStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
 import {
 	createElement,
+	memo,
 	useEffect,
 	useMemo,
 	useRef,
@@ -35,10 +36,15 @@ const UpstreamEditor = upstream.Editor;
  * @param {Object} props Editor props.
  * @return {Element} The released lazy editor with compatible settings.
  */
-export function Editor( { postId, postType, settings, ...props } ) {
+function CompatibleEditor( { postId, postType, settings, ...props } ) {
 	const initializedEntities = useRef( new Set() );
 	const entityKey = `${ postType || '' }:${ postId || '' }`;
-	const { blocks, hasUndefinedContentEdit, rawContent } = useSelect(
+	/*
+	 * Whether there are blocks, not the blocks themselves. The editor writes
+	 * them back on every keystroke, and this wraps the whole editor, which
+	 * would re-render with it each time.
+	 */
+	const { hasBlocks, hasUndefinedContentEdit, rawContent } = useSelect(
 		( select ) => {
 			if ( ! postId || ! postType ) {
 				return {};
@@ -51,11 +57,11 @@ export function Editor( { postId, postType, settings, ...props } ) {
 				postId
 			) || {};
 			return {
-				blocks: store.getEditedEntityRecord(
+				hasBlocks: !! store.getEditedEntityRecord(
 					'postType',
 					postType,
 					postId
-				)?.blocks,
+				)?.blocks?.length,
 				rawContent: store.getEntityRecord(
 					'postType',
 					postType,
@@ -105,7 +111,7 @@ export function Editor( { postId, postType, settings, ...props } ) {
 			return () => window.clearTimeout( timeout );
 		}
 
-		if ( blocks?.length ) {
+		if ( hasBlocks ) {
 			const timeout = window.setTimeout( () => {
 				initializedEntities.current.add( entityKey );
 				if ( hasUndefinedContentEdit ) {
@@ -138,9 +144,9 @@ export function Editor( { postId, postType, settings, ...props } ) {
 		}, 750 );
 		return () => window.clearTimeout( timeout );
 	}, [
-		blocks,
 		editEntityRecord,
 		entityKey,
+		hasBlocks,
 		hasUndefinedContentEdit,
 		postId,
 		postType,
@@ -155,6 +161,13 @@ export function Editor( { postId, postType, settings, ...props } ) {
 		settings: compatibleSettings,
 	} );
 }
+
+/*
+ * Memoised because nothing below it is. A host re-rendering for reasons of its
+ * own, such as a hover in the panel beside the canvas, would otherwise render
+ * the whole editor again with it.
+ */
+export const Editor = memo( CompatibleEditor );
 
 export const Preview = upstream.Preview;
 export const loadEditorAssets = upstream.loadEditorAssets;

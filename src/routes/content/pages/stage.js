@@ -1498,6 +1498,8 @@ function SectionCard( {
 	);
 }
 
+const MemoizedSectionCard = memo( SectionCard );
+
 function getTemplateElementIcon( element ) {
 	// A site part's icon is a plain SVG, like the sections' own icons. Any
 	// other block's icon comes from the block type, normalized to
@@ -1861,6 +1863,35 @@ function SectionList( {
 		dragRef.current = { stop };
 	};
 
+	/*
+	 * Handed to the cards through a ref, so they keep one identity and a card
+	 * only re-renders when its own section or state changes, not on every
+	 * keystroke in the canvas or every hover.
+	 */
+	const handlersRef = useRef();
+	handlersRef.current = {
+		duplicate,
+		move,
+		onEdit,
+		onPointerDown,
+		remove,
+		selectSection,
+	};
+	const handlers = useMemo(
+		() => ( {
+			onDuplicate: ( ...args ) =>
+				handlersRef.current.duplicate( ...args ),
+			onEdit: ( ...args ) => handlersRef.current.onEdit( ...args ),
+			onMove: ( ...args ) => handlersRef.current.move( ...args ),
+			onPointerDown: ( ...args ) =>
+				handlersRef.current.onPointerDown( ...args ),
+			onRemove: ( ...args ) => handlersRef.current.remove( ...args ),
+			onSelect: ( ...args ) =>
+				handlersRef.current.selectSection( ...args ),
+		} ),
+		[]
+	);
+
 	if ( ! isReady ) {
 		return el(
 			Stack,
@@ -1886,7 +1917,8 @@ function SectionList( {
 				key: `gap-${ block.clientId }`,
 				onAdd,
 			} ),
-			el( SectionCard, {
+			el( MemoizedSectionCard, {
+				...handlers,
 				block,
 				dropPosition:
 					dropTarget?.index === index && dragIndex !== index
@@ -1901,12 +1933,6 @@ function SectionList( {
 				shouldReveal:
 					selectedId === block.clientId && selectedFrom === 'canvas',
 				key: block.clientId,
-				onDuplicate: duplicate,
-				onEdit,
-				onMove: move,
-				onPointerDown,
-				onRemove: remove,
-				onSelect: selectSection,
 			} )
 		);
 	} );
