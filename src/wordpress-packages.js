@@ -62,6 +62,7 @@ import {
 	resolveSelect,
 	select,
 	useDispatch,
+	useRegistry,
 	useSelect,
 } from '@wordpress/data';
 import { DataViewsPicker, filterSortAndPaginate } from '@wordpress/dataviews';
@@ -301,6 +302,7 @@ export {
 	useId,
 	useMemo,
 	useRef,
+	useRegistry,
 	useSelect,
 	useState,
 	useSyncExternalStore,

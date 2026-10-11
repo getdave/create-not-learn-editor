@@ -1,5 +1,12 @@
 export const SURFACE_PREVIEW = 'preview';
-export const SURFACE_EDIT = 'edit';
+export const SURFACE_EDITOR = 'editor';
+
+/*
+ * A block editor setting the site canvas forces while its editor is open for
+ * quick changes, so editor extensions can hold back what is meant for the
+ * full-screen editor. Read it with `getSettings()`.
+ */
+export const QUICK_EDIT_SETTING = 'cnlIsQuickEdit';
 
 export const DEFAULT_DEVICE = 'desktop';
 

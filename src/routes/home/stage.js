@@ -280,7 +280,7 @@ export default function Stage() {
 			Text,
 			{ className: 'cnl-site-hub__hint', variant: 'body-sm' },
 			__(
-				'Tip: click links in the preview to visit other pages, then press Edit to change the one you are looking at.'
+				'Tip: click any text on the page to change it. Turn on Preview to visit other pages through their links.'
 			)
 		)
 	);

@@ -1,9 +1,9 @@
 /**
  * A site canvas: a toolbar, and the editor with the preview laid over it.
  *
- * Both surfaces stay mounted. Switching fades the preview in or out, as Big
- * Sky's Easy Mode does, so neither reloads, and the preview keeps its page,
- * scroll position and history while Edit is on show.
+ * Both surfaces stay mounted. Turning Preview on or off fades it in or out,
+ * as Big Sky's Easy Mode does, so neither reloads, and the preview keeps its
+ * page, scroll position and history while the editor is on show.
  */
 
 /**
@@ -28,27 +28,20 @@ import { EDITOR_DEVICES } from './constants';
 import {
 	CanvasMoreMenu,
 	DeviceSwitcher,
+	EditButton,
 	PreviewHistory,
-	StageToggle,
-	SurfaceToggle,
+	PreviewToggle,
 } from './toolbar';
 import { UnsavedChangesDialog } from './unsaved-changes-dialog';
-
-/*
- * Unlike Easy Mode, the editor isn't locked to `templateLock: 'contentOnly'`.
- * With that lock on, swapping a page's blocks out (discarding its changes, for
- * one) throws in core's block editing modes, and every block list settings
- * update after it replays the throw, so editing breaks for the rest of the
- * session. That happens however the lock is applied, so it is left off until
- * core copes.
- */
+import { useQuickEdit } from './use-quick-edit';
 
 /**
  * @param {Object}  props
  * @param {Object}  props.canvas         Result of `useSiteCanvas`.
  * @param {string}  props.className      Extra class for the canvas.
  * @param {Element} props.document       What is on show, for the toolbar.
- * @param {Element} props.editorChildren Shown over the editor in Edit.
+ * @param {Element} props.editorChildren Shown over the editor while it is
+ *                                       on show.
  * @param {Object}  props.editorRef      Ref to the editor's container.
  * @param {Element} props.emptyPreview   Shown when there is nothing to
  *                                       preview.
@@ -63,7 +56,9 @@ export function SiteCanvas( {
 	emptyPreview = null,
 } ) {
 	const navigate = useNavigate();
-	const { device, editorEntity, frame } = canvas;
+	const { device, editorEntity, frame, isPreviewing } = canvas;
+
+	useQuickEdit( Boolean( editorEntity ) );
 
 	// Published for the stylesheet, which hides core chrome by block.
 	const selectedBlockName = useSelect(
@@ -71,19 +66,19 @@ export function SiteCanvas( {
 			const { getBlockName, getSelectedBlockClientId } =
 				select( blockEditorStore );
 
-			return canvas.isEditing
-				? getBlockName( getSelectedBlockClientId() )
-				: null;
+			return isPreviewing
+				? null
+				: getBlockName( getSelectedBlockClientId() );
 		},
-		[ canvas.isEditing ]
+		[ isPreviewing ]
 	);
 
 	return el(
 		'section',
 		{
 			className: `cnl-site-canvas cnl-editor-canvas cnl-editor-preview-canvas ${
-				canvas.isEditing ? 'is-editing ' : ''
-			}${ canvas.isTakingOver ? 'is-taking-over ' : '' }${ className }`,
+				isPreviewing ? 'is-previewing ' : ''
+			}${ className }`,
 		},
 		el(
 			'header',
@@ -94,17 +89,11 @@ export function SiteCanvas( {
 			el(
 				'div',
 				{ className: 'cnl-editor-homepage-toolbar__left' },
-				canvas.isEditing &&
-					el( StageToggle, {
-						isShown: ! canvas.isTakingOver,
-						onToggle: canvas.toggleStage,
-					} ),
-				el( SurfaceToggle, {
-					canEdit: canvas.canEdit,
-					onChange: canvas.requestSurface,
-					surface: canvas.surface,
+				el( EditButton, {
+					canEdit: Boolean( canvas.editRoute ),
+					onEdit: () => navigate( canvas.editRoute ),
 				} ),
-				! canvas.isEditing &&
+				isPreviewing &&
 					el( PreviewHistory, {
 						history: frame.history,
 						onMove: frame.move,
@@ -132,15 +121,15 @@ export function SiteCanvas( {
 			el(
 				'div',
 				{ className: 'cnl-editor-homepage-toolbar__right' },
+				el( PreviewToggle, {
+					isPreviewing,
+					onToggle: canvas.togglePreview,
+				} ),
 				el( DeviceSwitcher, {
 					device,
 					onChange: canvas.setDevice,
 				} ),
-				el( CanvasMoreMenu, {
-					editRoute: canvas.editRoute,
-					liveUrl: canvas.liveUrl,
-					onOpenFullEditor: () => navigate( canvas.editRoute ),
-				} )
+				el( CanvasMoreMenu, { liveUrl: canvas.liveUrl } )
 			)
 		),
 		el(
@@ -160,7 +149,7 @@ export function SiteCanvas( {
 						postId: editorEntity.postId,
 						postType: editorEntity.postType,
 					} ),
-				canvas.isEditing && editorChildren
+				! isPreviewing && editorChildren
 			),
 			/*
 			 * `aria-hidden` rather than `hidden`: `hidden` is `display: none`,
@@ -169,7 +158,7 @@ export function SiteCanvas( {
 			el(
 				'div',
 				{
-					'aria-hidden': canvas.isEditing,
+					'aria-hidden': ! isPreviewing,
 					className: `cnl-site-canvas__preview is-${ device }`,
 				},
 				canvas.previewContextError &&

@@ -653,7 +653,11 @@ function PagesCanvas() {
 	// A link followed in the preview to another page picks it in the sidebar,
 	// and opens it there if a page was already open.
 	useEffect( () => {
-		if ( previewPageId && previewPageId !== pageId && ! canvas.isEditing ) {
+		if (
+			previewPageId &&
+			previewPageId !== pageId &&
+			canvas.isPreviewing
+		) {
 			navigate( {
 				search: {
 					...searchParams,
@@ -668,10 +672,11 @@ function PagesCanvas() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ previewPageId ] );
 
-	// A section picked, or about to be added, can only be marked in Edit.
+	// A section picked, or about to be added, can only be marked in the
+	// editor.
 	useEffect( () => {
 		if ( scrollRequest || insertionIndex !== null ) {
-			canvas.showEdit();
+			canvas.showEditor();
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ scrollRequest, insertionIndex ] );

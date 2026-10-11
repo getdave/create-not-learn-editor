@@ -255,5 +255,12 @@ export function useForcedBlockEditorSettings( settings ) {
 		guardRef.current.set( settings );
 	}, [ registry, settings ] );
 
-	useEffect( () => () => guardRef.current?.destroy(), [] );
+	// Unmounting hands the editor its own values back, as passing null does.
+	useEffect(
+		() => () => {
+			guardRef.current?.set( null );
+			guardRef.current?.destroy();
+		},
+		[]
+	);
 }
