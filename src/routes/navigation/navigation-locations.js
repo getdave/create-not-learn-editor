@@ -124,6 +124,42 @@ export function mergeTemplatePartWithEditedRecord( part, editedPart ) {
 	};
 }
 
+/**
+ * Merge template parts with their edits, handing back the same list until a
+ * part or its edits change.
+ *
+ * Meant to be called from a `useSelect`, which runs on every change in core
+ * data. A new list each time would re-render its users and parse every part
+ * again to find its menus.
+ *
+ * @return {Function} Called with the parts and a function returning a part's
+ *                    edited record by ID. Returns the merged parts.
+ */
+export function createEditedTemplatePartsCache() {
+	let lastParts = null;
+	let lastEdited = [];
+	let merged = [];
+
+	return ( parts, getEditedPart ) => {
+		const edited = parts.map( ( part ) => getEditedPart( part.id ) );
+
+		if (
+			parts !== lastParts ||
+			edited.some(
+				( editedPart, index ) => editedPart !== lastEdited[ index ]
+			)
+		) {
+			lastParts = parts;
+			lastEdited = edited;
+			merged = parts.map( ( part, index ) =>
+				mergeTemplatePartWithEditedRecord( part, edited[ index ] )
+			);
+		}
+
+		return merged;
+	};
+}
+
 function getTemplatePartContentForMutation( part, editedContent ) {
 	if ( editedContent === undefined ) {
 		return getTemplatePartRawContent( part );

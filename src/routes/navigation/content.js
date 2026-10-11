@@ -46,11 +46,11 @@ import {
 	assignNavigationMenuToFirstBlock,
 	buildNavigationLocationsMap,
 	compareTemplatePartsByArea,
+	createEditedTemplatePartsCache,
 	getLocationAreaLabel,
 	getLocationLabel,
 	getLocationsSummary,
 	getTemplatePartRawContent,
-	mergeTemplatePartWithEditedRecord,
 	removeNavigationMenuFromFirstBlock,
 	templatePartHasNavigationBlock,
 } from './navigation-locations';
@@ -457,29 +457,34 @@ function DeleteNavigationMenuModal( {
 
 function useNavigationLocations( menus ) {
 	const fallbackMenuId = menus[ 0 ]?.id;
-	const { error, isResolving, templateParts } = useSelect( ( select ) => {
-		const store = select( coreDataStore );
-		const args = [ 'postType', 'wp_template_part', TEMPLATE_PARTS_QUERY ];
-		const rawTemplateParts =
-			store.getEntityRecords( ...args ) || EMPTY_ARRAY;
+	const mergeEdits = useMemo( () => createEditedTemplatePartsCache(), [] );
+	const { error, isResolving, templateParts } = useSelect(
+		( select ) => {
+			const store = select( coreDataStore );
+			const args = [
+				'postType',
+				'wp_template_part',
+				TEMPLATE_PARTS_QUERY,
+			];
+			const rawTemplateParts =
+				store.getEntityRecords( ...args ) || EMPTY_ARRAY;
 
-		return {
-			error: store.getResolutionError?.( 'getEntityRecords', args ),
-			isResolving:
-				store.isResolving( 'getEntityRecords', args ) ||
-				! store.hasFinishedResolution( 'getEntityRecords', args ),
-			templateParts: rawTemplateParts.map( ( part ) =>
-				mergeTemplatePartWithEditedRecord(
-					part,
+			return {
+				error: store.getResolutionError?.( 'getEntityRecords', args ),
+				isResolving:
+					store.isResolving( 'getEntityRecords', args ) ||
+					! store.hasFinishedResolution( 'getEntityRecords', args ),
+				templateParts: mergeEdits( rawTemplateParts, ( id ) =>
 					store.getEditedEntityRecord(
 						'postType',
 						'wp_template_part',
-						part.id
+						id
 					)
-				)
-			),
-		};
-	}, [] );
+				),
+			};
+		},
+		[ mergeEdits ]
+	);
 	const locationsMap = useMemo(
 		() => buildNavigationLocationsMap( templateParts, fallbackMenuId ),
 		[ fallbackMenuId, templateParts ]
@@ -752,10 +757,6 @@ function ChooseLocationModal( {
 		initialSelectedLocationIds
 	);
 	const [ error, setError ] = useState( '' );
-
-	useEffect( () => {
-		setSelectedIds( initialSelectedLocationIds );
-	}, [ initialSelectedLocationIds ] );
 
 	const toggleLocation = ( id, isChecked ) => {
 		setError( '' );
@@ -1453,6 +1454,11 @@ function Canvas() {
 		locationModalMode &&
 			selectedMenu?.id &&
 			el( ChooseLocationModal, {
+				/*
+				 * Seeded once, when it opens. Re-seeding as the locations
+				 * change would undo what has been ticked since.
+				 */
+				key: locationModalMode,
 				initialSelectedLocationIds:
 					locationModalMode === 'update'
 						? selectedLocationIds

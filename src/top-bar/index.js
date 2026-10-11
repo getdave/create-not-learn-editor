@@ -45,6 +45,15 @@ export function mountTopBar() {
 	const place = () => {
 		isScheduled = false;
 
+		/*
+		 * Still in place. This runs after any change to the page, and a
+		 * layout that remounts takes the bar out of the document with it, so
+		 * there is nothing to look for until then.
+		 */
+		if ( container.isConnected ) {
+			return;
+		}
+
 		const layout = document.querySelector(
 			'#create-not-learn-editor-app [class*="__layout"]:has(> [class*="__surfaces"])'
 		);

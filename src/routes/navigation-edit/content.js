@@ -92,10 +92,10 @@ import {
 	assignNavigationMenuToFirstBlock,
 	buildNavigationLocationsMap,
 	compareTemplatePartsByArea,
+	createEditedTemplatePartsCache,
 	getLocationAreaLabel,
 	getLocationLabel,
 	getTemplatePartRawContent,
-	mergeTemplatePartWithEditedRecord,
 	removeNavigationMenuFromFirstBlock,
 	templatePartHasNavigationBlock,
 } from '../navigation/navigation-locations';
@@ -2006,6 +2006,7 @@ function NavigationEditStage() {
 }
 
 function useNavigationLocations( navigationId ) {
+	const mergeEdits = useMemo( () => createEditedTemplatePartsCache(), [] );
 	const { isResolvingTemplateParts, menus, templateParts } = useSelect(
 		( select ) => {
 			const store = select( coreDataStore );
@@ -2030,19 +2031,16 @@ function useNavigationLocations( navigationId ) {
 						templatePartArgs
 					),
 				menus: store.getEntityRecords( ...menuArgs ) || EMPTY_ARRAY,
-				templateParts: rawTemplateParts.map( ( part ) =>
-					mergeTemplatePartWithEditedRecord(
-						part,
-						store.getEditedEntityRecord(
-							'postType',
-							'wp_template_part',
-							part.id
-						)
+				templateParts: mergeEdits( rawTemplateParts, ( id ) =>
+					store.getEditedEntityRecord(
+						'postType',
+						'wp_template_part',
+						id
 					)
 				),
 			};
 		},
-		[]
+		[ mergeEdits ]
 	);
 	const fallbackMenuId = menus[ 0 ]?.id;
 	const locationsMap = useMemo(
@@ -2120,10 +2118,6 @@ function ChooseLocationModal( {
 		initialSelectedLocationIds
 	);
 	const [ error, setError ] = useState( '' );
-
-	useEffect( () => {
-		setSelectedIds( initialSelectedLocationIds );
-	}, [ initialSelectedLocationIds ] );
 
 	const toggleLocation = ( id, isChecked ) => {
 		setError( '' );
@@ -2633,6 +2627,11 @@ function NavigationEditCanvas() {
 		),
 		locationModalMode &&
 			el( ChooseLocationModal, {
+				/*
+				 * Seeded once, when it opens. Re-seeding as the locations
+				 * change would undo what has been ticked since.
+				 */
+				key: locationModalMode,
 				initialSelectedLocationIds:
 					locationModalMode === 'update'
 						? selectedLocationIds

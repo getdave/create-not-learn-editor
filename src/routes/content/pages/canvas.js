@@ -46,6 +46,7 @@ import {
 	el,
 	EmptyState,
 	externalIcon,
+	Fragment,
 	homeIcon,
 	Icon,
 	linkIcon,
@@ -586,6 +587,30 @@ function PageDocument( { isFrontPage, page } ) {
 	);
 }
 
+/**
+ * Links the page's parts on the canvas to the sidebar, from a component of its
+ * own. It follows the page's blocks, which change on every keystroke, and the
+ * part pointed at, which changes on every hover, so the canvas around it
+ * doesn't have to.
+ *
+ * @param {Object}    props                Component props.
+ * @param {?Document} props.canvasDocument The editor's canvas document.
+ * @param {number}    props.pageId         Page ID.
+ * @return {null} Nothing.
+ */
+function LinkedSections( { canvasDocument, pageId } ) {
+	const { blocks } = usePageSections( pageId );
+	const structure = usePreviewStructure();
+	const items = useMemo(
+		() => getLinkedItems( blocks, structure ),
+		[ blocks, structure ]
+	);
+
+	useLinkedSections( { canvasDocument, items } );
+
+	return null;
+}
+
 function PagesCanvas() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
@@ -600,17 +625,33 @@ function PagesCanvas() {
 		) ||
 		0;
 	const pageId = drilledId || Number( searchParams.previewId ) || fallbackId;
-	const { blocks } = usePageSections( pageId );
-	const page = useSelect(
-		( select ) =>
-			pageId
+	/*
+	 * Only what the canvas shows of the page. The edited record is new on
+	 * every keystroke, as the editor writes the page's blocks back to it.
+	 */
+	const { link, status, template, title } = useSelect(
+		( select ) => {
+			const record = pageId
 				? select( coreDataStore ).getEditedEntityRecord(
 						'postType',
 						'page',
 						pageId
 					)
-				: null,
+				: null;
+
+			return {
+				link: record?.link,
+				status: record?.status,
+				template: record?.template,
+				title: record?.title,
+			};
+		},
 		[ pageId ]
+	);
+	const page = useMemo(
+		() =>
+			link || status || title ? { link, status, template, title } : null,
+		[ link, status, template, title ]
 	);
 	const savedTemplate = useSelect(
 		( select ) =>
@@ -634,11 +675,6 @@ function PagesCanvas() {
 		url: getPagePreviewUrl( page, savedTemplate ),
 	} );
 	const canvasDocument = useCanvasDocument( editorRef, pageId );
-	const structure = usePreviewStructure();
-	const items = useMemo(
-		() => getLinkedItems( blocks, structure ),
-		[ blocks, structure ]
-	);
 	const scrollRequest = useSectionBridge( ( state ) => state.scrollRequest );
 	const insertionIndex = useSectionBridge(
 		( state ) => state.insertionIndex
@@ -647,8 +683,6 @@ function PagesCanvas() {
 		canvas.previewEntity?.postType === 'page'
 			? Number( canvas.previewEntity.postId )
 			: 0;
-
-	useLinkedSections( { canvasDocument, items } );
 
 	// A link followed in the preview to another page picks it in the sidebar,
 	// and opens it there if a page was already open.
@@ -685,22 +719,27 @@ function PagesCanvas() {
 		return isLoading ? null : el( CanvasEmptyState );
 	}
 
-	return el( SiteCanvas, {
-		canvas,
-		className: `cnl-pages-canvas${ drilledId ? ' is-drilled' : '' }`,
-		document: el( PageDocument, {
-			isFrontPage: pageId === frontPageId,
-			page,
-		} ),
-		editorChildren:
-			! drilledId &&
-			el(
-				'p',
-				{ className: 'cnl-pages-canvas__hint' },
-				__( 'Click any part of the page to change it.' )
-			),
-		editorRef,
-	} );
+	return el(
+		Fragment,
+		null,
+		el( LinkedSections, { canvasDocument, pageId } ),
+		el( SiteCanvas, {
+			canvas,
+			className: `cnl-pages-canvas${ drilledId ? ' is-drilled' : '' }`,
+			document: el( PageDocument, {
+				isFrontPage: pageId === frontPageId,
+				page,
+			} ),
+			editorChildren:
+				! drilledId &&
+				el(
+					'p',
+					{ className: 'cnl-pages-canvas__hint' },
+					__( 'Click any part of the page to change it.' )
+				),
+			editorRef,
+		} )
+	);
 }
 
 export default PagesCanvas;
