@@ -34,10 +34,10 @@ import {
 } from '../../../src/workspaces';
 
 /*
- * On a task: a screen drilled into one page or menu, or a canvas in Edit.
- * The sidebar is a strip of icons then.
+ * On a task: a screen drilled into one page or menu. The sidebar is a strip
+ * of icons then.
  */
-const ON_TASK_SELECTOR = '.cnl-drilldown-stage, .cnl-site-canvas.is-editing';
+const ON_TASK_SELECTOR = '.cnl-drilldown-stage';
 
 /*
  * What can be pointed at in the sidebar while it is a strip of icons, being

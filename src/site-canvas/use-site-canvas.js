@@ -3,19 +3,21 @@
  * what the editor underneath it has open, and the rules for moving between
  * them.
  *
- * The model is Big Sky's Easy Mode. Preview is the saved site in an iframe,
- * laid over the editor; Edit is the editor. Both stay mounted, and the editor
- * quietly follows the page the preview is on, so going to Edit is instant.
- * Because the preview only shows what is saved:
+ * The editor is on show by default, for quick changes to the page's content.
+ * Preview, the saved site in an iframe, is laid over it while turned on, and
+ * is where the site can be browsed. Both stay mounted, and the editor quietly
+ * follows the page the preview is on, so turning Preview off is instant.
+ * Editing in more detail leaves for the full-screen editor. Because the
+ * preview only shows what is saved:
  *
- * - Going back to Preview with unsaved changes asks to save or discard them.
+ * - Turning Preview on with unsaved changes asks to save or discard them.
  *   A change the caller shows in the preview anyway, such as a page's
  *   layout passed along in its URL, doesn't count.
- * - Going back to Preview after saving, or from a page the preview isn't on,
- *   holds Edit until the preview has loaded the page, so it never shows an
- *   out-of-date page.
- * - Changes made while previewing, from the sidebar, switch to Edit, the
- *   surface that can show them, unless the preview shows them too.
+ * - Turning Preview on after saving, or from a page the preview isn't on,
+ *   holds the editor until the preview has loaded the page, so it never shows
+ *   an out-of-date page.
+ * - Changes made while previewing, from the sidebar, turn Preview off, unless
+ *   the preview shows them too.
  */
 
 /**
@@ -29,7 +31,6 @@ import {
 	blockEditorStore,
 	coreDataStore,
 	dispatch,
-	flushSync,
 	select,
 	useCallback,
 	useEffect,
@@ -40,7 +41,7 @@ import {
 import {
 	DEFAULT_DEVICE,
 	EDITOR_DEVICES,
-	SURFACE_EDIT,
+	SURFACE_EDITOR,
 	SURFACE_PREVIEW,
 } from './constants';
 import { getEditRoute, getLiveUrl, isSameLocation } from './urls';
@@ -49,10 +50,6 @@ import { usePreviewFrame } from './use-preview-frame';
 const EMPTY_OBJECT = {};
 
 const NOTHING_SHOWN = () => false;
-
-// Where Edit takes over the stage, and the switch can be animated.
-const ANIMATED_SURFACES_QUERY =
-	'(min-width: 782px) and (prefers-reduced-motion: no-preference)';
 
 function getContextUrl( url ) {
 	const live = getLiveUrl( url );
@@ -116,29 +113,14 @@ function isSameEntity( a, b ) {
  *                                            from `useChanges`, and the
  *                                            registry's `select`. Whether
  *                                            the preview shows it unsaved.
- * @param {string}   options.initialSurface   The surface on show to begin
- *                                            with. Edit starts beside the
- *                                            stage, not over it.
  * @return {Object} The canvas's state and actions.
  */
 export function useSiteCanvas( {
 	url,
 	pinnedEntity = null,
 	isShownInPreview = NOTHING_SHOWN,
-	initialSurface = SURFACE_PREVIEW,
 } ) {
-	/*
-	 * `isTakingOver` is Edit taking over the stage as well as the canvas.
-	 * Asking for Edit does that, and the toolbar can show the stage again.
-	 * Edit brought on from the stage, to mark a section there, say, leaves the
-	 * stage in place to carry on with.
-	 */
-	const [ layout, setLayout ] = useState( {
-		isTakingOver: false,
-		surface: initialSurface,
-	} );
-	const layoutRef = useRef( layout );
-	const { surface } = layout;
+	const [ surface, setSurface ] = useState( SURFACE_EDITOR );
 	const [ device, setDevice ] = useState( DEFAULT_DEVICE );
 	const [ isDialogOpen, setIsDialogOpen ] = useState( false );
 	const [ isAwaitingPreview, setIsAwaitingPreview ] = useState( false );
@@ -171,11 +153,11 @@ export function useSiteCanvas( {
 		wasSavingRef.current = isSaving;
 	}, [ isSaving ] );
 
-	// Double-clicking the preview goes to Edit, as if asking to change it.
+	// Double-clicking the preview turns it off, as if asking to change it.
 	const frame = usePreviewFrame( {
 		getVersion: () => savedVersionRef.current,
 		initialUrl: url,
-		onDoubleClick: () => requestSurface( SURFACE_EDIT ),
+		onDoubleClick: () => requestSurface( SURFACE_EDITOR ),
 	} );
 	const isPreviewStale = frame.loadedVersion !== savedVersion;
 	const { isLoadingContext, previewContext, previewContextError } =
@@ -198,8 +180,9 @@ export function useSiteCanvas( {
 
 	/*
 	 * The editor follows the page the preview is on, while it is on show.
-	 * Starting in Edit, the preview loads out of sight all the same, and the
-	 * editor opens its first page.
+	 * The preview loads out of sight all the same to begin with, and the
+	 * editor opens its first page. A page with nothing to edit, an archive
+	 * say, leaves the editor on the last page that had something.
 	 */
 	useEffect( () => {
 		if (
@@ -220,10 +203,14 @@ export function useSiteCanvas( {
 	] );
 
 	const editorEntity = pinnedEntity || followedEntity;
-	// Nothing on show to edit: an archive, say, or a page still loading.
+	/*
+	 * Whether the page on show can be opened in the full-screen editor.
+	 * In Preview, nothing can be while the preview is on an archive, say, or
+	 * a page still loading.
+	 */
 	const canEdit = pinnedEntity
 		? true
-		: surface === SURFACE_EDIT ||
+		: ( surface === SURFACE_EDITOR && Boolean( editorEntity ) ) ||
 			( ! isLoadingContext &&
 				isSameEntity( previewEntity, followedEntity ) &&
 				Boolean( previewEntity ) );
@@ -234,9 +221,9 @@ export function useSiteCanvas( {
 
 	/*
 	 * Nothing stays selected under the preview, to pop a toolbar over it, and
-	 * nothing stays entered. A header or footer being edited disables every
-	 * block outside it, so left entered it would greet the next Edit with the
-	 * rest of the page locked.
+	 * nothing stays entered. A section being edited disables every block
+	 * outside it, so left entered it would greet the editor next time with
+	 * the rest of the page locked.
 	 */
 	useEffect( () => {
 		if ( surface === SURFACE_PREVIEW ) {
@@ -247,65 +234,18 @@ export function useSiteCanvas( {
 		}
 	}, [ surface ] );
 
-	/*
-	 * Taking over the stage runs as a view transition, so boot's own surface
-	 * animations play: the stage zooms away as the canvas grows into its
-	 * room, and back again.
-	 */
-	const changeSurface = useCallback( ( next, { takeOver } = {} ) => {
-		const current = layoutRef.current;
-		const nextLayout = {
-			// Unless asked otherwise, the stage stays as it is until Preview.
-			isTakingOver:
-				next === SURFACE_EDIT && ( takeOver ?? current.isTakingOver ),
-			surface: next,
-		};
-
-		if (
-			nextLayout.surface === current.surface &&
-			nextLayout.isTakingOver === current.isTakingOver
-		) {
-			return;
-		}
-
-		layoutRef.current = nextLayout;
-
-		if (
-			nextLayout.isTakingOver === current.isTakingOver ||
-			! document.startViewTransition ||
-			! window.matchMedia( ANIMATED_SURFACES_QUERY ).matches
-		) {
-			setLayout( nextLayout );
-			return;
-		}
-
-		document.startViewTransition( () =>
-			flushSync( () => setLayout( nextLayout ) )
-		);
-	}, [] );
-
 	const cancelWait = useCallback( () => {
 		waitRef.current += 1;
 		setIsAwaitingPreview( false );
 	}, [] );
 
-	const showEdit = useCallback(
-		( options ) => {
-			cancelWait();
-			changeSurface( SURFACE_EDIT, options );
-		},
-		[ cancelWait, changeSurface ]
-	);
-
-	// Show the stage beside Edit, or let Edit take it over again.
-	const toggleStage = useCallback( () => {
-		changeSurface( SURFACE_EDIT, {
-			takeOver: ! layoutRef.current.isTakingOver,
-		} );
-	}, [ changeSurface ] );
+	const showEditor = useCallback( () => {
+		cancelWait();
+		setSurface( SURFACE_EDITOR );
+	}, [ cancelWait ] );
 
 	// Changes made while previewing that it can't show can only be seen in
-	// Edit.
+	// the editor.
 	const changeCountRef = useRef( unseenChangeCount );
 	useEffect( () => {
 		if (
@@ -313,7 +253,7 @@ export function useSiteCanvas( {
 			surface === SURFACE_PREVIEW &&
 			editorEntity
 		) {
-			showEdit();
+			showEditor();
 		}
 
 		changeCountRef.current = unseenChangeCount;
@@ -349,8 +289,8 @@ export function useSiteCanvas( {
 	};
 
 	/*
-	 * Hold Edit until the preview has loaded, then show it. A newer request,
-	 * or going back to Edit, abandons the wait.
+	 * Hold the editor until the preview has loaded, then show it. A newer
+	 * request, or turning Preview off again, abandons the wait.
 	 */
 	const showPreviewWhenLoaded = ( destination ) => {
 		const wait = ( waitRef.current += 1 );
@@ -362,7 +302,7 @@ export function useSiteCanvas( {
 			}
 
 			setIsAwaitingPreview( false );
-			changeSurface( SURFACE_PREVIEW );
+			setSurface( SURFACE_PREVIEW );
 		} );
 	};
 
@@ -370,7 +310,7 @@ export function useSiteCanvas( {
 		// Asked again while waiting: show it now.
 		if ( isAwaitingPreview ) {
 			cancelWait();
-			changeSurface( SURFACE_PREVIEW );
+			setSurface( SURFACE_PREVIEW );
 			return;
 		}
 
@@ -379,14 +319,14 @@ export function useSiteCanvas( {
 		if ( destination || isPreviewStale ) {
 			showPreviewWhenLoaded( destination );
 		} else {
-			changeSurface( SURFACE_PREVIEW );
+			setSurface( SURFACE_PREVIEW );
 		}
 	};
 
 	const requestSurface = ( next ) => {
-		if ( next === SURFACE_EDIT ) {
-			if ( canEdit ) {
-				showEdit( { takeOver: true } );
+		if ( next === SURFACE_EDITOR ) {
+			if ( editorEntity ) {
+				showEditor();
 			}
 
 			return;
@@ -408,7 +348,7 @@ export function useSiteCanvas( {
 		await save();
 
 		// Core reports a failed save in a snackbar and leaves the changes in
-		// place. Stay in Edit with them.
+		// place. Stay in the editor with them.
 		if (
 			select( coreDataStore ).__experimentalGetDirtyEntityRecords().length
 		) {
@@ -433,10 +373,10 @@ export function useSiteCanvas( {
 			frame.reload();
 		}
 
-		changeSurface( SURFACE_PREVIEW );
+		setSurface( SURFACE_PREVIEW );
 	};
 
-	const editRoute = getEditRoute( editorEntity );
+	const editRoute = canEdit ? getEditRoute( editorEntity ) : null;
 
 	return {
 		canEdit,
@@ -452,17 +392,19 @@ export function useSiteCanvas( {
 		editRoute,
 		frame,
 		isAwaitingPreview,
-		isEditing: surface === SURFACE_EDIT,
-		isTakingOver: layout.isTakingOver,
 		isLoadingContext,
+		isPreviewing: surface === SURFACE_PREVIEW,
 		liveUrl: getLiveUrl( frame.location ) || url,
 		previewContext,
 		previewContextError,
 		previewEntity,
 		requestSurface,
 		setDevice,
-		showEdit,
+		showEditor,
 		surface,
-		toggleStage,
+		togglePreview: () =>
+			requestSurface(
+				surface === SURFACE_PREVIEW ? SURFACE_EDITOR : SURFACE_PREVIEW
+			),
 	};
 }

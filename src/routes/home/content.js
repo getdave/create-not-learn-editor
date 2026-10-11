@@ -148,9 +148,9 @@ function PreviewDocument( { canvas } ) {
 }
 
 /*
- * The site as visitors see it, starting at the homepage. Following links
- * moves the preview around the site, and the editor follows it, so Edit
- * changes whatever page is on show.
+ * The site, starting at the homepage. Following links in Preview moves it
+ * around the site, and the editor follows it, so turning Preview off changes
+ * whatever page is on show.
  */
 function Canvas() {
 	const canvas = useSiteCanvas( { url: settings.homeUrl } );

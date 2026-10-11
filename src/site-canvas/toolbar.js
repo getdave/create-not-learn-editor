@@ -1,7 +1,7 @@
 /**
- * The site canvas toolbar's controls: switching between Preview and Edit,
- * stepping through pages visited in Preview, the preview's device, and the
- * way out to the full-screen editor.
+ * The site canvas toolbar's controls: turning Preview on and off, stepping
+ * through pages visited in Preview, the preview's device, and the way out to
+ * the full-screen editor.
  */
 
 /**
@@ -13,20 +13,19 @@ import {
 	chevronLeftIcon,
 	chevronRightIcon,
 	desktopIcon,
-	drawerLeftIcon,
 	el,
 	externalIcon,
-	fullscreenIcon,
 	mobileIcon,
 	DropdownMenu,
 	MenuGroup,
 	MenuItem,
 	moreVerticalIcon,
-	ToggleGroupControlOption,
+	pencilIcon,
+	ToggleControl,
 	ToggleGroupControl,
 	ToggleGroupControlOptionIcon,
+	Tooltip,
 } from '../wordpress-packages';
-import { SURFACE_EDIT, SURFACE_PREVIEW } from './constants';
 
 function getDeviceOptions() {
 	return [
@@ -36,65 +35,66 @@ function getDeviceOptions() {
 }
 
 /**
- * Show the stage beside Edit, or hide it again so Edit has its room.
+ * Turn Preview, the saved site as visitors see it, on or off. Off, the page
+ * is in the editor, for quick changes.
+ *
+ * Controlled, so a switch the canvas holds back, to ask about unsaved changes
+ * first, leaves it where it was.
  *
  * @param {Object}   props
- * @param {boolean}  props.isShown  Whether the stage is on show.
- * @param {Function} props.onToggle Shows or hides the stage.
+ * @param {boolean}  props.isPreviewing Whether Preview is on.
+ * @param {Function} props.onToggle     Turns Preview on or off.
  * @return {Element} The toggle.
  */
-export function StageToggle( { isShown, onToggle } ) {
-	return el( Button, {
-		'aria-expanded': isShown,
-		className: 'cnl-site-canvas__stage-toggle',
-		icon: drawerLeftIcon,
-		isPressed: isShown,
-		label: isShown ? __( 'Hide panel' ) : __( 'Show panel' ),
-		onClick: onToggle,
-		showTooltip: true,
-		size: 'compact',
-	} );
+export function PreviewToggle( { isPreviewing, onToggle } ) {
+	return el(
+		Tooltip.Root,
+		null,
+		el(
+			Tooltip.Trigger,
+			{
+				className: 'cnl-site-canvas__preview-toggle',
+				render: el( 'div' ),
+			},
+			el( ToggleControl, {
+				__nextHasNoMarginBottom: true,
+				checked: isPreviewing,
+				label: __( 'Preview' ),
+				onChange: onToggle,
+			} )
+		),
+		el(
+			Tooltip.Popup,
+			{ positioner: el( Tooltip.Positioner, { side: 'bottom' } ) },
+			isPreviewing
+				? __( 'Back to editing' )
+				: __( 'See your site as visitors do' )
+		)
+	);
 }
 
 /**
- * Switch the canvas between Preview, the saved site as visitors see it, and
- * Edit, where the page can be changed in place.
- *
- * A segmented control, outlined as a block so the two options read as one
- * control and the selected one stands out. Controlled, so a switch the canvas
- * holds back, to ask about unsaved changes first, leaves it where it was.
+ * Open the page on show in the full-screen editor, to change it in more
+ * detail than the canvas allows. The canvas's main action.
  *
  * @param {Object}   props
- * @param {boolean}  props.canEdit  Whether what is on show can be edited.
- * @param {string}   props.surface  `SURFACE_PREVIEW` or `SURFACE_EDIT`.
- * @param {Function} props.onChange Called with the surface asked for.
- * @return {Element} The toggle.
+ * @param {boolean}  props.canEdit Whether what is on show can be edited.
+ * @param {Function} props.onEdit  Opens the full-screen editor.
+ * @return {Element} The button.
  */
-export function SurfaceToggle( { canEdit, surface, onChange } ) {
+export function EditButton( { canEdit, onEdit } ) {
 	return el(
-		'div',
-		{ className: 'cnl-site-canvas__surface-toggle' },
-		el(
-			ToggleGroupControl,
-			{
-				__next40pxDefaultSize: true,
-				__nextHasNoMarginBottom: true,
-				hideLabelFromVision: true,
-				isBlock: true,
-				label: __( 'Mode' ),
-				onChange,
-				value: surface,
-			},
-			el( ToggleGroupControlOption, {
-				label: __( 'Preview' ),
-				value: SURFACE_PREVIEW,
-			} ),
-			el( ToggleGroupControlOption, {
-				disabled: ! canEdit,
-				label: __( 'Edit' ),
-				value: SURFACE_EDIT,
-			} )
-		)
+		Button,
+		{
+			__next40pxDefaultSize: true,
+			accessibleWhenDisabled: true,
+			className: 'cnl-site-canvas__edit-button',
+			disabled: ! canEdit,
+			icon: pencilIcon,
+			onClick: onEdit,
+			variant: 'primary',
+		},
+		__( 'Edit' )
 	);
 }
 
@@ -129,18 +129,15 @@ export function DeviceSwitcher( { device, onChange } ) {
 }
 
 /**
- * Less common ways to view or leave the canvas, tucked behind a menu so the
- * toolbar's everyday controls, the surface and device toggles, keep the room.
+ * Less common ways to view the canvas, tucked behind a menu so the toolbar's
+ * everyday controls keep the room.
  *
- * @param {Object}   props
- * @param {string}   props.liveUrl          The live site's URL, to open in a
- *                                          new tab. Empty when there isn't one.
- * @param {string}   props.editRoute        Route to the full-screen editor.
- *                                          Empty when there isn't one.
- * @param {Function} props.onOpenFullEditor Opens the full-screen editor.
+ * @param {Object} props
+ * @param {string} props.liveUrl The live site's URL, to open in a new tab.
+ *                               Empty when there isn't one.
  * @return {Element} The menu.
  */
-export function CanvasMoreMenu( { liveUrl, editRoute, onOpenFullEditor } ) {
+export function CanvasMoreMenu( { liveUrl } ) {
 	return el(
 		DropdownMenu,
 		{
@@ -168,18 +165,6 @@ export function CanvasMoreMenu( { liveUrl, editRoute, onOpenFullEditor } ) {
 						target: '_blank',
 					},
 					__( 'Open in a new tab' )
-				),
-				el(
-					MenuItem,
-					{
-						disabled: ! editRoute,
-						icon: fullscreenIcon,
-						onClick: () => {
-							onClose();
-							onOpenFullEditor();
-						},
-					},
-					__( 'Edit in full screen' )
 				)
 			)
 	);

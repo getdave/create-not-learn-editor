@@ -6,32 +6,6 @@
 	background: #fff;
 }
 
-/*
- * Asking for Edit takes over the stage beside the canvas too, leaving only
- * the sidebar, so there is room to work on the page. The canvas toolbar can
- * show the stage again. Boot's layout is matched by its CSS-module suffixes.
- * On narrow screens each surface already fills the screen.
- */
-@media (min-width: 782px) {
-
-	#create-not-learn-editor-app [class*="__stage"]:has(~ [class*="__canvas"] .cnl-site-canvas.is-taking-over) {
-		display: none;
-	}
-}
-
-// Smaller than the 40px default, to sit lightly in the toolbar.
-.cnl-site-canvas__surface-toggle {
-	flex: 0 0 auto;
-
-	.components-toggle-group-control {
-		height: 32px;
-	}
-
-	.components-toggle-group-control-option-base {
-		padding-inline: 16px;
-	}
-}
-
 // Back and forward sit together as one pair, leaving the toolbar more room.
 .cnl-site-canvas .cnl-editor-homepage-toolbar__history {
 	gap: 0;
@@ -40,10 +14,17 @@
 /*
  * The device switcher and overflow menu read as one cluster. Flush: each
  * 40px button already carries its own padding around a smaller icon, so no
- * extra gap is needed between them.
+ * extra gap is needed between them. The Preview switch sits a little apart.
  */
 .cnl-site-canvas .cnl-editor-homepage-toolbar__right {
 	gap: 0;
+}
+
+.cnl-site-canvas__preview-toggle {
+	display: flex;
+	align-items: center;
+	margin-inline-end: 12px;
+	white-space: nowrap;
 }
 
 .cnl-site-canvas__awaiting {
@@ -73,9 +54,9 @@
 }
 
 /*
- * The editor, changing a page in place. The canvas toolbar stands in for the
- * editor's header, and the full-screen editor is a click away for everything
- * the hidden panels offer, so only the page itself shows.
+ * The editor, for quick changes to a page in place. The canvas toolbar stands
+ * in for the editor's header, and the full-screen editor is a click away for
+ * everything the hidden panels offer, so only the page itself shows.
  */
 .cnl-inline-editor {
 
@@ -94,6 +75,22 @@
 }
 
 /*
+ * Quick changes only. The content-only lock still lets a block that isn't in
+ * a section be moved, duplicated, removed or have blocks added around it, so
+ * the controls for those are hidden. Sections are arranged from the stage, and
+ * anything more is for the full-screen editor.
+ */
+.cnl-inline-editor {
+
+	.block-editor-block-toolbar .block-editor-block-mover,
+	.block-editor-block-toolbar .block-editor-block-settings-menu,
+	.block-editor-block-list__insertion-point-inserter,
+	.block-editor-block-list__block-side-inserter-popover {
+		display: none;
+	}
+}
+
+/*
  * The full-screen editor leaves its "Edit original" handler in the shared
  * block editor settings, so core shows the button here too once it has been
  * open. Hidden for template parts, as it is in the full-screen editor.
@@ -104,8 +101,8 @@
 }
 
 /*
- * The preview, laid over the editor. Fades out for Edit, and only becomes
- * unclickable and invisible once the fade has finished.
+ * The preview, laid over the editor while it is on. Fades out when turned off,
+ * and only becomes unclickable and invisible once the fade has finished.
  */
 .cnl-site-canvas__preview {
 	position: absolute;

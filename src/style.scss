@@ -3155,7 +3155,7 @@ $workspace-toggle-inset: var(--wpds-dimension-gap-xs);
 
 /*
  * The sidebar as a strip of icons while on a task: a screen drilled into one
- * page or menu, or a canvas in Edit. The way to other areas stays in reach
+ * page or menu. The way to other areas stays in reach
  * without taking the room. Labels are hidden visually but kept for screen
  * readers, and app-init shows each one as a tooltip. A toggle in the
  * greeting's row expands it again until the task is left. On narrow screens
@@ -3177,11 +3177,11 @@ $sidebar-strip-width: 64px;
 
 @media (min-width: 782px) {
 
-	#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage, .cnl-site-canvas.is-editing) .cnl-sidebar-toggle {
+	#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) .cnl-sidebar-toggle {
 		display: flex;
 	}
 
-	body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage, .cnl-site-canvas.is-editing) > [class*="__sidebar"] {
+	body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) > [class*="__sidebar"] {
 		width: $sidebar-strip-width;
 
 		// The toggle stands in for the Back button and section title.
