@@ -2,6 +2,7 @@ const {
 	expect,
 	getFrameTexts,
 	getStage,
+	setCanvasMode,
 	test,
 	visitEditor,
 } = require( '../utils' );
@@ -152,14 +153,15 @@ test.describe( 'Add a page interactions', () => {
 		await expect(
 			stage.getByRole( 'heading', { level: 1, name: title } )
 		).toBeVisible( { timeout: 15000 } );
-		// A new page is empty, ready for its first section.
+		// A new page is empty, ready for its first section in Compose.
+		await setCanvasMode( page, 'Compose' );
 		await expect(
 			stage
 				.getByRole( 'region', { name: 'Sections' } )
 				.getByText( /^Nothing here yet/ )
 		).toBeVisible();
 		await expect(
-			page.locator( '.cnl-site-canvas iframe[name="editor-canvas"]' )
-		).toBeVisible( { timeout: 15000 } );
+			page.getByText( 'This page has no sections yet' )
+		).toBeVisible();
 	} );
 } );

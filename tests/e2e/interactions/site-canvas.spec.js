@@ -1,25 +1,28 @@
 /**
- * The site canvas beside Home, Pages and Design: quick edits, the Preview
- * switch and its history, Edit, devices and the More options menu.
+ * The site canvas beside Home, Pages and Design: its Browse, Edit and Compose
+ * modes, the preview's history, the full editor, devices and the More options
+ * menu. Compose has its own file.
  */
 const {
 	expect,
 	expectBlockEditor,
-	getPreviewSwitch,
-	getQuickEditor,
+	expectCanvasMode,
+	getCanvasEditor,
+	getModeToggle,
 	getRoute,
 	getSitePreview,
-	showSitePreview,
+	openSidebarLink,
+	setCanvasMode,
 	test,
 	visitEditor,
 } = require( '../utils' );
 
 test.describe( 'Site canvas interactions', () => {
-	test( 'Preview shows the site as visitors see it, and switches back', async ( {
+	test( 'Browse shows the site as visitors see it, and Edit switches to the editor', async ( {
 		page,
 	} ) => {
 		await visitEditor( page );
-		await showSitePreview( page );
+		await expectCanvasMode( page, 'Browse' );
 
 		const preview = getSitePreview( page );
 		const frame = page.frameLocator( 'iframe[title="Site preview"]' );
@@ -34,9 +37,102 @@ test.describe( 'Site canvas interactions', () => {
 			page.getByRole( 'group', { name: 'Preview history' } )
 		).toBeVisible();
 
-		await getPreviewSwitch( page ).uncheck();
+		await setCanvasMode( page, 'Edit' );
 		await expect( preview ).toBeHidden();
-		await expect( getQuickEditor( page ) ).toBeVisible();
+		await expect( getCanvasEditor( page ) ).toBeVisible();
+		await expect(
+			page.getByRole( 'group', { name: 'Preview history' } )
+		).toHaveCount( 0 );
+
+		await setCanvasMode( page, 'Browse' );
+		await expect(
+			page.getByRole( 'group', { name: 'Preview history' } )
+		).toBeVisible();
+	} );
+
+	test( 'the mode menu offers Browse, Edit and Compose', async ( {
+		page,
+	} ) => {
+		await visitEditor( page );
+
+		const toggle = getModeToggle( page );
+
+		await expect( toggle ).toHaveAccessibleName( 'Mode: Browse' );
+		await expect( toggle ).toHaveText( /Browse/ );
+
+		await toggle.click();
+
+		const items = page.getByRole( 'menuitemradio' );
+
+		await expect( items ).toHaveCount( 3 );
+		for ( const [ name, description ] of [
+			[ 'Browse', 'See your site as visitors do.' ],
+			[ 'Edit', 'Change anything on the page.' ],
+			[ 'Compose', 'Step back to add, move and style sections.' ],
+		] ) {
+			await expect(
+				page.getByRole( 'menuitemradio', {
+					name: new RegExp( `^${ name }` ),
+				} )
+			).toContainText( description );
+		}
+		await expect(
+			page.getByRole( 'menuitemradio', { name: /^Browse/ } )
+		).toBeChecked();
+	} );
+
+	test( 'the mode carries over to another screen, but not a reload', async ( {
+		page,
+	} ) => {
+		await visitEditor( page );
+		await setCanvasMode( page, 'Edit' );
+
+		await openSidebarLink( page, 'Pages' );
+		await expect.poll( () => getRoute( page ) ).toMatch( /^\/types\/page/ );
+		await expectCanvasMode( page, 'Edit' );
+
+		await page.reload();
+		await expectCanvasMode( page, 'Browse' );
+	} );
+
+	test( 'leaving Edit with unsaved changes asks to save them', async ( {
+		page,
+		rest,
+	} ) => {
+		const testPage = await rest.createPage();
+
+		await visitEditor(
+			page,
+			`/types/page/list/all?previewId=${ testPage.id }`
+		);
+		await expect(
+			page.locator( '.cnl-editor-homepage-document__title' )
+		).toHaveText( testPage.title, { timeout: 15000 } );
+		await setCanvasMode( page, 'Edit' );
+
+		const paragraph = getCanvasEditor( page )
+			.contentFrame()
+			.getByText( testPage.body );
+
+		await paragraph.click();
+		await page.keyboard.press( 'End' );
+		await page.keyboard.type( ' changed' );
+
+		await getModeToggle( page ).click();
+		await page.getByRole( 'menuitemradio', { name: /^Browse/ } ).click();
+
+		const dialog = page.getByRole( 'dialog', {
+			name: 'Save your changes?',
+		} );
+
+		await expect( dialog ).toBeVisible();
+		await dialog.getByRole( 'button', { name: 'Discard' } ).click();
+		await expectCanvasMode( page, 'Browse' );
+		await expect(
+			page
+				.frameLocator( 'iframe[title="Site preview"]' )
+				.getByText( testPage.body, { exact: true } )
+		).toBeVisible();
 	} );
 
 	test( 'switches the canvas between desktop and mobile', async ( {
@@ -77,7 +173,7 @@ test.describe( 'Site canvas interactions', () => {
 		const frame = page.frameLocator( 'iframe[title="Site preview"]' );
 
 		await expect( title ).toHaveText( source.title, { timeout: 15000 } );
-		await showSitePreview( page );
+		await expectCanvasMode( page, 'Browse' );
 		await expect( title ).toHaveText( source.title );
 		await expect( meta ).toHaveText( 'Page · Published' );
 		await expect( back ).toBeDisabled();
@@ -103,17 +199,22 @@ test.describe( 'Site canvas interactions', () => {
 		).toBeVisible();
 	} );
 
-	test( 'Edit opens the page in the full-screen editor', async ( {
+	test( 'Open in full editor opens the page in the full-screen editor', async ( {
 		page,
 	} ) => {
 		await visitEditor( page );
 
-		const edit = page
-			.locator( '.cnl-editor-homepage-toolbar' )
-			.getByRole( 'button', { name: 'Edit', exact: true } );
+		const toolbar = page.locator( '.cnl-editor-homepage-toolbar' );
+		const openFull = toolbar.getByRole( 'button', {
+			name: 'Open in full editor',
+		} );
 
-		await expect( edit ).toBeEnabled( { timeout: 15000 } );
-		await edit.click();
+		// Only Edit offers it.
+		await expect( openFull ).toHaveCount( 0 );
+		await setCanvasMode( page, 'Compose' );
+		await expect( openFull ).toHaveCount( 0 );
+		await setCanvasMode( page, 'Edit' );
+		await openFull.click();
 
 		await expect
 			.poll( () => getRoute( page ), { timeout: 15000 } )

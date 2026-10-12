@@ -1,7 +1,6 @@
 const {
 	expect,
-	getPreviewSwitch,
-	getQuickEditor,
+	getModeToggle,
 	getSitePreview,
 	test,
 	visitEditor,
@@ -40,23 +39,24 @@ test.describe( 'Home view', () => {
 		}
 	} );
 
-	test( 'opens the homepage for quick edits', async ( { page } ) => {
+	test( 'opens the homepage in Browse', async ( { page } ) => {
 		await page.setViewportSize( { height: 1003, width: 2048 } );
 
 		const toolbar = page.locator( '.cnl-editor-homepage-toolbar' );
 		const document = toolbar.locator( '.cnl-editor-homepage-document' );
 
-		await expect( getQuickEditor( page ) ).toBeVisible( {
+		await expect( getSitePreview( page ) ).toBeVisible( {
 			timeout: 15000,
 		} );
-		await expect( getSitePreview( page ) ).toBeHidden();
-		await expect( getPreviewSwitch( page ) ).not.toBeChecked();
-		await expect(
-			toolbar.getByRole( 'button', { name: 'Edit', exact: true } )
-		).toBeEnabled( { timeout: 15000 } );
-		// History is only for moving around the preview.
+		await expect( getModeToggle( page ) ).toHaveAccessibleName(
+			'Mode: Browse'
+		);
 		await expect(
 			toolbar.getByRole( 'group', { name: 'Preview history' } )
+		).toBeVisible();
+		// The way out to the full editor is only offered in Edit.
+		await expect(
+			toolbar.getByRole( 'button', { name: 'Open in full editor' } )
 		).toHaveCount( 0 );
 		await expect(
 			toolbar.getByRole( 'radio', { name: 'Desktop view' } )

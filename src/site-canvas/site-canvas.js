@@ -1,9 +1,10 @@
 /**
  * A site canvas: a toolbar, and the editor with the preview laid over it.
  *
- * Both surfaces stay mounted. Turning Preview on or off fades it in or out,
- * as Big Sky's Easy Mode does, so neither reloads, and the preview keeps its
- * page, scroll position and history while the editor is on show.
+ * Both surfaces stay mounted. Moving to or from Browse fades the preview in or
+ * out, so neither reloads, and the preview keeps its page, scroll position
+ * and history while the editor is on show. Compose zooms the editor out and
+ * lays its own layer over it.
  */
 
 /**
@@ -15,6 +16,7 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { unlock } from '../lock-unlock';
 import { getErrorMessage } from '../records';
 import {
 	__,
@@ -22,29 +24,39 @@ import {
 	el,
 	Notice,
 	Spinner,
+	useRef,
 	useSelect,
 } from '../wordpress-packages';
+import { ComposeLayer, scrollCanvasTo } from './compose/compose-layer';
+import { afterZoomIn, useComposeZoom } from './compose/use-compose-zoom';
 import { EDITOR_DEVICES } from './constants';
+import { MODE_EDIT } from './mode';
 import {
 	CanvasMoreMenu,
 	DeviceSwitcher,
-	EditButton,
+	FullEditorButton,
+	ModeMenu,
 	PreviewHistory,
-	PreviewToggle,
 } from './toolbar';
 import { UnsavedChangesDialog } from './unsaved-changes-dialog';
-import { useQuickEdit } from './use-quick-edit';
+
+// Long enough for the editor to zoom back in before scrolling it.
+const ZOOM_IN_SETTLE_MS = 450;
 
 /**
- * @param {Object}  props
- * @param {Object}  props.canvas         Result of `useSiteCanvas`.
- * @param {string}  props.className      Extra class for the canvas.
- * @param {Element} props.document       What is on show, for the toolbar.
- * @param {Element} props.editorChildren Shown over the editor while it is
- *                                       on show.
- * @param {Object}  props.editorRef      Ref to the editor's container.
- * @param {Element} props.emptyPreview   Shown when there is nothing to
- *                                       preview.
+ * @param {Object}   props
+ * @param {Object}   props.canvas         Result of `useSiteCanvas`.
+ * @param {string}   props.className      Extra class for the canvas.
+ * @param {Element}  props.document       What is on show, for the toolbar.
+ * @param {Element}  props.editorChildren Shown over the editor while it is
+ *                                        on show.
+ * @param {Object}   props.editorRef      Ref to the editor's container, if
+ *                                        the caller needs one.
+ * @param {Element}  props.emptyPreview   Shown when there is nothing to
+ *                                        preview.
+ * @param {Function} props.useComposeSync A hook linking Compose to a list of
+ *                                        the same sections elsewhere. See
+ *                                        `ComposeLayer`.
  * @return {Element} The canvas.
  */
 export function SiteCanvas( {
@@ -52,13 +64,38 @@ export function SiteCanvas( {
 	className = '',
 	document,
 	editorChildren,
-	editorRef,
+	editorRef: givenEditorRef,
 	emptyPreview = null,
+	useComposeSync,
 } ) {
 	const navigate = useNavigate();
-	const { device, editorEntity, frame, isPreviewing } = canvas;
+	const ownEditorRef = useRef();
+	const editorRef = givenEditorRef || ownEditorRef;
+	const { device, editorDevice, editorEntity, frame, isComposing, mode } =
+		canvas;
+	const isPreviewing = canvas.isPreviewing;
+	const isEditing = mode === MODE_EDIT;
 
-	useQuickEdit( Boolean( editorEntity ) );
+	useComposeZoom( isComposing && Boolean( editorEntity ), editorRef );
+
+	// Open what was picked in Compose in Edit, selected and in view.
+	const editFromCompose = ( clientId, isSitePart ) => {
+		afterZoomIn( ( registry ) => {
+			const actions = unlock( registry.dispatch( blockEditorStore ) );
+
+			actions.selectBlock( clientId );
+
+			if ( isSitePart ) {
+				actions.editContentOnlySection( clientId );
+			}
+
+			window.setTimeout(
+				() => scrollCanvasTo( editorRef, clientId ),
+				ZOOM_IN_SETTLE_MS
+			);
+		} );
+		canvas.requestMode( MODE_EDIT );
+	};
 
 	// Published for the stylesheet, which hides core chrome by block.
 	const selectedBlockName = useSelect(
@@ -76,7 +113,7 @@ export function SiteCanvas( {
 	return el(
 		'section',
 		{
-			className: `cnl-site-canvas cnl-editor-canvas cnl-editor-preview-canvas ${
+			className: `cnl-site-canvas cnl-editor-canvas cnl-editor-preview-canvas is-${ mode } ${
 				isPreviewing ? 'is-previewing ' : ''
 			}${ className }`,
 		},
@@ -89,10 +126,16 @@ export function SiteCanvas( {
 			el(
 				'div',
 				{ className: 'cnl-editor-homepage-toolbar__left' },
-				el( EditButton, {
-					canEdit: Boolean( canvas.editRoute ),
-					onEdit: () => navigate( canvas.editRoute ),
+				el( ModeMenu, {
+					canEdit: canvas.canEdit,
+					mode,
+					onChange: canvas.requestMode,
 				} ),
+				isEditing &&
+					canvas.editRoute &&
+					el( FullEditorButton, {
+						onOpen: () => navigate( canvas.editRoute ),
+					} ),
 				isPreviewing &&
 					el( PreviewHistory, {
 						history: frame.history,
@@ -121,14 +164,11 @@ export function SiteCanvas( {
 			el(
 				'div',
 				{ className: 'cnl-editor-homepage-toolbar__right' },
-				el( PreviewToggle, {
-					isPreviewing,
-					onToggle: canvas.togglePreview,
-				} ),
-				el( DeviceSwitcher, {
-					device,
-					onChange: canvas.setDevice,
-				} ),
+				! isComposing &&
+					el( DeviceSwitcher, {
+						device,
+						onChange: canvas.setDevice,
+					} ),
 				el( CanvasMoreMenu, { liveUrl: canvas.liveUrl } )
 			)
 		),
@@ -144,13 +184,20 @@ export function SiteCanvas( {
 				},
 				editorEntity &&
 					el( LazyEditor, {
-						initialViewport: EDITOR_DEVICES[ device ],
+						initialViewport: EDITOR_DEVICES[ editorDevice ],
 						key: `${ editorEntity.postType }:${ editorEntity.postId }`,
 						postId: editorEntity.postId,
 						postType: editorEntity.postType,
 					} ),
-				! isPreviewing && editorChildren
+				isEditing && editorChildren
 			),
+			isComposing &&
+				editorEntity &&
+				el( ComposeLayer, {
+					editorRef,
+					onEdit: editFromCompose,
+					useSync: useComposeSync,
+				} ),
 			/*
 			 * `aria-hidden` rather than `hidden`: `hidden` is `display: none`,
 			 * which would cut the fade short.

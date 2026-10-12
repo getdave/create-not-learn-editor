@@ -36,7 +36,6 @@ import { __ } from '@wordpress/i18n';
  */
 import { openSectionPicker } from '../editor-layer/section-picker';
 import { unlock } from '../lock-unlock';
-import { QUICK_EDIT_SETTING } from '../site-canvas/constants';
 
 /*
  * Named rather than imported, so the editor stays out of page boot. See
@@ -48,8 +47,7 @@ const EDITOR_STORE = 'core/editor';
  * Whether a block is a section of the page being edited.
  *
  * `isSectionBlock` is false while the section is being edited, which is when
- * the toolbar offers "Exit section" instead. Quick changes on the site canvas
- * leave sections to the stage, so none count there.
+ * the toolbar offers "Exit section" instead.
  *
  * @param {string} clientId Block client ID.
  * @return {boolean} Whether it is a page section.
@@ -61,13 +59,9 @@ function useIsPageSection( clientId ) {
 				return false;
 			}
 
-			const { getBlockAttributes, getSettings, isSectionBlock } = unlock(
+			const { getBlockAttributes, isSectionBlock } = unlock(
 				select( blockEditorStore )
 			);
-
-			if ( getSettings()[ QUICK_EDIT_SETTING ] ) {
-				return false;
-			}
 
 			return (
 				isSectionBlock( clientId ) &&

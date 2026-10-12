@@ -13,6 +13,7 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  * Internal dependencies
  */
 import { getErrorMessage, getTemplateDisplayTitle } from '../../../records';
+import { MODE_COMPOSE, useCanvasMode } from '../../../site-canvas/mode';
 import { getPatternTitle } from '../page-layouts';
 import { isPageInMenu } from '../menu-status';
 import useMainMenu, { useAddPageToMenu } from '../use-main-menu';
@@ -2113,6 +2114,10 @@ function SectionList( {
 /**
  * A page opened up: what it is, and the sections it is made of.
  *
+ * The list of sections is shown only while the canvas is in Compose, which
+ * works on the same sections on the page itself. It may not be needed there
+ * at all.
+ *
  * @param {Object} props        Component props.
  * @param {number} props.pageId Page ID.
  * @return {Element} The page stage.
@@ -2123,6 +2128,7 @@ export function PageDetailStage( { pageId } ) {
 	const { blocks, isReady, setBlocks } = usePageSections( pageId );
 	const { createSuccessNotice } = useDispatch( noticesStore );
 	const [ insertAt, setInsertAt ] = useState( null );
+	const isComposing = useCanvasMode() === MODE_COMPOSE;
 	const page = useSelect(
 		( selectStore ) =>
 			selectStore( coreDataStore ).getEditedEntityRecord(
@@ -2232,54 +2238,55 @@ export function PageDetailStage( { pageId } ) {
 				slug: page?.slug,
 				template: page?.template,
 			} ),
-			el(
-				'section',
-				{
-					'aria-label': __( 'Sections' ),
-					className: 'cnl-page-sections',
-				},
+			isComposing &&
 				el(
-					'header',
-					{ className: 'cnl-page-sections__header' },
+					'section',
+					{
+						'aria-label': __( 'Sections' ),
+						className: 'cnl-page-sections',
+					},
 					el(
-						Stack,
-						{ direction: 'column', gap: 'xs' },
+						'header',
+						{ className: 'cnl-page-sections__header' },
 						el(
-							'h3',
-							{ className: 'cnl-page-sections__title' },
-							__( 'On this page' )
+							Stack,
+							{ direction: 'column', gap: 'xs' },
+							el(
+								'h3',
+								{ className: 'cnl-page-sections__title' },
+								__( 'On this page' )
+							),
+							isReady &&
+								blocks.length > 0 &&
+								el(
+									Text,
+									{
+										className: 'cnl-page-sections__hint',
+										variant: 'body-sm',
+									},
+									__(
+										'Top to bottom, as visitors see it. Drag sections to reorder them, or click one to find it on the page.'
+									)
+								)
 						),
 						isReady &&
 							blocks.length > 0 &&
-							el(
-								Text,
-								{
-									className: 'cnl-page-sections__hint',
-									variant: 'body-sm',
-								},
-								__(
-									'Top to bottom, as visitors see it. Drag sections to reorder them, or click one to find it on the page.'
-								)
-							)
+							el( Button, {
+								icon: plusIcon,
+								label: __( 'Add a section at the top' ),
+								onClick: () => setInsertAt( 0 ),
+								size: 'compact',
+							} )
 					),
-					isReady &&
-						blocks.length > 0 &&
-						el( Button, {
-							icon: plusIcon,
-							label: __( 'Add a section at the top' ),
-							onClick: () => setInsertAt( 0 ),
-							size: 'compact',
-						} )
+					el( SectionList, {
+						blocks,
+						isReady,
+						onAdd: setInsertAt,
+						onEdit: editPage,
+						onEditPart: editPart,
+						setBlocks,
+					} )
 				),
-				el( SectionList, {
-					blocks,
-					isReady,
-					onAdd: setInsertAt,
-					onEdit: editPage,
-					onEditPart: editPart,
-					setBlocks,
-				} )
-			),
 			insertAt !== null &&
 				el( SectionPicker, {
 					onClose: closeAdd,

@@ -6,7 +6,7 @@ const {
 	expect,
 	expectBlockEditor,
 	getRoute,
-	getQuickEditor,
+	getSitePreview,
 	getStage,
 	openSidebarLink,
 	test,
@@ -25,7 +25,7 @@ test( 'every main screen loads without errors', async ( { page, rest } ) => {
 		await expect(
 			page.getByRole( 'heading', { level: 1, name: 'Your site' } )
 		).toBeVisible();
-		await expect( getQuickEditor( page ) ).toBeVisible( {
+		await expect( getSitePreview( page ) ).toBeVisible( {
 			timeout: 15000,
 		} );
 	} );

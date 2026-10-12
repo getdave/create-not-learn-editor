@@ -94,45 +94,111 @@ function getSitePreview( page ) {
 	return page.locator( 'iframe[title="Site preview"]' );
 }
 
+const CANVAS_MODES = [ 'Browse', 'Edit', 'Compose' ];
+
 /**
- * The site canvas's Preview switch. The canvas opens for quick edits, and
- * Preview lays the saved site over the editor.
+ * The site canvas's mode menu toggle, named for the mode it is in, such as
+ * "Mode: Browse".
  *
  * @param {import('@playwright/test').Page} page
- * @return {import('@playwright/test').Locator} The switch.
+ * @return {import('@playwright/test').Locator} The toggle.
  */
-function getPreviewSwitch( page ) {
-	return page
-		.locator( '.cnl-site-canvas__preview-toggle' )
-		.getByLabel( 'Preview', { exact: true } );
+function getModeToggle( page ) {
+	return page.locator( '.cnl-site-canvas__mode-toggle' );
 }
 
 /**
- * Turn Preview on, and wait for the site to show.
+ * Open the mode menu and pick a mode, without waiting for the canvas to
+ * follow. Use `setCanvasMode` unless something, such as the unsaved changes
+ * dialog, is expected to hold the switch back.
  *
  * @param {import('@playwright/test').Page} page
+ * @param {'Browse'|'Edit'|'Compose'}       mode The mode to pick.
  */
-async function showSitePreview( page ) {
-	const toggle = getPreviewSwitch( page );
+async function pickCanvasMode( page, mode ) {
+	if ( ! CANVAS_MODES.includes( mode ) ) {
+		throw new Error( `Unknown canvas mode: ${ mode }` );
+	}
 
-	// The switch holds off until the preview has loaded the page on show.
-	await toggle.click();
-	await expect( toggle ).toBeChecked( { timeout: 15000 } );
-	await expect( getSitePreview( page ) ).toBeVisible();
-	// The canvas only follows pages it has seen finish loading.
-	await expect(
-		page.locator( '.cnl-editor-preview-canvas__spinner' )
-	).toHaveCount( 0, { timeout: 15000 } );
+	const item = page.getByRole( 'menuitemradio', {
+		name: new RegExp( `^${ mode }` ),
+	} );
+
+	/*
+	 * The menu closes if focus moves away while it is open, as it does when a
+	 * screen that has just opened focuses its heading, so it is opened again
+	 * until the pick lands. Edit and Compose also wait for there to be
+	 * something to edit.
+	 */
+	await expect( async () => {
+		if ( ! ( await item.isVisible() ) ) {
+			await getModeToggle( page ).click();
+		}
+
+		await expect( item ).toBeEnabled( { timeout: 2000 } );
+		await item.click( { timeout: 2000 } );
+	} ).toPass( { timeout: 20000 } );
 }
 
 /**
- * The quick-edit editor in the site canvas.
+ * The block editor inside the site canvas.
  *
  * @param {import('@playwright/test').Page} page
  * @return {import('@playwright/test').Locator} The editor's frame element.
  */
-function getQuickEditor( page ) {
+function getCanvasEditor( page ) {
 	return page.locator( '.cnl-site-canvas iframe[name="editor-canvas"]' );
+}
+
+/**
+ * Wait for the site canvas to show a mode's surface: the site preview for
+ * Browse, the editor for Edit, and the Compose layer over the editor for
+ * Compose.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {'Browse'|'Edit'|'Compose'}       mode The mode.
+ */
+async function expectCanvasMode( page, mode ) {
+	await expect( getModeToggle( page ) ).toHaveAccessibleName(
+		`Mode: ${ mode }`,
+		{ timeout: 15000 }
+	);
+
+	if ( mode === 'Browse' ) {
+		await expect( getSitePreview( page ) ).toBeVisible();
+		// The canvas only follows pages it has seen finish loading.
+		await expect(
+			page.locator( '.cnl-editor-preview-canvas__spinner' )
+		).toHaveCount( 0, { timeout: 15000 } );
+		return;
+	}
+
+	await expect( getSitePreview( page ) ).toBeHidden();
+	await expect( getCanvasEditor( page ) ).toBeVisible( { timeout: 15000 } );
+
+	const composeLayer = page.locator( '.cnl-compose-layer' );
+
+	if ( mode === 'Compose' ) {
+		await expect( composeLayer ).toBeVisible( { timeout: 15000 } );
+	} else {
+		await expect( composeLayer ).toHaveCount( 0 );
+	}
+}
+
+/**
+ * Switch the site canvas to a mode, and wait for it to show.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {'Browse'|'Edit'|'Compose'}       mode The mode to switch to.
+ */
+async function setCanvasMode( page, mode ) {
+	const label = await getModeToggle( page ).getAttribute( 'aria-label' );
+
+	if ( label !== `Mode: ${ mode }` ) {
+		await pickCanvasMode( page, mode );
+	}
+
+	await expectCanvasMode( page, mode );
 }
 
 /**
@@ -235,17 +301,19 @@ module.exports = {
 	editorUrl,
 	expectBlockEditor,
 	expectSnackbar,
+	expectCanvasMode,
+	getCanvasEditor,
 	getEditorCanvas,
-	getPreviewSwitch,
-	getQuickEditor,
 	getFrameTexts,
+	getModeToggle,
 	getRoute,
 	getSaveControls,
 	getSitePreview,
 	getStage,
 	openReviewChanges,
 	openSidebarLink,
-	showSitePreview,
+	pickCanvasMode,
+	setCanvasMode,
 	visitEditor,
 	writeParityScreenshot,
 };

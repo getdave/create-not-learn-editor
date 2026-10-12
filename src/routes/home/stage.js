@@ -311,7 +311,7 @@ export default function Stage() {
 			Text,
 			{ className: 'cnl-site-hub__hint', variant: 'body-sm' },
 			__(
-				'Tip: click any text on the page to change it. Turn on Preview to visit other pages through their links.'
+				'Tip: follow links on the page to visit the rest of your site. Switch to Edit to change what is on it, or Compose to add and arrange its sections.'
 			)
 		)
 	);

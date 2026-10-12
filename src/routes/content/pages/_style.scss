@@ -1,10 +1,9 @@
 // The Pages screen: page tree, page drilldown, section stack and the linked
 // preview canvas.
 
+@use "../../../colors" as *;
+
 $cnl-accent: var(--wp-admin-theme-color, #3858e9);
-// Marks content that comes from the template rather than the page itself,
-// like the header, footer, or a title or image the layout adds.
-$cnl-global: #7c3aed;
 
 @keyframes cnl-pages-slide-in {
 

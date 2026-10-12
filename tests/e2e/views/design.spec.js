@@ -1,6 +1,6 @@
 const {
 	expect,
-	getQuickEditor,
+	getSitePreview,
 	getStage,
 	test,
 	visitEditor,
@@ -37,7 +37,7 @@ test.describe( 'Design views', () => {
 		await expect(
 			stage.getByRole( 'link', { name: 'full Styles editor' } )
 		).toBeVisible();
-		await expect( getQuickEditor( page ) ).toBeVisible( {
+		await expect( getSitePreview( page ) ).toBeVisible( {
 			timeout: 15000,
 		} );
 	} );

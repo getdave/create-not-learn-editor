@@ -1,7 +1,7 @@
 /**
- * The site canvas toolbar's controls: turning Preview on and off, stepping
- * through pages visited in Preview, the preview's device, and the way out to
- * the full-screen editor.
+ * The site canvas toolbar's controls: the canvas's mode, stepping through
+ * pages visited in Browse, the preview's device, and the way out to the
+ * full-screen editor.
  */
 
 /**
@@ -10,22 +10,27 @@
 import {
 	__,
 	Button,
+	checkIcon,
+	chevronDownIcon,
 	chevronLeftIcon,
 	chevronRightIcon,
 	desktopIcon,
 	el,
 	externalIcon,
+	fullscreenIcon,
+	LegacyIcon,
 	mobileIcon,
 	DropdownMenu,
 	MenuGroup,
 	MenuItem,
 	moreVerticalIcon,
 	pencilIcon,
-	ToggleControl,
+	sprintf,
 	ToggleGroupControl,
 	ToggleGroupControlOptionIcon,
-	Tooltip,
 } from '../wordpress-packages';
+import { browseIcon, composeIcon } from './icons';
+import { MODE_BROWSE, MODE_COMPOSE, MODE_EDIT } from './mode';
 
 function getDeviceOptions() {
 	return [
@@ -34,68 +39,118 @@ function getDeviceOptions() {
 	];
 }
 
+function getModes() {
+	return [
+		{
+			description: __( 'See your site as visitors do.' ),
+			icon: browseIcon,
+			label: __( 'Browse' ),
+			value: MODE_BROWSE,
+		},
+		{
+			description: __( 'Change anything on the page.' ),
+			icon: pencilIcon,
+			label: __( 'Edit' ),
+			value: MODE_EDIT,
+		},
+		{
+			description: __( 'Step back to add, move and style sections.' ),
+			icon: composeIcon,
+			label: __( 'Compose' ),
+			value: MODE_COMPOSE,
+		},
+	];
+}
+
 /**
- * Turn Preview, the saved site as visitors see it, on or off. Off, the page
- * is in the editor, for quick changes.
+ * Pick the canvas's mode: Browse, Edit or Compose.
  *
  * Controlled, so a switch the canvas holds back, to ask about unsaved changes
  * first, leaves it where it was.
  *
  * @param {Object}   props
- * @param {boolean}  props.isPreviewing Whether Preview is on.
- * @param {Function} props.onToggle     Turns Preview on or off.
- * @return {Element} The toggle.
+ * @param {boolean}  props.canEdit  Whether what is on show can be edited, and
+ *                                  so whether Edit and Compose are offered.
+ * @param {string}   props.mode     The current mode.
+ * @param {Function} props.onChange Called with the mode picked.
+ * @return {Element} The menu.
  */
-export function PreviewToggle( { isPreviewing, onToggle } ) {
+export function ModeMenu( { canEdit, mode, onChange } ) {
+	const modes = getModes();
+	const current = modes.find( ( option ) => option.value === mode );
+
 	return el(
-		Tooltip.Root,
-		null,
-		el(
-			Tooltip.Trigger,
-			{
-				className: 'cnl-site-canvas__preview-toggle',
-				render: el( 'div' ),
+		DropdownMenu,
+		{
+			className: 'cnl-site-canvas__mode-menu',
+			// The toggle says the mode in words; icons are for the menu.
+			icon: null,
+			label: sprintf(
+				/* translators: %s: the canvas's current mode, like Browse. */
+				__( 'Mode: %s' ),
+				current.label
+			),
+			popoverProps: { placement: 'bottom-start' },
+			text: current.label,
+			toggleProps: {
+				__next40pxDefaultSize: true,
+				children: el( LegacyIcon, {
+					className: 'cnl-site-canvas__mode-chevron',
+					icon: chevronDownIcon,
+					size: 18,
+				} ),
+				className: 'cnl-site-canvas__mode-toggle',
+				showTooltip: false,
+				variant: 'secondary',
 			},
-			el( ToggleControl, {
-				__nextHasNoMarginBottom: true,
-				checked: isPreviewing,
-				label: __( 'Preview' ),
-				onChange: onToggle,
-			} )
-		),
-		el(
-			Tooltip.Popup,
-			{ positioner: el( Tooltip.Positioner, { side: 'bottom' } ) },
-			isPreviewing
-				? __( 'Back to editing' )
-				: __( 'See your site as visitors do' )
-		)
+		},
+		( { onClose } ) =>
+			el(
+				MenuGroup,
+				null,
+				modes.map( ( option ) =>
+					el(
+						MenuItem,
+						{
+							disabled: option.value !== MODE_BROWSE && ! canEdit,
+							icon: option.icon,
+							iconPosition: 'left',
+							info: option.description,
+							isSelected: option.value === mode,
+							key: option.value,
+							onClick: () => {
+								onClose();
+								onChange( option.value );
+							},
+							role: 'menuitemradio',
+							suffix:
+								option.value === mode &&
+								el( LegacyIcon, { icon: checkIcon } ),
+						},
+						option.label
+					)
+				)
+			)
 	);
 }
 
 /**
- * Open the page on show in the full-screen editor, to change it in more
- * detail than the canvas allows. The canvas's main action.
+ * Open the page on show in the full-screen editor. Offered in Edit only, as
+ * a way out for changes the canvas doesn't suit.
  *
  * @param {Object}   props
- * @param {boolean}  props.canEdit Whether what is on show can be edited.
- * @param {Function} props.onEdit  Opens the full-screen editor.
+ * @param {Function} props.onOpen Opens the full-screen editor.
  * @return {Element} The button.
  */
-export function EditButton( { canEdit, onEdit } ) {
-	return el(
-		Button,
-		{
-			__next40pxDefaultSize: true,
-			accessibleWhenDisabled: true,
-			className: 'cnl-site-canvas__edit-button',
-			disabled: ! canEdit,
-			icon: pencilIcon,
-			onClick: onEdit,
-			variant: 'primary',
-		},
-		__( 'Edit' )
-	);
+export function FullEditorButton( { onOpen } ) {
+	return el( Button, {
+		__next40pxDefaultSize: true,
+		className: 'cnl-site-canvas__full-editor-button',
+		icon: fullscreenIcon,
+		label: __( 'Open in full editor' ),
+		onClick: onOpen,
+		showTooltip: true,
+	} );
 }
 
 export function DeviceSwitcher( { device, onChange } ) {

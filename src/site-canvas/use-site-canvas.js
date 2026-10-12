@@ -1,22 +1,21 @@
 /**
- * A site canvas's state: which surface is on show, what the preview shows,
- * what the editor underneath it has open, and the rules for moving between
- * them.
+ * A site canvas's state: which mode it is in, what the preview shows, what
+ * the editor underneath it has open, and the rules for moving between them.
  *
- * The editor is on show by default, for quick changes to the page's content.
- * Preview, the saved site in an iframe, is laid over it while turned on, and
- * is where the site can be browsed. Both stay mounted, and the editor quietly
- * follows the page the preview is on, so turning Preview off is instant.
- * Editing in more detail leaves for the full-screen editor. Because the
- * preview only shows what is saved:
+ * Browse, the default, lays the saved site in an iframe over the editor, and
+ * is where the site can be browsed. Edit and Compose show the editor, zoomed
+ * out in Compose. Both surfaces stay mounted, and the editor quietly follows
+ * the page the preview is on, so leaving Browse is instant. The mode is shared
+ * by every canvas, see `mode.js`. Because the preview only shows what is
+ * saved:
  *
- * - Turning Preview on with unsaved changes asks to save or discard them.
+ * - Moving to Browse with unsaved changes asks to save or discard them.
  *   A change the caller shows in the preview anyway, such as a page's
  *   layout passed along in its URL, doesn't count.
- * - Turning Preview on after saving, or from a page the preview isn't on,
+ * - Moving to Browse after saving, or from a page the preview isn't on,
  *   holds the editor until the preview has loaded the page, so it never shows
  *   an out-of-date page.
- * - Changes made while previewing, from the sidebar, turn Preview off, unless
+ * - Changes made while browsing, from the sidebar, switch to Edit, unless
  *   the preview shows them too.
  */
 
@@ -38,12 +37,15 @@ import {
 	useSelect,
 	useState,
 } from '../wordpress-packages';
+import { DEFAULT_DEVICE, EDITOR_DEVICES } from './constants';
 import {
-	DEFAULT_DEVICE,
-	EDITOR_DEVICES,
-	SURFACE_EDITOR,
-	SURFACE_PREVIEW,
-} from './constants';
+	getCanvasMode,
+	MODE_BROWSE,
+	MODE_COMPOSE,
+	MODE_EDIT,
+	setCanvasMode,
+	useCanvasMode,
+} from './mode';
 import { getEditRoute, getLiveUrl, isSameLocation } from './urls';
 import { usePreviewFrame } from './use-preview-frame';
 
@@ -120,7 +122,8 @@ export function useSiteCanvas( {
 	pinnedEntity = null,
 	isShownInPreview = NOTHING_SHOWN,
 } ) {
-	const [ surface, setSurface ] = useState( SURFACE_EDITOR );
+	const mode = useCanvasMode();
+	const isPreviewing = mode === MODE_BROWSE;
 	const [ device, setDevice ] = useState( DEFAULT_DEVICE );
 	const [ isDialogOpen, setIsDialogOpen ] = useState( false );
 	const [ isAwaitingPreview, setIsAwaitingPreview ] = useState( false );
@@ -157,7 +160,7 @@ export function useSiteCanvas( {
 	const frame = usePreviewFrame( {
 		getVersion: () => savedVersionRef.current,
 		initialUrl: url,
-		onDoubleClick: () => requestSurface( SURFACE_EDITOR ),
+		onDoubleClick: () => requestMode( MODE_EDIT ),
 	} );
 	const isPreviewStale = frame.loadedVersion !== savedVersion;
 	const { isLoadingContext, previewContext, previewContextError } =
@@ -187,7 +190,7 @@ export function useSiteCanvas( {
 	useEffect( () => {
 		if (
 			! pinnedEntity &&
-			( surface === SURFACE_PREVIEW || ! followedEntity ) &&
+			( isPreviewing || ! followedEntity ) &&
 			! isLoadingContext &&
 			previewEntity &&
 			! isSameEntity( previewEntity, followedEntity )
@@ -198,26 +201,31 @@ export function useSiteCanvas( {
 		followedEntity,
 		isLoadingContext,
 		pinnedEntity,
+		isPreviewing,
 		previewEntity,
-		surface,
 	] );
 
 	const editorEntity = pinnedEntity || followedEntity;
 	/*
 	 * Whether the page on show can be opened in the full-screen editor.
-	 * In Preview, nothing can be while the preview is on an archive, say, or
+	 * In Browse, nothing can be while the preview is on an archive, say, or
 	 * a page still loading.
 	 */
 	const canEdit = pinnedEntity
 		? true
-		: ( surface === SURFACE_EDITOR && Boolean( editorEntity ) ) ||
+		: ( ! isPreviewing && Boolean( editorEntity ) ) ||
 			( ! isLoadingContext &&
 				isSameEntity( previewEntity, followedEntity ) &&
 				Boolean( previewEntity ) );
 
+	// Compose works on the page as a whole, so it is always on a desktop.
+	const editorDevice = mode === MODE_COMPOSE ? DEFAULT_DEVICE : device;
+
 	useEffect( () => {
-		dispatch( 'core/editor' )?.setDeviceType?.( EDITOR_DEVICES[ device ] );
-	}, [ device, editorEntity?.postId ] );
+		dispatch( 'core/editor' )?.setDeviceType?.(
+			EDITOR_DEVICES[ editorDevice ]
+		);
+	}, [ editorDevice, editorEntity?.postId ] );
 
 	/*
 	 * Nothing stays selected under the preview, to pop a toolbar over it, and
@@ -226,38 +234,50 @@ export function useSiteCanvas( {
 	 * the rest of the page locked.
 	 */
 	useEffect( () => {
-		if ( surface === SURFACE_PREVIEW ) {
+		if ( isPreviewing ) {
 			dispatch( blockEditorStore ).clearSelectedBlock();
 			unlock(
 				dispatch( blockEditorStore )
 			).stopEditingContentOnlySection();
 		}
-	}, [ surface ] );
+	}, [ isPreviewing ] );
 
 	const cancelWait = useCallback( () => {
 		waitRef.current += 1;
 		setIsAwaitingPreview( false );
 	}, [] );
 
-	const showEditor = useCallback( () => {
-		cancelWait();
-		setSurface( SURFACE_EDITOR );
-	}, [ cancelWait ] );
+	/*
+	 * Show the editor, in the mode asked for, or Edit when leaving Browse
+	 * without saying. Compose stays Compose unless asked otherwise.
+	 */
+	const showEditor = useCallback(
+		( next ) => {
+			cancelWait();
+			setCanvasMode(
+				next ||
+					( getCanvasMode() === MODE_BROWSE
+						? MODE_EDIT
+						: getCanvasMode() )
+			);
+		},
+		[ cancelWait ]
+	);
 
-	// Changes made while previewing that it can't show can only be seen in
-	// the editor.
+	// Changes made while browsing that the preview can't show can only be
+	// seen in the editor.
 	const changeCountRef = useRef( unseenChangeCount );
 	useEffect( () => {
 		if (
 			unseenChangeCount > changeCountRef.current &&
-			surface === SURFACE_PREVIEW &&
+			isPreviewing &&
 			editorEntity
 		) {
 			showEditor();
 		}
 
 		changeCountRef.current = unseenChangeCount;
-		// Only a new change should switch, not the surface changing.
+		// Only a new change should switch, not the mode changing.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ unseenChangeCount ] );
 
@@ -290,7 +310,7 @@ export function useSiteCanvas( {
 
 	/*
 	 * Hold the editor until the preview has loaded, then show it. A newer
-	 * request, or turning Preview off again, abandons the wait.
+	 * request, or picking Edit or Compose again, abandons the wait.
 	 */
 	const showPreviewWhenLoaded = ( destination ) => {
 		const wait = ( waitRef.current += 1 );
@@ -302,7 +322,7 @@ export function useSiteCanvas( {
 			}
 
 			setIsAwaitingPreview( false );
-			setSurface( SURFACE_PREVIEW );
+			setCanvasMode( MODE_BROWSE );
 		} );
 	};
 
@@ -310,7 +330,7 @@ export function useSiteCanvas( {
 		// Asked again while waiting: show it now.
 		if ( isAwaitingPreview ) {
 			cancelWait();
-			setSurface( SURFACE_PREVIEW );
+			setCanvasMode( MODE_BROWSE );
 			return;
 		}
 
@@ -319,20 +339,26 @@ export function useSiteCanvas( {
 		if ( destination || isPreviewStale ) {
 			showPreviewWhenLoaded( destination );
 		} else {
-			setSurface( SURFACE_PREVIEW );
+			setCanvasMode( MODE_BROWSE );
 		}
 	};
 
-	const requestSurface = ( next ) => {
-		if ( next === SURFACE_EDITOR ) {
+	/**
+	 * Move to a mode, asking about unsaved changes first on the way to
+	 * Browse.
+	 *
+	 * @param {string} next `MODE_BROWSE`, `MODE_EDIT` or `MODE_COMPOSE`.
+	 */
+	const requestMode = ( next ) => {
+		if ( next !== MODE_BROWSE ) {
 			if ( editorEntity ) {
-				showEditor();
+				showEditor( next );
 			}
 
 			return;
 		}
 
-		if ( surface === SURFACE_PREVIEW ) {
+		if ( isPreviewing ) {
 			return;
 		}
 
@@ -373,7 +399,7 @@ export function useSiteCanvas( {
 			frame.reload();
 		}
 
-		setSurface( SURFACE_PREVIEW );
+		setCanvasMode( MODE_BROWSE );
 	};
 
 	const editRoute = canEdit ? getEditRoute( editorEntity ) : null;
@@ -391,20 +417,18 @@ export function useSiteCanvas( {
 		editorEntity,
 		editRoute,
 		frame,
+		editorDevice,
 		isAwaitingPreview,
+		isComposing: mode === MODE_COMPOSE,
 		isLoadingContext,
-		isPreviewing: surface === SURFACE_PREVIEW,
+		isPreviewing,
 		liveUrl: getLiveUrl( frame.location ) || url,
+		mode,
 		previewContext,
 		previewContextError,
 		previewEntity,
-		requestSurface,
+		requestMode,
 		setDevice,
 		showEditor,
-		surface,
-		togglePreview: () =>
-			requestSurface(
-				surface === SURFACE_PREVIEW ? SURFACE_EDITOR : SURFACE_PREVIEW
-			),
 	};
 }

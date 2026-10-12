@@ -5,6 +5,7 @@ const {
 	getRoute,
 	getSaveControls,
 	getStage,
+	setCanvasMode,
 	test,
 	visitEditor,
 } = require( '../utils' );
@@ -47,6 +48,8 @@ test.describe( 'Pages interactions', () => {
 		await expect( page ).toHaveURL(
 			new RegExp( `postId%3D${ testPage.id }` )
 		);
+		// The page's sections are listed while composing it.
+		await setCanvasMode( page, 'Compose' );
 		await expect(
 			stage
 				.getByRole( 'list', { name: 'The page, top to bottom' } )

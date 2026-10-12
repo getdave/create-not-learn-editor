@@ -29,7 +29,6 @@ import { pencil as pencilIcon } from '@wordpress/icons';
  * Internal dependencies
  */
 import { unlock } from '../lock-unlock';
-import { QUICK_EDIT_SETTING } from '../site-canvas/constants';
 import {
 	getTemplatePartAreaLabel,
 	getTemplatePartEditLabel,
@@ -283,13 +282,11 @@ function useTemplatePartEditState( clientId, attributes ) {
 			 * `contentOnly` is the one state there is anything to offer: the
 			 * part is locked but available to unlock. An unlocked part is
 			 * already editable where it stands, and a disabled one sits outside
-			 * the part being edited. Quick changes on the site canvas leave
-			 * the header and footer, shared by every page, to the full-screen
-			 * editor.
+			 * the part being edited. Zoomed out, the site canvas's Compose
+			 * mode offers the header and footer its own way.
 			 */
 			if (
 				getSettings().isPreviewMode ||
-				getSettings()[ QUICK_EDIT_SETTING ] ||
 				isZoomOut() ||
 				getBlockEditingMode( clientId ) !== 'contentOnly'
 			) {

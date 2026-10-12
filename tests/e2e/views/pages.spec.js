@@ -1,9 +1,10 @@
 const {
 	expect,
 	getEditorCanvas,
-	getPreviewSwitch,
-	getQuickEditor,
+	getModeToggle,
+	getSitePreview,
 	getStage,
+	setCanvasMode,
 	test,
 	visitEditor,
 } = require( '../utils' );
@@ -36,11 +37,13 @@ test.describe( 'Pages view', () => {
 			tree.getByRole( 'button', { name: `Delete ${ testPage.title }` } )
 		).toBeVisible();
 
-		// A page is open for quick edits before any page is picked.
-		await expect( getQuickEditor( page ) ).toBeVisible( {
+		// The site is on show in Browse before any page is picked.
+		await expect( getSitePreview( page ) ).toBeVisible( {
 			timeout: 15000,
 		} );
-		await expect( getPreviewSwitch( page ) ).not.toBeChecked();
+		await expect( getModeToggle( page ) ).toHaveAccessibleName(
+			'Mode: Browse'
+		);
 	} );
 
 	test( 'shows a page’s details, layout and sections', async ( {
@@ -77,6 +80,9 @@ test.describe( 'Pages view', () => {
 			layouts.getByRole( 'button', { pressed: true } )
 		).toHaveCount( 1 );
 
+		// The page's sections are listed while composing it.
+		await setCanvasMode( page, 'Compose' );
+
 		// Its one paragraph is the only section that isn't on every page.
 		const sections = stage.getByRole( 'list', {
 			name: 'The page, top to bottom',
@@ -87,7 +93,7 @@ test.describe( 'Pages view', () => {
 			} )
 		).toBeVisible( { timeout: 15000 } );
 		await expect(
-			sections.locator( '.cnl-page-section:not(.is-site-part)' )
+			sections.locator( '.cnl-page-section:not(.is-template-element)' )
 		).toHaveCount( 1 );
 
 		await expect(
