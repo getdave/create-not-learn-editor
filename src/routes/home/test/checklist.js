@@ -8,6 +8,7 @@ import {
 	hasCustomColors,
 	hasCustomFonts,
 	hasCustomGlobalStyles,
+	hasCustomSitePart,
 } from '../checklist';
 
 describe( 'creation checklist', () => {
@@ -76,6 +77,8 @@ describe( 'creation checklist', () => {
 		expect( getCreationStepStatus() ).toEqual( {
 			colors: false,
 			fonts: false,
+			footer: false,
+			header: false,
 			homepage: false,
 			identity: false,
 			pages: false,
@@ -100,10 +103,16 @@ describe( 'creation checklist', () => {
 					description: 'Pottery classes',
 					show_on_front: 'page',
 				},
+				templateParts: [
+					{ area: 'header', source: 'custom' },
+					{ area: 'footer', source: 'custom' },
+				],
 			} )
 		).toEqual( {
 			colors: true,
 			fonts: true,
+			footer: true,
+			header: true,
 			homepage: true,
 			identity: true,
 			pages: true,
@@ -131,13 +140,24 @@ describe( 'creation checklist', () => {
 		).toBe( false );
 	} );
 
+	test( 'only counts a header or footer once a changed one is saved', () => {
+		const parts = [
+			{ area: 'header', source: 'theme' },
+			{ area: 'footer', source: 'custom' },
+		];
+
+		expect( hasCustomSitePart( parts, 'header' ) ).toBe( false );
+		expect( hasCustomSitePart( parts, 'footer' ) ).toBe( true );
+		expect( hasCustomSitePart( undefined, 'header' ) ).toBe( false );
+	} );
+
 	test( 'reports progress', () => {
 		expect(
 			getCreationProgress( { identity: true, pages: true } )
 		).toEqual( {
 			done: 2,
-			percent: 40,
-			total: 5,
+			percent: 29,
+			total: 7,
 		} );
 	} );
 } );

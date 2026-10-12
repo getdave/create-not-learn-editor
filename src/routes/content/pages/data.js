@@ -156,7 +156,14 @@ export function usePageSections( pageId ) {
 
 const SITE_PART_AREAS = [ 'header', 'footer' ];
 
-function getSitePartArea( attributes, theme ) {
+/**
+ * Which site part a template part block is: its header or footer.
+ *
+ * @param {Object} attributes Template part block attributes.
+ * @param {string} theme      Current theme's stylesheet, for its ID.
+ * @return {string|undefined} `header`, `footer`, or nothing.
+ */
+export function getSitePartArea( attributes, theme ) {
 	const id = `${ attributes.theme || theme }//${ attributes.slug }`;
 	const area =
 		attributes.area ||

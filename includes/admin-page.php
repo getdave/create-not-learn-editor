@@ -779,6 +779,22 @@ function cnl_editor_get_module_map() {
 			'path' => 'routes/fonts/content.min',
 		),
 		array(
+			'id'   => 'create-not-learn-editor/routes/header/route',
+			'path' => 'routes/header/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/header/content',
+			'path' => 'routes/header/content.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/footer/route',
+			'path' => 'routes/footer/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/footer/content',
+			'path' => 'routes/footer/content.min',
+		),
+		array(
 			'id'   => 'create-not-learn-editor/routes/identity/route',
 			'path' => 'routes/identity/route.min',
 		),
@@ -893,6 +909,16 @@ function cnl_editor_get_routes() {
 			'path'           => '/design/identity',
 			'route_module'   => 'create-not-learn-editor/routes/identity/route',
 			'content_module' => 'create-not-learn-editor/routes/identity/content',
+		),
+		array(
+			'path'           => '/design/header',
+			'route_module'   => 'create-not-learn-editor/routes/header/route',
+			'content_module' => 'create-not-learn-editor/routes/header/content',
+		),
+		array(
+			'path'           => '/design/footer',
+			'route_module'   => 'create-not-learn-editor/routes/footer/route',
+			'content_module' => 'create-not-learn-editor/routes/footer/content',
 		),
 		array(
 			'path'           => '/patterns',

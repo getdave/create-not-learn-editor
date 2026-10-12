@@ -36,6 +36,10 @@ const PUBLISHED_PAGES_QUERY = {
 	status: 'publish',
 	_fields: 'id,date_gmt,modified_gmt',
 };
+const TEMPLATE_PARTS_QUERY = {
+	per_page: 100,
+	_fields: 'id,area,source',
+};
 
 function getCreationSteps( frontPageId ) {
 	return {
@@ -43,6 +47,16 @@ function getCreationSteps( frontPageId ) {
 			description: __( 'Name your site and add a logo' ),
 			title: __( 'Name & logo' ),
 			to: '/design/identity',
+		},
+		header: {
+			description: __( 'Choose how the top of every page looks' ),
+			title: __( 'Header' ),
+			to: '/design/header',
+		},
+		footer: {
+			description: __( 'Choose how the bottom of every page looks' ),
+			title: __( 'Footer' ),
+			to: '/design/footer',
 		},
 		colors: {
 			description: __( 'Pick the colors your whole site uses' ),
@@ -79,6 +93,12 @@ function useCreationData() {
 			: null;
 		const pagesArgs = [ 'postType', 'page', PUBLISHED_PAGES_QUERY ];
 		const pages = store.getEntityRecords( ...pagesArgs ) || EMPTY_ARRAY;
+		const templateParts =
+			store.getEntityRecords(
+				'postType',
+				'wp_template_part',
+				TEMPLATE_PARTS_QUERY
+			) || EMPTY_ARRAY;
 		const frontPageId =
 			site?.show_on_front === 'page' ? site?.page_on_front : 0;
 
@@ -93,6 +113,7 @@ function useCreationData() {
 				! store.hasFinishedResolution( 'getEntityRecords', pagesArgs ),
 			publishedPageCount: pages.length,
 			site,
+			templateParts,
 		};
 	}, [] );
 }
@@ -163,12 +184,14 @@ export default function Stage() {
 		isLoading,
 		publishedPageCount,
 		site,
+		templateParts,
 	} = useCreationData();
 	const status = getCreationStepStatus( {
 		frontPage,
 		globalStyles,
 		publishedPageCount,
 		site,
+		templateParts,
 	} );
 	const progress = getCreationProgress( status );
 	const steps = getCreationSteps( frontPageId );

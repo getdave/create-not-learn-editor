@@ -62,7 +62,7 @@ function useMediaRecord( mediaId ) {
  *
  * @return {Object} Site identity values and actions.
  */
-function useSiteIdentity() {
+export function useSiteIdentity() {
 	const { editEntityRecord } = useDispatch( coreDataStore );
 	const { hasEdits, isLoading, isSaving, site } = useSelect( ( select ) => {
 		const store = select( coreDataStore );
@@ -101,7 +101,7 @@ function useSiteIdentity() {
 	};
 }
 
-function SiteMediaSetting( {
+export function SiteMediaSetting( {
 	description,
 	imageClassName = '',
 	label,
