@@ -60,6 +60,11 @@ const NOT_EDITABLE = {
  * whenever a block is added to or removed from the part, which would otherwise
  * strand the author mid-edit.
  *
+ * On the site canvas, which is for quick changes, a part is only ever entered
+ * by the Header and Footer screens. There every block in it is locked to its
+ * content instead, as the page's own blocks are, since an entered section
+ * otherwise opens its blocks up completely.
+ *
  * @param {string}           clientId The template part's client ID.
  * @param {HTMLElement|null} element  The part's DOM element.
  * @return {boolean} Whether the part is currently being edited.
@@ -76,20 +81,33 @@ function useUnlockedTemplatePart( clientId, element ) {
 		[ clientId ]
 	);
 
+	const isQuickEdit = useSelect(
+		( select ) =>
+			!! select( blockEditorStore ).getSettings()[ QUICK_EDIT_SETTING ],
+		[]
+	);
+	const editingMode = isQuickEdit ? 'contentOnly' : 'default';
+
 	const lockedModes = useSelect(
 		( select ) => {
 			if ( ! isEditing ) {
 				return EMPTY_ARRAY;
 			}
 
-			const { getBlockEditingMode, getBlockOrder } =
-				select( blockEditorStore );
+			const {
+				getBlockEditingMode,
+				getBlockOrder,
+				getClientIdsOfDescendants,
+			} = select( blockEditorStore );
+			const ids = isQuickEdit
+				? getClientIdsOfDescendants( clientId )
+				: getBlockOrder( clientId );
 
-			return [ clientId, ...getBlockOrder( clientId ) ].map(
+			return [ clientId, ...ids ].map(
 				( id ) => `${ id }:${ getBlockEditingMode( id ) }`
 			);
 		},
-		[ clientId, isEditing ]
+		[ clientId, isEditing, isQuickEdit ]
 	);
 
 	useEffect( () => {
@@ -98,7 +116,7 @@ function useUnlockedTemplatePart( clientId, element ) {
 		}
 
 		const locked = lockedModes
-			.filter( ( entry ) => ! entry.endsWith( ':default' ) )
+			.filter( ( entry ) => ! entry.endsWith( `:${ editingMode }` ) )
 			.map( ( entry ) => entry.slice( 0, entry.lastIndexOf( ':' ) ) );
 
 		if ( ! locked.length ) {
@@ -113,10 +131,10 @@ function useUnlockedTemplatePart( clientId, element ) {
 		registry.batch( () => {
 			for ( const id of locked ) {
 				__unstableMarkNextChangeAsNotPersistent();
-				setBlockEditingMode( id, 'default' );
+				setBlockEditingMode( id, editingMode );
 			}
 		} );
-	}, [ isEditing, lockedModes, registry ] );
+	}, [ editingMode, isEditing, lockedModes, registry ] );
 
 	useEffect( () => {
 		if ( ! isEditing ) {
@@ -130,23 +148,36 @@ function useUnlockedTemplatePart( clientId, element ) {
 
 			hasLiftedLocks.current = false;
 
-			const { getBlockOrder } = registry.select( blockEditorStore );
+			const { getBlockOrder, getClientIdsOfDescendants } =
+				registry.select( blockEditorStore );
 			const {
 				setBlockEditingMode,
+				unsetBlockEditingMode,
 				__unstableMarkNextChangeAsNotPersistent,
 			} = registry.dispatch( blockEditorStore );
+			const children = getBlockOrder( clientId );
 
 			registry.batch( () => {
 				__unstableMarkNextChangeAsNotPersistent();
 				setBlockEditingMode( clientId, 'contentOnly' );
 
-				for ( const child of getBlockOrder( clientId ) ) {
+				for ( const child of children ) {
 					__unstableMarkNextChangeAsNotPersistent();
 					setBlockEditingMode( child, 'disabled' );
 				}
+
+				// Locks set further down, on the site canvas, are dropped.
+				if ( isQuickEdit ) {
+					for ( const id of getClientIdsOfDescendants( clientId ) ) {
+						if ( ! children.includes( id ) ) {
+							__unstableMarkNextChangeAsNotPersistent();
+							unsetBlockEditingMode( id );
+						}
+					}
+				}
 			} );
 		};
-	}, [ clientId, isEditing, registry ] );
+	}, [ clientId, isEditing, isQuickEdit, registry ] );
 
 	/*
 	 * Leaving by clicking away.

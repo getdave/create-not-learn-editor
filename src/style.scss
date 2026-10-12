@@ -4,6 +4,7 @@
 @use "./routes/content/pages/style" as pages;
 @use "./site-canvas/style" as site-canvas;
 @use "./routes/site-overview/style" as site-overview;
+@use "./routes/site-part/style" as site-part;
 @use "./design-picker/style" as design-picker;
 @use "./section-picker/style" as section-picker;
 @use "./editor-extensions/style" as editor-extensions;

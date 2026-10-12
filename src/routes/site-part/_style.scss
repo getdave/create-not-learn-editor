@@ -1,0 +1,90 @@
+// The Header and Footer screens: what can be changed about the part, and the
+// theme's layouts for it.
+
+.cnl-site-part__menu-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cnl-site-part__layouts {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-md);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.cnl-site-part__layout {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	overflow: hidden;
+	padding: 0;
+	border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-lg);
+	background: var(--wpds-color-background-surface-neutral-strong);
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: var(--wpds-cursor-control);
+	// Selected, the ring lies over the border rather than outside it.
+	outline: var(--wpds-border-width-md) solid transparent;
+	outline-offset: calc(var(--wpds-border-width-xs) * -1);
+	transition:
+		border-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle),
+		outline-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+
+	&:hover {
+		border-color: var(--wpds-color-stroke-interactive-neutral-active);
+	}
+
+	&:focus-visible {
+		outline-color: var(--wpds-color-stroke-focus);
+	}
+
+	&.is-current {
+		outline-color: var(--wpds-color-stroke-interactive-brand);
+		cursor: default;
+	}
+}
+
+// Wide and short, as headers and footers are. The preview scales the part to
+// the card's width, and anything taller is cut off at the bottom.
+.cnl-site-part__layout-preview {
+	display: block;
+	max-height: 120px;
+	overflow: hidden;
+	border-bottom: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral-weak);
+	pointer-events: none;
+}
+
+.cnl-site-part__layout-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--wpds-dimension-gap-md);
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+}
+
+.cnl-site-part__layout-title {
+	overflow: hidden;
+	font-size: var(--wpds-typography-font-size-sm);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cnl-site-part__layout-current {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 2px;
+	color: var(--wpds-color-foreground-interactive-brand);
+	font-size: var(--wpds-typography-font-size-sm);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+
+	svg {
+		fill: currentcolor;
+	}
+}

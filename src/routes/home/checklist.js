@@ -17,6 +17,8 @@ import {
 
 export const CREATION_STEP_IDS = [
 	'identity',
+	'header',
+	'footer',
 	'colors',
 	'fonts',
 	'homepage',
@@ -114,6 +116,20 @@ export function hasBeenEdited( page ) {
 }
 
 /**
+ * Whether the site has a saved, changed version of a site part. A theme's
+ * own part only becomes `custom` once it has been changed and saved.
+ *
+ * @param {Object[]} templateParts Template part records.
+ * @param {string}   area          `header` or `footer`.
+ * @return {boolean} Whether a part for the area has been changed.
+ */
+export function hasCustomSitePart( templateParts, area ) {
+	return ( templateParts || [] ).some(
+		( part ) => part?.area === area && part?.source === 'custom'
+	);
+}
+
+/**
  * Work out which creation steps are complete.
  *
  * @param {Object} data                    Site data.
@@ -121,6 +137,7 @@ export function hasBeenEdited( page ) {
  * @param {Object} data.globalStyles       User global styles record.
  * @param {Object} data.frontPage          Page shown on the front of the site.
  * @param {number} data.publishedPageCount Number of published pages.
+ * @param {Array}  data.templateParts      Template part records.
  * @return {Object<string, boolean>} Completion keyed by step ID.
  */
 export function getCreationStepStatus( {
@@ -128,9 +145,12 @@ export function getCreationStepStatus( {
 	globalStyles,
 	publishedPageCount = 0,
 	site,
+	templateParts,
 } = {} ) {
 	return {
 		identity: Boolean( site?.description?.trim() || site?.site_logo ),
+		header: hasCustomSitePart( templateParts, 'header' ),
+		footer: hasCustomSitePart( templateParts, 'footer' ),
 		colors: hasCustomColors( globalStyles ),
 		fonts: hasCustomFonts( globalStyles ),
 		homepage:
