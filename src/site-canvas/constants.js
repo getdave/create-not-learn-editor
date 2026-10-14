@@ -1,12 +1,9 @@
-export const SURFACE_PREVIEW = 'preview';
-export const SURFACE_EDITOR = 'editor';
-
 /*
- * A block editor setting the site canvas forces while its editor is open for
- * quick changes, so editor extensions can hold back what is meant for the
- * full-screen editor. Read it with `getSettings()`.
+ * A block editor setting the Header and Footer screens force while their
+ * canvas is open, so a header or footer entered there has its blocks locked
+ * to their content, words and images only. Read it with `getSettings()`.
  */
-export const QUICK_EDIT_SETTING = 'cnlIsQuickEdit';
+export const LOCKED_PART_CONTENT_SETTING = 'cnlLocksPartContent';
 
 export const DEFAULT_DEVICE = 'desktop';
 
@@ -17,5 +14,5 @@ export const EDITOR_DEVICES = {
 	tablet: 'Tablet',
 };
 
-// How long to hold a switch to Preview for the preview to load.
+// How long to hold a switch to Browse for the preview to load.
 export const PREVIEW_WAIT_TIMEOUT_MS = 15000;

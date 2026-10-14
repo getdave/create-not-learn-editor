@@ -8,6 +8,7 @@ import { createElement as el, Fragment, useEffect } from '@wordpress/element';
 /**
  * Internal dependencies
  */
+import { MODE_BROWSE, useCanvasMode } from '../site-canvas/mode';
 import { useIsEditCanvas } from './canvas-mode';
 import { useDistractionFreeEntry } from './distraction-free';
 import { closeSectionPicker, EditorSectionPicker } from './section-picker';
@@ -26,7 +27,8 @@ const NOT_EDITING = {};
  * The editor layer's composition root.
  *
  * Mounted once, outside boot's tree. The only UI it renders itself is the
- * section picker, opened from a section's options menu. Otherwise, what it
+ * section picker, opened from a section's options menu, or from Compose on the
+ * site canvas, whose editor is open in Edit and Compose too. Otherwise, what it
  * owns is the editor state the layer's stylesheet keys off, published
  * as data attributes on its own element, the settings it forces, and the
  * section wording core's pattern strings take while a page is open. Custom
@@ -62,12 +64,15 @@ export function EditorLayer() {
 	useDistractionFreeEntry( isEditCanvas );
 	useSectionWording( postType === 'page' );
 
+	const canvasMode = useCanvasMode();
+	const canPickSections = isEditCanvas || canvasMode !== MODE_BROWSE;
+
 	// A picker asked for in one editor doesn't outlive it.
 	useEffect( () => {
-		if ( ! isEditCanvas ) {
+		if ( ! canPickSections ) {
 			closeSectionPicker();
 		}
-	}, [ isEditCanvas ] );
+	}, [ canPickSections ] );
 
 	return el(
 		Fragment,
@@ -77,6 +82,6 @@ export function EditorLayer() {
 			'data-post-type': postType || undefined,
 			'data-selected-block': selectedBlockName || undefined,
 		} ),
-		isEditCanvas && el( EditorSectionPicker )
+		canPickSections && el( EditorSectionPicker )
 	);
 }

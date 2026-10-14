@@ -2,14 +2,16 @@
  * The Pages canvas: the page being worked on, always in view, and linked to
  * the sidebar section by section.
  *
- * It is a site canvas: Preview shows the saved page as visitors see it, and
- * Edit changes it in place. Following a link in the preview to another page
- * opens that page in the sidebar, and picking a page there moves the preview.
+ * It is a site canvas: Browse shows the saved page as visitors see it, Edit
+ * changes it in place, and Compose works on its sections. Following a link in
+ * the preview to another page opens that page in the sidebar, and picking a
+ * page there moves the preview.
  *
  * In Edit, a section picked in the sidebar is marked on the page, and while a
- * section is being added or dragged, a marker shows where it will land. Both
- * switch the canvas to Edit, where they can be seen, as do changes made from
- * the sidebar.
+ * section is being added or dragged, a marker shows where it will land. In
+ * Compose, its own layer marks them instead, and what it points at and picks
+ * is pointed at and picked in the sidebar too. Changes made from the sidebar
+ * leave Browse, where they can't be seen.
  */
 
 /**
@@ -37,7 +39,7 @@ import {
 	getTemplateElementKey,
 	getTemplateElementLabel,
 } from './page-sections';
-import { useSectionBridge } from './section-bridge';
+import { sectionBridge, useSectionBridge } from './section-bridge';
 import {
 	__,
 	Button,
@@ -252,7 +254,16 @@ function useLinkedSections( { canvasDocument, items } ) {
 		// A section that was just added may not have rendered yet.
 		const retry = window.setTimeout( mark, 400 );
 
-		return () => window.clearTimeout( retry );
+		return () => {
+			window.clearTimeout( retry );
+			canvasDocument
+				.querySelectorAll(
+					MARKER_CLASSES.map( ( name ) => `.${ name }` ).join()
+				)
+				.forEach( ( node ) =>
+					node.classList.remove( ...MARKER_CLASSES )
+				);
+		};
 		// `getNode` reads `items`, which is a dependency.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ canvasDocument, hoveredKey, insertionIndex, items, selectedKey ] );
@@ -572,6 +583,62 @@ function LinkedSections( { canvasDocument, pageId } ) {
 	return null;
 }
 
+/**
+ * Link Compose to the sidebar's list of the page's sections: what one points
+ * at or picks, the other does too.
+ *
+ * The sidebar knows sections by the page's own client IDs and Compose by the
+ * editor's, which are matched up by position. See `getLinkedItems`.
+ *
+ * @param {number} pageId The page on show.
+ * @return {Function} A hook for `ComposeLayer` to call.
+ */
+function useComposeSyncHook( pageId ) {
+	return useMemo(
+		() =>
+			function usePagesComposeSync() {
+				const { blocks } = usePageSections( pageId );
+				const structure = usePreviewStructure();
+				const items = useMemo(
+					() => getLinkedItems( blocks, structure ),
+					[ blocks, structure ]
+				);
+				const hoveredKey = useSectionBridge(
+					( state ) => state.hoveredId
+				);
+				const selectedKey = useSectionBridge(
+					( state ) => state.selectedId
+				);
+				const selectedFrom = useSectionBridge(
+					( state ) => state.selectedFrom
+				);
+
+				return useMemo( () => {
+					const toEditor = ( key ) =>
+						items.find( ( item ) => item.key === key )?.previewId ??
+						null;
+					const toKey = ( clientId ) =>
+						items.find( ( item ) => item.previewId === clientId )
+							?.key ?? null;
+
+					return {
+						hoveredId: toEditor( hoveredKey ),
+						// Only what the sidebar picks; Compose knows its own.
+						selectedId:
+							selectedFrom === 'canvas'
+								? null
+								: toEditor( selectedKey ),
+						onHover: ( clientId ) =>
+							sectionBridge.hover( toKey( clientId ) ),
+						onSelect: ( clientId ) =>
+							sectionBridge.select( toKey( clientId ), 'canvas' ),
+					};
+				}, [ hoveredKey, items, selectedFrom, selectedKey ] );
+			},
+		[ pageId ]
+	);
+}
+
 function PagesCanvas() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
@@ -636,6 +703,7 @@ function PagesCanvas() {
 		url: getPagePreviewUrl( page, savedTemplate ),
 	} );
 	const canvasDocument = useCanvasDocument( editorRef, pageId );
+	const useComposeSync = useComposeSyncHook( pageId );
 	const scrollRequest = useSectionBridge( ( state ) => state.scrollRequest );
 	const insertionIndex = useSectionBridge(
 		( state ) => state.insertionIndex
@@ -668,7 +736,7 @@ function PagesCanvas() {
 	}, [ previewPageId ] );
 
 	// A section picked, or about to be added, can only be marked in the
-	// editor.
+	// editor, in Edit or Compose.
 	useEffect( () => {
 		if ( scrollRequest || insertionIndex !== null ) {
 			canvas.showEditor();
@@ -683,10 +751,12 @@ function PagesCanvas() {
 	return el(
 		Fragment,
 		null,
-		el( LinkedSections, { canvasDocument, pageId } ),
+		! canvas.isComposing &&
+			el( LinkedSections, { canvasDocument, pageId } ),
 		el( SiteCanvas, {
 			canvas,
 			className: `cnl-pages-canvas${ drilledId ? ' is-drilled' : '' }`,
+			useComposeSync,
 			document: el( PageDocument, {
 				isFrontPage: pageId === frontPageId,
 				page,

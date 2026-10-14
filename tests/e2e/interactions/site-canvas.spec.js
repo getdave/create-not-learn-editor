@@ -1,25 +1,30 @@
 /**
- * The site canvas beside Home, Pages and Design: quick edits, the Preview
- * switch and its history, Edit, devices and the More options menu.
+ * The site canvas beside Home, Pages and Design: its Browse, Edit and Compose
+ * modes, the preview's history, the full editor, devices and the More options
+ * menu. Compose has its own file.
  */
 const {
 	expect,
 	expectBlockEditor,
-	getPreviewSwitch,
-	getQuickEditor,
+	expectCanvasMode,
+	getCanvasEditor,
+	getComposeButton,
+	getModeToggle,
 	getRoute,
 	getSitePreview,
-	showSitePreview,
+	openSidebarLink,
+	pickCanvasMode,
+	setCanvasMode,
 	test,
 	visitEditor,
 } = require( '../utils' );
 
 test.describe( 'Site canvas interactions', () => {
-	test( 'Preview shows the site as visitors see it, and switches back', async ( {
+	test( 'Browse shows the site as visitors see it, and Edit switches to the editor', async ( {
 		page,
 	} ) => {
 		await visitEditor( page );
-		await showSitePreview( page );
+		await expectCanvasMode( page, 'Browse' );
 
 		const preview = getSitePreview( page );
 		const frame = page.frameLocator( 'iframe[title="Site preview"]' );
@@ -34,9 +39,99 @@ test.describe( 'Site canvas interactions', () => {
 			page.getByRole( 'group', { name: 'Preview history' } )
 		).toBeVisible();
 
-		await getPreviewSwitch( page ).uncheck();
+		await setCanvasMode( page, 'Edit' );
 		await expect( preview ).toBeHidden();
-		await expect( getQuickEditor( page ) ).toBeVisible();
+		await expect( getCanvasEditor( page ) ).toBeVisible();
+		await expect(
+			page.getByRole( 'group', { name: 'Preview history' } )
+		).toHaveCount( 0 );
+
+		await setCanvasMode( page, 'Browse' );
+		await expect(
+			page.getByRole( 'group', { name: 'Preview history' } )
+		).toBeVisible();
+	} );
+
+	test( 'Browse and Edit are a toggle; Compose is offered while editing', async ( {
+		page,
+	} ) => {
+		await visitEditor( page );
+
+		const toggle = getModeToggle( page );
+		const compose = getComposeButton( page );
+
+		await expect(
+			toggle.getByRole( 'radio', { name: 'Browse' } )
+		).toBeChecked();
+		await expect( compose ).toHaveCount( 0 );
+
+		await setCanvasMode( page, 'Edit' );
+		await expect( compose ).toBeVisible();
+		await expect( compose ).toHaveAttribute( 'aria-pressed', 'false' );
+
+		// Compose is editing from further away: the toggle stays on Edit.
+		await compose.click();
+		await expectCanvasMode( page, 'Compose' );
+		await expect(
+			toggle.getByRole( 'radio', { name: 'Edit' } )
+		).toBeChecked();
+
+		// Escape, with nothing picked, steps back in to Edit.
+		await page.keyboard.press( 'Escape' );
+		await expectCanvasMode( page, 'Edit' );
+	} );
+
+	test( 'the mode carries over to another screen, but not a reload', async ( {
+		page,
+	} ) => {
+		await visitEditor( page );
+		await setCanvasMode( page, 'Edit' );
+
+		await openSidebarLink( page, 'Pages' );
+		await expect.poll( () => getRoute( page ) ).toMatch( /^\/types\/page/ );
+		await expectCanvasMode( page, 'Edit' );
+
+		await page.reload();
+		await expectCanvasMode( page, 'Browse' );
+	} );
+
+	test( 'leaving Edit with unsaved changes asks to save them', async ( {
+		page,
+		rest,
+	} ) => {
+		const testPage = await rest.createPage();
+
+		await visitEditor(
+			page,
+			`/types/page/list/all?previewId=${ testPage.id }`
+		);
+		await expect(
+			page.locator( '.cnl-editor-homepage-document__title' )
+		).toHaveText( testPage.title, { timeout: 15000 } );
+		await setCanvasMode( page, 'Edit' );
+
+		const paragraph = getCanvasEditor( page )
+			.contentFrame()
+			.getByText( testPage.body );
+
+		await paragraph.click();
+		await page.keyboard.press( 'End' );
+		await page.keyboard.type( ' changed' );
+
+		await pickCanvasMode( page, 'Browse' );
+
+		const dialog = page.getByRole( 'dialog', {
+			name: 'Save your changes?',
+		} );
+
+		await expect( dialog ).toBeVisible();
+		await dialog.getByRole( 'button', { name: 'Discard' } ).click();
+		await expectCanvasMode( page, 'Browse' );
+		await expect(
+			page
+				.frameLocator( 'iframe[title="Site preview"]' )
+				.getByText( testPage.body, { exact: true } )
+		).toBeVisible();
 	} );
 
 	test( 'switches the canvas between desktop and mobile', async ( {
@@ -77,7 +172,7 @@ test.describe( 'Site canvas interactions', () => {
 		const frame = page.frameLocator( 'iframe[title="Site preview"]' );
 
 		await expect( title ).toHaveText( source.title, { timeout: 15000 } );
-		await showSitePreview( page );
+		await expectCanvasMode( page, 'Browse' );
 		await expect( title ).toHaveText( source.title );
 		await expect( meta ).toHaveText( 'Page · Published' );
 		await expect( back ).toBeDisabled();
@@ -103,17 +198,24 @@ test.describe( 'Site canvas interactions', () => {
 		).toBeVisible();
 	} );
 
-	test( 'Edit opens the page in the full-screen editor', async ( {
+	test( 'More options opens the page in the full-screen editor', async ( {
 		page,
 	} ) => {
 		await visitEditor( page );
 
-		const edit = page
-			.locator( '.cnl-editor-homepage-toolbar' )
-			.getByRole( 'button', { name: 'Edit', exact: true } );
+		const openFull = page.getByRole( 'menuitem', {
+			name: 'Open in full editor',
+		} );
 
-		await expect( edit ).toBeEnabled( { timeout: 15000 } );
-		await edit.click();
+		// It's in the menu, not on the toolbar, in any mode.
+		await expect(
+			page
+				.locator( '.cnl-editor-homepage-toolbar' )
+				.getByRole( 'button', { name: 'Open in full editor' } )
+		).toHaveCount( 0 );
+		await page.getByRole( 'button', { name: 'More options' } ).click();
+		await expect( openFull ).toBeEnabled( { timeout: 15000 } );
+		await openFull.click();
 
 		await expect
 			.poll( () => getRoute( page ), { timeout: 15000 } )

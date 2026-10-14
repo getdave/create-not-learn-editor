@@ -1,3 +1,6 @@
+@use "@wordpress/base-styles/colors" as wp-colors;
+@use "@wordpress/base-styles/variables" as wp;
+@use "../colors" as *;
 @use "../editor-layer/edit-original";
 
 .cnl-site-canvas {
@@ -14,17 +17,66 @@
 /*
  * The device switcher and overflow menu read as one cluster. Flush: each
  * 40px button already carries its own padding around a smaller icon, so no
- * extra gap is needed between them. The Preview switch sits a little apart.
+ * extra gap is needed between them.
  */
 .cnl-site-canvas .cnl-editor-homepage-toolbar__right {
 	gap: 0;
 }
 
-.cnl-site-canvas__preview-toggle {
-	display: flex;
-	align-items: center;
-	margin-inline-end: 12px;
+/*
+ * Browse | Edit. Shorter than the toolbar's 40px buttons, so it doesn't
+ * dominate the toolbar, always bordered, and the picked mode in the admin
+ * colour. Core draws the picked option's backdrop as the control's
+ * `::before`.
+ */
+.cnl-site-canvas__mode-toggle.components-toggle-group-control {
+	flex-shrink: 0;
+	align-self: center;
+	width: auto;
+	height: 32px;
+	min-height: 32px;
+	border-color: wp-colors.$gray-600;
 	white-space: nowrap;
+
+	.components-toggle-group-control-option-base {
+		height: 30px;
+		min-height: 30px;
+	}
+
+	&::before {
+		border-color: var(--wp-admin-theme-color);
+		background: var(--wp-admin-theme-color);
+	}
+
+	.components-toggle-group-control-option-base[aria-checked="true"],
+	.components-toggle-group-control-option-base[aria-checked="true"]:hover {
+		color: #fff;
+	}
+
+	// Hovering the picked mode darkens its backdrop; the text stays white.
+	&:has(.components-toggle-group-control-option-base[aria-checked="true"]:hover)::before {
+		border-color: var(--wp-admin-theme-color-darker-10);
+		background: var(--wp-admin-theme-color-darker-10);
+	}
+}
+
+/*
+ * Compose, a normal icon button beside the toggle, in the admin colour while
+ * it is on, as the toggle's picked mode is.
+ */
+.cnl-site-canvas__compose-button.components-button {
+	flex-shrink: 0;
+
+	&.is-pressed,
+	&.is-pressed:hover:not(:disabled),
+	&.is-pressed:focus:not(:disabled) {
+		background: var(--wp-admin-theme-color);
+		color: #fff;
+	}
+
+	&.is-pressed:hover:not(:disabled) {
+		background: var(--wp-admin-theme-color-darker-10);
+	}
 }
 
 .cnl-site-canvas__awaiting {
@@ -54,8 +106,8 @@
 }
 
 /*
- * The editor, for quick changes to a page in place. The canvas toolbar stands
- * in for the editor's header, and the full-screen editor is a click away for
+ * The editor, for changing a page in place. The canvas toolbar stands in for
+ * the editor's header, and the full-screen editor is a click away for
  * everything the hidden panels offer, so only the page itself shows.
  */
 .cnl-inline-editor {
@@ -70,22 +122,6 @@
 	.interface-interface-skeleton__sidebar,
 	.interface-interface-skeleton__footer,
 	.interface-interface-skeleton__actions {
-		display: none;
-	}
-}
-
-/*
- * Quick changes only. The content-only lock still lets a block that isn't in
- * a section be moved, duplicated, removed or have blocks added around it, so
- * the controls for those are hidden. Sections are arranged from the stage, and
- * anything more is for the full-screen editor.
- */
-.cnl-inline-editor {
-
-	.block-editor-block-toolbar .block-editor-block-mover,
-	.block-editor-block-toolbar .block-editor-block-settings-menu,
-	.block-editor-block-list__insertion-point-inserter,
-	.block-editor-block-list__block-side-inserter-popover {
 		display: none;
 	}
 }
@@ -177,4 +213,268 @@
 	display: flex;
 	gap: 12px;
 	justify-content: flex-end;
+}
+
+/*
+ * Compose. Core zooms the editor out, and the Compose layer takes over
+ * everything else. Whatever core's own zoom-out still draws outside the
+ * canvas, its toolbars and inserters, is hidden in case it ever comes up.
+ */
+.cnl-site-canvas.is-compose .cnl-inline-editor {
+
+	.block-editor-block-popover,
+	.block-editor-block-list__insertion-point,
+	.block-editor-block-list__zoom-out-separator,
+	.block-editor-block-tools__zoom-out-mode-inserter-button {
+		display: none;
+	}
+}
+
+/*
+ * A desktop's width for the editor while core measures it, before zooming
+ * out. See `use-compose-zoom.js`. Hidden meanwhile, so the page laid out
+ * wider than the canvas never shows.
+ */
+.cnl-site-canvas__editor.is-compose-widening {
+	right: auto;
+	width: 1280px;
+	visibility: hidden;
+}
+
+.cnl-compose-layer {
+	position: absolute;
+	z-index: 40;
+	inset: 0;
+	overflow: hidden;
+	cursor: default;
+}
+
+.cnl-compose-layer__clip {
+	position: absolute;
+	overflow: hidden;
+}
+
+.cnl-compose-layer__target {
+	position: absolute;
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	cursor: pointer;
+	outline: 1px solid transparent;
+	outline-offset: -1px;
+	transition: outline-color 100ms ease, background-color 100ms ease;
+
+	&.is-hovered {
+		outline-color: var(--wp-admin-theme-color);
+	}
+
+	&.is-selected {
+		outline: 2px solid var(--wp-admin-theme-color);
+		outline-offset: -2px;
+	}
+
+	&.is-dragged {
+		background: rgba(255, 255, 255, 0.6);
+	}
+
+	/*
+	 * What the template adds, rather than the page itself: always marked, in
+	 * the purple the Pages sidebar uses for it, so the page's own sections
+	 * stand apart.
+	 */
+	&.is-template {
+		outline: 1px dashed color-mix(in srgb, #{$cnl-global} 55%, transparent);
+		background: color-mix(in srgb, #{$cnl-global} 6%, transparent);
+
+		&.is-hovered {
+			outline: 1px solid $cnl-global;
+			background: color-mix(in srgb, #{$cnl-global} 10%, transparent);
+		}
+
+		&.is-selected,
+		&:focus-visible {
+			outline: 2px solid $cnl-global;
+			outline-offset: -2px;
+		}
+
+		.cnl-compose-layer__label {
+			background: $cnl-global;
+		}
+	}
+
+	&:is(div) {
+		cursor: default;
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--wp-admin-theme-color);
+		outline-offset: -2px;
+	}
+}
+
+.cnl-compose-layer__label {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	left: auto;
+	width: max-content;
+	max-width: calc(100% - 16px);
+	overflow: hidden;
+	padding: 2px 8px;
+	border-radius: 2px;
+	background: var(--wp-admin-theme-color);
+	color: #fff;
+	font-size: 12px;
+	line-height: 20px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+.cnl-compose-layer__label-note {
+	margin-inline-start: 6px;
+	opacity: 0.8;
+}
+
+/*
+ * A zone around each "+", centred on the line between two sections, wide
+ * and tall enough to keep the "+" showing while the pointer travels to it.
+ * Sized in `compose-layer.js`. It makes no stacking context of its own, so
+ * every "+" sits above every zone, even where short sections bring them
+ * close.
+ */
+.cnl-compose-layer__gap {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 96px;
+	height: 40px;
+
+	.cnl-compose-layer__gap-button.components-button {
+		position: relative;
+		z-index: 1;
+		min-width: 24px;
+		height: 24px;
+		padding: 0;
+		border-radius: 50%;
+		opacity: 0;
+		transition: opacity 100ms ease;
+	}
+
+	&.is-visible .cnl-compose-layer__gap-button.components-button,
+	.cnl-compose-layer__gap-button.components-button:focus-visible {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	.cnl-compose-layer__gap .cnl-compose-layer__gap-button.components-button {
+		transition: none;
+	}
+}
+
+.cnl-compose-layer__drop-line {
+	position: absolute;
+	height: 0;
+	border-top: 3px solid var(--wp-admin-theme-color);
+	transform: translateY(-1.5px);
+	pointer-events: none;
+}
+
+.cnl-compose-layer__add {
+	position: absolute;
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px dashed var(--wpds-color-stroke-surface-neutral-strong);
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.92);
+
+	&.is-empty {
+		padding: 24px;
+	}
+}
+
+.cnl-compose-layer__toolbar {
+	position: absolute;
+	z-index: 2;
+}
+
+/*
+ * Core's block toolbar. Core borders it only inside its own block popover,
+ * so the same rule, with core's values, is given to Compose's toolbars.
+ */
+.cnl-compose-layer__toolbar .block-editor-block-contextual-toolbar.components-accessible-toolbar {
+	position: static;
+	width: auto;
+	overflow: visible;
+	border: wp.$border-width solid wp-colors.$gray-900;
+	border-radius: wp.$radius-small;
+}
+
+body.is-dragging-compose-section,
+body.is-dragging-compose-section * {
+	cursor: grabbing !important;
+}
+
+.cnl-compose-variations__list {
+	display: grid;
+	grid-template-columns: repeat(2, 200px);
+	gap: 12px;
+	max-height: 480px;
+	overflow-y: auto;
+	padding: 12px;
+}
+
+.cnl-compose-variations__option {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	cursor: pointer;
+	text-align: start;
+
+	&:focus-visible .cnl-compose-variations__preview {
+		outline: 2px solid var(--wp-admin-theme-color);
+		outline-offset: 2px;
+	}
+
+	&:hover .cnl-compose-variations__preview {
+		border-color: #1e1e1e;
+	}
+
+	&.is-current .cnl-compose-variations__preview {
+		outline: 2px solid var(--wp-admin-theme-color);
+		outline-offset: 2px;
+	}
+}
+
+.cnl-compose-variations__preview {
+	display: block;
+	overflow: hidden;
+	border: 1px solid #ddd;
+	border-radius: 2px;
+	background: #fff;
+}
+
+.cnl-compose-variations__label {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px;
+	min-height: 20px;
+	font-size: 13px;
+}
+
+.cnl-compose-variations__check {
+	flex-shrink: 0;
+	fill: var(--wp-admin-theme-color);
 }

@@ -1,6 +1,6 @@
 /**
  * The section picker in the editor, opened by "Add section" in a section's
- * options menu.
+ * options menu, or from Compose on the site canvas.
  *
  * The menu item unmounts as soon as the selection changes, so it only asks
  * for the picker here, and the layer renders it. The request says where the
@@ -15,12 +15,15 @@ import {
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
 import { parse } from '@wordpress/blocks';
-import { useDispatch, useSelect } from '@wordpress/data';
 import {
-	createElement as el,
-	useMemo,
-	useSyncExternalStore,
-} from '@wordpress/element';
+	createReduxStore,
+	dispatch,
+	register,
+	select,
+	useDispatch,
+	useSelect,
+} from '@wordpress/data';
+import { createElement as el, useMemo } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import { store as noticesStore } from '@wordpress/notices';
 
@@ -36,18 +39,32 @@ import {
 	SectionPicker,
 } from '../section-picker';
 
-let request = null;
-const listeners = new Set();
+/*
+ * Where the picker was asked to add a section, if it was. Kept in a data
+ * store, registered once by name, so a request from a route, built separately
+ * from app init, reaches the picker the layer renders.
+ */
+const STORE_NAME = 'create-not-learn-editor/section-picker';
 
-function setRequest( next ) {
-	request = next;
-	listeners.forEach( ( listener ) => listener() );
-}
-
-function subscribe( listener ) {
-	listeners.add( listener );
-
-	return () => listeners.delete( listener );
+if ( ! select( STORE_NAME ) ) {
+	register(
+		createReduxStore( STORE_NAME, {
+			reducer( state = null, action ) {
+				return action.type === 'SET_SECTION_PICKER_REQUEST'
+					? action.request
+					: state;
+			},
+			actions: {
+				setRequest: ( request ) => ( {
+					request,
+					type: 'SET_SECTION_PICKER_REQUEST',
+				} ),
+			},
+			selectors: {
+				getRequest: ( state ) => state,
+			},
+		} )
+	);
 }
 
 /**
@@ -58,15 +75,15 @@ function subscribe( listener ) {
  * @param {number}  place.index        Index among the parent's blocks.
  */
 export function openSectionPicker( { rootClientId, index } ) {
-	setRequest( { index, rootClientId } );
+	dispatch( STORE_NAME ).setRequest( { index, rootClientId } );
 }
 
 /**
  * Close the section picker, if it is open.
  */
 export function closeSectionPicker() {
-	if ( request ) {
-		setRequest( null );
+	if ( select( STORE_NAME ).getRequest() ) {
+		dispatch( STORE_NAME ).setRequest( null );
 	}
 }
 
@@ -93,16 +110,19 @@ function EditorPreview( { content } ) {
  * @return {?Element} The picker.
  */
 export function EditorSectionPicker() {
-	const place = useSyncExternalStore( subscribe, () => request );
+	const place = useSelect(
+		( selectStore ) => selectStore( STORE_NAME ).getRequest(),
+		[]
+	);
 	const { insertBlocks, selectBlock } = useDispatch( blockEditorStore );
 	const { createSuccessNotice } = useDispatch( noticesStore );
 	const placement = useSelect(
-		( select ) => {
+		( selectStore ) => {
 			if ( ! place ) {
 				return null;
 			}
 
-			const siblings = select( blockEditorStore ).getBlocks(
+			const siblings = selectStore( blockEditorStore ).getBlocks(
 				place.rootClientId
 			);
 			const previous = siblings[ place.index - 1 ];

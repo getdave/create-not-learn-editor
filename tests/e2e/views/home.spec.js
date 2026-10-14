@@ -1,7 +1,6 @@
 const {
 	expect,
-	getPreviewSwitch,
-	getQuickEditor,
+	expectCanvasMode,
 	getSitePreview,
 	test,
 	visitEditor,
@@ -24,9 +23,11 @@ test.describe( 'Home view', () => {
 		const steps = page.getByRole( 'list', {
 			name: 'Steps to create your site',
 		} );
-		await expect( steps.getByRole( 'listitem' ) ).toHaveCount( 5 );
+		await expect( steps.getByRole( 'listitem' ) ).toHaveCount( 7 );
 		for ( const step of [
 			'Name & logo',
+			'Header',
+			'Footer',
 			'Colors',
 			'Fonts',
 			'Your homepage',
@@ -40,23 +41,22 @@ test.describe( 'Home view', () => {
 		}
 	} );
 
-	test( 'opens the homepage for quick edits', async ( { page } ) => {
+	test( 'opens the homepage in Browse', async ( { page } ) => {
 		await page.setViewportSize( { height: 1003, width: 2048 } );
 
 		const toolbar = page.locator( '.cnl-editor-homepage-toolbar' );
 		const document = toolbar.locator( '.cnl-editor-homepage-document' );
 
-		await expect( getQuickEditor( page ) ).toBeVisible( {
+		await expect( getSitePreview( page ) ).toBeVisible( {
 			timeout: 15000,
 		} );
-		await expect( getSitePreview( page ) ).toBeHidden();
-		await expect( getPreviewSwitch( page ) ).not.toBeChecked();
-		await expect(
-			toolbar.getByRole( 'button', { name: 'Edit', exact: true } )
-		).toBeEnabled( { timeout: 15000 } );
-		// History is only for moving around the preview.
+		await expectCanvasMode( page, 'Browse' );
 		await expect(
 			toolbar.getByRole( 'group', { name: 'Preview history' } )
+		).toBeVisible();
+		// Compose is only offered while editing.
+		await expect(
+			toolbar.getByRole( 'button', { name: 'Compose' } )
 		).toHaveCount( 0 );
 		await expect(
 			toolbar.getByRole( 'radio', { name: 'Desktop view' } )

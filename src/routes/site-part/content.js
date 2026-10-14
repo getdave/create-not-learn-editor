@@ -15,6 +15,7 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { useForcedBlockEditorSettings } from '../../editor-layer/settings-guard';
 import { cnlEditorStore, getTitleText } from '../../records';
 import { settings } from '../../settings';
 import {
@@ -22,6 +23,7 @@ import {
 	useCanvasDocument,
 	useSiteCanvas,
 } from '../../site-canvas';
+import { LOCKED_PART_CONTENT_SETTING } from '../../site-canvas/constants';
 import { withUiTheme } from '../../theme';
 import { getPatternContent, getPatternTitle } from '../content/page-layouts';
 import useMainMenu from '../content/use-main-menu';
@@ -58,6 +60,8 @@ import {
 } from '../../wordpress-packages';
 
 const EMPTY_ARRAY = [];
+
+const LOCKED_PART_SETTINGS = { [ LOCKED_PART_CONTENT_SETTING ]: true };
 const PAGES_PATH = '/types/page/list/default';
 
 const SITE_PARTS = {
@@ -390,12 +394,19 @@ function createCanvas( area ) {
 			isPreviewing: canvas.isPreviewing,
 		} );
 
-		// Edit opens the part itself in the full-screen editor.
+		// The part's blocks open for their words and images only.
+		useForcedBlockEditorSettings(
+			canvas.editorEntity ? LOCKED_PART_SETTINGS : null
+		);
+
+		// The full editor opens the part itself.
 		const editRoute = id
 			? { search: { postId: id }, to: '/wp_template_part' }
 			: null;
 
 		return el( SiteCanvas, {
+			// The screen is about one part, not the page's sections.
+			canCompose: false,
 			canvas: { ...canvas, editRoute },
 			className: `cnl-site-part-canvas is-${ area }`,
 			document: el( PartDocument, { area } ),

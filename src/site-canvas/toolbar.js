@@ -1,8 +1,13 @@
 /**
- * The site canvas toolbar's controls: turning Preview on and off, stepping
- * through pages visited in Preview, the preview's device, and the way out to
- * the full-screen editor.
+ * The site canvas toolbar's controls: Browse or Edit, Compose, stepping through
+ * pages visited in Browse, the preview's device, and the way out to the
+ * full-screen editor.
  */
+
+/**
+ * WordPress dependencies
+ */
+import { Tooltip as ComponentsTooltip } from '@wordpress/components';
 
 /**
  * Internal dependencies
@@ -15,17 +20,18 @@ import {
 	desktopIcon,
 	el,
 	externalIcon,
+	fullscreenIcon,
 	mobileIcon,
 	DropdownMenu,
 	MenuGroup,
 	MenuItem,
 	moreVerticalIcon,
-	pencilIcon,
-	ToggleControl,
+	squareIcon,
 	ToggleGroupControl,
+	ToggleGroupControlOption,
 	ToggleGroupControlOptionIcon,
-	Tooltip,
 } from '../wordpress-packages';
+import { MODE_BROWSE, MODE_EDIT } from './mode';
 
 function getDeviceOptions() {
 	return [
@@ -35,66 +41,74 @@ function getDeviceOptions() {
 }
 
 /**
- * Turn Preview, the saved site as visitors see it, on or off. Off, the page
- * is in the editor, for quick changes.
+ * Look at the site or change it: Browse or Edit.
  *
- * Controlled, so a switch the canvas holds back, to ask about unsaved changes
- * first, leaves it where it was.
+ * Compose is editing from further away, so it isn't a choice here; while it
+ * is on, the toggle stays on Edit. Controlled, so a switch the canvas holds
+ * back, to ask about unsaved changes first, leaves it where it was.
  *
  * @param {Object}   props
- * @param {boolean}  props.isPreviewing Whether Preview is on.
- * @param {Function} props.onToggle     Turns Preview on or off.
+ * @param {boolean}  props.canEdit  Whether what is on show can be edited.
+ * @param {string}   props.mode     The current mode.
+ * @param {Function} props.onChange Called with the mode picked.
  * @return {Element} The toggle.
  */
-export function PreviewToggle( { isPreviewing, onToggle } ) {
+export function ModeToggle( { canEdit, mode, onChange } ) {
 	return el(
-		Tooltip.Root,
-		null,
+		ToggleGroupControl,
+		{
+			__nextHasNoMarginBottom: true,
+			className: 'cnl-site-canvas__mode-toggle',
+			hideLabelFromVision: true,
+			label: __( 'Mode' ),
+			onChange,
+			value: mode === MODE_BROWSE ? MODE_BROWSE : MODE_EDIT,
+		},
+		// A word or two on what each does, beyond its name.
 		el(
-			Tooltip.Trigger,
-			{
-				className: 'cnl-site-canvas__preview-toggle',
-				render: el( 'div' ),
-			},
-			el( ToggleControl, {
-				__nextHasNoMarginBottom: true,
-				checked: isPreviewing,
-				label: __( 'Preview' ),
-				onChange: onToggle,
+			ComponentsTooltip,
+			{ placement: 'bottom', text: __( 'View your site' ) },
+			el( ToggleGroupControlOption, {
+				label: __( 'Browse' ),
+				value: MODE_BROWSE,
 			} )
 		),
 		el(
-			Tooltip.Popup,
-			{ positioner: el( Tooltip.Positioner, { side: 'bottom' } ) },
-			isPreviewing
-				? __( 'Back to editing' )
-				: __( 'See your site as visitors do' )
+			ComponentsTooltip,
+			{ placement: 'bottom', text: __( 'Change this page' ) },
+			el( ToggleGroupControlOption, {
+				disabled: ! canEdit,
+				label: __( 'Edit' ),
+				value: MODE_EDIT,
+			} )
 		)
 	);
 }
 
 /**
- * Open the page on show in the full-screen editor, to change it in more
- * detail than the canvas allows. The canvas's main action.
+ * Step back from the page to work on its sections, and back again. Offered
+ * while editing.
  *
  * @param {Object}   props
- * @param {boolean}  props.canEdit Whether what is on show can be edited.
- * @param {Function} props.onEdit  Opens the full-screen editor.
+ * @param {boolean}  props.isComposing Whether Compose is on.
+ * @param {Function} props.onToggle    Turns Compose on or off.
  * @return {Element} The button.
  */
-export function EditButton( { canEdit, onEdit } ) {
+export function ComposeButton( { isComposing, onToggle } ) {
 	return el(
-		Button,
-		{
+		ComponentsTooltip,
+		{ placement: 'bottom', text: __( 'Arrange sections' ) },
+		el( Button, {
 			__next40pxDefaultSize: true,
-			accessibleWhenDisabled: true,
-			className: 'cnl-site-canvas__edit-button',
-			disabled: ! canEdit,
-			icon: pencilIcon,
-			onClick: onEdit,
-			variant: 'primary',
-		},
-		__( 'Edit' )
+			className: 'cnl-site-canvas__compose-button',
+			// The editor's own zoom-out icon, for what is a zoomed-out view.
+			icon: squareIcon,
+			isPressed: isComposing,
+			label: __( 'Compose' ),
+			onClick: onToggle,
+			// The short hint above takes the tooltip's place.
+			showTooltip: false,
+		} )
 	);
 }
 
@@ -132,12 +146,16 @@ export function DeviceSwitcher( { device, onChange } ) {
  * Less common ways to view the canvas, tucked behind a menu so the toolbar's
  * everyday controls keep the room.
  *
- * @param {Object} props
- * @param {string} props.liveUrl The live site's URL, to open in a new tab.
- *                               Empty when there isn't one.
+ * @param {Object}    props
+ * @param {string}    props.liveUrl      The live site's URL, to open in a new
+ *                                       tab. Empty when there isn't one.
+ * @param {?Function} props.onOpenEditor Opens the page on show in the
+ *                                       full-screen editor, for changes the
+ *                                       canvas doesn't suit. Missing when
+ *                                       there is nothing to open.
  * @return {Element} The menu.
  */
-export function CanvasMoreMenu( { liveUrl } ) {
+export function CanvasMoreMenu( { liveUrl, onOpenEditor } ) {
 	return el(
 		DropdownMenu,
 		{
@@ -154,6 +172,18 @@ export function CanvasMoreMenu( { liveUrl } ) {
 			el(
 				MenuGroup,
 				null,
+				el(
+					MenuItem,
+					{
+						disabled: ! onOpenEditor,
+						icon: fullscreenIcon,
+						onClick: () => {
+							onClose();
+							onOpenEditor();
+						},
+					},
+					__( 'Open in full editor' )
+				),
 				el(
 					MenuItem,
 					{

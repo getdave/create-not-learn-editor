@@ -98,7 +98,7 @@ function EmptyPreview() {
  * appears.
  *
  * The changes made here, to the site's look and identity, stay unsaved until
- * the user saves them, and only the editor shows those, not Preview.
+ * the user saves them, and only the editor shows those, not Browse.
  *
  * @return {Element} The preview canvas.
  */

@@ -9,7 +9,7 @@ The editor that boot renders for a full-screen edit route (`/types/$type/edit/$i
 - **A stylesheet** that hides the editor chrome we replace, rather than unmounting it.
 - **A settings guard** that forces block editor settings and hands them back afterwards.
 
-All of it is scoped to boot's full-screen edit canvas, so stage screens and preview canvases are never touched.
+All of it is scoped to boot's full-screen edit canvas, so stage screens and preview canvases are never touched. The one exception is the section picker, which the site canvas (`src/site-canvas/`) also opens, from Edit and Compose.
 
 ## Files
 
@@ -21,7 +21,7 @@ All of it is scoped to boot's full-screen edit canvas, so stage screens and prev
 | `portal-host.js` | `usePortalHost()` and `EDITOR_REGIONS`. |
 | `settings-guard.js` | `useForcedBlockEditorSettings()`. |
 | `section-wording.js` | `useSectionWording()`: core's pattern strings, said as sections while a page is open. |
-| `section-picker.js` | `openSectionPicker()` and `EditorSectionPicker`: the shared "Add a section" picker (`src/section-picker/`), opened from a section's options menu. |
+| `section-picker.js` | `openSectionPicker()` and `EditorSectionPicker`: the shared "Add a section" picker (`src/section-picker/`), opened from a section's options menu or from the site canvas's Compose mode. The request lives in a data store, so routes, built separately from app init, can open it. |
 | `style.scss` | The layer's stylesheet, loaded with app init. |
 | `_edit-original.scss` | The rule hiding core's "Edit original", shared with the stage's inline editor (`src/site-canvas/`). |
 
