@@ -50,6 +50,7 @@ import {
 	getLocationAreaLabel,
 	getLocationLabel,
 	getLocationsSummary,
+	getMainMenu,
 	getTemplatePartRawContent,
 	removeNavigationMenuFromFirstBlock,
 	templatePartHasNavigationBlock,
@@ -548,6 +549,7 @@ function useNavigationMenus() {
 		isLoading,
 		isResolvingLocations,
 		locationsError,
+		mainMenuId: getMainMenu( menus, templateParts )?.id,
 		locationsMap,
 		menus,
 		selectedId,
@@ -924,6 +926,7 @@ function Stage() {
 		isResolvingLocations,
 		locationsError,
 		locationsMap,
+		mainMenuId,
 		menus,
 	} = useNavigationMenus();
 	const [ view, setView ] = useState( () =>
@@ -1103,7 +1106,11 @@ function Stage() {
 		isBusy: isRowActionSaving,
 		onDelete: openDeleteModal,
 		onDuplicate: duplicateNavigationMenu,
-		onEdit: ( menu ) => navigateToNavigationEditRoute( navigate, menu ),
+		// The main menu is looked after alongside the pages it links to.
+		onEdit: ( menu ) =>
+			getNavigationMenuId( menu ) === mainMenuId
+				? navigate( { to: '/types/page/list/all' } )
+				: navigateToNavigationEditRoute( navigate, menu ),
 		onRename: openRenameModal,
 	} );
 	const navigationEmpty = el(
@@ -1168,7 +1175,7 @@ function Stage() {
 				headingLevel: 2,
 				key: 'navigation-page',
 				subTitle: __(
-					'The links visitors use to get around your site. Most sites need one menu, shown in the header.'
+					'The links visitors use to get around your site. Your main menu, the one in your header, is looked after on the Pages screen.'
 				),
 				title: __( 'Menus' ),
 			},

@@ -5,12 +5,16 @@ import { PrivateListView } from '../../list-view';
 import {
 	blockEditorStore,
 	BlockEditorProvider,
-	BlockList,
+	blocksStore,
 	Button,
+	coreDataStore,
+	createBlock,
 	el,
 	fetchLinkSuggestions,
 	InputControl,
+	noticesStore,
 	Popover,
+	select as selectFromRegistry,
 	sprintf,
 	Spinner,
 	useCallback,
@@ -29,8 +33,28 @@ import NavigationListViewAppender from './navigation-list-view-appender';
 import { getLabelOnlyNavigationSubmenuAttributes } from './navigation-list-view-insertions';
 import NavigationListViewLinkUI from './navigation-list-view-link-ui';
 import NavigationListViewMoreMenu from './navigation-list-view-more-menu';
+import {
+	expandPageListBlocks,
+	getNavigationContentFromEditedRecord,
+	hasPageListBlock,
+	normalizeMenuItems,
+	serializeNavigationBlocks,
+} from './navigation-blocks';
 
 const EMPTY_ARRAY = [];
+
+/**
+ * The pages a menu that lists every page shows. Shared with the Menus screen's
+ * page picker so both use one cached request.
+ */
+export const MENU_PAGES_QUERY = {
+	context: 'edit',
+	order: 'asc',
+	orderby: 'menu_order',
+	per_page: 100,
+	status: 'publish',
+	_fields: 'id,link,menu_order,parent,title,type',
+};
 
 function getListViewBlockPopoverAnchorElement( listViewElement, clientId ) {
 	const rowElement = listViewElement.querySelector(
@@ -79,14 +103,38 @@ function getLabelOnlySubmenuPopoverAnchor( listViewElement, clientId ) {
 	};
 }
 
-function NavigationListViewContent( {
-	isAutoMenu,
+const SUBMENU_ALLOWED_BLOCKS = [
+	'core/navigation-link',
+	'core/navigation-submenu',
+	'core/page-list',
+];
+const FALLBACK_MENU_ALLOWED_BLOCKS = [
+	'core/home-link',
+	...SUBMENU_ALLOWED_BLOCKS,
+];
+
+/**
+ * The block the menu's items sit in, inside a menu's block editor.
+ *
+ * @return {string} Client ID to insert top-level menu items into.
+ */
+export function useMenuRootClientId() {
+	return useSelect(
+		( select ) => select( blockEditorStore ).getBlockOrder()[ 0 ] || '',
+		[]
+	);
+}
+
+export function NavigationListViewContent( {
+	blockSettingsMenu = NavigationListViewMoreMenu,
 	menuTitle,
 	onAddMenuItems,
 	onInsertionTargetChange,
 	onPendingInsertionComplete,
 	onReadyChange,
+	onSelect,
 	pendingInsertion,
+	showAppender = true,
 } ) {
 	const {
 		removeBlock,
@@ -101,51 +149,32 @@ function NavigationListViewContent( {
 	const [ labelOnlySubmenuLabel, setLabelOnlySubmenuLabel ] = useState( '' );
 	const [ labelOnlyAnchorElement, setLabelOnlyAnchorElement ] =
 		useState( null );
-	const pendingInsertionRootClientId = pendingInsertion?.parentClientId || '';
-	const { appenderParentClientId, listViewRootClientId } = useSelect(
-		( select ) => {
-			const store = select( blockEditorStore );
-			const rootBlockOrder = store.getBlockOrder();
-			const firstRootBlockClientId = rootBlockOrder[ 0 ];
-			const hasOnlyPageListBlock =
-				rootBlockOrder.length === 1 &&
-				store.getBlockName( firstRootBlockClientId ) ===
-					'core/page-list';
-			const pageListHasBlocks =
-				hasOnlyPageListBlock &&
-				store.getBlockCount( firstRootBlockClientId ) > 0;
-			const selectedClientId = store.getSelectedBlockClientId();
-			const selectedBlockName = selectedClientId
-				? store.getBlockName( selectedClientId )
-				: null;
-			const selectedRootClientId = selectedClientId
-				? store.getBlockRootClientId( selectedClientId )
-				: null;
-			const selectedRootBlockName = selectedRootClientId
-				? store.getBlockName( selectedRootClientId )
-				: null;
-			let nextAppenderParentClientId = null;
+	const rootClientId = useMenuRootClientId();
+	const pendingInsertionRootClientId =
+		pendingInsertion?.parentClientId || rootClientId;
+	const appenderParentClientId = useSelect( ( select ) => {
+		const store = select( blockEditorStore );
+		const selectedClientId = store.getSelectedBlockClientId();
 
-			if ( ! isAutoMenu ) {
-				if ( selectedBlockName === 'core/navigation-submenu' ) {
-					nextAppenderParentClientId = selectedClientId;
-				} else if (
-					selectedRootBlockName === 'core/navigation-submenu'
-				) {
-					nextAppenderParentClientId = selectedRootClientId;
-				}
-			}
+		if ( ! selectedClientId ) {
+			return null;
+		}
 
-			return {
-				appenderParentClientId: nextAppenderParentClientId,
-				listViewRootClientId:
-					isAutoMenu && pageListHasBlocks
-						? firstRootBlockClientId
-						: null,
-			};
-		},
-		[ isAutoMenu ]
-	);
+		if (
+			store.getBlockName( selectedClientId ) === 'core/navigation-submenu'
+		) {
+			return selectedClientId;
+		}
+
+		const selectedRootClientId =
+			store.getBlockRootClientId( selectedClientId );
+
+		return selectedRootClientId &&
+			store.getBlockName( selectedRootClientId ) ===
+				'core/navigation-submenu'
+			? selectedRootClientId
+			: null;
+	}, [] );
 	const pendingInsertionBlocks = useSelect(
 		( select ) =>
 			pendingInsertion
@@ -192,7 +221,7 @@ function NavigationListViewContent( {
 	}, [ appenderParentClientId, onInsertionTargetChange ] );
 
 	useEffect( () => {
-		if ( ! pendingInsertion || isAutoMenu ) {
+		if ( ! pendingInsertion ) {
 			return;
 		}
 
@@ -213,7 +242,6 @@ function NavigationListViewContent( {
 			onPendingInsertionComplete?.( pendingInsertion, error );
 		}
 	}, [
-		isAutoMenu,
 		onPendingInsertionComplete,
 		pendingInsertion,
 		pendingInsertionBlocks,
@@ -279,45 +307,28 @@ function NavigationListViewContent( {
 		updateBlockAttributes,
 	] );
 
-	const description = isAutoMenu
-		? sprintf(
-				/* translators: %s: Navigation menu title. */
-				__( 'Auto-generated structure for Navigation Menu: %s' ),
-				menuTitle
-			)
-		: sprintf(
-				/* translators: %s: Navigation menu title. */
-				__( 'Structure for Navigation Menu: %s' ),
-				menuTitle
-			);
+	const description = sprintf(
+		/* translators: %s: Navigation menu title. */
+		__( 'Structure for Navigation Menu: %s' ),
+		menuTitle
+	);
 
 	return el(
 		'div',
 		{ className: 'routes-navigation-edit-list-view', ref: listViewRef },
 		el( PrivateListView, {
-			additionalBlockContent: isAutoMenu
-				? null
-				: renderAdditionalBlockContent,
-			appenderParentClientId: isAutoMenu
-				? undefined
-				: appenderParentClientId,
-			blockSettingsMenu: isAutoMenu ? null : NavigationListViewMoreMenu,
+			additionalBlockContent: renderAdditionalBlockContent,
+			appenderParentClientId: showAppender
+				? appenderParentClientId
+				: undefined,
+			blockSettingsMenu,
 			description,
 			isExpanded: true,
-			key: listViewRootClientId || 'root',
-			renderAppender: isAutoMenu ? undefined : renderAppender,
-			rootClientId: listViewRootClientId,
-			showAppender: ! isAutoMenu,
+			onSelect,
+			renderAppender: showAppender ? renderAppender : undefined,
+			rootClientId,
+			showAppender,
 		} ),
-		el(
-			'div',
-			{
-				'aria-hidden': true,
-				className:
-					'routes-navigation-edit-list-view__helper-block-editor',
-			},
-			el( BlockList )
-		),
 		labelOnlySubmenuClientId &&
 			labelOnlyAnchorElement &&
 			el(
@@ -378,22 +389,200 @@ function NavigationListViewContent( {
 	);
 }
 
-export default function NavigationEditListView( {
-	isAutoMenu,
-	menuTitle,
+/**
+ * Tell the user a menu that listed every page now only has what is in it, with
+ * a way back.
+ *
+ * @param {Object}   args                     Arguments.
+ * @param {Function} args.createSuccessNotice Notices store action.
+ * @param {Function} args.editEntityRecord    Core data store action.
+ * @param {number}   args.navigationId        Menu ID.
+ * @param {string}   args.previousContent     Menu content before the change.
+ */
+export function showMenuSetByHandNotice( {
+	createSuccessNotice,
+	editEntityRecord,
 	navigationId,
-	onAddMenuItems,
-	onBlocksChange,
-	onInsertionTargetChange,
-	onPendingInsertionComplete,
-	onReadyChange,
-	pendingInsertion,
+	previousContent,
 } ) {
-	const [ blocks, onInput, onChange ] = useEntityBlockEditor(
+	createSuccessNotice(
+		__(
+			'Your menu is now set by hand. New pages won’t be added to it automatically.'
+		),
+		{
+			actions: [
+				{
+					label: __( 'Undo' ),
+					onClick: () =>
+						editEntityRecord(
+							'postType',
+							'wp_navigation',
+							navigationId,
+							{
+								blocks: undefined,
+								content: previousContent,
+								selection: undefined,
+							}
+						),
+				},
+			],
+			id: 'cnl-menu-set-by-hand',
+			type: 'snackbar',
+		}
+	);
+}
+
+/**
+ * A navigation menu's blocks, in a block editor of their own.
+ *
+ * A menu that lists every page (a Page List block) is shown as the pages it
+ * lists, as ordinary links, so it reads and edits like any other menu. Nothing
+ * is written until the first change, which turns the menu into those links
+ * plus the change, as one pending edit that can be undone.
+ *
+ * @param {Object}   props                Component props.
+ * @param {Element}  props.children       What renders inside the editor.
+ * @param {number}   props.navigationId   Menu ID.
+ * @param {Function} props.onBlocksChange Called with the blocks shown.
+ * @param {Function} props.onReadyChange  Called once the menu can be shown.
+ * @return {Element} The block editor.
+ */
+export function NavigationMenuEditorProvider( props ) {
+	// Parsing before the menu's block types are registered loses blocks.
+	const hasBlockTypes = useSelect(
+		( select ) =>
+			!! select( blocksStore ).getBlockType( 'core/navigation-link' ) &&
+			!! select( blocksStore ).getBlockType( 'core/page-list' ),
+		[]
+	);
+
+	if ( ! hasBlockTypes ) {
+		return el(
+			'div',
+			{ className: 'routes-navigation-edit-list-view__loading' },
+			el( Spinner )
+		);
+	}
+
+	return el( NavigationMenuEditor, props );
+}
+
+/**
+ * Say which blocks the menu and its items take. A link can take items too, and
+ * becomes a submenu when it does (see `normalizeMenuItems`).
+ *
+ * The block editor works out what goes where as blocks render, but the menu's
+ * blocks are only ever shown as a list, so nothing would otherwise allow
+ * anything to be added, moved or dropped into them.
+ *
+ * @return {null} Nothing.
+ */
+function NavigationMenuBlockListSettings() {
+	const { updateBlockListSettings } = useDispatch( blockEditorStore );
+	const { menuAllowedBlocks, parentClientIds, rootClientId } = useSelect(
+		( select ) => {
+			const store = select( blockEditorStore );
+
+			return {
+				menuAllowedBlocks:
+					select( blocksStore ).getBlockType( 'core/navigation' )
+						?.allowedBlocks || FALLBACK_MENU_ALLOWED_BLOCKS,
+				parentClientIds: [
+					...store.getBlocksByName( 'core/navigation-link' ),
+					...store.getBlocksByName( 'core/navigation-submenu' ),
+				].join( ',' ),
+				rootClientId: store.getBlockOrder()[ 0 ],
+			};
+		},
+		[]
+	);
+
+	useEffect( () => {
+		if ( ! rootClientId ) {
+			return;
+		}
+
+		updateBlockListSettings( {
+			[ rootClientId ]: { allowedBlocks: menuAllowedBlocks },
+			...Object.fromEntries(
+				parentClientIds
+					.split( ',' )
+					.filter( Boolean )
+					.map( ( clientId ) => [
+						clientId,
+						{ allowedBlocks: SUBMENU_ALLOWED_BLOCKS },
+					] )
+			),
+		} );
+	}, [
+		menuAllowedBlocks,
+		parentClientIds,
+		rootClientId,
+		updateBlockListSettings,
+	] );
+
+	return null;
+}
+
+function NavigationMenuEditor( {
+	children,
+	navigationId,
+	onBlocksChange,
+	onReadyChange,
+} ) {
+	const [ entityBlocks, onInput, onChange ] = useEntityBlockEditor(
 		'postType',
 		'wp_navigation',
 		{ id: navigationId }
 	);
+	const isAutomatic = useMemo(
+		() => hasPageListBlock( entityBlocks ),
+		[ entityBlocks ]
+	);
+	const { hasPages, pages } = useSelect(
+		( select ) => {
+			if ( ! isAutomatic ) {
+				return { hasPages: true, pages: EMPTY_ARRAY };
+			}
+
+			const store = select( coreDataStore );
+			const args = [ 'postType', 'page', MENU_PAGES_QUERY ];
+
+			return {
+				hasPages: store.hasFinishedResolution(
+					'getEntityRecords',
+					args
+				),
+				pages: store.getEntityRecords( ...args ) || EMPTY_ARRAY,
+			};
+		},
+		[ isAutomatic ]
+	);
+	const blocks = useMemo( () => {
+		if ( ! entityBlocks || ! isAutomatic ) {
+			return entityBlocks;
+		}
+
+		return hasPages ? expandPageListBlocks( entityBlocks, pages ) : null;
+	}, [ entityBlocks, hasPages, isAutomatic, pages ] );
+	// Menu items only go inside a Navigation block, so they sit in one here.
+	// It is never rendered, so it does nothing a Navigation block would do.
+	const menuBlock = useMemo( () => createBlock( 'core/navigation' ), [] );
+	const lastValue = useRef();
+	const value = useMemo( () => {
+		if ( ! blocks ) {
+			return null;
+		}
+
+		// Hand back what the editor last sent, so it isn't reset.
+		if ( lastValue.current?.[ 0 ]?.innerBlocks === blocks ) {
+			return lastValue.current;
+		}
+
+		return [ { ...menuBlock, innerBlocks: blocks } ];
+	}, [ blocks, menuBlock ] );
+	const { editEntityRecord } = useDispatch( coreDataStore );
+	const { createSuccessNotice } = useDispatch( noticesStore );
 	const { isReady: settingsReady, editorSettings } = useEditorSettings( {} );
 	const { isReady: assetsReady } = useEditorAssets();
 	const settings = useMemo( () => {
@@ -414,24 +603,85 @@ export default function NavigationEditListView( {
 
 		return nextSettings;
 	}, [ editorSettings ] );
-	const handleInput = useCallback(
+	const setByHand = useCallback(
 		( nextBlocks, options ) => {
+			// The editor tidying up what it was given isn't a change.
+			if (
+				serializeNavigationBlocks( nextBlocks ) ===
+				serializeNavigationBlocks( blocks )
+			) {
+				return;
+			}
+
+			const previousContent = getNavigationContentFromEditedRecord(
+				selectFromRegistry( coreDataStore ).getEditedEntityRecord(
+					'postType',
+					'wp_navigation',
+					navigationId
+				)
+			);
+
+			onChange( nextBlocks, options );
+			showMenuSetByHandNotice( {
+				createSuccessNotice,
+				editEntityRecord,
+				navigationId,
+				previousContent,
+			} );
+		},
+		[
+			blocks,
+			createSuccessNotice,
+			editEntityRecord,
+			navigationId,
+			onChange,
+		]
+	);
+	// The menu items from the editor, made the right kind before anything
+	// else sees them. If that changed them, the editor is given them back.
+	const takeMenuItems = useCallback(
+		( nextValue ) => {
+			const items = nextValue[ 0 ]?.innerBlocks || EMPTY_ARRAY;
+			const nextBlocks = normalizeMenuItems( items, blocks );
+
+			lastValue.current = nextBlocks === items ? nextValue : null;
 			onBlocksChange?.( nextBlocks );
+
+			return nextBlocks;
+		},
+		[ blocks, onBlocksChange ]
+	);
+	const handleInput = useCallback(
+		( nextValue, options ) => {
+			const nextBlocks = takeMenuItems( nextValue );
+
+			if ( isAutomatic ) {
+				setByHand( nextBlocks, options );
+				return;
+			}
+
 			onInput( nextBlocks, options );
 		},
-		[ onBlocksChange, onInput ]
+		[ isAutomatic, onInput, setByHand, takeMenuItems ]
 	);
 	const handleChange = useCallback(
-		( nextBlocks, options ) => {
-			onBlocksChange?.( nextBlocks );
+		( nextValue, options ) => {
+			const nextBlocks = takeMenuItems( nextValue );
+
+			if ( isAutomatic ) {
+				setByHand( nextBlocks, options );
+				return;
+			}
+
 			onChange( nextBlocks, options );
 		},
-		[ onBlocksChange, onChange ]
+		[ isAutomatic, onChange, setByHand, takeMenuItems ]
 	);
+	const isReady = settingsReady && assetsReady && !! blocks;
 
 	useEffect( () => {
-		onReadyChange?.( settingsReady && assetsReady && !! blocks );
-	}, [ assetsReady, blocks, onReadyChange, settingsReady ] );
+		onReadyChange?.( isReady );
+	}, [ isReady, onReadyChange ] );
 
 	useEffect( () => {
 		if ( blocks ) {
@@ -439,7 +689,7 @@ export default function NavigationEditListView( {
 		}
 	}, [ blocks, onBlocksChange ] );
 
-	if ( ! settingsReady || ! assetsReady || ! blocks ) {
+	if ( ! isReady ) {
 		return el(
 			'div',
 			{ className: 'routes-navigation-edit-list-view__loading' },
@@ -453,10 +703,27 @@ export default function NavigationEditListView( {
 			onChange: handleChange,
 			onInput: handleInput,
 			settings,
-			value: blocks || EMPTY_ARRAY,
+			value,
 		},
+		el( NavigationMenuBlockListSettings ),
+		children
+	);
+}
+
+export default function NavigationEditListView( {
+	menuTitle,
+	navigationId,
+	onAddMenuItems,
+	onBlocksChange,
+	onInsertionTargetChange,
+	onPendingInsertionComplete,
+	onReadyChange,
+	pendingInsertion,
+} ) {
+	return el(
+		NavigationMenuEditorProvider,
+		{ navigationId, onBlocksChange, onReadyChange },
 		el( NavigationListViewContent, {
-			isAutoMenu,
 			menuTitle,
 			onAddMenuItems,
 			onInsertionTargetChange,

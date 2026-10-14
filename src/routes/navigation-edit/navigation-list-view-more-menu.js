@@ -2,6 +2,7 @@
  * Internal dependencies
  */
 import { useListViewTreeState } from '../../list-view';
+import { createNavigationLinkVariationBlock } from './navigation-list-view-insertions';
 import {
 	addSubmenuIcon,
 	blockEditorStore,
@@ -39,8 +40,8 @@ const POPOVER_PROPS = {
 };
 
 function createDefaultNavigationLink() {
-	return createBlock(
-		DEFAULT_NAVIGATION_LINK.name,
+	return createNavigationLinkVariationBlock(
+		'custom-link',
 		DEFAULT_NAVIGATION_LINK.attributes
 	);
 }

@@ -7,6 +7,7 @@ import { registerCoreBlocks } from '@wordpress/block-library';
 import {
 	cloneBlock,
 	createBlock,
+	getBlockVariations,
 	getBlockType,
 	hasBlockSupport,
 	parse as parseBlocks,
@@ -222,6 +223,7 @@ export {
 	Fragment,
 	fullscreen as fullscreenIcon,
 	getBlockType,
+	getBlockVariations,
 	getPath,
 	hasBlockSupport,
 	header as headerIcon,

@@ -1,8 +1,7 @@
 const {
 	expect,
 	getFrameTexts,
-	getStage,
-	setCanvasMode,
+	getPageItem,
 	test,
 	visitEditor,
 } = require( '../utils' );
@@ -126,7 +125,7 @@ test.describe( 'Add a page interactions', () => {
 		await expect( form ).toHaveCount( 0 );
 	} );
 
-	test( 'starting from scratch makes a page and opens it', async ( {
+	test( 'starting from scratch makes a page and shows it', async ( {
 		page,
 		rest,
 	} ) => {
@@ -141,27 +140,21 @@ test.describe( 'Add a page interactions', () => {
 		await form.getByRole( 'button', { name: 'Create page' } ).click();
 
 		await expect( page ).toHaveURL(
-			/p=.*%2Ftypes%2Fpage%2Flist%2Fall.*postId%3D\d+/,
+			/p=.*%2Ftypes%2Fpage%2Flist%2Fall.*previewId%3D\d+/,
 			{ timeout: 15000 }
 		);
 		const pageId = decodeURIComponent( page.url() ).match(
-			/postId=(\d+)/
+			/previewId=(\d+)/
 		)[ 1 ];
 		rest.deleteLater( `/wp/v2/pages/${ pageId }` );
 
-		const stage = getStage( page );
+		// The list stays put, with the new page in it and in the canvas.
+		await expect( page ).not.toHaveURL( /postId%3D/ );
+		await expect( getPageItem( page, title ) ).toBeVisible( {
+			timeout: 15000,
+		} );
 		await expect(
-			stage.getByRole( 'heading', { level: 1, name: title } )
-		).toBeVisible( { timeout: 15000 } );
-		// A new page is empty, ready for its first section in Compose.
-		await setCanvasMode( page, 'Compose' );
-		await expect(
-			stage
-				.getByRole( 'region', { name: 'Sections' } )
-				.getByText( /^Nothing here yet/ )
-		).toBeVisible();
-		await expect(
-			page.getByText( 'This page has no sections yet' )
-		).toBeVisible();
+			page.locator( '.cnl-editor-homepage-document__title' )
+		).toHaveText( title, { timeout: 15000 } );
 	} );
 } );

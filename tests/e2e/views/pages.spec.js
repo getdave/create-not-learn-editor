@@ -2,15 +2,17 @@ const {
 	expect,
 	getEditorCanvas,
 	expectCanvasMode,
+	getPageItem,
 	getSitePreview,
 	getStage,
+	openPageLayouts,
 	setCanvasMode,
 	test,
 	visitEditor,
 } = require( '../utils' );
 
 test.describe( 'Pages view', () => {
-	test( 'lists pages as a tree beside a preview', async ( {
+	test( 'lists pages in and out of the main menu beside a preview', async ( {
 		page,
 		rest,
 	} ) => {
@@ -19,23 +21,30 @@ test.describe( 'Pages view', () => {
 		await visitEditor( page, '/types/page' );
 
 		const stage = getStage( page );
-		const tree = stage.getByRole( 'list', { name: 'Pages' } );
 
 		await expect(
 			stage.getByRole( 'heading', { level: 2, name: 'Pages' } )
 		).toBeVisible();
+		// Layouts open from the options menu rather than a tab.
+		await expect( stage.getByRole( 'tab' ) ).toHaveCount( 0 );
 		await expect(
-			stage.getByRole( 'tab', { name: 'Pages' } )
-		).toHaveAttribute( 'aria-selected', 'true' );
-		await expect(
-			tree.getByRole( 'button', { name: testPage.title, exact: true } )
+			stage.getByRole( 'region', {
+				name: 'In your menu',
+				exact: true,
+			} )
 		).toBeVisible( { timeout: 15000 } );
 		await expect(
-			tree.getByRole( 'button', { name: `Edit ${ testPage.title }` } )
+			stage.getByRole( 'region', { name: 'Not in your menu' } )
 		).toBeVisible();
+		await expect( getPageItem( page, testPage.title ) ).toBeVisible( {
+			timeout: 15000,
+		} );
 		await expect(
-			tree.getByRole( 'button', { name: `Delete ${ testPage.title }` } )
-		).toBeVisible();
+			stage.getByRole( 'button', { name: `Edit ${ testPage.title }` } )
+		).toBeAttached();
+		await expect(
+			stage.getByRole( 'button', { name: `Delete ${ testPage.title }` } )
+		).toBeAttached();
 
 		// The site is on show in Browse before any page is picked.
 		await expect( getSitePreview( page ) ).toBeVisible( {
@@ -101,13 +110,52 @@ test.describe( 'Pages view', () => {
 		).toBeAttached( { timeout: 15000 } );
 	} );
 
-	test( 'lists page layouts on the Layouts tab', async ( { page } ) => {
+	test( 'lists every page in a table from the options menu', async ( {
+		page,
+		rest,
+	} ) => {
+		const testPage = await rest.createPage();
+		const stage = getStage( page );
+
+		await visitEditor( page, '/types/page' );
+		await stage
+			.getByRole( 'button', { name: 'Page Options', exact: true } )
+			.click();
+		await page.getByRole( 'menuitem', { name: 'Manage pages' } ).click();
+
+		await expect( page ).toHaveURL( /content%3Dall/ );
+		await expect(
+			stage
+				.getByRole( 'navigation', { name: 'Breadcrumbs' } )
+				.getByRole( 'link', { name: 'Pages' } )
+		).toBeVisible();
+
+		// The table takes the whole width.
+		const row = stage
+			.locator( '.dataviews-view-table tbody tr' )
+			.filter( { hasText: testPage.title } );
+		await expect( row ).toBeVisible( { timeout: 15000 } );
+		await expect( page.locator( '.boot-layout__canvas' ) ).toHaveCount( 0 );
+
+		// Picking a page opens it in Pages.
+		await row.getByText( testPage.title, { exact: true } ).click();
+		await expect( page ).toHaveURL(
+			new RegExp( `postId%3D${ testPage.id }` )
+		);
+	} );
+
+	test( 'lists page layouts from the options menu', async ( { page } ) => {
 		await visitEditor( page, '/types/page' );
 
 		const stage = getStage( page );
-		await stage.getByRole( 'tab', { name: 'Layouts' } ).click();
+		await openPageLayouts( page );
 
 		await expect( page ).toHaveURL( /content%3Dtemplates/ );
+		await expect(
+			stage
+				.getByRole( 'navigation', { name: 'Breadcrumbs' } )
+				.getByRole( 'link', { name: 'Pages' } )
+		).toBeVisible();
 		await expect(
 			stage.getByText( /Layouts decide how your pages are arranged/ )
 		).toBeVisible();

@@ -2,9 +2,11 @@ const {
 	expect,
 	expectBlockEditor,
 	getEditorCanvas,
+	getPageItem,
 	getRoute,
 	getSaveControls,
 	getStage,
+	openPageLayouts,
 	setCanvasMode,
 	test,
 	visitEditor,
@@ -15,10 +17,7 @@ test.describe( 'Pages interactions', () => {
 		const testPage = await rest.createPage();
 
 		await visitEditor( page, '/types/page' );
-		await getStage( page )
-			.getByRole( 'list', { name: 'Pages' } )
-			.getByRole( 'button', { name: testPage.title, exact: true } )
-			.click();
+		await getPageItem( page, testPage.title ).click();
 
 		await expect( page ).toHaveURL(
 			new RegExp( `previewId%3D${ testPage.id }` )
@@ -41,6 +40,7 @@ test.describe( 'Pages interactions', () => {
 		const stage = getStage( page );
 
 		await visitEditor( page, '/types/page' );
+		await getPageItem( page, testPage.title ).hover();
 		await stage
 			.getByRole( 'button', { name: `Edit ${ testPage.title }` } )
 			.click();
@@ -68,7 +68,105 @@ test.describe( 'Pages interactions', () => {
 			.getByRole( 'link', { name: 'Pages' } )
 			.click();
 		await expect(
-			stage.getByRole( 'list', { name: 'Pages' } )
+			stage.getByRole( 'region', {
+				name: 'In your menu',
+				exact: true,
+			} )
+		).toBeVisible();
+	} );
+
+	test( 'a page goes into the menu, waiting to be saved', async ( {
+		page,
+		rest,
+	} ) => {
+		const draft = await rest.createPage( { status: 'draft' } );
+		const stage = getStage( page );
+		const inMenu = stage.getByRole( 'region', {
+			name: 'In your menu',
+			exact: true,
+		} );
+		const notInMenu = stage.getByRole( 'region', {
+			name: 'Not in your menu',
+		} );
+
+		await visitEditor( page, '/types/page' );
+
+		// Drafts aren't in a menu that lists every page.
+		await expect(
+			notInMenu.getByRole( 'button', {
+				name: new RegExp( `^${ draft.title }` ),
+			} )
+		).toBeVisible( { timeout: 15000 } );
+
+		await notInMenu
+			.getByRole( 'button', { name: new RegExp( `^${ draft.title }` ) } )
+			.hover();
+		await notInMenu
+			.getByRole( 'button', {
+				name: `Add ${ draft.title } to your menu`,
+			} )
+			.click();
+
+		await expect(
+			inMenu.getByRole( 'link', { name: draft.title, exact: true } )
+		).toBeVisible();
+		await expect(
+			notInMenu.getByRole( 'button', {
+				name: new RegExp( `^${ draft.title }` ),
+			} )
+		).toHaveCount( 0 );
+		await expect( getSaveControls( page ) ).toContainText(
+			'1 unsaved change'
+		);
+	} );
+
+	test( 'adds a link to the menu with the link control', async ( {
+		page,
+	} ) => {
+		const url = `https://example.com/${ Date.now() }`;
+		const inMenu = getStage( page ).getByRole( 'region', {
+			name: 'In your menu',
+			exact: true,
+		} );
+
+		await visitEditor( page, '/types/page' );
+		await inMenu
+			.getByRole( 'button', { name: 'Add to your menu' } )
+			.click( { timeout: 15000 } );
+		await page.getByRole( 'menuitem', { name: 'Link' } ).click();
+
+		const urlField = page.getByRole( 'combobox', {
+			name: 'Search or type URL',
+		} );
+		await expect( urlField ).toBeFocused();
+		await urlField.fill( url );
+		await urlField.press( 'Enter' );
+
+		await expect(
+			inMenu.getByRole( 'link', {
+				name: url.replace( 'https://', '' ),
+				exact: true,
+			} )
+		).toBeVisible();
+		await expect( getSaveControls( page ) ).toContainText(
+			'1 unsaved change'
+		);
+	} );
+
+	test( 'Other menus leads on to the Menus screen', async ( { page } ) => {
+		await visitEditor( page, '/types/page' );
+
+		const otherMenus = getStage( page )
+			.getByRole( 'navigation', { name: 'More menu options' } )
+			.getByRole( 'button', { name: /^Other menus/ } );
+
+		await expect( otherMenus ).toBeVisible( { timeout: 15000 } );
+		await otherMenus.click();
+		await expect
+			.poll( () => getRoute( page ), { timeout: 15000 } )
+			.toBe( '/navigation' );
+		await expect(
+			getStage( page ).getByRole( 'heading', { name: 'Menus' } )
 		).toBeVisible();
 	} );
 
@@ -107,7 +205,7 @@ test.describe( 'Pages interactions', () => {
 		const stage = getStage( page );
 		const canvas = page.locator( '.cnl-editor-canvas' );
 
-		await stage.getByRole( 'tab', { name: 'Layouts' } ).click();
+		await openPageLayouts( page );
 		await expect( page ).toHaveURL( /content%3Dtemplates/ );
 
 		// Picking a layout previews it, styled by the theme.
@@ -128,8 +226,12 @@ test.describe( 'Pages interactions', () => {
 			)
 			.not.toContain( 'Times New Roman' );
 
-		await stage.getByRole( 'tab', { name: 'Pages' } ).click();
-		await stage.getByRole( 'tab', { name: 'Layouts' } ).click();
+		// Back to Pages and in again.
+		await stage
+			.getByRole( 'navigation', { name: 'Breadcrumbs' } )
+			.getByRole( 'link', { name: 'Pages' } )
+			.click();
+		await openPageLayouts( page );
 		await canvas
 			.getByRole( 'button', { name: 'Edit', exact: true } )
 			.click();

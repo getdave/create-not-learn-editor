@@ -27,8 +27,13 @@ import {
 } from './page-layouts';
 import { requestDistractionFreeEntry } from '../../editor-layer/distraction-free';
 import { isPageInMenu } from './menu-status';
-import useMainMenu, { useAddPageToMenu } from './use-main-menu';
-import { PageDetailStage, PagesTree } from './pages/stage';
+import useMainMenu, {
+	useAddPageToMenu,
+	useKeepPagesOutOfMenu,
+} from './use-main-menu';
+import { PageDetailStage } from './pages/stage';
+import { usePages } from './pages/data';
+import PagesMenuGroups from './pages/menu-groups';
 import {
 	DesignPicker,
 	DesignPickerNav,
@@ -39,6 +44,7 @@ import {
 import PagesCanvas from './pages/canvas';
 import {
 	Badge,
+	Breadcrumbs,
 	Button,
 	CheckboxControl,
 	chevronLeftIcon,
@@ -47,9 +53,11 @@ import {
 	DataViews,
 	DropdownMenu,
 	EmptyState,
+	filterSortAndPaginate,
 	Icon,
 	infoIcon,
 	InputControl,
+	MenuGroup,
 	MenuItem,
 	Notice,
 	Popover,
@@ -74,6 +82,7 @@ import {
 	sprintf,
 	serialize,
 	useEffect,
+	useCallback,
 	useDispatch,
 	useId,
 	useMemo,
@@ -747,7 +756,7 @@ function getAddToMenuHelp( {
 	}
 
 	if ( ! publishImmediately ) {
-		return __( 'Publish the page to add it to your menu.' );
+		return __( 'It shows in your menu once you publish it.' );
 	}
 
 	return menuTitle
@@ -759,10 +768,11 @@ function getAddToMenuHelp( {
 		: __( 'Adds a link to your menu so visitors can find it.' );
 }
 
-function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
+function AddPageFlow( { mainMenu = {}, menuPlacement, onClose, templates } ) {
 	const navigate = useNavigate();
 	const { saveEntityRecord } = useDispatch( coreDataStore );
 	const addPageToMenu = useAddPageToMenu();
+	const keepPagesOutOfMenu = useKeepPagesOutOfMenu();
 	const [ addToMenu, setAddToMenu ] = useState( true );
 	const menuListsAllPages = Boolean( mainMenu.menuPages?.listsAllPages );
 	const [ startedBlank, setStartedBlank ] = useState( false );
@@ -915,19 +925,19 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 				{ throwOnError: true }
 			);
 
-			if (
-				addToMenu &&
-				publishImmediately &&
-				mainMenu.menuId &&
-				! menuListsAllPages
-			) {
-				await addPageToMenu( mainMenu.menuId, newPage );
+			if ( mainMenu.menuId ) {
+				if ( menuPlacement === 'not-in-menu' ) {
+					await keepPagesOutOfMenu( mainMenu.menuId, [ newPage.id ] );
+				} else if ( menuPlacement === 'menu' || addToMenu ) {
+					await addPageToMenu( mainMenu.menuId, newPage );
+				}
 			}
 
 			onClose();
-			// Open the new page in the Pages screen, where its sections are.
+			// Show the new page in the canvas, and leave the list where it
+			// was so the page can be seen in it.
 			navigate( {
-				search: { postId: newPage.id },
+				search: { previewId: newPage.id },
 				to: '/types/page/list/all',
 			} );
 		} catch ( error ) {
@@ -1009,17 +1019,13 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 						)
 					),
 					mainMenu.menuId &&
+						! menuPlacement &&
 						el(
 							'div',
 							{ className: 'cnl-add-page-form__checkbox-item' },
 							el( CheckboxControl, {
-								checked:
-									menuListsAllPages ||
-									( addToMenu && publishImmediately ),
-								disabled:
-									isBusy ||
-									menuListsAllPages ||
-									! publishImmediately,
+								checked: menuListsAllPages || addToMenu,
+								disabled: isBusy || menuListsAllPages,
 								label: __( 'Add to my menu' ),
 								onChange: setAddToMenu,
 							} ),
@@ -1338,6 +1344,100 @@ function PostListDataViewsLayout() {
 	);
 }
 
+const PAGES_TABLE_VIEW = {
+	...DEFAULT_CONTENT_VIEW,
+	fields: [ 'on-site', 'date' ],
+	sort: { direction: 'asc', field: 'title' },
+	type: 'table',
+};
+
+/**
+ * Every page as a table, the traditional way to look through them, reached
+ * from Pages' options menu. It takes the whole width, so picking a page opens
+ * it in Pages, beside its preview.
+ *
+ * @param {Object} props          Component props.
+ * @param {Object} props.mainMenu Result of `useMainMenu`.
+ * @param {string} props.listPath Path of the Pages screen.
+ * @return {Element} The table.
+ */
+function PagesTable( { mainMenu, listPath } ) {
+	const navigate = useNavigate();
+	const { frontPageId, isLoading, pages, postsPageId } = usePages();
+	const [ view, setView ] = useState( PAGES_TABLE_VIEW );
+	const fields = useMemo(
+		() =>
+			getContentFields( {
+				frontPageId,
+				isPages: true,
+				menuPages: mainMenu.menuPages,
+				postsPageId,
+			} )
+				.filter(
+					( field ) =>
+						field.id !== 'author' && field.id !== 'comments'
+				)
+				// Filter on the status itself, as the data is filtered here.
+				.map( ( field ) =>
+					field.id === 'status'
+						? { ...field, getValue: ( { item } ) => item.status }
+						: field
+				),
+		[ frontPageId, mainMenu.menuPages, postsPageId ]
+	);
+	const openPage = useCallback(
+		( item ) =>
+			navigate( {
+				search: { postId: item.id, previewId: item.id },
+				to: listPath,
+			} ),
+		[ listPath, navigate ]
+	);
+	const actions = useMemo(
+		() => [
+			{
+				callback: ( [ item ] ) => item && openPage( item ),
+				id: 'edit',
+				isPrimary: true,
+				label: __( 'Edit' ),
+				supportsBulk: false,
+			},
+			{
+				callback: ( [ item ] ) =>
+					item?.link &&
+					window.open( item.link, '_blank', 'noopener,noreferrer' ),
+				id: 'open-preview',
+				isEligible: ( item ) => !! item.link,
+				label: __( 'Open preview' ),
+				supportsBulk: false,
+			},
+		],
+		[ openPage ]
+	);
+	const { data, paginationInfo } = useMemo(
+		() => filterSortAndPaginate( pages, view, fields ),
+		[ fields, pages, view ]
+	);
+	return el(
+		DataViews,
+		{
+			actions,
+			data,
+			defaultLayouts: DEFAULT_CONTENT_LAYOUTS,
+			fields,
+			getItemId: ( item ) => String( item.id ),
+			isLoading: isLoading && ! pages.length,
+			onChangeSelection: () => {},
+			onChangeView: setView,
+			onClickItem: openPage,
+			paginationInfo,
+			selection: EMPTY_ARRAY,
+			view,
+		},
+		el( PostListDataViewsLayout )
+	);
+}
+
 function useContentRecords() {
 	const params = useParams( { strict: false } );
 	const searchParams = useSearch( { strict: false } );
@@ -1490,7 +1590,8 @@ function useContentRecords() {
 function Stage() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
-	const [ isAddingPage, setIsAddingPage ] = useState( false );
+	// Where a page being added goes: in the menu, out of it, or the user picks.
+	const [ addingPage, setAddingPage ] = useState( null );
 	const {
 		activeTab,
 		contentView,
@@ -1600,7 +1701,9 @@ function Stage() {
 		navigate( {
 			search: {
 				...searchParams,
-				content: nextTab === 'templates' ? 'templates' : undefined,
+				content: [ 'all', 'templates' ].includes( nextTab )
+					? nextTab
+					: undefined,
 				page: undefined,
 				postId: undefined,
 				postIds: undefined,
@@ -1621,9 +1724,14 @@ function Stage() {
 		__( 'Add %s' ),
 		type.singular || type.name
 	);
-	const openCreateFlow = () => {
+	const openCreateFlow = ( menuPlacement ) => {
 		if ( type.name === 'page' ) {
-			setIsAddingPage( true );
+			setAddingPage( {
+				menuPlacement:
+					typeof menuPlacement === 'string'
+						? menuPlacement
+						: undefined,
+			} );
 			return;
 		}
 
@@ -1666,14 +1774,38 @@ function Stage() {
 				},
 				( { onClose } ) =>
 					el(
-						MenuItem,
-						{
-							onClick: () => {
-								configureHomepage();
-								onClose();
+						MenuGroup,
+						null,
+						el(
+							MenuItem,
+							{
+								onClick: () => {
+									handleContentTabChange( 'all' );
+									onClose();
+								},
 							},
-						},
-						__( 'Configure Homepage' )
+							__( 'Manage pages' )
+						),
+						el(
+							MenuItem,
+							{
+								onClick: () => {
+									handleContentTabChange( 'templates' );
+									onClose();
+								},
+							},
+							__( 'Manage layouts' )
+						),
+						el(
+							MenuItem,
+							{
+								onClick: () => {
+									configureHomepage();
+									onClose();
+								},
+							},
+							__( 'Configure Homepage' )
+						)
 					)
 			)
 	);
@@ -1740,11 +1872,20 @@ function Stage() {
 		)
 	);
 
+	const isPagesTable = isPages && searchParams.content === 'all';
+	let pagesList = null;
+
+	if ( isPages ) {
+		pagesList = isPagesTable
+			? el( PagesTable, { listPath, mainMenu } )
+			: el( PagesMenuGroups, {
+					canCreate: type.canCreate,
+					onAddPage: openCreateFlow,
+				} );
+	}
+
 	const contentList = isPages
-		? el( PagesTree, {
-				canCreate: type.canCreate,
-				onAddPage: openCreateFlow,
-			} )
+		? pagesList
 		: el(
 				DataViews,
 				{
@@ -1774,59 +1915,88 @@ function Stage() {
 				el( PostListDataViewsLayout )
 			);
 
+	// Pages has no tabs: its layouts open from the options menu, as a step
+	// down from Pages with a way back.
+	const isPageLayouts = isPages && showTemplates;
+	// Layouts and the table of all pages are steps down from Pages.
+	let subScreenLabel = null;
+
+	if ( isPageLayouts ) {
+		subScreenLabel = __( 'Layouts' );
+	} else if ( isPagesTable ) {
+		subScreenLabel = __( 'All pages' );
+	}
+
+	const pageHeader = subScreenLabel
+		? {
+				ariaLabel: subScreenLabel,
+				breadcrumbs: el( Breadcrumbs, {
+					items: [
+						{ label: type.menuName || type.label, to: listPath },
+						{ label: subScreenLabel },
+					],
+				} ),
+				className:
+					'cnl-editor-stage cnl-drilldown-stage cnl-editor-content-page',
+			}
+		: {
+				actions: pageActions,
+				className: 'cnl-editor-stage cnl-editor-content-page',
+				subTitle:
+					( type.name === 'page' &&
+						__(
+							'Every page on your site. Pick one to see it, or edit it to change what is on it.'
+						) ) ||
+					( type.name === 'post' &&
+						__( 'Your blog posts, newest first.' ) ) ||
+					type.description ||
+					sprintf(
+						/* translators: %s: post type label. */
+						__( 'Browse, preview, and edit %s.' ),
+						( type.label || type.name ).toLowerCase()
+					),
+				title: type.menuName || type.label,
+			};
+
 	return el(
 		Page,
 		{
-			actions: pageActions,
-			className: 'cnl-editor-stage cnl-editor-content-page',
+			...pageHeader,
 			hasPadding: false,
 			headingLevel: 2,
-			subTitle:
-				( type.name === 'page' &&
-					__(
-						'Every page on your site. Pick one to see it, or edit it to change what is on it.'
-					) ) ||
-				( type.name === 'post' &&
-					__( 'Your blog posts, newest first.' ) ) ||
-				type.description ||
-				sprintf(
-					/* translators: %s: post type label. */
-					__( 'Browse, preview, and edit %s.' ),
-					( type.label || type.name ).toLowerCase()
-				),
-			title: type.menuName || type.label,
 		},
-		el(
-			'div',
-			{ className: 'routes-post-list__tabs-wrapper' },
+		! isPages &&
 			el(
-				Tabs.Root,
-				{
-					onValueChange: handleContentTabChange,
-					value: showTemplates ? 'templates' : 'content',
-				},
+				'div',
+				{ className: 'routes-post-list__tabs-wrapper' },
 				el(
-					Tabs.List,
-					null,
+					Tabs.Root,
+					{
+						onValueChange: handleContentTabChange,
+						value: showTemplates ? 'templates' : 'content',
+					},
 					el(
-						Tabs.Tab,
-						{ value: 'content' },
-						el( TabLabel, {
-							icon: type.menuIcon,
-							label: type.menuName || type.label,
-						} )
-					),
-					el(
-						Tabs.Tab,
-						{ value: 'templates' },
-						el( TabLabel, {
-							icon: 'dashicons-layout',
-							label: __( 'Layouts' ),
-						} )
+						Tabs.List,
+						null,
+						el(
+							Tabs.Tab,
+							{ value: 'content' },
+							el( TabLabel, {
+								icon: type.menuIcon,
+								label: type.menuName || type.label,
+							} )
+						),
+						el(
+							Tabs.Tab,
+							{ value: 'templates' },
+							el( TabLabel, {
+								icon: 'dashicons-layout',
+								label: __( 'Layouts' ),
+							} )
+						)
 					)
 				)
-			)
-		),
+			),
 		showTemplates &&
 			el(
 				'p',
@@ -1943,11 +2113,12 @@ function Stage() {
 					__( 'See all layouts.' )
 				)
 			),
-		isAddingPage &&
+		addingPage &&
 			type.name === 'page' &&
 			el( AddPageFlow, {
 				mainMenu,
-				onClose: () => setIsAddingPage( false ),
+				menuPlacement: addingPage.menuPlacement,
+				onClose: () => setAddingPage( null ),
 				templates,
 			} )
 	);

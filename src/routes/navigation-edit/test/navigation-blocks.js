@@ -18,11 +18,15 @@ import {
 	createNavigationLinkBlockFromPage,
 	createNavigationSubmenuBlock,
 	createNavigationSubmenuBlockFromPage,
+	expandPageListBlocks,
 	getManualNavigationItems,
 	getNavigationBlocksFromEditedRecord,
 	getNavigationContentFromEditedRecord,
+	getPageListNavigationBlocks,
 	getParsedBlocks,
+	hasPageListBlock,
 	isAutoMenuContent,
+	normalizeMenuItems,
 	serializeNavigationBlocks,
 } from '../navigation-blocks';
 
@@ -227,5 +231,153 @@ describe( 'navigation edit block helpers', () => {
 
 		expect( content ).toContain( '"label":"Staged"' );
 		expect( getNavigationBlocksFromEditedRecord( record ) ).toBe( blocks );
+	} );
+
+	describe( 'menus that list every page', () => {
+		const pages = [
+			{ id: 1, menu_order: 2, parent: 0, title: { raw: 'Services' } },
+			{ id: 2, menu_order: 1, parent: 0, title: { raw: 'About' } },
+			{ id: 3, menu_order: 0, parent: 1, title: { raw: 'Web design' } },
+			{ id: 4, menu_order: 0, parent: 9, title: { raw: 'Orphan' } },
+			{ id: 5, menu_order: 1, parent: 0, title: { raw: 'Contact' } },
+		];
+		const describeBlocks = ( blocks ) =>
+			blocks.map( ( block ) => [
+				block.name.replace( 'core/navigation-', '' ),
+				block.attributes.label,
+				...( block.innerBlocks.length
+					? [ describeBlocks( block.innerBlocks ) ]
+					: [] ),
+			] );
+
+		test( 'lists pages the way Page List does', () => {
+			expect(
+				describeBlocks( getPageListNavigationBlocks( pages ) )
+			).toEqual( [
+				[ 'link', 'About' ],
+				[ 'link', 'Contact' ],
+				[ 'submenu', 'Services', [ [ 'link', 'Web design' ] ] ],
+			] );
+		} );
+
+		test( 'lists only the pages under a Page List’s parent page', () => {
+			expect(
+				describeBlocks( getPageListNavigationBlocks( pages, 1 ) )
+			).toEqual( [ [ 'link', 'Web design' ] ] );
+		} );
+
+		test( 'swaps a Page List for the pages it shows, wherever it is', () => {
+			const blocks = [
+				{
+					attributes: { label: 'Home', url: '/' },
+					innerBlocks: [],
+					name: 'core/navigation-link',
+				},
+				{
+					attributes: { label: 'More', url: '#' },
+					innerBlocks: [
+						{
+							attributes: { parentPageID: 1 },
+							innerBlocks: [],
+							name: 'core/page-list',
+						},
+					],
+					name: 'core/navigation-submenu',
+				},
+			];
+
+			expect( hasPageListBlock( blocks ) ).toBe( true );
+
+			const expanded = expandPageListBlocks( blocks, pages );
+
+			expect( hasPageListBlock( expanded ) ).toBe( false );
+			expect( expanded[ 0 ] ).toBe( blocks[ 0 ] );
+			expect( describeBlocks( expanded ) ).toEqual( [
+				[ 'link', 'Home' ],
+				[ 'submenu', 'More', [ [ 'link', 'Web design' ] ] ],
+			] );
+		} );
+
+		test( 'keeps sub-pages nested when setting a menu by hand', () => {
+			const content = createManualNavigationContentFromPages( pages );
+
+			expect( content ).toContain( '<!-- wp:navigation-submenu' );
+			expect( content ).not.toContain( 'Orphan' );
+		} );
+	} );
+
+	describe( 'keeping links and submenus the right kind', () => {
+		const item = (
+			clientId,
+			name,
+			innerBlocks = [],
+			attributes = {}
+		) => ( {
+			attributes: {
+				label: clientId,
+				url: `/${ clientId }`,
+				...attributes,
+			},
+			clientId,
+			innerBlocks,
+			name: `core/navigation-${ name }`,
+		} );
+
+		test( 'makes a link with items under it a submenu, keeping its ID', () => {
+			const child = item( 'child', 'link' );
+			const next = [ item( 'parent', 'link', [ child ] ) ];
+			const [ parent ] = normalizeMenuItems( next, [] );
+
+			expect( parent.name ).toBe( 'core/navigation-submenu' );
+			expect( parent.clientId ).toBe( 'parent' );
+			expect( parent.attributes.label ).toBe( 'parent' );
+			expect( parent.innerBlocks[ 0 ] ).toBe( child );
+		} );
+
+		test( 'makes a submenu that lost its last item a link again', () => {
+			const previous = [
+				item( 'parent', 'submenu', [ item( 'child', 'link' ) ] ),
+			];
+			const next = [
+				item( 'parent', 'submenu' ),
+				item( 'child', 'link' ),
+			];
+			const [ parent ] = normalizeMenuItems( next, previous );
+
+			expect( parent.name ).toBe( 'core/navigation-link' );
+			expect( parent.clientId ).toBe( 'parent' );
+		} );
+
+		test( 'leaves a submenu that was made empty on purpose', () => {
+			const next = [
+				item( 'new', 'submenu' ),
+				item( 'label', 'submenu', [], { url: '#' } ),
+			];
+
+			expect( normalizeMenuItems( next, [] ) ).toBe( next );
+		} );
+
+		test( 'hands back the same blocks when nothing changes', () => {
+			const next = [
+				item( 'a', 'link' ),
+				item( 'b', 'submenu', [ item( 'c', 'link' ) ] ),
+			];
+
+			expect( normalizeMenuItems( next, next ) ).toBe( next );
+		} );
+
+		test( 'works at any depth', () => {
+			const next = [
+				item( 'top', 'submenu', [
+					item( 'middle', 'link', [ item( 'bottom', 'link' ) ] ),
+				] ),
+			];
+			const [ top ] = normalizeMenuItems( next, [] );
+
+			expect( top ).not.toBe( next[ 0 ] );
+			expect( top.innerBlocks[ 0 ].name ).toBe(
+				'core/navigation-submenu'
+			);
+		} );
 	} );
 } );

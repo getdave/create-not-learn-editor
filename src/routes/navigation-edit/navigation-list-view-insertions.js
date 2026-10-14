@@ -1,7 +1,7 @@
 /**
  * Internal dependencies
  */
-import { createBlock } from '../../wordpress-packages';
+import { createBlock, getBlockVariations } from '../../wordpress-packages';
 
 function getBlockListRootClientId( clientId ) {
 	return clientId || '';
@@ -18,15 +18,39 @@ function insertBlockAtListAppenderPosition( blocks, block, blockCount ) {
 	return nextBlocks;
 }
 
-function createExistingPageNavigationLinkBlock() {
+// Core's attributes for these variations, for before the block's variations
+// are registered.
+const NAVIGATION_LINK_VARIATION_FALLBACKS = {
+	'custom-link': { kind: 'custom' },
+	page: { kind: 'post-type', type: 'page' },
+};
+
+/**
+ * A navigation link made from one of its variations, as core's inserter makes
+ * it, so a new link is the kind of link it is meant to be from the start.
+ *
+ * @param {string} variationName Variation name, such as `custom-link`.
+ * @param {Object} attributes    Attributes to add.
+ * @return {Object} The block.
+ */
+function createNavigationLinkVariationBlock( variationName, attributes = {} ) {
+	const variation = (
+		getBlockVariations( 'core/navigation-link' ) || []
+	).find( ( { name } ) => name === variationName );
+
 	return createBlock( 'core/navigation-link', {
-		kind: 'post-type',
-		type: 'page',
+		...( variation?.attributes ||
+			NAVIGATION_LINK_VARIATION_FALLBACKS[ variationName ] ),
+		...attributes,
 	} );
 }
 
+function createExistingPageNavigationLinkBlock() {
+	return createNavigationLinkVariationBlock( 'page' );
+}
+
 function createCustomNavigationLinkBlock() {
-	return createBlock( 'core/navigation-link' );
+	return createNavigationLinkVariationBlock( 'custom-link' );
 }
 
 function createPageNavigationSubmenuBlock() {
@@ -56,6 +80,7 @@ export {
 	createCustomNavigationSubmenuBlock,
 	createExistingPageNavigationLinkBlock,
 	createLabelOnlyNavigationSubmenuBlock,
+	createNavigationLinkVariationBlock,
 	createPageNavigationSubmenuBlock,
 	getBlockListRootClientId,
 	getLabelOnlyNavigationSubmenuAttributes,
