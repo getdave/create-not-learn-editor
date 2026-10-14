@@ -43,6 +43,11 @@ function cnl_editor_register_block_templates() {
 /**
  * Get the block markup for the "Blank page" template.
  *
+ * Post Content is full width with a constrained layout of its own. Left to
+ * the default flow layout inside the constrained `main`, it would be capped
+ * at the theme's content width, and wide or full-width sections in the page
+ * could never reach past it.
+ *
  * @return string Block markup.
  */
 function cnl_editor_get_blank_page_template_content() {
@@ -51,7 +56,7 @@ function cnl_editor_get_blank_page_template_content() {
 
 <!-- wp:group {"tagName":"main","layout":{"type":"constrained"}} -->
 <main class="wp-block-group">
-<!-- wp:post-content /-->
+<!-- wp:post-content {"align":"full","layout":{"type":"constrained"}} /-->
 </main>
 <!-- /wp:group -->
 
