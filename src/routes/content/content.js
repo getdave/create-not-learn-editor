@@ -32,6 +32,7 @@ import useMainMenu, {
 	useKeepPagesOutOfMenu,
 } from './use-main-menu';
 import { PageDetailStage } from './pages/stage';
+import { usePages } from './pages/data';
 import PagesMenuGroups from './pages/menu-groups';
 import {
 	DesignPicker,
@@ -52,6 +53,7 @@ import {
 	DataViews,
 	DropdownMenu,
 	EmptyState,
+	filterSortAndPaginate,
 	Icon,
 	infoIcon,
 	InputControl,
@@ -80,6 +82,7 @@ import {
 	sprintf,
 	serialize,
 	useEffect,
+	useCallback,
 	useDispatch,
 	useId,
 	useMemo,
@@ -1341,6 +1344,100 @@ function PostListDataViewsLayout() {
 	);
 }
 
+const PAGES_TABLE_VIEW = {
+	...DEFAULT_CONTENT_VIEW,
+	fields: [ 'on-site', 'date' ],
+	sort: { direction: 'asc', field: 'title' },
+	type: 'table',
+};
+
+/**
+ * Every page as a table, the traditional way to look through them, reached
+ * from Pages' options menu. It takes the whole width, so picking a page opens
+ * it in Pages, beside its preview.
+ *
+ * @param {Object} props          Component props.
+ * @param {Object} props.mainMenu Result of `useMainMenu`.
+ * @param {string} props.listPath Path of the Pages screen.
+ * @return {Element} The table.
+ */
+function PagesTable( { mainMenu, listPath } ) {
+	const navigate = useNavigate();
+	const { frontPageId, isLoading, pages, postsPageId } = usePages();
+	const [ view, setView ] = useState( PAGES_TABLE_VIEW );
+	const fields = useMemo(
+		() =>
+			getContentFields( {
+				frontPageId,
+				isPages: true,
+				menuPages: mainMenu.menuPages,
+				postsPageId,
+			} )
+				.filter(
+					( field ) =>
+						field.id !== 'author' && field.id !== 'comments'
+				)
+				// Filter on the status itself, as the data is filtered here.
+				.map( ( field ) =>
+					field.id === 'status'
+						? { ...field, getValue: ( { item } ) => item.status }
+						: field
+				),
+		[ frontPageId, mainMenu.menuPages, postsPageId ]
+	);
+	const openPage = useCallback(
+		( item ) =>
+			navigate( {
+				search: { postId: item.id, previewId: item.id },
+				to: listPath,
+			} ),
+		[ listPath, navigate ]
+	);
+	const actions = useMemo(
+		() => [
+			{
+				callback: ( [ item ] ) => item && openPage( item ),
+				id: 'edit',
+				isPrimary: true,
+				label: __( 'Edit' ),
+				supportsBulk: false,
+			},
+			{
+				callback: ( [ item ] ) =>
+					item?.link &&
+					window.open( item.link, '_blank', 'noopener,noreferrer' ),
+				id: 'open-preview',
+				isEligible: ( item ) => !! item.link,
+				label: __( 'Open preview' ),
+				supportsBulk: false,
+			},
+		],
+		[ openPage ]
+	);
+	const { data, paginationInfo } = useMemo(
+		() => filterSortAndPaginate( pages, view, fields ),
+		[ fields, pages, view ]
+	);
+	return el(
+		DataViews,
+		{
+			actions,
+			data,
+			defaultLayouts: DEFAULT_CONTENT_LAYOUTS,
+			fields,
+			getItemId: ( item ) => String( item.id ),
+			isLoading: isLoading && ! pages.length,
+			onChangeSelection: () => {},
+			onChangeView: setView,
+			onClickItem: openPage,
+			paginationInfo,
+			selection: EMPTY_ARRAY,
+			view,
+		},
+		el( PostListDataViewsLayout )
+	);
+}
+
 function useContentRecords() {
 	const params = useParams( { strict: false } );
 	const searchParams = useSearch( { strict: false } );
@@ -1604,7 +1701,9 @@ function Stage() {
 		navigate( {
 			search: {
 				...searchParams,
-				content: nextTab === 'templates' ? 'templates' : undefined,
+				content: [ 'all', 'templates' ].includes( nextTab )
+					? nextTab
+					: undefined,
 				page: undefined,
 				postId: undefined,
 				postIds: undefined,
@@ -1677,6 +1776,16 @@ function Stage() {
 					el(
 						MenuGroup,
 						null,
+						el(
+							MenuItem,
+							{
+								onClick: () => {
+									handleContentTabChange( 'all' );
+									onClose();
+								},
+							},
+							__( 'Manage pages' )
+						),
 						el(
 							MenuItem,
 							{
@@ -1763,11 +1872,20 @@ function Stage() {
 		)
 	);
 
+	const isPagesTable = isPages && searchParams.content === 'all';
+	let pagesList = null;
+
+	if ( isPages ) {
+		pagesList = isPagesTable
+			? el( PagesTable, { listPath, mainMenu } )
+			: el( PagesMenuGroups, {
+					canCreate: type.canCreate,
+					onAddPage: openCreateFlow,
+				} );
+	}
+
 	const contentList = isPages
-		? el( PagesMenuGroups, {
-				canCreate: type.canCreate,
-				onAddPage: openCreateFlow,
-			} )
+		? pagesList
 		: el(
 				DataViews,
 				{
@@ -1800,13 +1918,22 @@ function Stage() {
 	// Pages has no tabs: its layouts open from the options menu, as a step
 	// down from Pages with a way back.
 	const isPageLayouts = isPages && showTemplates;
-	const pageHeader = isPageLayouts
+	// Layouts and the table of all pages are steps down from Pages.
+	let subScreenLabel = null;
+
+	if ( isPageLayouts ) {
+		subScreenLabel = __( 'Layouts' );
+	} else if ( isPagesTable ) {
+		subScreenLabel = __( 'All pages' );
+	}
+
+	const pageHeader = subScreenLabel
 		? {
-				ariaLabel: __( 'Layouts' ),
+				ariaLabel: subScreenLabel,
 				breadcrumbs: el( Breadcrumbs, {
 					items: [
 						{ label: type.menuName || type.label, to: listPath },
-						{ label: __( 'Layouts' ) },
+						{ label: subScreenLabel },
 					],
 				} ),
 				className:

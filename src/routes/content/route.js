@@ -118,6 +118,12 @@ export const route = {
 			};
 		}
 
+		// The table of all pages takes the whole width, like the lists under
+		// Advanced.
+		if ( params.type === 'page' && search.content === 'all' ) {
+			return undefined;
+		}
+
 		// Pages always show a page next to the list.
 		if ( params.type === 'page' || search.postId || search.postIds ) {
 			return null;

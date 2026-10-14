@@ -110,6 +110,40 @@ test.describe( 'Pages view', () => {
 		).toBeAttached( { timeout: 15000 } );
 	} );
 
+	test( 'lists every page in a table from the options menu', async ( {
+		page,
+		rest,
+	} ) => {
+		const testPage = await rest.createPage();
+		const stage = getStage( page );
+
+		await visitEditor( page, '/types/page' );
+		await stage
+			.getByRole( 'button', { name: 'Page Options', exact: true } )
+			.click();
+		await page.getByRole( 'menuitem', { name: 'Manage pages' } ).click();
+
+		await expect( page ).toHaveURL( /content%3Dall/ );
+		await expect(
+			stage
+				.getByRole( 'navigation', { name: 'Breadcrumbs' } )
+				.getByRole( 'link', { name: 'Pages' } )
+		).toBeVisible();
+
+		// The table takes the whole width.
+		const row = stage
+			.locator( '.dataviews-view-table tbody tr' )
+			.filter( { hasText: testPage.title } );
+		await expect( row ).toBeVisible( { timeout: 15000 } );
+		await expect( page.locator( '.boot-layout__canvas' ) ).toHaveCount( 0 );
+
+		// Picking a page opens it in Pages.
+		await row.getByText( testPage.title, { exact: true } ).click();
+		await expect( page ).toHaveURL(
+			new RegExp( `postId%3D${ testPage.id }` )
+		);
+	} );
+
 	test( 'lists page layouts from the options menu', async ( { page } ) => {
 		await visitEditor( page, '/types/page' );
 
