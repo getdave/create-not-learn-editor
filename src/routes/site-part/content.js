@@ -18,6 +18,7 @@ import { useNavigate } from '@wordpress/route';
 import { useForcedBlockEditorSettings } from '../../editor-layer/settings-guard';
 import { cnlEditorStore, getTitleText } from '../../records';
 import { settings } from '../../settings';
+import { getSiteCrumb } from '../../site-trail';
 import {
 	SiteCanvas,
 	useCanvasDocument,
@@ -315,10 +316,7 @@ function createStage( area ) {
 				Stack,
 				{ direction: 'column', gap: 'xs' },
 				el( Breadcrumbs, {
-					items: [
-						{ label: __( 'Your site' ), to: '/' },
-						{ label: part.title },
-					],
+					items: [ getSiteCrumb(), { label: part.title } ],
 				} ),
 				el(
 					Text,

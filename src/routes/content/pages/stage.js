@@ -13,6 +13,7 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  * Internal dependencies
  */
 import { getErrorMessage, getTemplateDisplayTitle } from '../../../records';
+import { getSiteCrumb, useIsFromSite } from '../../../site-trail';
 import { MODE_COMPOSE, useCanvasMode } from '../../../site-canvas/mode';
 import { getPatternTitle } from '../page-layouts';
 import { isPageInMenu } from '../menu-status';
@@ -2123,6 +2124,7 @@ function SectionList( {
  */
 export function PageDetailStage( { pageId } ) {
 	const navigate = useNavigate();
+	const isFromSite = useIsFromSite();
 	const { frontPageId, pages } = usePages();
 	const { blocks, isReady, setBlocks } = usePageSections( pageId );
 	const { createSuccessNotice } = useDispatch( noticesStore );
@@ -2211,6 +2213,9 @@ export function PageDetailStage( { pageId } ) {
 			ariaLabel: title,
 			breadcrumbs: el( Breadcrumbs, {
 				items: [
+					// Opened from the "Your site" checklist, a page leads
+					// back to it.
+					...( isFromSite ? [ getSiteCrumb() ] : [] ),
 					{ label: __( 'Pages' ), to: LIST_PATH },
 					...ancestors.map( ( label ) => ( { label } ) ),
 					{ label: title },

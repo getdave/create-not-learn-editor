@@ -6,6 +6,7 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  */
 import { withUiTheme } from '../../theme';
 import { getPostType } from '../../settings';
+import { getSiteCrumb, useIsFromSite } from '../../site-trail';
 import {
 	getErrorMessage,
 	getTemplateAuthorText,
@@ -1590,6 +1591,7 @@ function useContentRecords() {
 function Stage() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
+	const isFromSite = useIsFromSite();
 	// Where a page being added goes: in the menu, out of it, or the user picks.
 	const [ addingPage, setAddingPage ] = useState( null );
 	const {
@@ -1927,12 +1929,16 @@ function Stage() {
 		subScreenLabel = __( 'All pages' );
 	}
 
+	const title = type.menuName || type.label;
+	// Opened from the "Your site" checklist, Pages leads back to it.
+	const siteCrumbs = isPages && isFromSite ? [ getSiteCrumb() ] : [];
 	const pageHeader = subScreenLabel
 		? {
 				ariaLabel: subScreenLabel,
 				breadcrumbs: el( Breadcrumbs, {
 					items: [
-						{ label: type.menuName || type.label, to: listPath },
+						...siteCrumbs,
+						{ label: title, to: listPath },
 						{ label: subScreenLabel },
 					],
 				} ),
@@ -1941,6 +1947,13 @@ function Stage() {
 			}
 		: {
 				actions: pageActions,
+				ariaLabel: title,
+				breadcrumbs:
+					siteCrumbs.length > 0
+						? el( Breadcrumbs, {
+								items: [ ...siteCrumbs, { label: title } ],
+							} )
+						: undefined,
 				className: 'cnl-editor-stage cnl-editor-content-page',
 				subTitle:
 					( type.name === 'page' &&
@@ -1955,7 +1968,7 @@ function Stage() {
 						__( 'Browse, preview, and edit %s.' ),
 						( type.label || type.name ).toLowerCase()
 					),
-				title: type.menuName || type.label,
+				title: siteCrumbs.length > 0 ? undefined : title,
 			};
 
 	return el(
