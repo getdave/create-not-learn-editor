@@ -2,7 +2,10 @@
  * Internal dependencies
  */
 import { cnlEditorStore } from '../../records';
-import { getMainMenu } from '../navigation/navigation-locations';
+import {
+	buildNavigationLocationsMap,
+	getMainMenu,
+} from '../navigation/navigation-locations';
 import {
 	MENU_PAGES_QUERY,
 	showMenuSetByHandNotice,
@@ -63,7 +66,8 @@ async function getEditedMenuContent( menuId ) {
 
 /**
  * The menu in the site header, and which pages it links to, counting changes
- * that haven't been saved yet.
+ * that haven't been saved yet. Also where on the site it shows, and where the
+ * site's other menus show.
  *
  * @return {Object} Main menu details.
  */
@@ -98,6 +102,26 @@ export default function useMainMenu() {
 		[ menus, templateParts ]
 	);
 	const menuId = menu?.id;
+	// Where on the site each menu shows, to tell the main menu apart from
+	// the others, which are managed on the Menus screen.
+	const { menuArea, otherMenuAreas } = useMemo( () => {
+		const locations = buildNavigationLocationsMap(
+			templateParts,
+			menus[ 0 ]?.id
+		);
+		const others = new Set();
+
+		Object.entries( locations ).forEach( ( [ id, places ] ) => {
+			if ( Number( id ) !== menuId ) {
+				places.forEach( ( place ) => others.add( place.area ) );
+			}
+		} );
+
+		return {
+			menuArea: locations[ menuId ]?.[ 0 ]?.area || '',
+			otherMenuAreas: [ ...others ],
+		};
+	}, [ menuId, menus, templateParts ] );
 	const menuContent = useSelect(
 		( selectFromStore ) => {
 			if ( ! menuId ) {
@@ -132,9 +156,11 @@ export default function useMainMenu() {
 
 	return {
 		isLoading,
+		menuArea,
 		menuId,
 		menuPages,
 		menuTitle: getMenuTitleText( menu ),
+		otherMenuAreas,
 	};
 }
 

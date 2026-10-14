@@ -1,14 +1,10 @@
 /**
- * WordPress dependencies
- */
-import { useNavigate } from '@wordpress/route';
-
-/**
  * Internal dependencies
  */
 import { settings as appSettings } from '../../settings';
 import { DesignScreenHeading } from './design-heading';
 import SitePreviewCanvas from './site-preview';
+import ScreenLinks from '../../screen-links';
 import {
 	COLOR_PROPERTIES,
 	TYPOGRAPHY_PROPERTIES,
@@ -30,7 +26,6 @@ import {
 	Text,
 	__,
 	checkIcon,
-	chevronRightIcon,
 	colorIcon,
 	coreDataStore,
 	el,
@@ -404,50 +399,6 @@ const DESIGN_LINKS = [
 	},
 ];
 
-function ScreenLinks( { links } ) {
-	const navigate = useNavigate();
-
-	return el(
-		'nav',
-		{
-			'aria-label': __( 'More design options' ),
-			className: 'routes-styles__links',
-		},
-		links.map( ( { description, icon, title, to } ) =>
-			el(
-				Button,
-				{
-					className: 'routes-styles__link',
-					key: to,
-					onClick: () => navigate( { to } ),
-				},
-				el( Icon, {
-					className: 'routes-styles__link-icon',
-					icon,
-				} ),
-				el(
-					'span',
-					{ className: 'routes-styles__link-text' },
-					el(
-						'span',
-						{ className: 'routes-styles__link-title' },
-						title
-					),
-					el(
-						'span',
-						{ className: 'routes-styles__link-description' },
-						description
-					)
-				),
-				el( Icon, {
-					className: 'routes-styles__link-chevron',
-					icon: chevronRightIcon,
-				} )
-			)
-		)
-	);
-}
-
 /**
  * The shell every styles screen shares: its title, the live-preview layout,
  * and the way out to the full Styles editor.
@@ -583,7 +534,10 @@ export function DesignStage() {
 					__( 'Your theme only offers its default look.' )
 				)
 		),
-		el( ScreenLinks, { links: DESIGN_LINKS } )
+		el( ScreenLinks, {
+			label: __( 'More design options' ),
+			links: DESIGN_LINKS,
+		} )
 	);
 }
 

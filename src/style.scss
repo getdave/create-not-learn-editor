@@ -1232,7 +1232,7 @@
 	white-space: nowrap;
 }
 
-.routes-styles__links {
+.cnl-screen-links {
 	display: flex;
 	flex-direction: column;
 	gap: var(--wpds-dimension-gap-xs);
@@ -1240,7 +1240,7 @@
 	padding-top: var(--wpds-dimension-padding-lg);
 }
 
-.components-button.routes-styles__link {
+.components-button.cnl-screen-links__link {
 	display: flex;
 	gap: var(--wpds-dimension-gap-md);
 	align-items: center;
@@ -1258,7 +1258,7 @@
 	}
 }
 
-.routes-styles__link-text {
+.cnl-screen-links__text {
 	display: flex;
 	flex: 1 1 auto;
 	flex-direction: column;
@@ -1266,13 +1266,13 @@
 	min-width: 0;
 }
 
-.routes-styles__link-title {
+.cnl-screen-links__title {
 	font-size: var(--wpds-typography-font-size-md);
 	font-weight: var(--wpds-typography-font-weight-emphasis);
 	line-height: var(--wpds-typography-line-height-sm);
 }
 
-.routes-styles__link-description {
+.cnl-screen-links__description {
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	font-size: var(--wpds-typography-font-size-sm);
 	font-weight: var(--wpds-typography-font-weight-default);
@@ -1280,14 +1280,14 @@
 }
 
 // Each link's subject, in the icon Gutenberg's own Styles panel uses for it.
-.routes-styles__link-icon,
-.routes-styles__link-chevron {
+.cnl-screen-links__icon,
+.cnl-screen-links__chevron {
 	flex: 0 0 auto;
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	fill: currentcolor;
 }
 
-.components-button.routes-styles__link:not(:hover) .routes-styles__link-chevron {
+.components-button.cnl-screen-links__link:not(:hover) .cnl-screen-links__chevron {
 	opacity: 0.6;
 }
 

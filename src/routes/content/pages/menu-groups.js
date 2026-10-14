@@ -31,6 +31,7 @@ import {
 	getNavigationItemLabel,
 } from '../../navigation-edit/navigation-blocks';
 import { getMenuPagesFromBlocks } from '../menu-status';
+import ScreenLinks from '../../../screen-links';
 import useMainMenu from '../use-main-menu';
 import { getPageTitle, usePages } from './data';
 import { getPageIcon, getPageRole, getStatusBadge } from './page-labels';
@@ -40,6 +41,7 @@ import {
 	Badge,
 	blockEditorStore,
 	Button,
+	compassIcon,
 	coreDataStore,
 	chevronDownSmallIcon,
 	chevronRightSmallIcon,
@@ -231,8 +233,68 @@ function MenuItemOptions( props ) {
 	);
 }
 
+/**
+ * What the two groups are called. With one menu it is just "your menu"; once
+ * the site has others, the groups say which menu they mean.
+ *
+ * @param {Object}   mainMenu                Result of `useMainMenu`.
+ * @param {string}   mainMenu.menuArea       Where the main menu shows.
+ * @param {string[]} mainMenu.otherMenuAreas Where other menus show.
+ * @return {Object} `{ inMenu, notInMenu, notInMenuInfo }`.
+ */
+function getGroupNames( { menuArea, otherMenuAreas } ) {
+	if ( ! otherMenuAreas.length ) {
+		return {
+			inMenu: __( 'In your menu' ),
+			notInMenu: __( 'Not in your menu' ),
+			notInMenuInfo: __(
+				'These pages are on your site, but visitors can only reach them from a link or their address.'
+			),
+		};
+	}
+
+	if ( menuArea === 'header' ) {
+		return {
+			inMenu: __( 'In your header menu' ),
+			notInMenu: __( 'Not in your header menu' ),
+			notInMenuInfo: __(
+				'These pages aren’t in your header menu. Some may be in your other menus.'
+			),
+		};
+	}
+
+	return {
+		inMenu: __( 'In your main menu' ),
+		notInMenu: __( 'Not in your main menu' ),
+		notInMenuInfo: __(
+			'These pages aren’t in your main menu. Some may be in your other menus.'
+		),
+	};
+}
+
+/**
+ * The line under "Other menus", saying what other menus the site has.
+ *
+ * @param {string[]} otherMenuAreas Where other menus show.
+ * @return {string} Description.
+ */
+function getOtherMenusDescription( otherMenuAreas ) {
+	if ( ! otherMenuAreas.length ) {
+		return __( 'Add a menu for your footer, or anywhere else.' );
+	}
+
+	if ( otherMenuAreas.length === 1 && otherMenuAreas[ 0 ] === 'footer' ) {
+		return __(
+			'Your footer has a menu too. Change it, and any others, here.'
+		);
+	}
+
+	return __( 'Your site has other menus too. Change them here.' );
+}
+
 function InMenuGroup( {
 	canCreate,
+	groupNames,
 	menuBlocks,
 	menuId,
 	menuTitle,
@@ -368,7 +430,7 @@ function InMenuGroup( {
 	return el(
 		'section',
 		{
-			'aria-label': __( 'In your menu' ),
+			'aria-label': groupNames.inMenu,
 			className: 'cnl-pages-menu__group',
 		},
 		el( GroupHeader, {
@@ -418,7 +480,7 @@ function InMenuGroup( {
 			count: menuBlocks.length,
 			isOpen,
 			onToggle: () => setIsOpen( ! isOpen ),
-			title: __( 'In your menu' ),
+			title: groupNames.inMenu,
 		} ),
 		isOpen &&
 			! isEmpty &&
@@ -595,6 +657,7 @@ function NotInMenuRow( {
 
 function NotInMenuGroup( {
 	canCreate,
+	groupNames,
 	menuBlocks,
 	onAddPage,
 	pageActions,
@@ -630,7 +693,7 @@ function NotInMenuGroup( {
 	return el(
 		'section',
 		{
-			'aria-label': __( 'Not in your menu' ),
+			'aria-label': groupNames.notInMenu,
 			className: `cnl-pages-menu__group${
 				isDropTarget ? ' is-drop-target' : ''
 			}`,
@@ -667,12 +730,10 @@ function NotInMenuGroup( {
 					size: 'small',
 				} ),
 			count: notInMenu.length,
-			info: __(
-				'These pages are on your site, but visitors can only reach them from a link or their address.'
-			),
+			info: groupNames.notInMenuInfo,
 			isOpen,
 			onToggle: () => setIsOpen( ! isOpen ),
-			title: __( 'Not in your menu' ),
+			title: groupNames.notInMenu,
 		} ),
 		isOpen &&
 			( notInMenu.length
@@ -715,7 +776,8 @@ function NotInMenuGroup( {
  * @return {Element} The two groups.
  */
 export default function PagesMenuGroups( { canCreate, onAddPage } ) {
-	const { isLoading: isLoadingMenu, menuId, menuTitle } = useMainMenu();
+	const mainMenu = useMainMenu();
+	const { isLoading: isLoadingMenu, menuId, menuTitle } = mainMenu;
 	const { frontPageId, isLoading, pages, postsPageId } = usePages();
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
@@ -774,6 +836,8 @@ export default function PagesMenuGroups( { canCreate, onAddPage } ) {
 		return el( PagesTree, { canCreate, onAddPage: () => onAddPage() } );
 	}
 
+	const groupNames = getGroupNames( mainMenu );
+
 	return el(
 		'div',
 		{ className: 'cnl-pages-menu' },
@@ -783,6 +847,7 @@ export default function PagesMenuGroups( { canCreate, onAddPage } ) {
 			menuBlocks &&
 				el( InMenuGroup, {
 					canCreate,
+					groupNames,
 					menuBlocks,
 					menuId,
 					menuTitle,
@@ -793,6 +858,7 @@ export default function PagesMenuGroups( { canCreate, onAddPage } ) {
 			menuBlocks &&
 				el( NotInMenuGroup, {
 					canCreate,
+					groupNames,
 					menuBlocks,
 					onAddPage,
 					pageActions,
@@ -800,13 +866,20 @@ export default function PagesMenuGroups( { canCreate, onAddPage } ) {
 					roles,
 				} )
 		),
-		el(
-			Text,
-			{ className: 'cnl-pages-tree__footer', variant: 'body-sm' },
-			__(
-				'Pick a page to see it, or use the pencil to change what is on it. Drag pages between the groups to add them to your menu or take them out.'
-			)
-		),
+		// The menu here is the main one; any others are managed on Menus.
+		el( ScreenLinks, {
+			label: __( 'More menu options' ),
+			links: [
+				{
+					description: getOtherMenusDescription(
+						mainMenu.otherMenuAreas
+					),
+					icon: compassIcon,
+					title: __( 'Other menus' ),
+					to: '/navigation',
+				},
+			],
+		} ),
 		trash.modal
 	);
 }

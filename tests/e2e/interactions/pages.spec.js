@@ -152,6 +152,23 @@ test.describe( 'Pages interactions', () => {
 		);
 	} );
 
+	test( 'Other menus leads on to the Menus screen', async ( { page } ) => {
+		await visitEditor( page, '/types/page' );
+
+		const otherMenus = getStage( page )
+			.getByRole( 'navigation', { name: 'More menu options' } )
+			.getByRole( 'button', { name: /^Other menus/ } );
+
+		await expect( otherMenus ).toBeVisible( { timeout: 15000 } );
+		await otherMenus.click();
+		await expect
+			.poll( () => getRoute( page ), { timeout: 15000 } )
+			.toBe( '/navigation' );
+		await expect(
+			getStage( page ).getByRole( 'heading', { name: 'Menus' } )
+		).toBeVisible();
+	} );
+
 	test( 'renames a page from its options', async ( { page, rest } ) => {
 		const testPage = await rest.createPage();
 		const newTitle = `Renamed page ${ Date.now() }`;
