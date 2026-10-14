@@ -20,6 +20,7 @@ function cnl_editor_register_preview_frame_hooks() {
 	add_action( 'wp_head', 'cnl_editor_output_preview_frame_styles', 999 );
 	add_action( 'wp_footer', 'cnl_editor_output_preview_navigation_script', 999 );
 	add_filter( 'page_template_hierarchy', 'cnl_editor_preview_page_template' );
+	add_filter( 'pre_option_show_on_front', 'cnl_editor_preview_show_on_front' );
 }
 
 /**
@@ -81,6 +82,32 @@ function cnl_editor_preview_page_template( $templates ) {
 	}
 
 	return $templates;
+}
+
+/**
+ * Show the homepage as it will be once its choice is saved.
+ *
+ * Choosing between the homepage's page and the latest posts in the Pages
+ * sidebar is an unsaved change too. The canvas passes the choice along as
+ * `cnl-editor-show-on-front`, `page` or `posts`, and the preview shows it,
+ * for those who could save it.
+ *
+ * @param mixed $value The option's value, or false to read it as saved.
+ * @return mixed The choice passed along, or `$value`.
+ */
+function cnl_editor_preview_show_on_front( $value ) {
+	// Who is asking is only known once WordPress has set up.
+	if ( ! did_action( 'init' ) || ! cnl_editor_is_preview_frame_request() ) {
+		return $value;
+	}
+
+	$choice = filter_input( INPUT_GET, 'cnl-editor-show-on-front', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+
+	if ( ! in_array( $choice, array( 'page', 'posts' ), true ) || ! current_user_can( 'manage_options' ) ) {
+		return $value;
+	}
+
+	return $choice;
 }
 
 /**

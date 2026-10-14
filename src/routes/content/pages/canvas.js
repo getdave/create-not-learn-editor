@@ -22,14 +22,16 @@ import { useNavigate, useSearch } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { settings } from '../../../settings';
 import {
 	SiteCanvas,
-	TEMPLATE_PARAM,
 	useCanvasDocument,
 	useSiteCanvas,
 } from '../../../site-canvas';
 import {
 	getPageTitle,
+	useHomepage,
+	useLatestPostsTemplateId,
 	usePages,
 	usePageSections,
 	usePreviewStructure,
@@ -39,6 +41,7 @@ import {
 	getTemplateElementKey,
 	getTemplateElementLabel,
 } from './page-sections';
+import { getPagePreviewUrl } from './preview-url';
 import { sectionBridge, useSectionBridge } from './section-bridge';
 import {
 	__,
@@ -467,44 +470,23 @@ function CanvasEmptyState() {
 }
 
 /**
- * Where the preview shows a page. A page that isn't published only shows to
- * those who can edit it, as a preview. A layout chosen but not saved yet is
- * passed along, so the preview shows the page in it.
- *
- * @param {Object} page          Page record, with its unsaved edits.
- * @param {string} savedTemplate The page's saved layout.
- * @return {string} The page's URL, or an empty string.
- */
-function getPagePreviewUrl( page, savedTemplate ) {
-	if ( ! page?.link ) {
-		return '';
-	}
-
-	const url = new URL( page.link, window.location.origin );
-
-	if ( page.status !== 'publish' ) {
-		url.searchParams.set( 'preview', 'true' );
-	}
-
-	if ( ( page.template || '' ) !== ( savedTemplate || '' ) ) {
-		url.searchParams.set( TEMPLATE_PARAM, page.template || 'default' );
-	}
-
-	return url.href;
-}
-
-/**
  * Whether the preview shows an unsaved change: a page whose only edit is its
- * layout, which `getPagePreviewUrl` passes along.
+ * layout, or the site's whose only edit is what the homepage shows, both of
+ * which `getPagePreviewUrl` passes along.
  *
  * @param {Object}   change Unsaved change, from `useChanges`.
  * @param {Function} select The registry's `select`.
  * @return {boolean} Whether the preview shows it.
  */
-function isLayoutChange( change, select ) {
+function isPassedToPreview( change, select ) {
 	const { kind, name, key } = change;
+	let shown;
 
-	if ( kind !== 'postType' || name !== 'page' ) {
+	if ( kind === 'postType' && name === 'page' ) {
+		shown = 'template';
+	} else if ( kind === 'root' && name === 'site' ) {
+		shown = 'show_on_front';
+	} else {
 		return false;
 	}
 
@@ -516,15 +498,18 @@ function isLayoutChange( change, select ) {
 		) || {}
 	);
 
-	return edits.length > 0 && edits.every( ( edit ) => edit === 'template' );
+	return edits.length > 0 && edits.every( ( edit ) => edit === shown );
 }
 
-function PageDocument( { isFrontPage, page } ) {
+function PageDocument( { isFrontPage, page, showsLatestPosts } ) {
 	const isPublished = page?.status === 'publish';
-	const path = isPublished ? getPagePath( page?.link ) : '';
-	const meta = [ __( 'Page' ), getStatusLabel( page?.status ) ]
-		.filter( Boolean )
-		.join( ' · ' );
+	const link = showsLatestPosts ? settings.homeUrl : page?.link;
+	const path = isPublished || showsLatestPosts ? getPagePath( link ) : '';
+	const meta = showsLatestPosts
+		? __( 'Homepage · Your latest posts' )
+		: [ __( 'Page' ), getStatusLabel( page?.status ) ]
+				.filter( Boolean )
+				.join( ' · ' );
 
 	return el(
 		'div',
@@ -537,7 +522,7 @@ function PageDocument( { isFrontPage, page } ) {
 				{ className: 'cnl-editor-homepage-document__heading' },
 				el( Icon, {
 					className: 'cnl-editor-homepage-document__icon',
-					icon: isFrontPage ? homeIcon : pageIcon,
+					icon: isFrontPage || showsLatestPosts ? homeIcon : pageIcon,
 				} ),
 				el(
 					Tooltip.Root,
@@ -555,7 +540,7 @@ function PageDocument( { isFrontPage, page } ) {
 			),
 			el( 'p', { className: 'cnl-editor-homepage-document__meta' }, meta )
 		),
-		el( PageOptions, { link: isPublished ? page?.link : '' } )
+		el( PageOptions, { link: path ? link : '' } )
 	);
 }
 
@@ -653,6 +638,12 @@ function PagesCanvas() {
 		) ||
 		0;
 	const pageId = drilledId || Number( searchParams.previewId ) || fallbackId;
+	const { homepageId, savedShowOnFront, showOnFront } = useHomepage();
+	const isHomepage = Boolean( pageId ) && pageId === homepageId;
+	// The homepage's page, kept while the homepage lists the latest posts.
+	// The canvas shows the homepage as visitors see it then, not the page.
+	const showsLatestPosts = isHomepage && showOnFront === 'posts';
+	const latestPostsTemplateId = useLatestPostsTemplateId( showsLatestPosts );
 	/*
 	 * Only what the canvas shows of the page. The edited record is new on
 	 * every keystroke, as the editor writes the page's blocks back to it.
@@ -692,15 +683,26 @@ function PagesCanvas() {
 				: '',
 		[ pageId ]
 	);
-	const pinnedEntity = useMemo(
-		() => ( pageId ? { postId: pageId, postType: 'page' } : null ),
-		[ pageId ]
-	);
-	const isShownInPreview = useCallback( isLayoutChange, [] );
+	const pinnedEntity = useMemo( () => {
+		if ( showsLatestPosts ) {
+			return latestPostsTemplateId
+				? { postId: latestPostsTemplateId, postType: 'wp_template' }
+				: null;
+		}
+
+		return pageId ? { postId: pageId, postType: 'page' } : null;
+	}, [ latestPostsTemplateId, pageId, showsLatestPosts ] );
+	const isShownInPreview = useCallback( isPassedToPreview, [] );
 	const canvas = useSiteCanvas( {
 		isShownInPreview,
 		pinnedEntity,
-		url: getPagePreviewUrl( page, savedTemplate ),
+		url: getPagePreviewUrl(
+			page,
+			savedTemplate,
+			isHomepage
+				? { homeUrl: settings.homeUrl, savedShowOnFront, showOnFront }
+				: null
+		),
 	} );
 	const canvasDocument = useCanvasDocument( editorRef, pageId );
 	const useComposeSync = useComposeSyncHook( pageId );
@@ -752,6 +754,7 @@ function PagesCanvas() {
 		Fragment,
 		null,
 		! canvas.isComposing &&
+			! showsLatestPosts &&
 			el( LinkedSections, { canvasDocument, pageId } ),
 		el( SiteCanvas, {
 			canvas,
@@ -760,6 +763,7 @@ function PagesCanvas() {
 			document: el( PageDocument, {
 				isFrontPage: pageId === frontPageId,
 				page,
+				showsLatestPosts,
 			} ),
 			editorChildren:
 				! drilledId &&

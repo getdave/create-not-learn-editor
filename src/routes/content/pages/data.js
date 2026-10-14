@@ -69,6 +69,47 @@ export function usePages() {
 }
 
 /**
+ * The homepage's page, and what the homepage shows: that page, or the latest
+ * posts. The page is kept while it shows the latest posts, so the choice can
+ * be switched back on it.
+ *
+ * @return {Object} `{ homepageId, savedShowOnFront, showOnFront }`, what it
+ *                  shows with unsaved edits and as saved.
+ */
+export function useHomepage() {
+	return useSelect( ( select ) => {
+		const store = select( coreDataStore );
+		const edited = store.getEditedEntityRecord( 'root', 'site' );
+
+		return {
+			homepageId: Number( edited?.page_on_front ) || 0,
+			savedShowOnFront: store.getEntityRecord( 'root', 'site' )
+				?.show_on_front,
+			showOnFront: edited?.show_on_front,
+		};
+	}, [] );
+}
+
+/**
+ * The layout the homepage lists the latest posts in. WordPress takes the
+ * first of front-page, home and index the theme has.
+ *
+ * @param {boolean} isNeeded Whether the homepage lists the latest posts.
+ * @return {string|undefined} Its template ID, once known.
+ */
+export function useLatestPostsTemplateId( isNeeded ) {
+	return useSelect(
+		( select ) =>
+			isNeeded
+				? select( coreDataStore ).getDefaultTemplateId( {
+						slug: 'front-page',
+					} )
+				: undefined,
+		[ isNeeded ]
+	);
+}
+
+/**
  * A page's sections, which are its top-level blocks, and a way to change them.
  *
  * The blocks live on the page entity as an edit, which is what the editor in
@@ -289,15 +330,18 @@ const PAGE_TEMPLATES_QUERY = { per_page: -1, post_type: 'page' };
  * and site's custom page templates.
  *
  * A homepage shown by a `front-page` template always uses it, whatever the
- * page asks for, so that one is reported separately. Patterns come too, to
+ * page asks for, and one listing the latest posts always uses the layout
+ * that lists them, so that one is reported separately. Patterns come too, to
  * look inside any a template uses.
  *
- * @param {string}  slug        Page slug.
- * @param {boolean} isFrontPage Whether the page is the site's homepage.
+ * @param {string}  slug             Page slug.
+ * @param {boolean} isFrontPage      Whether the page is the site's homepage.
+ * @param {boolean} showsLatestPosts Whether the homepage, kept on this page,
+ *                                   lists the latest posts instead.
  * @return {Object} `{ custom, defaultTemplate, frontPageTemplate, isLoading,
  *                  patterns }`.
  */
-export function usePageLayouts( slug, isFrontPage ) {
+export function usePageLayouts( slug, isFrontPage, showsLatestPosts ) {
 	return useSelect(
 		( select ) => {
 			const store = select( coreDataStore );
@@ -309,9 +353,10 @@ export function usePageLayouts( slug, isFrontPage ) {
 			const defaultId = store.getDefaultTemplateId( {
 				slug: slug ? `page-${ slug }` : 'page',
 			} );
-			const frontId = isFrontPage
-				? store.getDefaultTemplateId( { slug: 'front-page' } )
-				: undefined;
+			const frontId =
+				isFrontPage || showsLatestPosts
+					? store.getDefaultTemplateId( { slug: 'front-page' } )
+					: undefined;
 			const defaultTemplate = defaultId
 				? store.getEntityRecord( 'postType', 'wp_template', defaultId )
 				: undefined;
@@ -323,11 +368,13 @@ export function usePageLayouts( slug, isFrontPage ) {
 				custom: custom || EMPTY_ARRAY,
 				defaultTemplate,
 				frontPageTemplate:
-					frontTemplate?.slug === 'front-page' ? frontTemplate : null,
+					showsLatestPosts || frontTemplate?.slug === 'front-page'
+						? frontTemplate || null
+						: null,
 				isLoading: ! custom || ! defaultTemplate,
 				patterns: store.getBlockPatterns?.() || EMPTY_ARRAY,
 			};
 		},
-		[ isFrontPage, slug ]
+		[ isFrontPage, showsLatestPosts, slug ]
 	);
 }
