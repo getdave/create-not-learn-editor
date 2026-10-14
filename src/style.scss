@@ -1582,10 +1582,16 @@
 	width: 34px;
 	height: 34px;
 	min-width: 34px;
-	color: #757575;
+	color: #1e1e1e;
 
-	&:disabled {
-		color: #c3c4c7;
+	/*
+	 * Full strength when there is a step to take, faint when there isn't.
+	 * The buttons stay focusable when they can't be used, so they are marked
+	 * with `aria-disabled` rather than `disabled`.
+	 */
+	&[aria-disabled="true"],
+	&[aria-disabled="true"]:hover {
+		color: #ccc;
 	}
 }
 

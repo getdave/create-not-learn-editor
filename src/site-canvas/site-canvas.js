@@ -37,6 +37,7 @@ import {
 	CanvasMoreMenu,
 	DeviceSwitcher,
 	ComposeButton,
+	EditHistory,
 	ModeToggle,
 	PreviewHistory,
 } from './toolbar';
@@ -209,6 +210,7 @@ export function SiteCanvas( {
 								isComposing ? MODE_EDIT : MODE_COMPOSE
 							),
 					} ),
+				! isPreviewing && el( EditHistory ),
 				isPreviewing &&
 					el( PreviewHistory, {
 						history: frame.history,
