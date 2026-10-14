@@ -7,6 +7,7 @@ import { useNavigate } from '@wordpress/route';
  * Internal dependencies
  */
 import { settings } from '../../settings';
+import { FROM_SITE_SEARCH } from '../../site-trail';
 import {
 	getCreationProgress,
 	getCreationStepStatus,
@@ -298,7 +299,10 @@ export default function Stage() {
 									key: id,
 									onSelect: () =>
 										navigate( {
-											search: steps[ id ].search,
+											search: {
+												...steps[ id ].search,
+												...FROM_SITE_SEARCH,
+											},
 											to: steps[ id ].to,
 										} ),
 									step: steps[ id ],
