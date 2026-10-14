@@ -6,6 +6,7 @@ const {
 	getRoute,
 	getSaveControls,
 	getStage,
+	openPageLayouts,
 	setCanvasMode,
 	test,
 	visitEditor,
@@ -204,7 +205,7 @@ test.describe( 'Pages interactions', () => {
 		const stage = getStage( page );
 		const canvas = page.locator( '.cnl-editor-canvas' );
 
-		await stage.getByRole( 'tab', { name: 'Layouts' } ).click();
+		await openPageLayouts( page );
 		await expect( page ).toHaveURL( /content%3Dtemplates/ );
 
 		// Picking a layout previews it, styled by the theme.
@@ -225,8 +226,12 @@ test.describe( 'Pages interactions', () => {
 			)
 			.not.toContain( 'Times New Roman' );
 
-		await stage.getByRole( 'tab', { name: 'Pages' } ).click();
-		await stage.getByRole( 'tab', { name: 'Layouts' } ).click();
+		// Back to Pages and in again.
+		await stage
+			.getByRole( 'navigation', { name: 'Breadcrumbs' } )
+			.getByRole( 'link', { name: 'Pages' } )
+			.click();
+		await openPageLayouts( page );
 		await canvas
 			.getByRole( 'button', { name: 'Edit', exact: true } )
 			.click();

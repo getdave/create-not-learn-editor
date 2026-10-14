@@ -43,6 +43,7 @@ import {
 import PagesCanvas from './pages/canvas';
 import {
 	Badge,
+	Breadcrumbs,
 	Button,
 	CheckboxControl,
 	chevronLeftIcon,
@@ -54,6 +55,7 @@ import {
 	Icon,
 	infoIcon,
 	InputControl,
+	MenuGroup,
 	MenuItem,
 	Notice,
 	Popover,
@@ -1673,14 +1675,28 @@ function Stage() {
 				},
 				( { onClose } ) =>
 					el(
-						MenuItem,
-						{
-							onClick: () => {
-								configureHomepage();
-								onClose();
+						MenuGroup,
+						null,
+						el(
+							MenuItem,
+							{
+								onClick: () => {
+									handleContentTabChange( 'templates' );
+									onClose();
+								},
 							},
-						},
-						__( 'Configure Homepage' )
+							__( 'Manage layouts' )
+						),
+						el(
+							MenuItem,
+							{
+								onClick: () => {
+									configureHomepage();
+									onClose();
+								},
+							},
+							__( 'Configure Homepage' )
+						)
 					)
 			)
 	);
@@ -1781,59 +1797,79 @@ function Stage() {
 				el( PostListDataViewsLayout )
 			);
 
+	// Pages has no tabs: its layouts open from the options menu, as a step
+	// down from Pages with a way back.
+	const isPageLayouts = isPages && showTemplates;
+	const pageHeader = isPageLayouts
+		? {
+				ariaLabel: __( 'Layouts' ),
+				breadcrumbs: el( Breadcrumbs, {
+					items: [
+						{ label: type.menuName || type.label, to: listPath },
+						{ label: __( 'Layouts' ) },
+					],
+				} ),
+				className:
+					'cnl-editor-stage cnl-drilldown-stage cnl-editor-content-page',
+			}
+		: {
+				actions: pageActions,
+				className: 'cnl-editor-stage cnl-editor-content-page',
+				subTitle:
+					( type.name === 'page' &&
+						__(
+							'Every page on your site. Pick one to see it, or edit it to change what is on it.'
+						) ) ||
+					( type.name === 'post' &&
+						__( 'Your blog posts, newest first.' ) ) ||
+					type.description ||
+					sprintf(
+						/* translators: %s: post type label. */
+						__( 'Browse, preview, and edit %s.' ),
+						( type.label || type.name ).toLowerCase()
+					),
+				title: type.menuName || type.label,
+			};
+
 	return el(
 		Page,
 		{
-			actions: pageActions,
-			className: 'cnl-editor-stage cnl-editor-content-page',
+			...pageHeader,
 			hasPadding: false,
 			headingLevel: 2,
-			subTitle:
-				( type.name === 'page' &&
-					__(
-						'Every page on your site. Pick one to see it, or edit it to change what is on it.'
-					) ) ||
-				( type.name === 'post' &&
-					__( 'Your blog posts, newest first.' ) ) ||
-				type.description ||
-				sprintf(
-					/* translators: %s: post type label. */
-					__( 'Browse, preview, and edit %s.' ),
-					( type.label || type.name ).toLowerCase()
-				),
-			title: type.menuName || type.label,
 		},
-		el(
-			'div',
-			{ className: 'routes-post-list__tabs-wrapper' },
+		! isPages &&
 			el(
-				Tabs.Root,
-				{
-					onValueChange: handleContentTabChange,
-					value: showTemplates ? 'templates' : 'content',
-				},
+				'div',
+				{ className: 'routes-post-list__tabs-wrapper' },
 				el(
-					Tabs.List,
-					null,
+					Tabs.Root,
+					{
+						onValueChange: handleContentTabChange,
+						value: showTemplates ? 'templates' : 'content',
+					},
 					el(
-						Tabs.Tab,
-						{ value: 'content' },
-						el( TabLabel, {
-							icon: type.menuIcon,
-							label: type.menuName || type.label,
-						} )
-					),
-					el(
-						Tabs.Tab,
-						{ value: 'templates' },
-						el( TabLabel, {
-							icon: 'dashicons-layout',
-							label: __( 'Layouts' ),
-						} )
+						Tabs.List,
+						null,
+						el(
+							Tabs.Tab,
+							{ value: 'content' },
+							el( TabLabel, {
+								icon: type.menuIcon,
+								label: type.menuName || type.label,
+							} )
+						),
+						el(
+							Tabs.Tab,
+							{ value: 'templates' },
+							el( TabLabel, {
+								icon: 'dashicons-layout',
+								label: __( 'Layouts' ),
+							} )
+						)
 					)
 				)
-			)
-		),
+			),
 		showTemplates &&
 			el(
 				'p',

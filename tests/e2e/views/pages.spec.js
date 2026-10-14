@@ -5,6 +5,7 @@ const {
 	getPageItem,
 	getSitePreview,
 	getStage,
+	openPageLayouts,
 	setCanvasMode,
 	test,
 	visitEditor,
@@ -24,9 +25,8 @@ test.describe( 'Pages view', () => {
 		await expect(
 			stage.getByRole( 'heading', { level: 2, name: 'Pages' } )
 		).toBeVisible();
-		await expect(
-			stage.getByRole( 'tab', { name: 'Pages' } )
-		).toHaveAttribute( 'aria-selected', 'true' );
+		// Layouts open from the options menu rather than a tab.
+		await expect( stage.getByRole( 'tab' ) ).toHaveCount( 0 );
 		await expect(
 			stage.getByRole( 'region', {
 				name: 'In your menu',
@@ -110,13 +110,18 @@ test.describe( 'Pages view', () => {
 		).toBeAttached( { timeout: 15000 } );
 	} );
 
-	test( 'lists page layouts on the Layouts tab', async ( { page } ) => {
+	test( 'lists page layouts from the options menu', async ( { page } ) => {
 		await visitEditor( page, '/types/page' );
 
 		const stage = getStage( page );
-		await stage.getByRole( 'tab', { name: 'Layouts' } ).click();
+		await openPageLayouts( page );
 
 		await expect( page ).toHaveURL( /content%3Dtemplates/ );
+		await expect(
+			stage
+				.getByRole( 'navigation', { name: 'Breadcrumbs' } )
+				.getByRole( 'link', { name: 'Pages' } )
+		).toBeVisible();
 		await expect(
 			stage.getByText( /Layouts decide how your pages are arranged/ )
 		).toBeVisible();

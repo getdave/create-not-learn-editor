@@ -77,6 +77,18 @@ function getStage( page ) {
 }
 
 /**
+ * Open page layouts from the Pages screen's options menu.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function openPageLayouts( page ) {
+	await getStage( page )
+		.getByRole( 'button', { name: 'Page Options', exact: true } )
+		.click();
+	await page.getByRole( 'menuitem', { name: 'Manage layouts' } ).click();
+}
+
+/**
  * A page in the Pages screen's list, whether it is in the main menu or not.
  *
  * @param {import('@playwright/test').Page} page
@@ -372,6 +384,7 @@ module.exports = {
 	getSaveControls,
 	getSitePreview,
 	getStage,
+	openPageLayouts,
 	openReviewChanges,
 	openSidebarLink,
 	pickCanvasMode,
