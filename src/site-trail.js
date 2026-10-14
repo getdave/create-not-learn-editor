@@ -30,6 +30,8 @@ const SITE_PART_CRUMBS = {
 	header: () => ( { label: __( 'Header' ), to: '/design/header' } ),
 };
 
+const NAVIGATION_FROM = 'navigation';
+
 /**
  * Search params the Header or Footer screen adds to the screens it opens.
  *
@@ -38,6 +40,15 @@ const SITE_PART_CRUMBS = {
  */
 export function getFromSitePartSearch( area ) {
 	return { from: area };
+}
+
+/**
+ * Search params the Menus screen adds to the edit screen it opens.
+ *
+ * @return {Object} Search params.
+ */
+export function getFromNavigationSearch() {
+	return { from: NAVIGATION_FROM };
 }
 
 /**
@@ -51,8 +62,9 @@ export function getSiteCrumb() {
 
 /**
  * The breadcrumbs leading back to where the visit began: "Your site", and
- * the Header or Footer screen when it began there. Empty for visits that
- * began anywhere else.
+ * the Header or Footer screen when it began there. Visits from the Menus
+ * screen lead back there instead, since it isn't part of that checklist.
+ * Empty for visits that began anywhere else.
  *
  * @return {Object[]} Breadcrumb items, to put before the screen's own.
  */
@@ -62,6 +74,10 @@ export function useSiteTrail() {
 	return useMemo( () => {
 		if ( from === FROM_SITE_SEARCH.from ) {
 			return [ getSiteCrumb() ];
+		}
+
+		if ( from === NAVIGATION_FROM ) {
+			return [ { label: __( 'Menus' ), to: '/navigation' } ];
 		}
 
 		if ( Object.hasOwn( SITE_PART_CRUMBS, from ) ) {

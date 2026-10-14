@@ -8,6 +8,7 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  * Internal dependencies
  */
 import { withUiTheme } from '../../theme';
+import { getFromNavigationSearch } from '../../site-trail';
 import {
 	cnlEditorStore,
 	getErrorMessage,
@@ -17,10 +18,12 @@ import {
 import {
 	Button,
 	CheckboxControl,
+	chevronRightIcon,
 	coreDataStore,
-	DataViews,
 	DropdownMenu,
 	EmptyState,
+	Fragment,
+	Icon,
 	InputControl,
 	layoutIcon,
 	MenuItem,
@@ -55,6 +58,7 @@ import {
 	removeNavigationMenuFromFirstBlock,
 	templatePartHasNavigationBlock,
 } from './navigation-locations';
+import SitePreviewCanvas from '../static/site-preview';
 import {
 	NavigationSitePreview,
 	NavigationSitePreviewNotice,
@@ -69,18 +73,6 @@ const TEMPLATE_PARTS_QUERY = {
 	per_page: 100,
 	_fields: 'id,slug,title,area,status,content',
 };
-const DEFAULT_NAVIGATION_VIEW = {
-	fields: [ 'usage', 'items', 'status' ],
-	page: 1,
-	perPage: 10,
-	search: '',
-	sort: {
-		direction: 'desc',
-		field: 'date',
-	},
-	titleField: 'title',
-	type: 'list',
-};
 
 function getMenuTitle( menu ) {
 	return getTitleText( menu?.title ) || __( 'Untitled menu' );
@@ -92,18 +84,6 @@ function getMenuContent( menu ) {
 	}
 
 	return menu?.content?.raw || '';
-}
-
-function getMenuStatusLabel( menu ) {
-	if ( menu?.status === 'publish' ) {
-		return __( 'Published' );
-	}
-
-	if ( menu?.status === 'draft' ) {
-		return __( 'Draft' );
-	}
-
-	return menu?.status || __( 'Unknown' );
 }
 
 function getNavigationMenuId( menuOrId ) {
@@ -134,13 +114,6 @@ function getNavigationMenuId( menuOrId ) {
 	return String( rawId );
 }
 
-function getNavigationMenuSearchId( menuOrId ) {
-	const menuId = getNavigationMenuId( menuOrId );
-	const numericMenuId = Number( menuId );
-
-	return Number.isFinite( numericMenuId ) ? numericMenuId : menuId;
-}
-
 function getMenuLocationsDescription( count ) {
 	return count
 		? sprintf(
@@ -165,8 +138,10 @@ function navigateToNavigationEditRoute( navigate, menuOrId ) {
 	}
 
 	const route = `/navigation/edit/${ encodeURIComponent( menuId ) }`;
+	// So the edit screen's breadcrumb can lead back to the Menus list.
+	const search = getFromNavigationSearch();
 
-	navigate( { to: route } );
+	navigate( { search, to: route } );
 	window.setTimeout( () => {
 		const currentUrl = new URL( window.location.href );
 		const currentRoute = currentUrl.searchParams.get( 'p' ) || '';
@@ -175,7 +150,11 @@ function navigateToNavigationEditRoute( navigate, menuOrId ) {
 			return;
 		}
 
-		currentUrl.searchParams.set( 'p', route );
+		const routeSearch = new URLSearchParams( search ).toString();
+		currentUrl.searchParams.set(
+			'p',
+			routeSearch ? `${ route }?${ routeSearch }` : route
+		);
 		window.location.assign( currentUrl.toString() );
 	}, 100 );
 }
@@ -196,161 +175,118 @@ function NavigationLocationsUnavailableEmptyState() {
 	);
 }
 
-function getInitialNavigationView( searchParams ) {
-	return {
-		...DEFAULT_NAVIGATION_VIEW,
-		page: searchParams.page ? Number( searchParams.page ) || 1 : 1,
-		search: searchParams.search || '',
-	};
+function getMenuRowDescription( menu, locations, isResolvingLocations ) {
+	const itemCount = getNavigationMenuItemCount( menu );
+	const itemsText = sprintf(
+		/* translators: %d: Number of navigation blocks in the menu. */
+		_n( '%d item', '%d items', itemCount ),
+		itemCount
+	);
+	const usageText = isResolvingLocations
+		? __( 'Checking usage…' )
+		: getLocationsSummary( locations );
+
+	return sprintf(
+		/* translators: 1: Item count, e.g. "3 items". 2: Where the menu is shown, e.g. "2 locations". */
+		__( '%1$s · %2$s' ),
+		itemsText,
+		usageText
+	);
 }
 
-function getNavigationFields( {
-	isResolvingLocations,
-	locationsMap,
-	onSelectMenu,
-} ) {
-	return [
-		{
-			enableGlobalSearch: true,
-			enableHiding: false,
-			getValue: ( { item } ) => getMenuTitle( item ),
-			id: 'title',
-			label: __( 'Title' ),
-			render: ( { item } ) =>
-				el(
-					Button,
-					{
-						className: 'routes-navigation-list__title',
-						onClick: ( event ) => {
-							event.stopPropagation();
-							onSelectMenu( getNavigationMenuId( item ) );
-						},
-						variant: 'link',
-					},
-					getMenuTitle( item )
-				),
-			type: 'text',
-		},
-		{
-			enableSorting: false,
-			filterBy: false,
-			getValue: ( { item } ) =>
-				isResolvingLocations
-					? __( 'Checking usage…' )
-					: getLocationsSummary(
-							locationsMap[ getNavigationMenuId( item ) ] ||
-								EMPTY_ARRAY
-						),
-			id: 'usage',
-			label: __( 'Shown in' ),
-			type: 'text',
-		},
-		{
-			enableSorting: false,
-			filterBy: false,
-			getValue: ( { item } ) => getNavigationMenuItemCount( item ),
-			id: 'items',
-			label: __( 'Items' ),
-			render: ( { item } ) => {
-				const count = getNavigationMenuItemCount( item );
-
-				return sprintf(
-					/* translators: %d: Number of navigation blocks in the menu. */
-					_n( '%d item', '%d items', count ),
-					count
-				);
-			},
-			type: 'integer',
-		},
-		{
-			elements: [
-				{ label: __( 'Published' ), value: 'Published' },
-				{ label: __( 'Draft' ), value: 'Draft' },
-			],
-			enableSorting: false,
-			filterBy: {
-				operators: [ 'isAny' ],
-			},
-			getValue: ( { item } ) => getMenuStatusLabel( item ),
-			id: 'status',
-			label: __( 'Status' ),
-			type: 'text',
-		},
-	];
-}
-
-function getNavigationActions( {
+function NavigationMenuRow( {
+	description,
 	isBusy,
+	menu,
 	onDelete,
 	onDuplicate,
 	onEdit,
 	onRename,
 } ) {
-	return [
-		{
-			callback: ( items ) => {
-				const item = items[ 0 ];
-				window.setTimeout( () => onEdit( item ), 0 );
-			},
-			disabled: isBusy,
-			id: 'edit',
-			isPrimary: true,
-			label: __( 'Edit' ),
-			supportsBulk: false,
-		},
-		{
-			callback: ( items ) => onRename( items[ 0 ] ),
-			disabled: isBusy,
-			id: 'rename',
-			label: __( 'Rename' ),
-			supportsBulk: false,
-		},
-		{
-			callback: ( items ) => onDuplicate( items[ 0 ] ),
-			disabled: isBusy,
-			id: 'duplicate',
-			label: __( 'Duplicate' ),
-			supportsBulk: false,
-		},
-		{
-			callback: ( items ) => onDelete( items[ 0 ] ),
-			disabled: isBusy,
-			id: 'delete',
-			label: __( 'Delete' ),
-			supportsBulk: false,
-		},
-	];
-}
+	const title = getMenuTitle( menu );
 
-function NavigationListDataViewsLayout() {
 	return el(
 		'div',
-		{ className: 'routes-navigation-list__dataviews' },
+		{ className: 'routes-navigation-list__row' },
 		el(
-			'div',
-			{ className: 'routes-navigation-list__dataviews-toolbar' },
+			Button,
+			{
+				className:
+					'routes-navigation-list__row-link cnl-screen-links__link',
+				onClick: () => onEdit( menu ),
+			},
+			el( Icon, {
+				className: 'cnl-screen-links__icon',
+				icon: compassIcon,
+			} ),
 			el(
-				'div',
-				{
-					className:
-						'routes-navigation-list__dataviews-toolbar-start',
-				},
-				el( DataViews.FiltersToggle )
+				'span',
+				{ className: 'cnl-screen-links__text' },
+				el( 'span', { className: 'cnl-screen-links__title' }, title ),
+				el(
+					'span',
+					{ className: 'cnl-screen-links__description' },
+					description
+				)
 			),
-			el(
-				'div',
-				{ className: 'routes-navigation-list__dataviews-toolbar-end' },
-				el( DataViews.LayoutSwitcher )
-			)
+			el( Icon, {
+				className: 'cnl-screen-links__chevron',
+				icon: chevronRightIcon,
+			} )
 		),
-		el( DataViews.FiltersToggled, {
-			className: 'routes-navigation-list__dataviews-filters',
-		} ),
 		el(
-			'div',
-			{ className: 'routes-navigation-list__dataviews-scroll' },
-			el( DataViews.Layout ),
-			el( DataViews.Pagination )
+			DropdownMenu,
+			{
+				className: 'routes-navigation-list__row-menu',
+				disabled: isBusy,
+				icon: moreVerticalIcon,
+				label: sprintf(
+					/* translators: %s: navigation menu title. */
+					__( '%s options' ),
+					title
+				),
+				popoverProps: { placement: 'bottom-end' },
+				toggleProps: {
+					__next40pxDefaultSize: true,
+					variant: 'tertiary',
+				},
+			},
+			( { onClose } ) =>
+				el(
+					Fragment,
+					null,
+					el(
+						MenuItem,
+						{
+							onClick: () => {
+								onRename( menu );
+								onClose();
+							},
+						},
+						__( 'Rename' )
+					),
+					el(
+						MenuItem,
+						{
+							onClick: () => {
+								onDuplicate( menu );
+								onClose();
+							},
+						},
+						__( 'Duplicate' )
+					),
+					el(
+						MenuItem,
+						{
+							isDestructive: true,
+							onClick: () => {
+								onDelete( menu );
+								onClose();
+							},
+						},
+						__( 'Delete' )
+					)
+				)
 		)
 	);
 }
@@ -611,6 +547,7 @@ function AddNavigationModal( { onClose } ) {
 
 			if ( savedRecord?.id ) {
 				navigate( {
+					search: getFromNavigationSearch(),
 					to: `/navigation/edit/${ encodeURIComponent(
 						savedRecord.id
 					) }`,
@@ -929,26 +866,12 @@ function Stage() {
 		mainMenuId,
 		menus,
 	} = useNavigationMenus();
-	const [ view, setView ] = useState( () =>
-		getInitialNavigationView( searchParams )
-	);
 	const [ isAddNavigationModalOpen, setIsAddNavigationModalOpen ] =
 		useState( false );
 	const [ menuToRename, setMenuToRename ] = useState( null );
 	const [ menuToDelete, setMenuToDelete ] = useState( null );
 	const [ rowActionMenuTitle, setRowActionMenuTitle ] = useState( '' );
 	const [ isRowActionSaving, setIsRowActionSaving ] = useState( false );
-	const onSelectMenu = ( nextSelectedId ) => {
-		navigate( {
-			search: {
-				...searchParams,
-				menuId: nextSelectedId
-					? getNavigationMenuSearchId( nextSelectedId )
-					: undefined,
-			},
-			to: '/navigation',
-		} );
-	};
 	const refreshNavigationMenus = () => {
 		invalidateNavigationMenus();
 		window.dispatchEvent(
@@ -1097,22 +1020,11 @@ function Stage() {
 			setIsRowActionSaving( false );
 		}
 	};
-	const navigationFields = getNavigationFields( {
-		isResolvingLocations,
-		locationsMap,
-		onSelectMenu,
-	} );
-	const navigationActions = getNavigationActions( {
-		isBusy: isRowActionSaving,
-		onDelete: openDeleteModal,
-		onDuplicate: duplicateNavigationMenu,
-		// The main menu is looked after alongside the pages it links to.
-		onEdit: ( menu ) =>
-			getNavigationMenuId( menu ) === mainMenuId
-				? navigate( { to: '/types/page/list/all' } )
-				: navigateToNavigationEditRoute( navigate, menu ),
-		onRename: openRenameModal,
-	} );
+	// The main menu is looked after alongside the pages it links to.
+	const editNavigationMenu = ( menu ) =>
+		getNavigationMenuId( menu ) === mainMenuId
+			? navigate( { to: '/types/page/list/all' } )
+			: navigateToNavigationEditRoute( navigate, menu );
 	const navigationEmpty = el(
 		'div',
 		{ className: 'cnl-editor-empty-state' },
@@ -1143,20 +1055,6 @@ function Stage() {
 			)
 		)
 	);
-	const onChangeView = ( nextView ) => {
-		setView( nextView );
-		navigate( {
-			search: {
-				...searchParams,
-				page:
-					nextView.page && nextView.page > 1
-						? nextView.page
-						: undefined,
-				search: nextView.search || undefined,
-			},
-			to: '/navigation',
-		} );
-	};
 	return [
 		el(
 			Page,
@@ -1189,38 +1087,32 @@ function Stage() {
 					},
 					error || locationsError
 				),
-			el(
-				DataViews,
-				{
-					actions: navigationActions,
-					data: menus,
-					defaultLayouts: {
-						list: true,
-						table: {},
-					},
-					empty: navigationEmpty,
-					fields: navigationFields,
-					getItemId: ( item ) => getNavigationMenuId( item ),
-					isLoading,
-					onChangeView,
-					onChangeSelection: () => {},
-					onClickItem: ( item ) =>
-						onSelectMenu( getNavigationMenuId( item ) ),
-					paginationInfo: {
-						totalItems: menus.length,
-						totalPages: Math.max(
-							1,
-							Math.ceil(
-								menus.length /
-									( view.perPage || menus.length || 1 )
-							)
-						),
-					},
-					selection: EMPTY_ARRAY,
-					view,
-				},
-				el( NavigationListDataViewsLayout )
-			)
+			isLoading &&
+				el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
+			! isLoading && ! menus.length && navigationEmpty,
+			! isLoading &&
+				!! menus.length &&
+				el(
+					'div',
+					{ className: 'routes-navigation-list__rows' },
+					menus.map( ( menu ) =>
+						el( NavigationMenuRow, {
+							description: getMenuRowDescription(
+								menu,
+								locationsMap[ getNavigationMenuId( menu ) ] ||
+									EMPTY_ARRAY,
+								isResolvingLocations
+							),
+							isBusy: isRowActionSaving,
+							key: getNavigationMenuId( menu ),
+							menu,
+							onDelete: openDeleteModal,
+							onDuplicate: duplicateNavigationMenu,
+							onEdit: editNavigationMenu,
+							onRename: openRenameModal,
+						} )
+					)
+				)
 		),
 		isAddNavigationModalOpen &&
 			el( AddNavigationModal, {
@@ -1272,6 +1164,12 @@ function Canvas() {
 			{ className: 'cnl-editor-canvas' },
 			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) )
 		);
+	}
+
+	// Nothing to edit yet, so show the homepage in the standard site canvas,
+	// the same fallback Design and its screens use.
+	if ( ! selectedMenu ) {
+		return el( SitePreviewCanvas );
 	}
 
 	const selectedLocations = selectedMenu
