@@ -1,0 +1,53 @@
+<?php
+/**
+ * Mainstay functions and definitions.
+ *
+ * @package Mainstay
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Load style.css in the editors as well as on the front end.
+ */
+function mainstay_setup() {
+	add_editor_style( 'style.css' );
+}
+add_action( 'after_setup_theme', 'mainstay_setup' );
+
+/**
+ * Enqueue the theme stylesheet on the front end.
+ */
+function mainstay_enqueue_styles() {
+	wp_enqueue_style(
+		'mainstay-style',
+		get_stylesheet_uri(),
+		array(),
+		wp_get_theme()->get( 'Version' )
+	);
+}
+add_action( 'wp_enqueue_scripts', 'mainstay_enqueue_styles' );
+
+/**
+ * Register the pattern categories the theme uses that core doesn't.
+ */
+function mainstay_register_pattern_categories() {
+	register_block_pattern_category(
+		'mainstay/pages',
+		array(
+			'label'       => __( 'Pages', 'mainstay' ),
+			'description' => __( 'Whole pages built from Mainstay sections.', 'mainstay' ),
+		)
+	);
+}
+add_action( 'init', 'mainstay_register_pattern_categories' );
+
+/**
+ * Get the URL of one of the theme's bundled images.
+ *
+ * @param string $name Image file name, without the extension.
+ * @return string Image URL.
+ */
+function mainstay_image( $name ) {
+	return get_theme_file_uri( 'assets/images/' . $name . '.webp' );
+}

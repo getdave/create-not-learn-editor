@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 3,
+	"title": "Arch",
+	"slug": "mainstay-arch",
+	"blockTypes": [
+		"core/image",
+		"core/post-featured-image"
+	],
+	"styles": {
+		"border": {
+			"radius": {
+				"topLeft": "999px",
+				"topRight": "999px",
+				"bottomLeft": "0",
+				"bottomRight": "0"
+			}
+		},
+		"css": "& img{border-radius:999px 999px 0 0;}"
+	}
+}

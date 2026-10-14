@@ -1,0 +1,17 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 3,
+	"title": "Soft corners",
+	"slug": "mainstay-soft",
+	"blockTypes": [
+		"core/image",
+		"core/post-featured-image",
+		"core/cover"
+	],
+	"styles": {
+		"border": {
+			"radius": "20px"
+		},
+		"css": "& img, & .wp-block-cover__image-background, & .wp-block-cover__background{border-radius:20px;}"
+	}
+}
