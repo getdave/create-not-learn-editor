@@ -42,6 +42,13 @@ The `wp-env` instance auto-installs and activates the [Automattic/canvas](https:
 - Canvas requires WordPress 7.1+, which is why `.wp-env.json` pins `core` to `https://wordpress.org/wordpress-7.1.zip`. Don't lower it back to 7.0 without also dropping Canvas.
 - wp-env activates every entry in `"plugins"` as one `set -eo pipefail` batch — if any plugin fails to activate (including Canvas, if its build step is skipped), the whole `wp-env start` aborts and tears down, so the plugin listed after it (`.`, this plugin) never activates either. Keep Canvas's build step working, don't just drop it from the plugins list to "fix" a failed start.
 
+## Demo Theme and Site
+
+- `themes/mainstay/` is a block theme built for this editor and the default theme on the `wp-env` development site. It is not part of the plugin and is not in the plugin zip.
+- `.wp-env.json` runs `scripts/setup-demo-site.mjs` after start. It runs `scripts/demo-site/seed.php` once per site (guarded by the `cnl_demo_site_version` option) to activate Mainstay and add the Fernhouse demo pages, posts and menu. Keep it additive and idempotent: never overwrite content someone has changed. It only touches the development environment, not the tests site.
+- Section colours in Compose come from the theme's `styles/sections/*.json` block style variations, which must set colours. Header and footer layouts are patterns with `Block Types: core/template-part/header` or `core/template-part/footer`.
+- Bundled photos are CC0 (StockSnap) and fonts are OFL; credit new ones in `themes/mainstay/readme.txt`.
+
 ## Development Commands
 
 Use these commands from the repo root:

@@ -1,0 +1,45 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 3,
+	"title": "Classic",
+	"styles": {
+		"typography": {
+			"fontFamily": "var:preset|font-family|newsreader",
+			"lineHeight": "1.65"
+		},
+		"elements": {
+			"heading": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|newsreader",
+					"fontWeight": "500",
+					"letterSpacing": "-0.02em",
+					"lineHeight": "1.1"
+				}
+			},
+			"h1": {
+				"typography": {
+					"letterSpacing": "-0.02em"
+				}
+			},
+			"h2": {
+				"typography": {
+					"letterSpacing": "-0.02em"
+				}
+			}
+		},
+		"blocks": {
+			"core/site-title": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|newsreader",
+					"fontWeight": "500"
+				}
+			},
+			"core/pullquote": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|newsreader",
+					"fontWeight": "500"
+				}
+			}
+		}
+	}
+}

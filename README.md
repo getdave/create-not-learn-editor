@@ -109,6 +109,25 @@ Use available non-default local ports for `WP_ENV_PORT` and `WP_ENV_TESTS_PORT`.
 
 The local environment uses WordPress 7.0 and installs Gutenberg 24.0.0 from the released plugin zip.
 
+### Demo site
+
+The development site (not the tests site) is set up as a demo the first time `wp-env` starts. `scripts/setup-demo-site.mjs` runs after every start and calls `scripts/demo-site/seed.php`, which:
+
+- activates the bundled Mainstay theme (`themes/mainstay/`);
+- names the site Fernhouse and fills Home, About, Workshops, Café and Visit pages with the theme's sections;
+- adds three journal posts with photos and a menu.
+
+It records that it has run in the `cnl_demo_site_version` option and leaves the site alone after that, so later edits survive restarts. It never overwrites a page that already has content. To run it again, delete the option and restart:
+
+```sh
+npm run wp-env run cli wp option delete cnl_demo_site_version
+npm run wp-env start
+```
+
+To skip it, start with `WP_ENV_LIFECYCLE_SCRIPT_AFTER_START=true`.
+
+Mainstay is a block theme made for this editor: pages are stacks of full-width sections, each with Soft, Tint, Brand, Contrast and Highlight colour styles for Compose's Colour menu, plus header and footer layouts, page layouts, palettes, font pairings and full looks for Colors & fonts. It lives in this repo but is not part of the plugin zip.
+
 Run the development build watcher:
 
 ```sh
@@ -248,6 +267,7 @@ http://localhost:<dev-port>/wp-admin/admin.php?page=create-not-learn-editor
 - `src/editor-extensions/` contains block editor filters registered at app init, such as template part editing.
 - `@wordpress/build` creates the browser bundles and asset metadata under `build/`.
 - `.wp-env.json` defines the local WordPress and Gutenberg plugin environment.
+- `themes/mainstay/` is the demo block theme the development site uses. `scripts/demo-site/` seeds its content.
 
 ## Current Design Constraints
 

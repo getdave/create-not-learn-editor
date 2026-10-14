@@ -1,0 +1,46 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 3,
+	"title": "Plum",
+	"settings": {
+		"color": {
+			"palette": [
+				{
+					"color": "#FBF9FC",
+					"name": "Background",
+					"slug": "base"
+				},
+				{
+					"color": "#22172B",
+					"name": "Text",
+					"slug": "contrast"
+				},
+				{
+					"color": "#6A3D8F",
+					"name": "Primary",
+					"slug": "accent-1"
+				},
+				{
+					"color": "#F4B860",
+					"name": "Highlight",
+					"slug": "accent-2"
+				},
+				{
+					"color": "#DCEFD7",
+					"name": "Tint",
+					"slug": "accent-3"
+				},
+				{
+					"color": "#EFE9F3",
+					"name": "Soft background",
+					"slug": "base-2"
+				},
+				{
+					"color": "#5D4F67",
+					"name": "Soft text",
+					"slug": "contrast-2"
+				}
+			]
+		}
+	}
+}

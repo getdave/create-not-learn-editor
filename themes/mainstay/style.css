@@ -1,0 +1,118 @@
+/*
+Theme Name: Mainstay
+Description: A flexible block theme for any small website, built alongside the Create Not Learn editor. Pages are stacks of full-width sections, each with a choice of colour styles, and the theme ships with headers, footers, page layouts and a large set of ready-made sections.
+Author: Create Not Learn
+Version: 0.1.0
+Requires at least: 7.0
+Tested up to: 7.1
+Requires PHP: 7.4
+License: GNU General Public License v2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: mainstay
+Update URI: false
+Tags: block-patterns, block-styles, full-site-editing, style-variations, wide-blocks, one-column, custom-colors, custom-logo, custom-menu, editor-style, featured-images, full-width-template, translation-ready
+*/
+
+/*
+ * Full-width sections stack flush against each other and against the header
+ * and footer. Ordinary content keeps the normal gap between blocks.
+ */
+.wp-site-blocks > * + *,
+:is(.wp-block-post-content, .is-root-container) > .alignfull + *,
+:is(.wp-block-post-content, .is-root-container) > * + .alignfull {
+	margin-block-start: 0;
+}
+
+/* Display type tightens up as it grows, using the font's optical sizes. */
+:is(h1, h2, h3, .has-huge-font-size, .has-xx-large-font-size) {
+	font-optical-sizing: auto;
+	text-wrap: balance;
+}
+
+p {
+	text-wrap: pretty;
+}
+
+/* Hairlines take their colour from the text around them. */
+.wp-block-separator,
+.wp-block-separator.has-text-color {
+	border-top: none;
+	border-color: currentColor;
+	opacity: 0.2;
+}
+
+.wp-block-details {
+	border-bottom: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.wp-block-details summary {
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.wp-block-details > :not(summary) {
+	margin-block-start: 0.75rem;
+}
+
+/* Buttons and links give a little feedback without moving around. */
+.wp-element-button,
+.wp-block-button__link {
+	transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.wp-block-navigation .wp-block-navigation-item__content {
+	text-underline-offset: 0.3em;
+}
+
+a:where(:not(.wp-element-button)) {
+	text-underline-offset: 0.18em;
+	text-decoration-thickness: 1px;
+}
+
+/* Quotes line up with the text around them. */
+blockquote {
+	margin-inline: 0;
+}
+
+/* Social icons follow the text colour, so they suit any section colour. */
+.wp-block-social-links.is-style-logos-only:not(.has-icon-color) .wp-social-link {
+	color: currentColor;
+}
+
+/* Images in a cover or with rounded styles keep their crop tidy. */
+.wp-block-image img {
+	vertical-align: bottom;
+}
+
+/* Search sits in one pill-shaped field. */
+.wp-block-search__button-inside .wp-block-search__inside-wrapper {
+	border-radius: 999px;
+	padding: 4px;
+}
+
+.wp-block-search__button-inside .wp-block-search__input {
+	padding-inline: 1rem;
+	background: transparent;
+	color: inherit;
+}
+
+.wp-block-search__button {
+	border-radius: 999px;
+}
+
+/* A list with hairlines between rows, for menus, prices and opening hours. */
+.mainstay-rows > * {
+	padding-block: 1rem;
+	margin-block-start: 0 !important;
+	border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.mainstay-rows > :first-child {
+	border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		transition: none !important;
+	}
+}

@@ -1,0 +1,91 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 3,
+	"title": "Garden party",
+	"settings": {
+		"color": {
+			"palette": [
+				{
+					"color": "#FFF9F8",
+					"name": "Background",
+					"slug": "base"
+				},
+				{
+					"color": "#2A1418",
+					"name": "Text",
+					"slug": "contrast"
+				},
+				{
+					"color": "#A8325E",
+					"name": "Primary",
+					"slug": "accent-1"
+				},
+				{
+					"color": "#F6B8A8",
+					"name": "Highlight",
+					"slug": "accent-2"
+				},
+				{
+					"color": "#F5D9E0",
+					"name": "Tint",
+					"slug": "accent-3"
+				},
+				{
+					"color": "#FBE9E7",
+					"name": "Soft background",
+					"slug": "base-2"
+				},
+				{
+					"color": "#6B4A50",
+					"name": "Soft text",
+					"slug": "contrast-2"
+				}
+			]
+		}
+	},
+	"styles": {
+		"typography": {
+			"fontFamily": "var:preset|font-family|newsreader",
+			"lineHeight": "1.65"
+		},
+		"elements": {
+			"heading": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|newsreader",
+					"fontWeight": "500",
+					"letterSpacing": "-0.02em",
+					"lineHeight": "1.1"
+				}
+			},
+			"h1": {
+				"typography": {
+					"letterSpacing": "-0.02em"
+				}
+			},
+			"h2": {
+				"typography": {
+					"letterSpacing": "-0.02em"
+				}
+			},
+			"button": {
+				"border": {
+					"radius": "8px"
+				}
+			}
+		},
+		"blocks": {
+			"core/site-title": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|newsreader",
+					"fontWeight": "500"
+				}
+			},
+			"core/pullquote": {
+				"typography": {
+					"fontFamily": "var:preset|font-family|newsreader",
+					"fontWeight": "500"
+				}
+			}
+		}
+	}
+}

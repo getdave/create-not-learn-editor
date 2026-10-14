@@ -1,0 +1,46 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 3,
+	"title": "Ink",
+	"settings": {
+		"color": {
+			"palette": [
+				{
+					"color": "#FFFFFF",
+					"name": "Background",
+					"slug": "base"
+				},
+				{
+					"color": "#16181D",
+					"name": "Text",
+					"slug": "contrast"
+				},
+				{
+					"color": "#2546E8",
+					"name": "Primary",
+					"slug": "accent-1"
+				},
+				{
+					"color": "#FFD23F",
+					"name": "Highlight",
+					"slug": "accent-2"
+				},
+				{
+					"color": "#DCE3FF",
+					"name": "Tint",
+					"slug": "accent-3"
+				},
+				{
+					"color": "#F1F1EF",
+					"name": "Soft background",
+					"slug": "base-2"
+				},
+				{
+					"color": "#555A64",
+					"name": "Soft text",
+					"slug": "contrast-2"
+				}
+			]
+		}
+	}
+}

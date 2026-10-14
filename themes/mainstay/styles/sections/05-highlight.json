@@ -1,0 +1,48 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 3,
+	"title": "Highlight",
+	"slug": "section-highlight",
+	"blockTypes": [
+		"core/group",
+		"core/columns",
+		"core/column"
+	],
+	"styles": {
+		"color": {
+			"background": "var:preset|color|accent-2",
+			"text": "var:preset|color|contrast"
+		},
+		"elements": {
+			"heading": {
+				"color": {
+					"text": "var:preset|color|contrast"
+				}
+			},
+			"link": {
+				"color": {
+					"text": "currentColor"
+				}
+			},
+			"button": {
+				"color": {
+					"background": "var:preset|color|contrast",
+					"text": "var:preset|color|base"
+				},
+				":hover": {
+					"color": {
+						"background": "var:preset|color|accent-1",
+						"text": "var:preset|color|base"
+					}
+				}
+			}
+		},
+		"blocks": {
+			"core/separator": {
+				"color": {
+					"text": "currentColor"
+				}
+			}
+		}
+	}
+}
