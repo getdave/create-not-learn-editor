@@ -23,19 +23,60 @@
 	gap: 0;
 }
 
-.cnl-site-canvas__mode-toggle.components-button {
-	gap: 4px;
-	padding-inline-end: 8px;
+/*
+ * Browse | Edit. Shorter than the toolbar's 40px buttons, so it doesn't
+ * dominate the toolbar, always bordered, and the picked mode in the admin
+ * colour. Core draws the picked option's backdrop as the control's
+ * `::before`.
+ */
+.cnl-site-canvas__mode-toggle.components-toggle-group-control {
+	flex-shrink: 0;
+	align-self: center;
+	width: auto;
+	height: 32px;
+	min-height: 32px;
+	border-color: wp-colors.$gray-600;
 	white-space: nowrap;
+
+	.components-toggle-group-control-option-base {
+		height: 30px;
+		min-height: 30px;
+	}
+
+	&::before {
+		border-color: var(--wp-admin-theme-color);
+		background: var(--wp-admin-theme-color);
+	}
+
+	.components-toggle-group-control-option-base[aria-checked="true"],
+	.components-toggle-group-control-option-base[aria-checked="true"]:hover {
+		color: #fff;
+	}
+
+	// Hovering the picked mode darkens its backdrop; the text stays white.
+	&:has(.components-toggle-group-control-option-base[aria-checked="true"]:hover)::before {
+		border-color: var(--wp-admin-theme-color-darker-10);
+		background: var(--wp-admin-theme-color-darker-10);
+	}
 }
 
-.cnl-site-canvas__mode-chevron {
-	margin-inline-start: 2px;
-	fill: currentcolor;
-}
+/*
+ * Compose, a normal icon button beside the toggle, in the admin colour while
+ * it is on, as the toggle's picked mode is.
+ */
+.cnl-site-canvas__compose-button.components-button {
+	flex-shrink: 0;
 
-.cnl-site-canvas__mode-menu + .cnl-site-canvas__full-editor-button {
-	margin-inline-start: 4px;
+	&.is-pressed,
+	&.is-pressed:hover:not(:disabled),
+	&.is-pressed:focus:not(:disabled) {
+		background: var(--wp-admin-theme-color);
+		color: #fff;
+	}
+
+	&.is-pressed:hover:not(:disabled) {
+		background: var(--wp-admin-theme-color-darker-10);
+	}
 }
 
 .cnl-site-canvas__awaiting {

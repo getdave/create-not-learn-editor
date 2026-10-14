@@ -1,7 +1,7 @@
 const {
 	expect,
 	getEditorCanvas,
-	getModeToggle,
+	expectCanvasMode,
 	getSitePreview,
 	getStage,
 	setCanvasMode,
@@ -41,9 +41,7 @@ test.describe( 'Pages view', () => {
 		await expect( getSitePreview( page ) ).toBeVisible( {
 			timeout: 15000,
 		} );
-		await expect( getModeToggle( page ) ).toHaveAccessibleName(
-			'Mode: Browse'
-		);
+		await expectCanvasMode( page, 'Browse' );
 	} );
 
 	test( 'shows a page’s details, layout and sections', async ( {

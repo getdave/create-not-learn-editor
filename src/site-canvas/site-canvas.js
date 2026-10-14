@@ -30,15 +30,17 @@ import {
 import { ComposeLayer, scrollCanvasTo } from './compose/compose-layer';
 import { afterZoomIn, useComposeZoom } from './compose/use-compose-zoom';
 import { EDITOR_DEVICES } from './constants';
-import { MODE_EDIT } from './mode';
+import { EditSectionControls } from './edit-section-controls';
+import { MODE_COMPOSE, MODE_EDIT } from './mode';
 import {
 	CanvasMoreMenu,
 	DeviceSwitcher,
-	FullEditorButton,
-	ModeMenu,
+	ComposeButton,
+	ModeToggle,
 	PreviewHistory,
 } from './toolbar';
 import { UnsavedChangesDialog } from './unsaved-changes-dialog';
+import { useSectionLock } from './use-section-lock';
 
 // Long enough for the editor to zoom back in before scrolling it.
 const ZOOM_IN_SETTLE_MS = 450;
@@ -77,6 +79,7 @@ export function SiteCanvas( {
 	const isEditing = mode === MODE_EDIT;
 
 	useComposeZoom( isComposing && Boolean( editorEntity ), editorRef );
+	useSectionLock( isEditing && Boolean( editorEntity ) );
 
 	// Open what was picked in Compose in Edit, selected and in view.
 	const editFromCompose = ( clientId, isSitePart ) => {
@@ -92,6 +95,58 @@ export function SiteCanvas( {
 			window.setTimeout(
 				() => scrollCanvasTo( editorRef, clientId ),
 				ZOOM_IN_SETTLE_MS
+			);
+		} );
+		canvas.requestMode( MODE_EDIT );
+	};
+
+	/*
+	 * Open a block double-clicked in Compose in Edit, selected and in view.
+	 * A block inside the header or footer opens it for editing first. Once
+	 * the sections are locked again, a block that can't be selected on its
+	 * own, like a section's columns, gives way to the nearest one that can.
+	 */
+	const openFromCompose = ( clientId ) => {
+		afterZoomIn( ( registry ) => {
+			if ( ! clientId ) {
+				return;
+			}
+
+			const selectors = registry.select( blockEditorStore );
+			const actions = unlock( registry.dispatch( blockEditorStore ) );
+			const part = [ clientId, ...selectors.getBlockParents( clientId ) ]
+				.reverse()
+				.find(
+					( id ) =>
+						selectors.getBlockName( id ) === 'core/template-part'
+				);
+
+			if ( part ) {
+				actions.editContentOnlySection( part );
+			}
+
+			// Wait for the section locks to settle before choosing.
+			window.requestAnimationFrame( () =>
+				window.requestAnimationFrame( () => {
+					let target = clientId;
+
+					while (
+						target &&
+						selectors.getBlockEditingMode( target ) === 'disabled'
+					) {
+						target = selectors.getBlockRootClientId( target );
+					}
+
+					if ( ! target ) {
+						return;
+					}
+
+					actions.selectBlock( target );
+					window.setTimeout(
+						() => scrollCanvasTo( editorRef, target ),
+						ZOOM_IN_SETTLE_MS
+					);
+				} )
 			);
 		} );
 		canvas.requestMode( MODE_EDIT );
@@ -126,15 +181,18 @@ export function SiteCanvas( {
 			el(
 				'div',
 				{ className: 'cnl-editor-homepage-toolbar__left' },
-				el( ModeMenu, {
+				el( ModeToggle, {
 					canEdit: canvas.canEdit,
 					mode,
 					onChange: canvas.requestMode,
 				} ),
-				isEditing &&
-					canvas.editRoute &&
-					el( FullEditorButton, {
-						onOpen: () => navigate( canvas.editRoute ),
+				! isPreviewing &&
+					el( ComposeButton, {
+						isComposing,
+						onToggle: () =>
+							canvas.requestMode(
+								isComposing ? MODE_EDIT : MODE_COMPOSE
+							),
 					} ),
 				isPreviewing &&
 					el( PreviewHistory, {
@@ -169,7 +227,12 @@ export function SiteCanvas( {
 						device,
 						onChange: canvas.setDevice,
 					} ),
-				el( CanvasMoreMenu, { liveUrl: canvas.liveUrl } )
+				el( CanvasMoreMenu, {
+					liveUrl: canvas.liveUrl,
+					onOpenEditor: canvas.editRoute
+						? () => navigate( canvas.editRoute )
+						: null,
+				} )
 			)
 		),
 		el(
@@ -189,13 +252,18 @@ export function SiteCanvas( {
 						postId: editorEntity.postId,
 						postType: editorEntity.postType,
 					} ),
-				isEditing && editorChildren
+				isEditing && editorChildren,
+				el( EditSectionControls, {
+					isActive: isEditing && Boolean( editorEntity ),
+				} )
 			),
 			isComposing &&
 				editorEntity &&
 				el( ComposeLayer, {
 					editorRef,
 					onEdit: editFromCompose,
+					onExit: () => canvas.requestMode( MODE_EDIT ),
+					onOpen: openFromCompose,
 					useSync: useComposeSync,
 				} ),
 			/*

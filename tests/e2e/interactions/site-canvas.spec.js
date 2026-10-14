@@ -8,10 +8,12 @@ const {
 	expectBlockEditor,
 	expectCanvasMode,
 	getCanvasEditor,
+	getComposeButton,
 	getModeToggle,
 	getRoute,
 	getSitePreview,
 	openSidebarLink,
+	pickCanvasMode,
 	setCanvasMode,
 	test,
 	visitEditor,
@@ -50,35 +52,33 @@ test.describe( 'Site canvas interactions', () => {
 		).toBeVisible();
 	} );
 
-	test( 'the mode menu offers Browse, Edit and Compose', async ( {
+	test( 'Browse and Edit are a toggle; Compose is offered while editing', async ( {
 		page,
 	} ) => {
 		await visitEditor( page );
 
 		const toggle = getModeToggle( page );
+		const compose = getComposeButton( page );
 
-		await expect( toggle ).toHaveAccessibleName( 'Mode: Browse' );
-		await expect( toggle ).toHaveText( /Browse/ );
-
-		await toggle.click();
-
-		const items = page.getByRole( 'menuitemradio' );
-
-		await expect( items ).toHaveCount( 3 );
-		for ( const [ name, description ] of [
-			[ 'Browse', 'See your site as visitors do.' ],
-			[ 'Edit', 'Change anything on the page.' ],
-			[ 'Compose', 'Step back to add, move and style sections.' ],
-		] ) {
-			await expect(
-				page.getByRole( 'menuitemradio', {
-					name: new RegExp( `^${ name }` ),
-				} )
-			).toContainText( description );
-		}
 		await expect(
-			page.getByRole( 'menuitemradio', { name: /^Browse/ } )
+			toggle.getByRole( 'radio', { name: 'Browse' } )
 		).toBeChecked();
+		await expect( compose ).toHaveCount( 0 );
+
+		await setCanvasMode( page, 'Edit' );
+		await expect( compose ).toBeVisible();
+		await expect( compose ).toHaveAttribute( 'aria-pressed', 'false' );
+
+		// Compose is editing from further away: the toggle stays on Edit.
+		await compose.click();
+		await expectCanvasMode( page, 'Compose' );
+		await expect(
+			toggle.getByRole( 'radio', { name: 'Edit' } )
+		).toBeChecked();
+
+		// Escape, with nothing picked, steps back in to Edit.
+		await page.keyboard.press( 'Escape' );
+		await expectCanvasMode( page, 'Edit' );
 	} );
 
 	test( 'the mode carries over to another screen, but not a reload', async ( {
@@ -118,8 +118,7 @@ test.describe( 'Site canvas interactions', () => {
 		await page.keyboard.press( 'End' );
 		await page.keyboard.type( ' changed' );
 
-		await getModeToggle( page ).click();
-		await page.getByRole( 'menuitemradio', { name: /^Browse/ } ).click();
+		await pickCanvasMode( page, 'Browse' );
 
 		const dialog = page.getByRole( 'dialog', {
 			name: 'Save your changes?',
@@ -199,21 +198,23 @@ test.describe( 'Site canvas interactions', () => {
 		).toBeVisible();
 	} );
 
-	test( 'Open in full editor opens the page in the full-screen editor', async ( {
+	test( 'More options opens the page in the full-screen editor', async ( {
 		page,
 	} ) => {
 		await visitEditor( page );
 
-		const toolbar = page.locator( '.cnl-editor-homepage-toolbar' );
-		const openFull = toolbar.getByRole( 'button', {
+		const openFull = page.getByRole( 'menuitem', {
 			name: 'Open in full editor',
 		} );
 
-		// Only Edit offers it.
-		await expect( openFull ).toHaveCount( 0 );
-		await setCanvasMode( page, 'Compose' );
-		await expect( openFull ).toHaveCount( 0 );
-		await setCanvasMode( page, 'Edit' );
+		// It's in the menu, not on the toolbar, in any mode.
+		await expect(
+			page
+				.locator( '.cnl-editor-homepage-toolbar' )
+				.getByRole( 'button', { name: 'Open in full editor' } )
+		).toHaveCount( 0 );
+		await page.getByRole( 'button', { name: 'More options' } ).click();
+		await expect( openFull ).toBeEnabled( { timeout: 15000 } );
 		await openFull.click();
 
 		await expect

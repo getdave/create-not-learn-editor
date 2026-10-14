@@ -5,7 +5,7 @@
 const {
 	expect,
 	getCanvasEditor,
-	getModeToggle,
+	expectCanvasMode,
 	getStage,
 	setCanvasMode,
 	test,
@@ -213,6 +213,40 @@ test.describe( 'Compose', () => {
 		).toBeVisible();
 	} );
 
+	test( 'double-clicking a block opens it in Edit, selected', async ( {
+		page,
+		rest,
+	} ) => {
+		await openPage( page, rest, {
+			content:
+				'<!-- wp:group {"layout":{"type":"constrained"}} --><div class="wp-block-group"><!-- wp:heading --><h2 class="wp-block-heading">A heading</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Some words inside a section</p><!-- /wp:paragraph --></div><!-- /wp:group -->',
+		} );
+		await setCanvasMode( page, 'Compose' );
+
+		const words = getCanvasEditor( page )
+			.contentFrame()
+			.getByText( 'Some words inside a section' );
+		const box = await getSettledBox( words );
+
+		await page.mouse.dblclick( box.x + 10, box.y + box.height / 2 );
+
+		await expectCanvasMode( page, 'Edit' );
+		await expect
+			.poll( () =>
+				page.evaluate( () => {
+					const store = window.wp.data.select( 'core/block-editor' );
+					const clientId = store.getSelectedBlockClientId();
+
+					return clientId
+						? store
+								.getBlockAttributes( clientId )
+								.content?.toString()
+						: null;
+				} )
+			)
+			.toBe( 'Some words inside a section' );
+	} );
+
 	test( 'moves and deletes sections', async ( { page, rest } ) => {
 		await openPage( page, rest, {
 			content: [ 'First', 'Second', 'Third' ]
@@ -281,9 +315,7 @@ test.describe( 'Compose', () => {
 			.getByRole( 'button', { name: 'Edit', exact: true } )
 			.click();
 
-		await expect( getModeToggle( page ) ).toHaveAccessibleName(
-			'Mode: Edit'
-		);
+		await expectCanvasMode( page, 'Edit' );
 		await expect
 			.poll( () =>
 				page.evaluate( () => {

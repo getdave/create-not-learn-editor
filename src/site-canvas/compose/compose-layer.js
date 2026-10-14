@@ -43,7 +43,7 @@ import {
 	useSelect,
 	useState,
 } from '../../wordpress-packages';
-import { composeIcon } from '../icons';
+import { sectionsIcon } from '../icons';
 import { getCanvasFrame, useBlockRects } from './use-block-rects';
 import { useComposeStructure } from './use-compose-structure';
 import { PartToolbar, SectionToolbar } from './section-toolbar';
@@ -181,6 +181,55 @@ export function scrollCanvasTo( editorRef, clientId ) {
 	} );
 }
 
+/**
+ * The block in the canvas under a point on screen, through the layer.
+ *
+ * @param {Object} editorRef Ref to the editor's container.
+ * @param {Object} event     A pointer event, for its position.
+ * @return {?string} The innermost block's client ID.
+ */
+function getBlockAtPoint( editorRef, event ) {
+	const iframe = getCanvasFrame( editorRef.current );
+	const doc = iframe?.contentDocument;
+
+	if ( ! doc ) {
+		return null;
+	}
+
+	const frame = iframe.getBoundingClientRect();
+	const x = event.clientX - frame.left;
+	const y = event.clientY - frame.top;
+	const hit = doc.elementFromPoint( x, y )?.closest( '[data-block]' );
+
+	if ( ! hit ) {
+		return null;
+	}
+
+	/*
+	 * Zoomed out, core stops pointer events inside each section, so the hit
+	 * is the section. The innermost block under the point is found by where
+	 * the section's blocks are drawn instead: in document order, a block
+	 * comes after the blocks around it, so the last to contain the point is
+	 * the innermost.
+	 */
+	let block = hit;
+
+	hit.querySelectorAll( '[data-block]' ).forEach( ( node ) => {
+		const rect = node.getBoundingClientRect();
+
+		if (
+			x >= rect.left &&
+			x <= rect.right &&
+			y >= rect.top &&
+			y <= rect.bottom
+		) {
+			block = node;
+		}
+	} );
+
+	return block.dataset.block;
+}
+
 function useNoSync() {
 	return null;
 }
@@ -207,6 +256,11 @@ function place( rect, frame ) {
  * @param {Function} props.onEdit    Opens a section, header or footer in
  *                                   Edit. Called with its client ID, and
  *                                   whether it is a header or footer.
+ * @param {Function} props.onExit    Leaves Compose for Edit, on Escape with
+ *                                   nothing picked.
+ * @param {Function} props.onOpen    Opens Edit on a block double-clicked on
+ *                                   the page, called with its client ID, or
+ *                                   nothing when no block was hit.
  * @param {Function} props.useSync   A hook linking the layer to a list of
  *                                   the same sections elsewhere, such as
  *                                   the Pages sidebar. It returns
@@ -215,7 +269,13 @@ function place( rect, frame ) {
  *                                   client IDs.
  * @return {Element} The layer.
  */
-export function ComposeLayer( { editorRef, onEdit, useSync = useNoSync } ) {
+export function ComposeLayer( {
+	editorRef,
+	onEdit,
+	onExit,
+	onOpen,
+	useSync = useNoSync,
+} ) {
 	const registry = useRegistry();
 	const sync = useSync();
 	const layerRef = useRef();
@@ -334,6 +394,42 @@ export function ComposeLayer( { editorRef, onEdit, useSync = useNoSync } ) {
 			window.setTimeout( () => scrollCanvasTo( editorRef, picked ), 50 );
 		}
 	}, [ editorRef, editorSelectedId, parts, pick, registry, sectionIds ] );
+
+	/*
+	 * Escape lets go of what is picked, or with nothing picked, leaves
+	 * Compose for Edit. Not while a menu or the section picker is open,
+	 * where Escape closes that instead.
+	 */
+	const latestKeyRef = useRef();
+	latestKeyRef.current = { onExit, pick, selectedId };
+	useEffect( () => {
+		const onKeyDown = ( event ) => {
+			if (
+				event.key !== 'Escape' ||
+				event.defaultPrevented ||
+				dragRef.current ||
+				event.target.closest?.(
+					'.components-popover, .components-modal__frame'
+				)
+			) {
+				return;
+			}
+
+			const latest = latestKeyRef.current;
+
+			event.preventDefault();
+
+			if ( latest.selectedId ) {
+				latest.pick( null );
+			} else {
+				latest.onExit?.();
+			}
+		};
+
+		window.addEventListener( 'keydown', onKeyDown );
+
+		return () => window.removeEventListener( 'keydown', onKeyDown );
+	}, [] );
 
 	// Scrolling over the layer scrolls the canvas under it.
 	useEffect( () => {
@@ -760,7 +856,7 @@ export function ComposeLayer( { editorRef, onEdit, useSync = useNoSync } ) {
 				el(
 					EmptyState.Root,
 					null,
-					el( EmptyState.Icon, { icon: composeIcon } ),
+					el( EmptyState.Icon, { icon: sectionsIcon } ),
 					el(
 						EmptyState.Title,
 						null,
@@ -838,11 +934,21 @@ export function ComposeLayer( { editorRef, onEdit, useSync = useNoSync } ) {
 		{
 			className: 'cnl-compose-layer',
 			onClick: () => pick( null ),
-			onKeyDown: ( event ) => {
-				if ( event.key === 'Escape' && selectedId ) {
-					event.stopPropagation();
-					pick( null );
+			/*
+			 * Double-clicking the page opens Edit on whatever block is under
+			 * the pointer, found in the zoomed-out canvas underneath. Compose's
+			 * own controls keep their clicks to themselves.
+			 */
+			onDoubleClick: ( event ) => {
+				if (
+					event.target.closest(
+						'.cnl-compose-layer__toolbar, .cnl-compose-layer__gap, .cnl-compose-layer__add, .components-popover'
+					)
+				) {
+					return;
 				}
+
+				onOpen( getBlockAtPoint( editorRef, event ) );
 			},
 			ref: layerRef,
 			role: 'presentation',

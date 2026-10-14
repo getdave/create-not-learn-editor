@@ -1,6 +1,6 @@
 const {
 	expect,
-	getModeToggle,
+	expectCanvasMode,
 	getSitePreview,
 	test,
 	visitEditor,
@@ -48,15 +48,13 @@ test.describe( 'Home view', () => {
 		await expect( getSitePreview( page ) ).toBeVisible( {
 			timeout: 15000,
 		} );
-		await expect( getModeToggle( page ) ).toHaveAccessibleName(
-			'Mode: Browse'
-		);
+		await expectCanvasMode( page, 'Browse' );
 		await expect(
 			toolbar.getByRole( 'group', { name: 'Preview history' } )
 		).toBeVisible();
-		// The way out to the full editor is only offered in Edit.
+		// Compose is only offered while editing.
 		await expect(
-			toolbar.getByRole( 'button', { name: 'Open in full editor' } )
+			toolbar.getByRole( 'button', { name: 'Compose' } )
 		).toHaveCount( 0 );
 		await expect(
 			toolbar.getByRole( 'radio', { name: 'Desktop view' } )

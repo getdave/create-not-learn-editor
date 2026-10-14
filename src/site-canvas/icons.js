@@ -1,6 +1,6 @@
 /**
- * The site canvas's own icons, for modes `@wordpress/icons` has nothing for.
- * Drawn on the same 24px grid.
+ * The site canvas's own icon, for a page made of sections, which
+ * `@wordpress/icons` has nothing for. Drawn on the same 24px grid.
  */
 
 /**
@@ -13,22 +13,8 @@ const SVG_PROPS = {
 	xmlns: 'http://www.w3.org/2000/svg',
 };
 
-// Browse: a mouse pointer, for clicking around the site as visitors do.
-// An outline: unfilled on the path itself, as buttons fill their icons.
-export const browseIcon = el(
-	'svg',
-	SVG_PROPS,
-	el( 'path', {
-		d: 'M6.5 4.5v13.4l3.4-3.1 2.4 5.4 2-.9-2.4-5.3h4.6z',
-		fill: 'none',
-		stroke: 'currentColor',
-		strokeLinejoin: 'round',
-		strokeWidth: 1.5,
-	} )
-);
-
-// Compose: a page built from stacked sections, one of them picked.
-export const composeIcon = el(
+// A page built from stacked sections, one of them picked.
+export const sectionsIcon = el(
 	'svg',
 	{ ...SVG_PROPS, fill: 'currentColor' },
 	el( 'path', {

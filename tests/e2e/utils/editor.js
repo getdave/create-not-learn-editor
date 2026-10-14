@@ -97,8 +97,7 @@ function getSitePreview( page ) {
 const CANVAS_MODES = [ 'Browse', 'Edit', 'Compose' ];
 
 /**
- * The site canvas's mode menu toggle, named for the mode it is in, such as
- * "Mode: Browse".
+ * The site canvas's Browse | Edit toggle.
  *
  * @param {import('@playwright/test').Page} page
  * @return {import('@playwright/test').Locator} The toggle.
@@ -108,9 +107,43 @@ function getModeToggle( page ) {
 }
 
 /**
- * Open the mode menu and pick a mode, without waiting for the canvas to
- * follow. Use `setCanvasMode` unless something, such as the unsaved changes
- * dialog, is expected to hold the switch back.
+ * The site canvas's Compose button, offered while editing.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @return {import('@playwright/test').Locator} The button.
+ */
+function getComposeButton( page ) {
+	return page.locator( '.cnl-site-canvas__compose-button' );
+}
+
+/**
+ * The mode the site canvas is in, from its controls: Browse or Edit from the
+ * toggle, and Compose when its button is pressed.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @return {Promise<?string>} `Browse`, `Edit` or `Compose`.
+ */
+async function getCanvasMode( page ) {
+	const toggle = getModeToggle( page );
+
+	if (
+		( await toggle
+			.getByRole( 'radio', { name: 'Browse' } )
+			.getAttribute( 'aria-checked' ) ) === 'true'
+	) {
+		return 'Browse';
+	}
+
+	return ( await getComposeButton( page ).getAttribute( 'aria-pressed' ) ) ===
+		'true'
+		? 'Compose'
+		: 'Edit';
+}
+
+/**
+ * Switch the canvas's mode with its controls, without waiting for the canvas
+ * to follow. Use `setCanvasMode` unless something, such as the unsaved
+ * changes dialog, is expected to hold the switch back.
  *
  * @param {import('@playwright/test').Page} page
  * @param {'Browse'|'Edit'|'Compose'}       mode The mode to pick.
@@ -120,24 +153,35 @@ async function pickCanvasMode( page, mode ) {
 		throw new Error( `Unknown canvas mode: ${ mode }` );
 	}
 
-	const item = page.getByRole( 'menuitemradio', {
-		name: new RegExp( `^${ mode }` ),
+	const current = await getCanvasMode( page );
+
+	if ( mode === current ) {
+		return;
+	}
+
+	// Leaving Compose for Edit is its own button, pressed again.
+	if ( mode === 'Edit' && current === 'Compose' ) {
+		await getComposeButton( page ).click();
+		return;
+	}
+
+	const radio = getModeToggle( page ).getByRole( 'radio', {
+		name: mode === 'Browse' ? 'Browse' : 'Edit',
 	} );
 
-	/*
-	 * The menu closes if focus moves away while it is open, as it does when a
-	 * screen that has just opened focuses its heading, so it is opened again
-	 * until the pick lands. Edit and Compose also wait for there to be
-	 * something to edit.
-	 */
-	await expect( async () => {
-		if ( ! ( await item.isVisible() ) ) {
-			await getModeToggle( page ).click();
-		}
+	// Edit waits for there to be something to edit.
+	await expect( radio ).toBeEnabled( { timeout: 15000 } );
 
-		await expect( item ).toBeEnabled( { timeout: 2000 } );
-		await item.click( { timeout: 2000 } );
-	} ).toPass( { timeout: 20000 } );
+	if ( current !== ( mode === 'Browse' ? 'Browse' : 'Edit' ) ) {
+		await radio.click();
+	}
+
+	if ( mode === 'Compose' ) {
+		await expect( getComposeButton( page ) ).toBeVisible( {
+			timeout: 15000,
+		} );
+		await getComposeButton( page ).click();
+	}
 }
 
 /**
@@ -159,10 +203,9 @@ function getCanvasEditor( page ) {
  * @param {'Browse'|'Edit'|'Compose'}       mode The mode.
  */
 async function expectCanvasMode( page, mode ) {
-	await expect( getModeToggle( page ) ).toHaveAccessibleName(
-		`Mode: ${ mode }`,
-		{ timeout: 15000 }
-	);
+	await expect
+		.poll( () => getCanvasMode( page ), { timeout: 15000 } )
+		.toBe( mode );
 
 	if ( mode === 'Browse' ) {
 		await expect( getSitePreview( page ) ).toBeVisible();
@@ -192,12 +235,7 @@ async function expectCanvasMode( page, mode ) {
  * @param {'Browse'|'Edit'|'Compose'}       mode The mode to switch to.
  */
 async function setCanvasMode( page, mode ) {
-	const label = await getModeToggle( page ).getAttribute( 'aria-label' );
-
-	if ( label !== `Mode: ${ mode }` ) {
-		await pickCanvasMode( page, mode );
-	}
-
+	await pickCanvasMode( page, mode );
 	await expectCanvasMode( page, mode );
 }
 
@@ -305,6 +343,8 @@ module.exports = {
 	getCanvasEditor,
 	getEditorCanvas,
 	getFrameTexts,
+	getCanvasMode,
+	getComposeButton,
 	getModeToggle,
 	getRoute,
 	getSaveControls,

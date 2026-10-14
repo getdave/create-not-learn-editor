@@ -192,6 +192,58 @@ function useSectionVariations( clientId ) {
 }
 
 /**
+ * A section's layouts and colours, as a group of a block toolbar. Shared by
+ * Compose's toolbar and core's own block toolbar in Edit.
+ *
+ * @param {Object}   props
+ * @param {string}   props.clientId  The section's client ID.
+ * @param {Function} props.onReplace Called with the block that takes the
+ *                                   section's place when its layout changes.
+ * @return {?Element} The group, or nothing when the section has neither.
+ */
+export function SectionVariationsGroup( { clientId, onReplace } ) {
+	const { replaceBlock, updateBlockAttributes } =
+		useDispatch( blockEditorStore );
+	const { block, colors, layouts } = useSectionVariations( clientId );
+
+	if ( ! layouts && ! colors ) {
+		return null;
+	}
+
+	return el(
+		ToolbarGroup,
+		null,
+		layouts &&
+			el( VariationMenu, {
+				current: layouts.current,
+				icon: layoutIcon,
+				label: __( 'Layout' ),
+				onSelect: ( option ) => {
+					const next = cloneBlock( option.block );
+
+					replaceBlock( clientId, next );
+					onReplace( next );
+				},
+				options: layouts.options,
+			} ),
+		colors &&
+			el( VariationMenu, {
+				current: colors.current,
+				icon: colorIcon,
+				label: __( 'Color' ),
+				onSelect: ( option ) =>
+					updateBlockAttributes( clientId, {
+						className: withSectionStyle(
+							block.attributes.className,
+							option.name
+						),
+					} ),
+				options: colors.options,
+			} )
+	);
+}
+
+/**
  * @param {Object}   props
  * @param {string}   props.clientId     The section's client ID.
  * @param {number}   props.index        Its position among the sections.
@@ -217,13 +269,11 @@ export function SectionToolbar( {
 	rootClientId,
 	title,
 } ) {
-	const {
-		moveBlocksDown,
-		moveBlocksUp,
-		replaceBlock,
-		updateBlockAttributes,
-	} = useDispatch( blockEditorStore );
-	const { block, colors, layouts } = useSectionVariations( clientId );
+	const { moveBlocksDown, moveBlocksUp } = useDispatch( blockEditorStore );
+	const block = useSelect(
+		( select ) => select( blockEditorStore ).getBlock( clientId ),
+		[ clientId ]
+	);
 
 	return el(
 		ComposeToolbar,
@@ -284,38 +334,7 @@ export function SectionToolbar( {
 				)
 			)
 		),
-		( layouts || colors ) &&
-			el(
-				ToolbarGroup,
-				null,
-				layouts &&
-					el( VariationMenu, {
-						current: layouts.current,
-						icon: layoutIcon,
-						label: __( 'Layout' ),
-						onSelect: ( option ) => {
-							const next = cloneBlock( option.block );
-
-							replaceBlock( clientId, next );
-							onReplace( next );
-						},
-						options: layouts.options,
-					} ),
-				colors &&
-					el( VariationMenu, {
-						current: colors.current,
-						icon: colorIcon,
-						label: __( 'Color' ),
-						onSelect: ( option ) =>
-							updateBlockAttributes( clientId, {
-								className: withSectionStyle(
-									block.attributes.className,
-									option.name
-								),
-							} ),
-						options: colors.options,
-					} )
-			),
+		el( SectionVariationsGroup, { clientId, onReplace } ),
 		el(
 			ToolbarGroup,
 			null,
