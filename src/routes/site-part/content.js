@@ -10,15 +10,16 @@
  * WordPress dependencies
  */
 import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
-import { useNavigate } from '@wordpress/route';
+import { useSearch } from '@wordpress/route';
 
 /**
  * Internal dependencies
  */
 import { useForcedBlockEditorSettings } from '../../editor-layer/settings-guard';
 import { cnlEditorStore, getTitleText } from '../../records';
+import ScreenLinks from '../../screen-links';
 import { settings } from '../../settings';
-import { getSiteCrumb } from '../../site-trail';
+import { getFromSitePartSearch, getSiteCrumb } from '../../site-trail';
 import {
 	SiteCanvas,
 	useCanvasDocument,
@@ -28,42 +29,46 @@ import { LOCKED_PART_CONTENT_SETTING } from '../../site-canvas/constants';
 import { withUiTheme } from '../../theme';
 import { getPatternContent, getPatternTitle } from '../content/page-layouts';
 import useMainMenu from '../content/use-main-menu';
-import { SiteMediaSetting, useSiteIdentity } from '../static/identity';
+import { useSiteIdentity } from '../static/identity';
 import {
-	getCurrentPatternName,
-	getSitePartContent,
-	getSitePartPatterns,
+	SITE_PART_PATHS,
 	putLayoutFirst,
 	useSitePart,
 	useSitePartContents,
+	useSitePartLayouts,
 } from './data';
 import { useSitePartSpotlight } from './spotlight';
 import {
 	Breadcrumbs,
-	Button,
 	Icon,
-	InputControl,
 	Spinner,
 	Stack,
 	Text,
 	__,
+	_n,
 	checkIcon,
+	compassIcon,
 	coreDataStore,
 	el,
 	footerIcon,
 	headerIcon,
+	layoutIcon,
 	parseBlocks,
 	serialize,
+	siteLogoIcon,
+	sprintf,
 	useDispatch,
 	useMemo,
 	useRef,
 	useSelect,
 } from '../../wordpress-packages';
 
-const EMPTY_ARRAY = [];
-
 const LOCKED_PART_SETTINGS = { [ LOCKED_PART_CONTENT_SETTING ]: true };
 const PAGES_PATH = '/types/page/list/default';
+const IDENTITY_PATH = '/design/identity';
+
+// The search param that opens a part's layouts, over the same canvas.
+const LAYOUTS_VIEW = 'layouts';
 
 const SITE_PARTS = {
 	footer: {
@@ -71,7 +76,12 @@ const SITE_PARTS = {
 			'Shown at the bottom of every page. Click its text on the right to change it.'
 		),
 		icon: footerIcon,
+		linksLabel: __( 'Footer options' ),
 		missing: __( 'Your homepage doesn’t have a footer.' ),
+		noLayouts: __( 'Your theme doesn’t offer any layouts for its footer.' ),
+		noOptions: __(
+			'Your footer has no name, logo or menu, and your theme offers no other layouts for it.'
+		),
 		title: __( 'Footer' ),
 	},
 	header: {
@@ -79,56 +89,36 @@ const SITE_PARTS = {
 			'Shown at the top of every page. Click its text on the right to change it.'
 		),
 		icon: headerIcon,
+		linksLabel: __( 'Header options' ),
 		missing: __( 'Your homepage doesn’t have a header.' ),
+		noLayouts: __( 'Your theme doesn’t offer any layouts for its header.' ),
+		noOptions: __(
+			'Your header has no name, logo or menu, and your theme offers no other layouts for it.'
+		),
 		title: __( 'Header' ),
 	},
 };
 
-function Section( { children, title } ) {
+function Note( { children } ) {
 	return el(
-		'section',
-		{ className: 'routes-styles__section' },
-		el( Text, { render: el( 'h2' ), variant: 'heading-sm' }, title ),
+		Text,
+		{ className: 'routes-styles__muted', variant: 'body-md' },
 		children
 	);
 }
 
-function NameAndLogo( { hasLogo, hasSiteTitle } ) {
-	const { isLoading, site, update } = useSiteIdentity();
-
-	if ( isLoading ) {
-		return el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) );
-	}
-
-	return el(
-		Section,
-		{ title: hasSiteTitle ? __( 'Name & logo' ) : __( 'Logo' ) },
-		hasSiteTitle &&
-			el( InputControl, {
-				label: __( 'Site name' ),
-				onValueChange: ( value ) => update( { title: value } ),
-				value: site.title || '',
-			} ),
-		hasLogo &&
-			el( SiteMediaSetting, {
-				description: __( 'Wide or square images both work.' ),
-				label: __( 'Logo' ),
-				onChange: ( id ) => update( { site_logo: id } ),
-				value: site.site_logo || 0,
-			} )
-	);
+function Loading() {
+	return el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) );
 }
 
 /**
- * Which menu the part shows, and a way through to change it. The site's main
- * menu is managed with its pages, on Pages & menu; any other on its own.
+ * The menu the part shows, and where to change it. The site's main menu is
+ * managed with its pages, on Pages & menu; any other on its own.
  *
- * @param {Object}  props
- * @param {?number} props.navigationRef The menu the Navigation block shows.
- * @return {Element} The menu row.
+ * @param {?number} navigationRef The menu the Navigation block shows.
+ * @return {Object} `{ title, to }`.
  */
-function MenuSummary( { navigationRef } ) {
-	const navigate = useNavigate();
+function usePartMenu( navigationRef ) {
 	const { menuId: mainMenuId } = useMainMenu();
 	const { menuId, title } = useSelect(
 		( select ) => {
@@ -147,29 +137,118 @@ function MenuSummary( { navigationRef } ) {
 		},
 		[ navigationRef ]
 	);
-	const to =
-		! menuId || menuId === mainMenuId
-			? PAGES_PATH
-			: `/navigation/edit/${ encodeURIComponent( menuId ) }`;
 
-	return el(
-		Section,
-		{ title: __( 'Menu' ) },
-		el(
-			Stack,
-			{ align: 'center', gap: 'md', justify: 'space-between' },
-			el(
-				Text,
-				{ className: 'cnl-site-part__menu-name', variant: 'body-md' },
-				title || __( 'Your menu' )
-			),
-			el(
-				Button,
-				{ onClick: () => navigate( { to } ), variant: 'link' },
-				__( 'Edit menu' )
-			)
-		)
-	);
+	return {
+		title,
+		to:
+			! menuId || menuId === mainMenuId
+				? PAGES_PATH
+				: `/navigation/edit/${ encodeURIComponent( menuId ) }`,
+	};
+}
+
+function getLayoutsDescription( { currentName, layouts } ) {
+	const current = layouts.find( ( pattern ) => pattern.name === currentName );
+
+	return current
+		? getPatternTitle( current )
+		: sprintf(
+				/* translators: %d: Number of layouts. */
+				_n( '%d to pick from', '%d to pick from', layouts.length ),
+				layouts.length
+			);
+}
+
+// Each row says what it does, adding what isn't there yet or changing it.
+function getIdentityLink( { hasLogo, hasSiteTitle }, site ) {
+	if ( ! hasSiteTitle ) {
+		return site.site_logo
+			? {
+					description: __( 'Swap in a different image.' ),
+					title: __( 'Change logo' ),
+				}
+			: {
+					description: __( 'Upload one, or pick an image you have.' ),
+					title: __( 'Add a logo' ),
+				};
+	}
+
+	if ( ! site.title ) {
+		return {
+			description: __( 'Your site has no name yet.' ),
+			title: hasLogo ? __( 'Add a name & logo' ) : __( 'Name your site' ),
+		};
+	}
+
+	return {
+		description: site.title,
+		title: hasLogo ? __( 'Change name & logo' ) : __( 'Change site name' ),
+	};
+}
+
+/**
+ * What can be changed about the part, each a row leading to its own screen:
+ * its layouts, then the site's name and logo and the menu, when it shows
+ * them. Those screens lead back here in their breadcrumbs.
+ *
+ * @param {Object} props
+ * @param {string} props.area     `header` or `footer`.
+ * @param {string} props.clientId The part's client ID in the editor.
+ * @param {string} props.id       The part's template part ID.
+ * @return {Element} The rows, or a note when there are none.
+ */
+function SitePartLinks( { area, clientId, id } ) {
+	const part = SITE_PARTS[ area ];
+	const contents = useSitePartContents( clientId );
+	const layouts = useSitePartLayouts( area, id );
+	const identity = useSiteIdentity();
+	const menu = usePartMenu( contents.navigationRef );
+
+	if ( identity.isLoading ) {
+		return el( Loading );
+	}
+
+	const from = getFromSitePartSearch( area );
+	const links = [];
+
+	// The theme's patterns can be slow to arrive, so the row shows while
+	// they load and goes if the theme turns out to have none.
+	if ( ! layouts.hasResolved || layouts.layouts.length ) {
+		links.push( {
+			description: layouts.hasResolved
+				? getLayoutsDescription( layouts )
+				: __( 'Finding layouts…' ),
+			icon: layoutIcon,
+			search: { view: LAYOUTS_VIEW },
+			title: __( 'Change layout' ),
+			to: SITE_PART_PATHS[ area ],
+		} );
+	}
+
+	if ( contents.hasSiteTitle || contents.hasLogo ) {
+		links.push( {
+			...getIdentityLink( contents, identity.site ),
+			icon: siteLogoIcon,
+			search: from,
+			to: IDENTITY_PATH,
+		} );
+	}
+
+	if ( contents.showsMenu ) {
+		links.push( {
+			description: menu.title || __( 'Your menu' ),
+			icon: compassIcon,
+			search: from,
+			title: __( 'Edit menu' ),
+			to: menu.to,
+		} );
+	}
+
+	if ( ! links.length ) {
+		return el( Note, null, part.noOptions );
+	}
+
+	return el( ScreenLinks, { label: part.linksLabel, links } );
 }
 
 function LayoutCard( { isCurrent, onSelect, pattern } ) {
@@ -226,34 +305,13 @@ function LayoutCard( { isCurrent, onSelect, pattern } ) {
  * @param {Object} props
  * @param {string} props.area `header` or `footer`.
  * @param {string} props.id   The part's template part ID.
- * @return {?Element} The layouts, or nothing when the theme has none.
+ * @return {Element} The layouts, or a note when the theme has none.
  */
 function Layouts( { area, id } ) {
 	const { editEntityRecord } = useDispatch( coreDataStore );
-	const { content, patterns } = useSelect(
-		( select ) => {
-			const store = select( coreDataStore );
-
-			return {
-				content: getSitePartContent(
-					store.getEditedEntityRecord(
-						'postType',
-						'wp_template_part',
-						id
-					)
-				),
-				patterns: store.getBlockPatterns?.() || EMPTY_ARRAY,
-			};
-		},
-		[ id ]
-	);
-	const layouts = useMemo(
-		() => getSitePartPatterns( patterns, area ),
-		[ area, patterns ]
-	);
-	const currentName = useMemo(
-		() => getCurrentPatternName( content, layouts ),
-		[ content, layouts ]
+	const { content, currentName, hasResolved, layouts } = useSitePartLayouts(
+		area,
+		id
 	);
 	/*
 	 * The layout in use when the screen opens leads the list. Picking another
@@ -269,8 +327,12 @@ function Layouts( { area, id } ) {
 		[ layouts, lead ]
 	);
 
+	if ( ! hasResolved ) {
+		return el( Loading );
+	}
+
 	if ( ! layouts.length ) {
-		return null;
+		return el( Note, null, SITE_PARTS[ area ].noLayouts );
 	}
 
 	const select = ( pattern ) =>
@@ -282,19 +344,15 @@ function Layouts( { area, id } ) {
 		} );
 
 	return el(
-		Section,
-		{ title: __( 'Layouts' ) },
-		el(
-			'ul',
-			{ className: 'cnl-site-part__layouts' },
-			orderedLayouts.map( ( pattern ) =>
-				el( LayoutCard, {
-					isCurrent: pattern.name === currentName,
-					key: pattern.name,
-					onSelect: select,
-					pattern,
-				} )
-			)
+		'ul',
+		{ 'aria-label': __( 'Layouts' ), className: 'cnl-site-part__layouts' },
+		orderedLayouts.map( ( pattern ) =>
+			el( LayoutCard, {
+				isCurrent: pattern.name === currentName,
+				key: pattern.name,
+				onSelect: select,
+				pattern,
+			} )
 		)
 	);
 }
@@ -303,8 +361,9 @@ function createStage( area ) {
 	const part = SITE_PARTS[ area ];
 
 	return function SitePartStage() {
+		const { view } = useSearch( { strict: false } );
 		const { clientId, id, isEditorReady } = useSitePart( area );
-		const contents = useSitePartContents( clientId );
+		const isLayouts = view === LAYOUTS_VIEW;
 
 		return el(
 			'div',
@@ -316,30 +375,33 @@ function createStage( area ) {
 				Stack,
 				{ direction: 'column', gap: 'xs' },
 				el( Breadcrumbs, {
-					items: [ getSiteCrumb(), { label: part.title } ],
+					items: isLayouts
+						? [
+								getSiteCrumb(),
+								{
+									label: part.title,
+									to: SITE_PART_PATHS[ area ],
+								},
+								{ label: __( 'Layouts' ) },
+							]
+						: [ getSiteCrumb(), { label: part.title } ],
 				} ),
 				el(
-					Text,
-					{ className: 'routes-styles__muted', variant: 'body-md' },
-					part.description
+					Note,
+					null,
+					isLayouts
+						? __(
+								'Pick one to try it on the right. Save to keep it.'
+							)
+						: part.description
 				)
 			),
-			! isEditorReady &&
-				el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),
-			isEditorReady &&
-				! id &&
-				el(
-					Text,
-					{ className: 'routes-styles__muted', variant: 'body-md' },
-					part.missing
-				),
+			! isEditorReady && el( Loading ),
+			isEditorReady && ! id && el( Note, null, part.missing ),
 			id &&
-				( contents.hasSiteTitle || contents.hasLogo ) &&
-				el( NameAndLogo, contents ),
-			id &&
-				contents.showsMenu &&
-				el( MenuSummary, { navigationRef: contents.navigationRef } ),
-			id && el( Layouts, { area, id } )
+				( isLayouts
+					? el( Layouts, { area, id } )
+					: el( SitePartLinks, { area, clientId, id } ) )
 		);
 	};
 }
@@ -389,6 +451,7 @@ function createCanvas( area ) {
 			area,
 			canvasDocument,
 			clientId,
+			frame: canvas.frame,
 			isPreviewing: canvas.isPreviewing,
 		} );
 

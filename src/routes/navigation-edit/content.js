@@ -9,11 +9,13 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  * Internal dependencies
  */
 import { withUiTheme } from '../../theme';
+import { useSiteTrail } from '../../site-trail';
 import { cnlEditorStore, getErrorMessage, getTitleText } from '../../records';
 import {
 	archiveIcon,
 	blockDefaultIcon,
 	blocksStore,
+	Breadcrumbs,
 	Button,
 	categoryIcon,
 	CheckboxControl,
@@ -1220,6 +1222,7 @@ const pickerFields = [
 
 function NavigationEditStage() {
 	const navigate = useNavigate();
+	const siteTrail = useSiteTrail();
 	const params = useParams( { strict: false } );
 	const navigationId = Number( params.id );
 	const [ isSaving, setIsSaving ] = useState( false );
@@ -1588,12 +1591,18 @@ function NavigationEditStage() {
 		{
 			actions: menuOptions,
 			ariaLabel: menuTitle,
+			// Opened from the Header or Footer screen, the menu leads back.
+			breadcrumbs: siteTrail.length
+				? el( Breadcrumbs, {
+						items: [ ...siteTrail, { label: menuTitle } ],
+					} )
+				: undefined,
 			className:
 				'cnl-editor-stage cnl-drilldown-stage routes-navigation-edit',
 			hasPadding: false,
 			headingLevel: 2,
 			subTitle: __( 'Manage this navigation menu.' ),
-			title: menuTitle,
+			title: siteTrail.length ? undefined : menuTitle,
 		},
 		! isMenuReady &&
 			el( 'div', { className: 'cnl-editor-spinner' }, el( Spinner ) ),

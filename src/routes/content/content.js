@@ -6,7 +6,7 @@ import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
  */
 import { withUiTheme } from '../../theme';
 import { getPostType } from '../../settings';
-import { getSiteCrumb, useIsFromSite } from '../../site-trail';
+import { useSiteTrail } from '../../site-trail';
 import {
 	getErrorMessage,
 	getTemplateAuthorText,
@@ -1591,7 +1591,7 @@ function useContentRecords() {
 function Stage() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
-	const isFromSite = useIsFromSite();
+	const siteTrail = useSiteTrail();
 	// Where a page being added goes: in the menu, out of it, or the user picks.
 	const [ addingPage, setAddingPage ] = useState( null );
 	const {
@@ -1930,8 +1930,9 @@ function Stage() {
 	}
 
 	const title = type.menuName || type.label;
-	// Opened from the "Your site" checklist, Pages leads back to it.
-	const siteCrumbs = isPages && isFromSite ? [ getSiteCrumb() ] : [];
+	// Opened from the "Your site" checklist, or the Header or Footer screen,
+	// Pages leads back there.
+	const siteCrumbs = isPages ? siteTrail : [];
 	const pageHeader = subScreenLabel
 		? {
 				ariaLabel: subScreenLabel,
