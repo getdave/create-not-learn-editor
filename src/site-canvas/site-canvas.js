@@ -24,6 +24,7 @@ import {
 	el,
 	Notice,
 	Spinner,
+	useEffect,
 	useRef,
 	useSelect,
 } from '../wordpress-packages';
@@ -56,12 +57,16 @@ const ZOOM_IN_SETTLE_MS = 450;
  *                                        the caller needs one.
  * @param {Element}  props.emptyPreview   Shown when there is nothing to
  *                                        preview.
+ * @param {boolean}  props.canCompose     Whether Compose is offered. A canvas
+ *                                        about one part of the site, not a
+ *                                        page's sections, does without.
  * @param {Function} props.useComposeSync A hook linking Compose to a list of
  *                                        the same sections elsewhere. See
  *                                        `ComposeLayer`.
  * @return {Element} The canvas.
  */
 export function SiteCanvas( {
+	canCompose = true,
 	canvas,
 	className = '',
 	document,
@@ -73,10 +78,19 @@ export function SiteCanvas( {
 	const navigate = useNavigate();
 	const ownEditorRef = useRef();
 	const editorRef = givenEditorRef || ownEditorRef;
-	const { device, editorDevice, editorEntity, frame, isComposing, mode } =
-		canvas;
+	const { device, editorDevice, editorEntity, frame, mode } = canvas;
 	const isPreviewing = canvas.isPreviewing;
 	const isEditing = mode === MODE_EDIT;
+	const isComposing = canCompose && canvas.isComposing;
+
+	// A canvas without Compose, reached while composing, edits instead.
+	useEffect( () => {
+		if ( ! canCompose && canvas.isComposing ) {
+			canvas.requestMode( MODE_EDIT );
+		}
+		// Only arriving here composing should switch.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ canCompose, canvas.isComposing ] );
 
 	useComposeZoom( isComposing && Boolean( editorEntity ), editorRef );
 	useSectionLock( isEditing && Boolean( editorEntity ) );
@@ -187,6 +201,7 @@ export function SiteCanvas( {
 					onChange: canvas.requestMode,
 				} ),
 				! isPreviewing &&
+					canCompose &&
 					el( ComposeButton, {
 						isComposing,
 						onToggle: () =>

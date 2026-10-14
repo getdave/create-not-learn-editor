@@ -29,6 +29,7 @@ import { pencil as pencilIcon } from '@wordpress/icons';
  * Internal dependencies
  */
 import { unlock } from '../lock-unlock';
+import { LOCKED_PART_CONTENT_SETTING } from '../site-canvas/constants';
 import {
 	getTemplatePartAreaLabel,
 	getTemplatePartEditLabel,
@@ -59,10 +60,10 @@ const NOT_EDITABLE = {
  * whenever a block is added to or removed from the part, which would otherwise
  * strand the author mid-edit.
  *
- * On the site canvas, which is for quick changes, a part is only ever entered
- * by the Header and Footer screens. There every block in it is locked to its
- * content instead, as the page's own blocks are, since an entered section
- * otherwise opens its blocks up completely.
+ * On the Header and Footer screens, every block in an entered part is locked
+ * to its content instead, as those screens are for changing the part's words
+ * and images, and an entered section otherwise opens its blocks up
+ * completely.
  *
  * @param {string}           clientId The template part's client ID.
  * @param {HTMLElement|null} element  The part's DOM element.
@@ -80,12 +81,14 @@ function useUnlockedTemplatePart( clientId, element ) {
 		[ clientId ]
 	);
 
-	const isQuickEdit = useSelect(
+	const isContentOnly = useSelect(
 		( select ) =>
-			!! select( blockEditorStore ).getSettings()[ QUICK_EDIT_SETTING ],
+			!! select( blockEditorStore ).getSettings()[
+				LOCKED_PART_CONTENT_SETTING
+			],
 		[]
 	);
-	const editingMode = isQuickEdit ? 'contentOnly' : 'default';
+	const editingMode = isContentOnly ? 'contentOnly' : 'default';
 
 	const lockedModes = useSelect(
 		( select ) => {
@@ -98,7 +101,7 @@ function useUnlockedTemplatePart( clientId, element ) {
 				getBlockOrder,
 				getClientIdsOfDescendants,
 			} = select( blockEditorStore );
-			const ids = isQuickEdit
+			const ids = isContentOnly
 				? getClientIdsOfDescendants( clientId )
 				: getBlockOrder( clientId );
 
@@ -106,7 +109,7 @@ function useUnlockedTemplatePart( clientId, element ) {
 				( id ) => `${ id }:${ getBlockEditingMode( id ) }`
 			);
 		},
-		[ clientId, isEditing, isQuickEdit ]
+		[ clientId, isEditing, isContentOnly ]
 	);
 
 	useEffect( () => {
@@ -166,7 +169,7 @@ function useUnlockedTemplatePart( clientId, element ) {
 				}
 
 				// Locks set further down, on the site canvas, are dropped.
-				if ( isQuickEdit ) {
+				if ( isContentOnly ) {
 					for ( const id of getClientIdsOfDescendants( clientId ) ) {
 						if ( ! children.includes( id ) ) {
 							__unstableMarkNextChangeAsNotPersistent();
@@ -176,7 +179,7 @@ function useUnlockedTemplatePart( clientId, element ) {
 				}
 			} );
 		};
-	}, [ clientId, isEditing, isQuickEdit, registry ] );
+	}, [ clientId, isEditing, isContentOnly, registry ] );
 
 	/*
 	 * Leaving by clicking away.

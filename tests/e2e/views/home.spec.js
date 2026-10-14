@@ -23,9 +23,11 @@ test.describe( 'Home view', () => {
 		const steps = page.getByRole( 'list', {
 			name: 'Steps to create your site',
 		} );
-		await expect( steps.getByRole( 'listitem' ) ).toHaveCount( 5 );
+		await expect( steps.getByRole( 'listitem' ) ).toHaveCount( 7 );
 		for ( const step of [
 			'Name & logo',
+			'Header',
+			'Footer',
 			'Colors',
 			'Fonts',
 			'Your homepage',
