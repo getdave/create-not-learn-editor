@@ -6,10 +6,14 @@
 		"."
 	],
 	"themes": [
-		"https://github.com/WordPress/ipsum/archive/refs/heads/trunk.zip"
+		"https://github.com/WordPress/ipsum/archive/refs/heads/trunk.zip",
+		"./themes/mainstay"
 	],
 	"config": {
 		"WP_DEBUG": true,
 		"SCRIPT_DEBUG": true
+	},
+	"lifecycleScripts": {
+		"afterStart": "node scripts/setup-demo-site.mjs"
 	}
 }
