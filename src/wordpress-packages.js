@@ -83,7 +83,7 @@ import {
 } from '@wordpress/element';
 import { escapeHTML } from '@wordpress/escape-html';
 import { decodeEntities } from '@wordpress/html-entities';
-import { __, _n, sprintf } from '@wordpress/i18n';
+import { __, _n, isRTL, sprintf } from '@wordpress/i18n';
 import {
 	addSubmenu,
 	archive,
@@ -124,6 +124,7 @@ import {
 	page,
 	pencil,
 	plus,
+	redo,
 	reset,
 	postFeaturedImage,
 	postList,
@@ -143,6 +144,7 @@ import {
 	undo,
 	update,
 } from '@wordpress/icons';
+import { displayShortcut } from '@wordpress/keycodes';
 import { useEditorAssets, useEditorSettings } from '@wordpress/lazy-editor';
 import { MediaUpload } from '@wordpress/media-utils';
 import { store as noticesStore } from '@wordpress/notices';
@@ -206,6 +208,7 @@ export {
 	DataViewsPicker,
 	decodeEntities,
 	dispatch,
+	displayShortcut,
 	desktop as desktopIcon,
 	dragHandle as dragHandleIcon,
 	drawerLeft as drawerLeftIcon,
@@ -233,6 +236,7 @@ export {
 	InputControl,
 	image as imageIcon,
 	info as infoIcon,
+	isRTL,
 	layout as layoutIcon,
 	LegacyIcon,
 	Link,
@@ -255,6 +259,7 @@ export {
 	parseBlocks,
 	pencil as pencilIcon,
 	plus as plusIcon,
+	redo as redoIcon,
 	Popover,
 	postCategories as postCategoriesIcon,
 	Page,

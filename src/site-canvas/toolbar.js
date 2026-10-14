@@ -1,7 +1,7 @@
 /**
- * The site canvas toolbar's controls: Browse or Edit, Compose, stepping through
- * pages visited in Browse, the preview's device, and the way out to the
- * full-screen editor.
+ * The site canvas toolbar's controls: Browse or Edit, Compose, undo and redo
+ * while editing, stepping through pages visited in Browse, the preview's
+ * device, and the way out to the full-screen editor.
  */
 
 /**
@@ -17,19 +17,26 @@ import {
 	Button,
 	chevronLeftIcon,
 	chevronRightIcon,
+	coreDataStore,
 	desktopIcon,
+	displayShortcut,
 	el,
 	externalIcon,
 	fullscreenIcon,
+	isRTL,
 	mobileIcon,
 	DropdownMenu,
 	MenuGroup,
 	MenuItem,
 	moreVerticalIcon,
+	redoIcon,
 	squareIcon,
 	ToggleGroupControl,
 	ToggleGroupControlOption,
 	ToggleGroupControlOptionIcon,
+	undoIcon,
+	useDispatch,
+	useSelect,
 } from '../wordpress-packages';
 import { MODE_BROWSE, MODE_EDIT } from './mode';
 
@@ -110,6 +117,41 @@ export function ComposeButton( { isComposing, onToggle } ) {
 			showTooltip: false,
 		} )
 	);
+}
+
+/**
+ * Undo and redo, as in the editor's own header. The history is core's, so
+ * changes made in Edit and in Compose are stepped through alike.
+ *
+ * @return {Element} The buttons.
+ */
+export function EditHistory() {
+	const { hasRedo, hasUndo } = useSelect(
+		( select ) => ( {
+			hasRedo: select( coreDataStore ).hasRedo(),
+			hasUndo: select( coreDataStore ).hasUndo(),
+		} ),
+		[]
+	);
+	const { redo, undo } = useDispatch( coreDataStore );
+
+	return el( HistoryGroup, {
+		label: __( 'Edit history' ),
+		back: {
+			disabled: ! hasUndo,
+			icon: isRTL() ? redoIcon : undoIcon,
+			label: __( 'Undo' ),
+			onClick: undo,
+			shortcut: displayShortcut.primary( 'z' ),
+		},
+		forward: {
+			disabled: ! hasRedo,
+			icon: isRTL() ? undoIcon : redoIcon,
+			label: __( 'Redo' ),
+			onClick: redo,
+			shortcut: displayShortcut.primaryShift( 'z' ),
+		},
+	} );
 }
 
 export function DeviceSwitcher( { device, onChange } ) {
@@ -217,6 +259,7 @@ function HistoryGroup( { label, back, forward } ) {
 				key: button.label,
 				label: button.label,
 				onClick: button.onClick,
+				shortcut: button.shortcut,
 				showTooltip: true,
 				variant: 'tertiary',
 			} )

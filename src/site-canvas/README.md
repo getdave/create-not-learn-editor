@@ -1,6 +1,6 @@
 # Site canvas
 
-The canvas beside Home, Pages and Design. A Browse | Edit toggle at the left of its toolbar switches between looking at the site and changing it. While editing, a Compose button beside it steps back to work on the page's sections.
+The canvas beside Home, Pages and Design. A Browse | Edit toggle at the left of its toolbar switches between looking at the site and changing it. While editing, a Compose button beside it steps back to work on the page's sections, and undo and redo follow it.
 
 - **Browse**, the default. The saved site in an iframe, as visitors see it. Links can be followed to other pages.
 - **Edit**. The page in core's editor. Each section made of other blocks starts content-only, so its words and images can be changed, and "Edit" on its toolbar unlocks it. "Open in full editor", in the toolbar's More options menu, opens the full-screen editor for anything the canvas doesn't suit.
@@ -17,7 +17,7 @@ Moving to Browse with unsaved changes asks to save or discard them, because the 
 | `site-canvas.js` | `SiteCanvas`: the toolbar, the editor, the preview laid over it, and the Compose layer. |
 | `use-site-canvas.js` | `useSiteCanvas()`: the canvas's state and the rules for moving between modes. |
 | `mode.js` | The shared mode: `useCanvasMode()`, `getCanvasMode()`, `setCanvasMode()`. |
-| `toolbar.js` | The Browse \| Edit toggle, the Compose button, the preview's history and device, and the More options menu, with the way to the full-screen editor. |
+| `toolbar.js` | The Browse \| Edit toggle, the Compose button, undo and redo, the preview's history and device, and the More options menu, with the way to the full-screen editor. |
 | `use-section-lock.js` | In Edit, every section made of other blocks starts content-only, with core's own lock, kept in the editor's settings rather than the page. |
 | `edit-section-controls.js` | A section's Layout and Color on core's block toolbar in Edit, and core's unlock button said as "Edit" and "Done". |
 | `icons.js` | An icon for a page built from stacked sections, for the empty page in Compose. Compose's button uses the editor's own zoom-out icon. |
