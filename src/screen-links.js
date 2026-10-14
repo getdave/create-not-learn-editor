@@ -18,7 +18,8 @@ import { Button, chevronRightIcon, el, Icon } from './wordpress-packages';
  *
  * @param {Object}   props       Component props.
  * @param {string}   props.label Accessible name for the group of links.
- * @param {Object[]} props.links `{ description, icon, title, to }` for each.
+ * @param {Object[]} props.links `{ description, icon, search, title, to }` for
+ *                               each. `search` is optional.
  * @return {Element} The links.
  */
 export default function ScreenLinks( { label, links } ) {
@@ -27,13 +28,13 @@ export default function ScreenLinks( { label, links } ) {
 	return el(
 		'nav',
 		{ 'aria-label': label, className: 'cnl-screen-links' },
-		links.map( ( { description, icon, title, to } ) =>
+		links.map( ( { description, icon, search, title, to } ) =>
 			el(
 				Button,
 				{
 					className: 'cnl-screen-links__link',
 					key: to,
-					onClick: () => navigate( { to } ),
+					onClick: () => navigate( { search, to } ),
 				},
 				el( Icon, { className: 'cnl-screen-links__icon', icon } ),
 				el(

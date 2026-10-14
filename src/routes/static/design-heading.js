@@ -1,13 +1,14 @@
 /**
  * Internal dependencies
  */
-import { getSiteCrumb, useIsFromSite } from '../../site-trail';
+import { useSiteTrail } from '../../site-trail';
 import { Breadcrumbs, Stack, Text, __, el } from '../../wordpress-packages';
 
 /**
  * The title of a screen under Design. Screens linked from Design lead with a
  * breadcrumb back to it, as there is no sidebar item to return by. Opened
- * from the "Your site" checklist, they lead back to that instead.
+ * from the "Your site" checklist, or the Header or Footer screen, they lead
+ * back there instead.
  *
  * @param {Object}  props             Component props.
  * @param {string}  props.description Sentence under the title.
@@ -16,7 +17,7 @@ import { Breadcrumbs, Stack, Text, __, el } from '../../wordpress-packages';
  * @return {Node} The heading.
  */
 export function DesignScreenHeading( { description, isTopLevel, title } ) {
-	const isFromSite = useIsFromSite();
+	const trail = useSiteTrail();
 
 	return el(
 		Stack,
@@ -25,9 +26,9 @@ export function DesignScreenHeading( { description, isTopLevel, title } ) {
 			? el( Text, { render: el( 'h1' ), variant: 'heading-lg' }, title )
 			: el( Breadcrumbs, {
 					items: [
-						isFromSite
-							? getSiteCrumb()
-							: { label: __( 'Design' ), to: '/design' },
+						...( trail.length
+							? trail
+							: [ { label: __( 'Design' ), to: '/design' } ] ),
 						{ label: title },
 					],
 				} ),

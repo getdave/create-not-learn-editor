@@ -1,10 +1,11 @@
 // The Header and Footer screens: what can be changed about the part, and the
 // theme's layouts for it.
 
-.cnl-site-part__menu-name {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+// The rows are the screen, not a way on from its foot as on Design, so they
+// sit straight under the heading.
+.cnl-site-part .cnl-screen-links {
+	border-top: 0;
+	padding-top: 0;
 }
 
 .cnl-site-part__layouts {

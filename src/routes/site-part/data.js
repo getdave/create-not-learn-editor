@@ -308,3 +308,47 @@ export function getSitePartContent( record ) {
 
 	return getRawContent( record?.content );
 }
+
+/**
+ * The theme's layouts for a site part, and which one it uses as it stands.
+ *
+ * @param {string}  area `header` or `footer`.
+ * @param {?string} id   The part's template part ID.
+ * @return {Object} `{ content, currentName, hasResolved, layouts }`.
+ *                  `hasResolved` is whether the theme's patterns have loaded.
+ */
+export function useSitePartLayouts( area, id ) {
+	const { content, hasResolved, patterns } = useSelect(
+		( select ) => {
+			const store = select( coreDataStore );
+
+			return {
+				content: id
+					? getSitePartContent(
+							store.getEditedEntityRecord(
+								'postType',
+								'wp_template_part',
+								id
+							)
+						)
+					: '',
+				hasResolved: store.hasFinishedResolution(
+					'getBlockPatterns',
+					[]
+				),
+				patterns: store.getBlockPatterns?.() || EMPTY_ARRAY,
+			};
+		},
+		[ id ]
+	);
+	const layouts = useMemo(
+		() => getSitePartPatterns( patterns, area ),
+		[ area, patterns ]
+	);
+	const currentName = useMemo(
+		() => getCurrentPatternName( content, layouts ),
+		[ content, layouts ]
+	);
+
+	return { content, currentName, hasResolved, layouts };
+}
