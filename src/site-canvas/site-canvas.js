@@ -33,6 +33,7 @@ import { afterZoomIn, useComposeZoom } from './compose/use-compose-zoom';
 import { EDITOR_DEVICES } from './constants';
 import { EditSectionControls } from './edit-section-controls';
 import { MODE_COMPOSE, MODE_EDIT } from './mode';
+import { SectionOutline } from './section-outline';
 import {
 	CanvasMoreMenu,
 	DeviceSwitcher,
@@ -274,6 +275,10 @@ export function SiteCanvas( {
 					isActive: isEditing && Boolean( editorEntity ),
 				} )
 			),
+			el( SectionOutline, {
+				editorRef,
+				isActive: isEditing && Boolean( editorEntity ),
+			} ),
 			isComposing &&
 				editorEntity &&
 				el( ComposeLayer, {

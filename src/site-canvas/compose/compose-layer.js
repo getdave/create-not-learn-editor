@@ -44,6 +44,7 @@ import {
 	useState,
 } from '../../wordpress-packages';
 import { sectionsIcon } from '../icons';
+import { useCanvasStyles } from '../use-canvas-styles';
 import { getCanvasFrame, useBlockRects } from './use-block-rects';
 import { useComposeStructure } from './use-compose-structure';
 import { PartToolbar, SectionToolbar } from './section-toolbar';
@@ -98,53 +99,6 @@ function getCanvasStyles( rootClientId, isEmpty ) {
 	]
 		.filter( Boolean )
 		.join( '\n' );
-}
-
-/**
- * Keep Compose's styles in the canvas while it is on. The editor swaps its
- * iframe out now and then, so they are checked for and put back.
- *
- * @param {boolean} isActive  Whether Compose is on.
- * @param {Object}  editorRef Ref to the editor's container.
- * @param {string}  css       The styles.
- */
-function useCanvasStyles( isActive, editorRef, css ) {
-	useEffect( () => {
-		if ( ! isActive ) {
-			return undefined;
-		}
-
-		let current = null;
-		const apply = () => {
-			const doc = getCanvasFrame( editorRef.current )?.contentDocument;
-
-			if ( ! doc?.head ) {
-				return;
-			}
-
-			let style = doc.getElementById( STYLE_ID );
-
-			if ( ! style ) {
-				style = doc.createElement( 'style' );
-				style.id = STYLE_ID;
-				doc.head.appendChild( style );
-			}
-
-			if ( style.textContent !== css ) {
-				style.textContent = css;
-			}
-
-			current = style;
-		};
-		const interval = window.setInterval( apply, 300 );
-
-		apply();
-
-		return () => {
-			window.clearInterval( interval );
-			current?.remove();
-		};
-	}, [ css, editorRef, isActive ] );
 }
 
 /**
@@ -309,6 +263,7 @@ export function ComposeLayer( {
 	useCanvasStyles(
 		true,
 		editorRef,
+		STYLE_ID,
 		useMemo(
 			() => getCanvasStyles( rootClientId, isEmpty ),
 			[ isEmpty, rootClientId ]

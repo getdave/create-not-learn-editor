@@ -314,7 +314,46 @@
 	}
 }
 
-.cnl-compose-layer__label {
+/*
+ * In Edit, the section pointed at and the section holding the selection,
+ * outlined and named as Compose outlines a section pointed at. Under core's
+ * block toolbars, and lets every click through. See `section-outline.js`.
+ *
+ * The host is appended to the editor's content region, and lays out as
+ * nothing, so the layer covers the region.
+ */
+.cnl-section-outline-host {
+	display: contents;
+}
+
+.cnl-section-outline {
+	position: absolute;
+	z-index: 1;
+	inset: 0;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.cnl-section-outline__clip {
+	position: absolute;
+	overflow: hidden;
+}
+
+/*
+ * A step thicker than core's outlines around blocks, so the section reads as
+ * the larger thing around them.
+ */
+.cnl-section-outline__box {
+	--cnl-outline-width: calc(var(--wp-admin-border-width-focus, 2px) + 1px);
+
+	position: absolute;
+	box-sizing: border-box;
+	outline: var(--cnl-outline-width) solid var(--wp-admin-theme-color);
+	outline-offset: calc(-1 * var(--cnl-outline-width));
+}
+
+.cnl-compose-layer__label,
+.cnl-section-outline__label {
 	position: absolute;
 	top: 8px;
 	right: 8px;
