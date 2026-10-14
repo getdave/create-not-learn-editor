@@ -20,6 +20,8 @@ Moving to Browse with unsaved changes asks to save or discard them, because the 
 | `toolbar.js` | The Browse \| Edit toggle, the Compose button, the preview's history and device, and the More options menu, with the way to the full-screen editor. |
 | `use-section-lock.js` | In Edit, every section made of other blocks starts content-only, with core's own lock, kept in the editor's settings rather than the page. |
 | `edit-section-controls.js` | A section's Layout and Color on core's block toolbar in Edit, and core's unlock button said as "Edit" and "Done". |
+| `section-outline.js` | In Edit, the section pointed at, and the section holding the selection, outlined and named as Compose does, a step thicker than core's outlines around blocks. Core's outline around the page's content as a whole is hidden in their favour. Drawn inside the editor's content region, whose isolated stacking is the only place it can sit under core's block toolbars, and lets every click through. |
+| `use-canvas-styles.js` | `useCanvasStyles()`: styles kept in the editor's canvas while wanted, put back when the editor swaps its iframe. Used by Compose and the section outlines. |
 | `icons.js` | An icon for a page built from stacked sections, for the empty page in Compose. Compose's button uses the editor's own zoom-out icon. |
 | `compose/` | Compose. See below. |
 
