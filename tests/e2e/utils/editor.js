@@ -37,7 +37,13 @@ function getRoute( page ) {
 	return new URL( page.url() ).searchParams.get( 'p' ) || '';
 }
 
-const ADVANCED_LINKS = [ 'Posts', 'Sections', 'Site parts', 'Layouts' ];
+const ADVANCED_LINKS = [
+	'Posts',
+	'Menus',
+	'Sections',
+	'Site parts',
+	'Layouts',
+];
 
 /**
  * Follow a link in the sidebar, opening Advanced first for links under it.
@@ -68,6 +74,21 @@ async function openSidebarLink( page, name ) {
  */
 function getStage( page ) {
 	return page.locator( '.cnl-editor-stage' );
+}
+
+/**
+ * A page in the Pages screen's list, whether it is in the main menu or not.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string}                          title The page's title.
+ * @return {import('@playwright/test').Locator} The page's item.
+ */
+function getPageItem( page, title ) {
+	const list = getStage( page ).locator( '.cnl-pages-menu, .cnl-pages-tree' );
+
+	return list
+		.getByRole( 'link', { name: title, exact: true } )
+		.or( list.getByRole( 'button', { name: title, exact: true } ) );
 }
 
 /**
@@ -346,6 +367,7 @@ module.exports = {
 	getCanvasMode,
 	getComposeButton,
 	getModeToggle,
+	getPageItem,
 	getRoute,
 	getSaveControls,
 	getSitePreview,

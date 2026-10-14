@@ -2,6 +2,7 @@ const {
 	expect,
 	getEditorCanvas,
 	expectCanvasMode,
+	getPageItem,
 	getSitePreview,
 	getStage,
 	setCanvasMode,
@@ -10,7 +11,7 @@ const {
 } = require( '../utils' );
 
 test.describe( 'Pages view', () => {
-	test( 'lists pages as a tree beside a preview', async ( {
+	test( 'lists pages in and out of the main menu beside a preview', async ( {
 		page,
 		rest,
 	} ) => {
@@ -19,7 +20,6 @@ test.describe( 'Pages view', () => {
 		await visitEditor( page, '/types/page' );
 
 		const stage = getStage( page );
-		const tree = stage.getByRole( 'list', { name: 'Pages' } );
 
 		await expect(
 			stage.getByRole( 'heading', { level: 2, name: 'Pages' } )
@@ -28,14 +28,23 @@ test.describe( 'Pages view', () => {
 			stage.getByRole( 'tab', { name: 'Pages' } )
 		).toHaveAttribute( 'aria-selected', 'true' );
 		await expect(
-			tree.getByRole( 'button', { name: testPage.title, exact: true } )
+			stage.getByRole( 'region', {
+				name: 'In your menu',
+				exact: true,
+			} )
 		).toBeVisible( { timeout: 15000 } );
 		await expect(
-			tree.getByRole( 'button', { name: `Edit ${ testPage.title }` } )
+			stage.getByRole( 'region', { name: 'Not in your menu' } )
 		).toBeVisible();
+		await expect( getPageItem( page, testPage.title ) ).toBeVisible( {
+			timeout: 15000,
+		} );
 		await expect(
-			tree.getByRole( 'button', { name: `Delete ${ testPage.title }` } )
-		).toBeVisible();
+			stage.getByRole( 'button', { name: `Edit ${ testPage.title }` } )
+		).toBeAttached();
+		await expect(
+			stage.getByRole( 'button', { name: `Delete ${ testPage.title }` } )
+		).toBeAttached();
 
 		// The site is on show in Browse before any page is picked.
 		await expect( getSitePreview( page ) ).toBeVisible( {

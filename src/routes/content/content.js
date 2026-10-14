@@ -27,8 +27,12 @@ import {
 } from './page-layouts';
 import { requestDistractionFreeEntry } from '../../editor-layer/distraction-free';
 import { isPageInMenu } from './menu-status';
-import useMainMenu, { useAddPageToMenu } from './use-main-menu';
-import { PageDetailStage, PagesTree } from './pages/stage';
+import useMainMenu, {
+	useAddPageToMenu,
+	useKeepPagesOutOfMenu,
+} from './use-main-menu';
+import { PageDetailStage } from './pages/stage';
+import PagesMenuGroups from './pages/menu-groups';
 import {
 	DesignPicker,
 	DesignPickerNav,
@@ -747,7 +751,7 @@ function getAddToMenuHelp( {
 	}
 
 	if ( ! publishImmediately ) {
-		return __( 'Publish the page to add it to your menu.' );
+		return __( 'It shows in your menu once you publish it.' );
 	}
 
 	return menuTitle
@@ -759,10 +763,11 @@ function getAddToMenuHelp( {
 		: __( 'Adds a link to your menu so visitors can find it.' );
 }
 
-function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
+function AddPageFlow( { mainMenu = {}, menuPlacement, onClose, templates } ) {
 	const navigate = useNavigate();
 	const { saveEntityRecord } = useDispatch( coreDataStore );
 	const addPageToMenu = useAddPageToMenu();
+	const keepPagesOutOfMenu = useKeepPagesOutOfMenu();
 	const [ addToMenu, setAddToMenu ] = useState( true );
 	const menuListsAllPages = Boolean( mainMenu.menuPages?.listsAllPages );
 	const [ startedBlank, setStartedBlank ] = useState( false );
@@ -915,19 +920,19 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 				{ throwOnError: true }
 			);
 
-			if (
-				addToMenu &&
-				publishImmediately &&
-				mainMenu.menuId &&
-				! menuListsAllPages
-			) {
-				await addPageToMenu( mainMenu.menuId, newPage );
+			if ( mainMenu.menuId ) {
+				if ( menuPlacement === 'not-in-menu' ) {
+					await keepPagesOutOfMenu( mainMenu.menuId, [ newPage.id ] );
+				} else if ( menuPlacement === 'menu' || addToMenu ) {
+					await addPageToMenu( mainMenu.menuId, newPage );
+				}
 			}
 
 			onClose();
-			// Open the new page in the Pages screen, where its sections are.
+			// Show the new page in the canvas, and leave the list where it
+			// was so the page can be seen in it.
 			navigate( {
-				search: { postId: newPage.id },
+				search: { previewId: newPage.id },
 				to: '/types/page/list/all',
 			} );
 		} catch ( error ) {
@@ -1009,17 +1014,13 @@ function AddPageFlow( { mainMenu = {}, onClose, templates } ) {
 						)
 					),
 					mainMenu.menuId &&
+						! menuPlacement &&
 						el(
 							'div',
 							{ className: 'cnl-add-page-form__checkbox-item' },
 							el( CheckboxControl, {
-								checked:
-									menuListsAllPages ||
-									( addToMenu && publishImmediately ),
-								disabled:
-									isBusy ||
-									menuListsAllPages ||
-									! publishImmediately,
+								checked: menuListsAllPages || addToMenu,
+								disabled: isBusy || menuListsAllPages,
 								label: __( 'Add to my menu' ),
 								onChange: setAddToMenu,
 							} ),
@@ -1490,7 +1491,8 @@ function useContentRecords() {
 function Stage() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
-	const [ isAddingPage, setIsAddingPage ] = useState( false );
+	// Where a page being added goes: in the menu, out of it, or the user picks.
+	const [ addingPage, setAddingPage ] = useState( null );
 	const {
 		activeTab,
 		contentView,
@@ -1621,9 +1623,14 @@ function Stage() {
 		__( 'Add %s' ),
 		type.singular || type.name
 	);
-	const openCreateFlow = () => {
+	const openCreateFlow = ( menuPlacement ) => {
 		if ( type.name === 'page' ) {
-			setIsAddingPage( true );
+			setAddingPage( {
+				menuPlacement:
+					typeof menuPlacement === 'string'
+						? menuPlacement
+						: undefined,
+			} );
 			return;
 		}
 
@@ -1741,7 +1748,7 @@ function Stage() {
 	);
 
 	const contentList = isPages
-		? el( PagesTree, {
+		? el( PagesMenuGroups, {
 				canCreate: type.canCreate,
 				onAddPage: openCreateFlow,
 			} )
@@ -1943,11 +1950,12 @@ function Stage() {
 					__( 'See all layouts.' )
 				)
 			),
-		isAddingPage &&
+		addingPage &&
 			type.name === 'page' &&
 			el( AddPageFlow, {
 				mainMenu,
-				onClose: () => setIsAddingPage( false ),
+				menuPlacement: addingPage.menuPlacement,
+				onClose: () => setAddingPage( null ),
 				templates,
 			} )
 	);

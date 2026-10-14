@@ -9,20 +9,40 @@ const {
 } = require( '../utils' );
 
 test.describe( 'Menus views', () => {
-	test( 'Menus opens the menu shown in the header', async ( { page } ) => {
+	test( 'Menus lists every menu, and leaves the main one to Pages', async ( {
+		page,
+	} ) => {
 		await visitEditor( page );
 		await openSidebarLink( page, 'Menus' );
 
 		await expect
 			.poll( () => getRoute( page ), { timeout: 15000 } )
-			.toMatch( /^\/navigation\/edit\/\d+$/ );
+			.toMatch( /^\/navigation/ );
+
+		const stage = getStage( page );
+
+		await expect(
+			stage.getByRole( 'heading', { name: 'Menus' } )
+		).toBeVisible( { timeout: 15000 } );
+		await expect(
+			stage.getByText( /is looked after on the Pages screen/ )
+		).toBeVisible();
+		await expect(
+			stage.getByRole( 'button', { name: 'Add menu' } )
+		).toBeVisible();
+	} );
+
+	test( 'a menu opens on its own screen', async ( { page, rest } ) => {
+		const menuId = await rest.getMainMenuId();
+
+		await visitEditor( page, `/navigation/edit/${ menuId }` );
 
 		const stage = getStage( page );
 		const canvas = page.locator( '.routes-navigation-canvas' );
 
 		await expect(
 			stage.getByText( 'Manage this navigation menu.' )
-		).toBeVisible();
+		).toBeVisible( { timeout: 15000 } );
 		await expect(
 			stage.getByRole( 'button', { name: 'Navigation menu options' } )
 		).toBeVisible();
@@ -63,15 +83,13 @@ test.describe( 'Menus views', () => {
 		await expect(
 			stage.getByRole( 'heading', { level: 2, name: menu.title } )
 		).toBeVisible( { timeout: 15000 } );
+		// It reads like any other menu, as the pages it lists.
 		await expect(
 			stage.getByRole( 'heading', { name: 'Auto-menu' } )
-		).toBeVisible();
-		await expect(
-			stage.getByText( /This menu is kept in sync with your current/ )
-		).toBeVisible();
+		).toHaveCount( 0 );
 		await expect(
 			stage.getByRole( 'button', { name: 'Customize' } )
-		).toBeVisible();
+		).toHaveCount( 0 );
 		await expect(
 			stage
 				.getByRole( 'treegrid', { name: 'Block navigation structure' } )
@@ -131,11 +149,12 @@ test.describe( 'Menus views', () => {
 
 	test( 'a menu on the site previews each place it appears', async ( {
 		page,
+		rest,
 	} ) => {
-		await visitEditor( page, '/navigation' );
-		await expect
-			.poll( () => getRoute( page ), { timeout: 15000 } )
-			.toMatch( /^\/navigation\/edit\/\d+$/ );
+		await visitEditor(
+			page,
+			`/navigation/edit/${ await rest.getMainMenuId() }`
+		);
 
 		const canvas = page.locator( '.routes-navigation-canvas' );
 		await canvas

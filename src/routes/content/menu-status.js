@@ -14,20 +14,20 @@ import {
 const LINK_BLOCKS = [ 'core/navigation-link', 'core/navigation-submenu' ];
 
 /**
- * Read a menu's content for the pages it links to.
+ * Read a menu's blocks for the pages they link to.
  *
  * A Page List block links every published page, so a menu that contains one
  * is reported as listing all pages rather than by ID.
  *
- * @param {string} content Serialized navigation menu content.
+ * @param {Object[]} blocks Parsed or editor blocks.
  * @return {{ listsAllPages: boolean, pageIds: Set<number> }} Menu pages.
  */
-export function getMenuPages( content ) {
+export function getMenuPagesFromBlocks( blocks ) {
 	const pageIds = new Set();
 	let listsAllPages = false;
 
-	const visit = ( blocks ) => {
-		( blocks || [] ).forEach( ( block ) => {
+	const visit = ( items ) => {
+		( items || [] ).forEach( ( block ) => {
 			const name = getBlockName( block );
 			const attributes = getBlockAttributes( block );
 
@@ -48,9 +48,19 @@ export function getMenuPages( content ) {
 		} );
 	};
 
-	visit( getParsedBlocks( content ) );
+	visit( blocks );
 
 	return { listsAllPages, pageIds };
+}
+
+/**
+ * Read a menu's content for the pages it links to.
+ *
+ * @param {string} content Serialized navigation menu content.
+ * @return {{ listsAllPages: boolean, pageIds: Set<number> }} Menu pages.
+ */
+export function getMenuPages( content ) {
+	return getMenuPagesFromBlocks( getParsedBlocks( content ) );
 }
 
 /**
@@ -69,10 +79,6 @@ export function isPageInMenu( page, menuPages ) {
 		return true;
 	}
 
-	// Page List only shows published, top-level pages.
-	return (
-		menuPages.listsAllPages &&
-		page.status === 'publish' &&
-		! Number( page.parent )
-	);
+	// Page List shows published pages, with sub-pages in submenus.
+	return menuPages.listsAllPages && page.status === 'publish';
 }

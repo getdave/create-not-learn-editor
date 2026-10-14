@@ -84,9 +84,10 @@ class RestClient {
 	}
 
 	/**
-	 * Make a published page holding a paragraph.
+	 * Make a page holding a paragraph, published unless told otherwise.
 	 *
 	 * @param {Object} [options]
+	 * @param {string} [options.status]  Page status.
 	 * @param {string} [options.title]   Page title.
 	 * @param {string} [options.body]    Text of its paragraph.
 	 * @param {string} [options.content] Block markup, used instead of `body`.
@@ -100,7 +101,7 @@ class RestClient {
 			options.content ||
 			`<!-- wp:paragraph --><p>${ body }</p><!-- /wp:paragraph -->`;
 		const page = await this.fetch( '/wp/v2/pages', {
-			data: { content, status: 'publish', title },
+			data: { content, status: options.status || 'publish', title },
 			method: 'POST',
 		} );
 
@@ -160,6 +161,30 @@ class RestClient {
 		this.deleteLater( `/wp/v2/navigation/${ menu.id }` );
 
 		return { id: menu.id, title };
+	}
+
+	/**
+	 * The menu in the site's header: the one a header navigation block points
+	 * at, or else the newest menu, which a navigation block without one shows.
+	 *
+	 * @return {Promise<number>} The menu's ID.
+	 */
+	async getMainMenuId() {
+		const parts = await this.getNavigationTemplateParts();
+		const header =
+			parts.find( ( part ) => /header/i.test( part.title ) ) ||
+			parts[ 0 ];
+		const ref = header?.content.match( /"ref":(\d+)/ );
+
+		if ( ref ) {
+			return Number( ref[ 1 ] );
+		}
+
+		const [ newest ] = await this.fetch( '/wp/v2/navigation', {
+			params: { _fields: 'id', order: 'desc', orderby: 'date' },
+		} );
+
+		return newest.id;
 	}
 
 	/**

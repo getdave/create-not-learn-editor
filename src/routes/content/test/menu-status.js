@@ -25,7 +25,7 @@ describe( 'menu status', () => {
 		expect( isPageInMenu( { id: 15 }, menuPages ) ).toBe( false );
 	} );
 
-	test( 'treats a Page List as listing published top-level pages', () => {
+	test( 'treats a Page List as listing published pages', () => {
 		const menuPages = getMenuPages( '<!-- wp:page-list /-->' );
 
 		expect( menuPages.listsAllPages ).toBe( true );
@@ -37,7 +37,7 @@ describe( 'menu status', () => {
 		).toBe( false );
 		expect(
 			isPageInMenu( { id: 3, parent: 1, status: 'publish' }, menuPages )
-		).toBe( false );
+		).toBe( true );
 	} );
 
 	test( 'handles an empty or missing menu', () => {

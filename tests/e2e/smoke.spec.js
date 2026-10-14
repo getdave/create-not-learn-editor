@@ -6,6 +6,7 @@ const {
 	expect,
 	expectBlockEditor,
 	getRoute,
+	getPageItem,
 	getSitePreview,
 	getStage,
 	openSidebarLink,
@@ -32,19 +33,16 @@ test( 'every main screen loads without errors', async ( { page, rest } ) => {
 
 	await test.step( 'Pages', async () => {
 		await openSidebarLink( page, 'Pages' );
-		await expect(
-			page.getByRole( 'list', { name: 'Pages' } ).getByRole( 'button', {
-				name: testPage.title,
-				exact: true,
-			} )
-		).toBeVisible( { timeout: 15000 } );
+		await expect( getPageItem( page, testPage.title ) ).toBeVisible( {
+			timeout: 15000,
+		} );
 	} );
 
 	await test.step( 'Menus', async () => {
 		await openSidebarLink( page, 'Menus' );
 		await expect.poll( () => getRoute( page ) ).toMatch( /^\/navigation/ );
 		await expect(
-			page.getByText( 'Manage this navigation menu.' )
+			stage.getByRole( 'heading', { name: 'Menus' } )
 		).toBeVisible( { timeout: 15000 } );
 	} );
 

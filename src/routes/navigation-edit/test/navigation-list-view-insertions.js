@@ -1,3 +1,9 @@
+const mockLinkVariations = [
+	{ attributes: { kind: 'post-type', type: 'page' }, name: 'page' },
+	{ attributes: { kind: 'custom' }, isDefault: true, name: 'custom-link' },
+];
+let mockRegisteredVariations = mockLinkVariations;
+
 jest.mock( '../../../wordpress-packages', () => ( {
 	createBlock: ( name, attributes = {}, innerBlocks = [] ) => ( {
 		attributes,
@@ -5,6 +11,7 @@ jest.mock( '../../../wordpress-packages', () => ( {
 		innerBlocks,
 		name,
 	} ),
+	getBlockVariations: () => mockRegisteredVariations,
 } ) );
 
 /**
@@ -14,6 +21,7 @@ import {
 	createCustomNavigationLinkBlock,
 	createCustomNavigationSubmenuBlock,
 	createExistingPageNavigationLinkBlock,
+	createNavigationLinkVariationBlock,
 	createLabelOnlyNavigationSubmenuBlock,
 	createPageNavigationSubmenuBlock,
 	getBlockListRootClientId,
@@ -53,7 +61,7 @@ describe( 'navigation ListView insertion helpers', () => {
 		] );
 	} );
 
-	test( 'creates the prototype page Navigation Link variation', () => {
+	test( 'creates the Page Link variation', () => {
 		expect( createExistingPageNavigationLinkBlock() ).toMatchObject( {
 			attributes: {
 				kind: 'post-type',
@@ -63,11 +71,38 @@ describe( 'navigation ListView insertion helpers', () => {
 		} );
 	} );
 
-	test( 'creates the prototype custom link variation', () => {
+	test( 'creates the Custom Link variation', () => {
 		expect( createCustomNavigationLinkBlock() ).toMatchObject( {
-			attributes: {},
+			attributes: { kind: 'custom' },
 			name: 'core/navigation-link',
 		} );
+	} );
+
+	test( 'takes a variation’s attributes from the block, with extras', () => {
+		mockRegisteredVariations = [
+			{ attributes: { kind: 'custom', rel: 'x' }, name: 'custom-link' },
+		];
+
+		expect(
+			createNavigationLinkVariationBlock( 'custom-link', { label: '' } )
+				.attributes
+		).toEqual( { kind: 'custom', label: '', rel: 'x' } );
+
+		mockRegisteredVariations = mockLinkVariations;
+	} );
+
+	test( 'falls back to core’s variations before they are registered', () => {
+		mockRegisteredVariations = undefined;
+
+		expect( createCustomNavigationLinkBlock().attributes ).toEqual( {
+			kind: 'custom',
+		} );
+		expect( createExistingPageNavigationLinkBlock().attributes ).toEqual( {
+			kind: 'post-type',
+			type: 'page',
+		} );
+
+		mockRegisteredVariations = mockLinkVariations;
 	} );
 
 	test( 'creates submenu variations for page, custom, and label-only flows', () => {

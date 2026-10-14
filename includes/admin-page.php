@@ -655,20 +655,37 @@ function cnl_editor_enqueue_built_styles() {
 		new RecursiveDirectoryIterator( $build_path, FilesystemIterator::SKIP_DOTS )
 	);
 
+	// The build writes each stylesheet four ways: plain and minified, each
+	// with a right-to-left copy. Load one, and let WordPress swap in its
+	// right-to-left copy when the admin is right-to-left.
+	$use_minified = ! ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG );
+
 	foreach ( $iterator as $file ) {
 		if ( ! $file->isFile() || 'css' !== $file->getExtension() ) {
 			continue;
 		}
 
 		$style_file = $file->getPathname();
-		$basename = basename( $style_file );
 
-		if ( '-rtl.css' === substr( $basename, -8 ) ) {
+		if ( preg_match( '/-rtl(\.min)?\.css$/', $style_file ) ) {
+			continue;
+		}
+
+		$is_minified = '.min.css' === substr( $style_file, -8 );
+		$base_file   = substr( $style_file, 0, $is_minified ? -8 : -4 );
+		$suffix      = $is_minified ? '.min' : '';
+
+		// Skip this one if the other version is the one to load.
+		if (
+			$is_minified !== $use_minified &&
+			file_exists( $base_file . ( $use_minified ? '.min.css' : '.css' ) )
+		) {
 			continue;
 		}
 
 		$relative_path = str_replace( CNL_EDITOR_PATH . 'build/', '', $style_file );
-		$handle        = 'cnl-editor-' . sanitize_key( str_replace( array( '/', '.' ), '-', substr( $relative_path, 0, -4 ) ) );
+		$relative_base = str_replace( CNL_EDITOR_PATH . 'build/', '', $base_file );
+		$handle        = 'cnl-editor-' . sanitize_key( str_replace( array( '/', '.' ), '-', $relative_base ) );
 
 		wp_enqueue_style(
 			$handle,
@@ -677,8 +694,12 @@ function cnl_editor_enqueue_built_styles() {
 			filemtime( $style_file )
 		);
 
-		if ( file_exists( substr( $style_file, 0, -4 ) . '-rtl.css' ) ) {
+		if ( file_exists( $base_file . '-rtl' . $suffix . '.css' ) ) {
 			wp_style_add_data( $handle, 'rtl', 'replace' );
+
+			if ( $suffix ) {
+				wp_style_add_data( $handle, 'suffix', $suffix );
+			}
 		}
 	}
 }
@@ -984,12 +1005,6 @@ function cnl_editor_get_menu_items() {
 	}
 
 	$items[] = array(
-		'id'    => 'navigation',
-		'icon'  => '',
-		'label' => __( 'Menus', 'create-not-learn-editor' ),
-		'to'    => '/navigation',
-	);
-	$items[] = array(
 		'id'    => 'design',
 		'icon'  => 'dashicons-admin-appearance',
 		'label' => __( 'Design', 'create-not-learn-editor' ),
@@ -1006,6 +1021,13 @@ function cnl_editor_get_menu_items() {
 		// for one of its sub-items.
 		'to'          => '/advanced',
 		'parent_type' => 'drilldown',
+	);
+	// The main menu is managed on the Pages screen; this is for the rest.
+	$items[] = array(
+		'id'     => 'navigation',
+		'label'  => __( 'Menus', 'create-not-learn-editor' ),
+		'to'     => '/navigation',
+		'parent' => 'advanced',
 	);
 	$items[] = array(
 		'id'     => 'patterns',

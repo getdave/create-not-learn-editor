@@ -296,6 +296,297 @@ $cnl-pages-tree-row-gap: 2px;
 }
 
 // ---------------------------------------------------------------------------
+// Pages in the menu, and the rest.
+// ---------------------------------------------------------------------------
+
+.cnl-pages-menu {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-xl);
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-2xl);
+}
+
+.cnl-pages-menu__group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-xs);
+	border-radius: var(--wpds-border-radius-md);
+	transition: box-shadow var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+
+	&.is-drop-target {
+		background: color-mix(in srgb, #{$cnl-accent} 6%, transparent);
+		box-shadow: inset 0 0 0 2px $cnl-accent;
+	}
+}
+
+.cnl-pages-menu__group-header {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-xs);
+	min-height: 40px;
+	padding: 0 var(--wpds-dimension-padding-sm);
+}
+
+.cnl-pages-menu__group-title {
+	display: flex;
+	align-items: baseline;
+	gap: var(--wpds-dimension-gap-sm);
+	margin: 0;
+	color: var(--wpds-color-foreground-content-neutral);
+	font-size: var(--wpds-typography-font-size-md);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	line-height: var(--wpds-typography-line-height-md);
+}
+
+.cnl-pages-menu__group-count {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+	font-weight: var(--wpds-typography-font-weight-default);
+}
+
+.cnl-pages-menu__info.components-button {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.cnl-pages-menu__group-actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin-inline-start: auto;
+}
+
+.cnl-pages-menu__empty,
+.cnl-pages-menu__none {
+	margin: 0;
+	padding: var(--wpds-dimension-padding-md);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.cnl-pages-menu__empty {
+	border: 1px dashed var(--wpds-color-stroke-surface-neutral);
+	border-radius: var(--wpds-border-radius-sm);
+	font-size: var(--wpds-typography-font-size-sm);
+	text-align: center;
+
+	&.is-drop-target {
+		border-color: $cnl-accent;
+		background: color-mix(in srgb, #{$cnl-accent} 6%, transparent);
+	}
+}
+
+.cnl-pages-menu__item-options {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-xs);
+}
+
+// The menu's rows look like the page tree's: the page in the canvas has a
+// faint tint rather than the list view's solid selection, and hovering tints
+// a row without recolouring its text.
+// Scoped by the table too, to outrank the list view's own row styles.
+.cnl-pages-menu .block-editor-list-view-tree tr.block-editor-list-view-leaf {
+
+	.block-editor-list-view-block-contents,
+	.block-editor-list-view-block-select-button:hover {
+		color: var(--wpds-color-foreground-interactive-neutral);
+	}
+
+	td {
+		background: var(--cnl-pages-menu-row-background, transparent);
+		transition:
+			background-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle),
+			box-shadow var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+	}
+
+	// The cells meet at a fraction of a pixel, which shows as a hairline;
+	// the first cell's shadow covers it.
+	td:first-child {
+		border-radius: var(--wpds-border-radius-sm) 0 0 var(--wpds-border-radius-sm);
+		box-shadow: 1px 0 0 var(--cnl-pages-menu-row-background, transparent);
+	}
+
+	td:last-child {
+		border-radius: 0 var(--wpds-border-radius-sm) var(--wpds-border-radius-sm) 0;
+	}
+
+	&:hover {
+		--cnl-pages-menu-row-background: var(--wpds-color-background-interactive-neutral-weak-active);
+	}
+
+	&.is-selected {
+		--cnl-pages-menu-row-background: var(--wpds-color-background-interactive-brand-weak-active);
+	}
+
+	&.is-selected .block-editor-list-view-block-contents,
+	&.is-selected .components-button.has-icon {
+		color: var(--wpds-color-foreground-interactive-neutral);
+	}
+
+	&.is-selected .block-editor-block-icon {
+		color: var(--wpds-color-foreground-interactive-brand);
+	}
+
+	// The list view tints whatever sits under the selected item; the page
+	// tree doesn't.
+	&.is-branch-selected:not(.is-selected) {
+		background: transparent;
+	}
+
+	// A badge says something about the page, so it always shows. Only the
+	// row's actions wait for hover, focus or the row being picked.
+	.block-editor-list-view-block__menu-cell > .cnl-pages-menu__item-options {
+		opacity: 1;
+	}
+
+	.cnl-pages-menu__item-options > .components-button,
+	.cnl-pages-menu__item-options > .components-dropdown-menu {
+		opacity: 0;
+		transition: opacity var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+	}
+
+	&:hover .cnl-pages-menu__item-options > *,
+	&:focus-within .cnl-pages-menu__item-options > *,
+	&.is-selected .cnl-pages-menu__item-options > * {
+		opacity: 1;
+	}
+
+	.cnl-pages-menu__item-options .components-button.has-icon {
+		color: var(--wpds-color-foreground-content-neutral-weak);
+
+		&:hover {
+			color: var(--wpds-color-foreground-interactive-neutral);
+		}
+	}
+
+	.cnl-pages-menu__item-options .cnl-pages-menu__delete.components-button.has-icon {
+		color: var(--wpds-color-foreground-interactive-error);
+
+		&:hover {
+			color: var(--wpds-color-foreground-interactive-error-active);
+		}
+	}
+}
+
+.cnl-pages-menu__status {
+	flex: 0 0 auto;
+}
+
+.cnl-pages-menu__pages {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.cnl-pages-menu__page {
+	position: relative;
+	display: flex;
+	align-items: center;
+	cursor: grab;
+
+	&:active {
+		cursor: grabbing;
+	}
+}
+
+// Like the page tree, a page's actions show on hover or keyboard focus.
+.cnl-pages-menu__page-actions {
+	position: absolute;
+	top: 50%;
+	inset-inline-end: var(--wpds-dimension-padding-sm);
+	display: flex;
+	gap: var(--wpds-dimension-gap-xs);
+	opacity: 0;
+	transform: translateY(-50%);
+	transition: opacity var(--wpds-motion-duration-md) var(--wpds-motion-easing-subtle);
+
+	.cnl-pages-menu__page:hover > &,
+	.cnl-pages-menu__page:focus-within > & {
+		opacity: 1;
+	}
+
+	.components-button {
+		color: var(--wpds-color-foreground-content-neutral-weak);
+
+		&:hover {
+			color: var(--wpds-color-foreground-interactive-neutral);
+		}
+	}
+
+	.components-button:last-child {
+		color: var(--wpds-color-foreground-interactive-error);
+	}
+}
+
+.cnl-pages-menu__edit.components-button {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.cnl-pages-menu__group-actions .components-button {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+
+	&:hover {
+		color: var(--wpds-color-foreground-interactive-neutral);
+	}
+}
+
+.cnl-pages-menu__page-link {
+	display: flex;
+	flex: 1 1 auto;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-sm);
+	min-width: 0;
+	min-height: 36px;
+	padding: 0 var(--wpds-dimension-padding-sm);
+	border: 0;
+	border-radius: var(--wpds-border-radius-sm);
+	background: transparent;
+	color: var(--wpds-color-foreground-interactive-neutral);
+	cursor: inherit;
+	font: inherit;
+	text-align: start;
+	transition: background-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+
+	&:hover {
+		background: var(--wpds-color-background-interactive-neutral-weak-active);
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: -2px;
+	}
+
+	.cnl-pages-menu__page.is-previewed > & {
+		background: var(--wpds-color-background-interactive-brand-weak-active);
+	}
+}
+
+.cnl-pages-menu__page-icon {
+	flex: 0 0 auto;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	fill: currentcolor;
+
+	.is-previewed > .cnl-pages-menu__page-link > & {
+		color: var(--wpds-color-foreground-interactive-brand);
+	}
+}
+
+.cnl-pages-menu__page-title {
+	overflow: hidden;
+	min-width: 0;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cnl-pages-menu__page-role {
+	flex: 0 0 auto;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+}
+
+// ---------------------------------------------------------------------------
 // A page, opened up.
 // ---------------------------------------------------------------------------
 

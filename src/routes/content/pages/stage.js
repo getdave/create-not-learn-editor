@@ -54,6 +54,7 @@ import { sectionBridge, useSectionBridge } from './section-bridge';
 import SectionSketch from './section-sketch';
 import { getLayoutDescription, getLayoutOutline } from './layout-outline';
 import LayoutSketch from './layout-sketch';
+import { getPageIcon, getPageRole, getStatusBadge } from './page-labels';
 import {
 	__,
 	_n,
@@ -80,7 +81,6 @@ import {
 	footerIcon,
 	Fragment,
 	headerIcon,
-	homeIcon,
 	Icon,
 	InputControl,
 	lockSmallIcon,
@@ -103,6 +103,7 @@ import {
 	Text,
 	trashIcon,
 	UiButton,
+	useCallback,
 	useDispatch,
 	useEffect,
 	useId,
@@ -113,46 +114,6 @@ import {
 } from '../../../wordpress-packages';
 
 const LIST_PATH = '/types/page/list/all';
-
-function getStatusBadge( status ) {
-	switch ( status ) {
-		case 'draft':
-		case 'auto-draft':
-			return { intent: 'draft', label: __( 'Draft' ) };
-		case 'pending':
-			return { intent: 'draft', label: __( 'Pending review' ) };
-		case 'future':
-			return { intent: 'informational', label: __( 'Scheduled' ) };
-		case 'private':
-			return { intent: 'informational', label: __( 'Private' ) };
-		default:
-			return null;
-	}
-}
-
-function getPageIcon( page, { frontPageId, postsPageId } ) {
-	if ( Number( page.id ) === frontPageId ) {
-		return homeIcon;
-	}
-
-	if ( Number( page.id ) === postsPageId ) {
-		return postListIcon;
-	}
-
-	return pageIcon;
-}
-
-function getPageRole( page, { frontPageId, postsPageId } ) {
-	if ( Number( page.id ) === frontPageId ) {
-		return __( 'Homepage' );
-	}
-
-	if ( Number( page.id ) === postsPageId ) {
-		return __( 'Blog' );
-	}
-
-	return '';
-}
 
 /**
  * Pick a section in the full editor once it has loaded the page, so opening a
@@ -368,6 +329,163 @@ function getDropPosition( event ) {
 }
 
 /**
+ * Moving a page to the Trash, after asking. Its sub-pages move up a level
+ * rather than vanishing with it.
+ *
+ * @param {Object}   args             Arguments.
+ * @param {Object[]} args.pages       Every page.
+ * @param {number}   args.previewedId The page in the preview.
+ * @return {Object} `{ modal, requestDelete }`: the confirmation to render, and
+ *                  a callback taking the page ID to delete and, optionally,
+ *                  what to do once it is deleted.
+ */
+export function usePageTrash( { pages: effectivePages, previewedId } ) {
+	const navigate = useNavigate();
+	const searchParams = useSearch( { strict: false } );
+	const { deleteEntityRecord, saveEntityRecord } =
+		useDispatch( coreDataStore );
+	const { createErrorNotice, createSuccessNotice } =
+		useDispatch( noticesStore );
+	const [ deleteId, setDeleteId ] = useState( null );
+	const [ isDeleting, setIsDeleting ] = useState( false );
+	const onDeleted = useRef();
+	const requestDelete = useCallback( ( pageId, afterDelete ) => {
+		onDeleted.current = afterDelete;
+		setDeleteId( pageId );
+	}, [] );
+
+	const closeDeleteModal = () => {
+		if ( ! isDeleting ) {
+			setDeleteId( null );
+		}
+	};
+
+	const deletePage = async () => {
+		const page = effectivePages.find(
+			( item ) => Number( item.id ) === deleteId
+		);
+
+		if ( ! page ) {
+			setDeleteId( null );
+
+			return;
+		}
+
+		const title = getPageTitle( page );
+		const parent = Number( page.parent ) || 0;
+		// Its children move up a level rather than vanishing with it.
+		const children = effectivePages.filter(
+			( item ) => ( Number( item.parent ) || 0 ) === deleteId
+		);
+
+		setIsDeleting( true );
+
+		try {
+			await Promise.all(
+				children.map( ( child ) =>
+					saveEntityRecord(
+						'postType',
+						'page',
+						{ id: child.id, parent },
+						{ throwOnError: true }
+					)
+				)
+			);
+			await deleteEntityRecord(
+				'postType',
+				'page',
+				deleteId,
+				{},
+				{ throwOnError: true }
+			);
+
+			if ( previewedId === deleteId ) {
+				navigate( {
+					search: { ...searchParams, previewId: parent || undefined },
+					to: LIST_PATH,
+				} );
+			}
+
+			onDeleted.current?.( deleteId );
+			createSuccessNotice(
+				sprintf(
+					/* translators: %s: page title. */
+					__( '“%s” moved to Trash.' ),
+					title
+				),
+				{ type: 'snackbar' }
+			);
+			setDeleteId( null );
+		} catch ( error ) {
+			createErrorNotice(
+				sprintf(
+					/* translators: 1: page title, 2: error message. */
+					__( 'Unable to delete “%1$s” (%2$s).' ),
+					title,
+					getErrorMessage( error )
+				),
+				{ type: 'snackbar' }
+			);
+		} finally {
+			setIsDeleting( false );
+		}
+	};
+
+	return {
+		modal:
+			deleteId &&
+			el(
+				Modal,
+				{
+					className: 'routes-navigation-edit__item-modal',
+					onRequestClose: closeDeleteModal,
+					title: __( 'Delete page' ),
+				},
+				el(
+					'p',
+					null,
+					sprintf(
+						/* translators: %s: page title. */
+						__(
+							'Are you sure you want to delete “%s”? It will be moved to the Trash.'
+						),
+						getPageTitle(
+							effectivePages.find(
+								( item ) => Number( item.id ) === deleteId
+							) || {}
+						)
+					)
+				),
+				el(
+					'div',
+					{ className: 'routes-navigation-edit__modal-actions' },
+					el(
+						Button,
+						{
+							disabled: isDeleting,
+							onClick: closeDeleteModal,
+							variant: 'tertiary',
+						},
+						__( 'Cancel' )
+					),
+					el(
+						Button,
+						{
+							disabled: isDeleting,
+							isBusy: isDeleting,
+							isDestructive: true,
+							onClick: deletePage,
+							variant: 'primary',
+						},
+						__( 'Move to Trash' )
+					)
+				)
+			),
+		requestDelete,
+	};
+}
+
+/**
  * Every page, nested under its parent, for the Pages screen's list.
  *
  * Pages can be dragged to reorder them, or dropped onto another page to go
@@ -383,14 +501,11 @@ export function PagesTree( { canCreate, onAddPage } ) {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
 	const { frontPageId, isLoading, pages, postsPageId } = usePages();
-	const { deleteEntityRecord, saveEntityRecord } =
-		useDispatch( coreDataStore );
+	const { saveEntityRecord } = useDispatch( coreDataStore );
 	const { createErrorNotice, createSuccessNotice } =
 		useDispatch( noticesStore );
 	const [ search, setSearch ] = useState( '' );
 	const [ collapsed, setCollapsed ] = useState( () => new Set() );
-	const [ deleteId, setDeleteId ] = useState( null );
-	const [ isDeleting, setIsDeleting ] = useState( false );
 	const [ dragId, setDragId ] = useState( null );
 	const [ drop, setDrop ] = useState( null );
 	// Moves shown before the saved pages come back, keyed by page ID.
@@ -593,81 +708,7 @@ export function PagesTree( { canCreate, onAddPage } ) {
 		}
 	};
 
-	const closeDeleteModal = () => {
-		if ( ! isDeleting ) {
-			setDeleteId( null );
-		}
-	};
-
-	const deletePage = async () => {
-		const page = effectivePages.find(
-			( item ) => Number( item.id ) === deleteId
-		);
-
-		if ( ! page ) {
-			setDeleteId( null );
-
-			return;
-		}
-
-		const title = getPageTitle( page );
-		const parent = Number( page.parent ) || 0;
-		// Its children move up a level rather than vanishing with it.
-		const children = effectivePages.filter(
-			( item ) => ( Number( item.parent ) || 0 ) === deleteId
-		);
-
-		setIsDeleting( true );
-
-		try {
-			await Promise.all(
-				children.map( ( child ) =>
-					saveEntityRecord(
-						'postType',
-						'page',
-						{ id: child.id, parent },
-						{ throwOnError: true }
-					)
-				)
-			);
-			await deleteEntityRecord(
-				'postType',
-				'page',
-				deleteId,
-				{},
-				{ throwOnError: true }
-			);
-
-			if ( previewedId === deleteId ) {
-				navigate( {
-					search: { ...searchParams, previewId: parent || undefined },
-					to: LIST_PATH,
-				} );
-			}
-
-			createSuccessNotice(
-				sprintf(
-					/* translators: %s: page title. */
-					__( '“%s” moved to Trash.' ),
-					title
-				),
-				{ type: 'snackbar' }
-			);
-			setDeleteId( null );
-		} catch ( error ) {
-			createErrorNotice(
-				sprintf(
-					/* translators: 1: page title, 2: error message. */
-					__( 'Unable to delete “%1$s” (%2$s).' ),
-					title,
-					getErrorMessage( error )
-				),
-				{ type: 'snackbar' }
-			);
-		} finally {
-			setIsDeleting( false );
-		}
-	};
+	const trash = usePageTrash( { pages: effectivePages, previewedId } );
 
 	const dnd = {
 		drop,
@@ -811,7 +852,7 @@ export function PagesTree( { canCreate, onAddPage } ) {
 					dnd,
 					key: node.page.id,
 					node,
-					onDelete: setDeleteId,
+					onDelete: trash.requestDelete,
 					onEdit: editPage,
 					onPreview: previewPage,
 					onToggle: toggle,
@@ -843,54 +884,7 @@ export function PagesTree( { canCreate, onAddPage } ) {
 						'Pick a page to see it, or use the pencil to change what is on it.'
 					)
 		),
-		deleteId &&
-			el(
-				Modal,
-				{
-					className: 'routes-navigation-edit__item-modal',
-					onRequestClose: closeDeleteModal,
-					title: __( 'Delete page' ),
-				},
-				el(
-					'p',
-					null,
-					sprintf(
-						/* translators: %s: page title. */
-						__(
-							'Are you sure you want to delete “%s”? It will be moved to the Trash.'
-						),
-						getPageTitle(
-							effectivePages.find(
-								( item ) => Number( item.id ) === deleteId
-							) || {}
-						)
-					)
-				),
-				el(
-					'div',
-					{ className: 'routes-navigation-edit__modal-actions' },
-					el(
-						Button,
-						{
-							disabled: isDeleting,
-							onClick: closeDeleteModal,
-							variant: 'tertiary',
-						},
-						__( 'Cancel' )
-					),
-					el(
-						Button,
-						{
-							disabled: isDeleting,
-							isBusy: isDeleting,
-							isDestructive: true,
-							onClick: deletePage,
-							variant: 'primary',
-						},
-						__( 'Move to Trash' )
-					)
-				)
-			)
+		trash.modal
 	);
 }
 
@@ -984,9 +978,9 @@ function PageOptions( { page, pageId, onEdit } ) {
 		},
 		[ pageId ]
 	);
+	// A draft can go in the menu too; it shows there once published.
 	const canAddToMenu =
-		Boolean( mainMenu.menuId && mainMenu.menuPages ) &&
-		page?.status === 'publish' &&
+		Boolean( page && mainMenu.menuId && mainMenu.menuPages ) &&
 		! isPageInMenu( page, mainMenu.menuPages );
 
 	const addToMenu = async () => {

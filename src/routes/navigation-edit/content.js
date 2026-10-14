@@ -58,7 +58,6 @@ import {
 	ToggleControl,
 	ToggleGroupControl,
 	ToggleGroupControlOptionIcon,
-	updateIcon,
 	useDispatch,
 	useEffect,
 	useMemo,
@@ -75,7 +74,6 @@ import {
 import {
 	appendNavigationBlocksToContent,
 	createEditorBlocksFromNavigationBlocks,
-	createManualNavigationContentFromPages,
 	createNavigationLinkBlock,
 	createNavigationLinkBlockFromPage,
 	createNavigationSubmenuBlock,
@@ -103,17 +101,11 @@ import {
 	NavigationSitePreview,
 	NavigationSitePreviewNotice,
 } from '../navigation/site-preview';
-import NavigationEditListView from './list-view';
+import NavigationEditListView, { MENU_PAGES_QUERY } from './list-view';
+import CustomLinkModal from './custom-link-modal';
 
 const NAVIGATION_POST_TYPE = 'wp_navigation';
-const PAGE_QUERY = {
-	context: 'edit',
-	order: 'asc',
-	orderby: 'menu_order',
-	per_page: 100,
-	status: 'publish',
-	_fields: 'id,link,menu_order,parent,title,type',
-};
+const PAGE_QUERY = MENU_PAGES_QUERY;
 const NAVIGATION_MENUS_QUERY = {
 	context: 'edit',
 	order: 'desc',
@@ -338,79 +330,6 @@ function PageSelectModal( {
 					variant: 'primary',
 				},
 				mode === 'submenu-page' ? __( 'Add submenu' ) : __( 'Add page' )
-			)
-		)
-	);
-}
-
-function CustomLinkModal( {
-	isSaving,
-	isSubmenu = false,
-	onAddLink,
-	onClose,
-	title,
-} ) {
-	const [ label, setLabel ] = useState( '' );
-	const [ url, setUrl ] = useState( '' );
-	const canSave = label.trim() && url.trim();
-
-	const submit = ( event ) => {
-		event.preventDefault();
-
-		if ( canSave ) {
-			onAddLink( { isSubmenu, label: label.trim(), url: url.trim() } );
-		}
-	};
-
-	return el(
-		Modal,
-		{
-			className: 'routes-navigation-edit__item-modal',
-			onRequestClose: onClose,
-			title,
-		},
-		el(
-			'form',
-			{
-				className: 'routes-navigation-edit__item-form',
-				onSubmit: submit,
-			},
-			el( InputControl, {
-				label: __( 'Label' ),
-				onValueChange: setLabel,
-				value: label,
-			} ),
-			el( InputControl, {
-				label: __( 'URL' ),
-				onValueChange: setUrl,
-				type: 'url',
-				value: url,
-			} ),
-			el(
-				'div',
-				{
-					className: 'routes-navigation-edit__modal-actions',
-				},
-				el(
-					Button,
-					{
-						disabled: isSaving,
-						onClick: onClose,
-						type: 'button',
-						variant: 'tertiary',
-					},
-					__( 'Cancel' )
-				),
-				el(
-					Button,
-					{
-						disabled: ! canSave || isSaving,
-						isBusy: isSaving,
-						type: 'submit',
-						variant: 'primary',
-					},
-					isSubmenu ? __( 'Add submenu' ) : __( 'Add link' )
-				)
 			)
 		)
 	);
@@ -1303,8 +1222,6 @@ function NavigationEditStage() {
 	const navigate = useNavigate();
 	const params = useParams( { strict: false } );
 	const navigationId = Number( params.id );
-	const [ isConfirmingCustomize, setIsConfirmingCustomize ] =
-		useState( false );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ addMode, setAddMode ] = useState( null );
 	const [ isRenaming, setIsRenaming ] = useState( false );
@@ -1321,7 +1238,7 @@ function NavigationEditStage() {
 	const { invalidateNavigationMenus } = useDispatch( cnlEditorStore );
 	const { createErrorNotice, createSuccessNotice } =
 		useDispatch( noticesStore );
-	const { isLoadingMenu, isResolvingPages, menu, pages } = useSelect(
+	const { isLoadingMenu, menu, pages } = useSelect(
 		( select ) => {
 			const store = select( coreDataStore );
 			const menuArgs = [ 'postType', NAVIGATION_POST_TYPE, navigationId ];
@@ -1334,12 +1251,6 @@ function NavigationEditStage() {
 					! store.hasFinishedResolution(
 						'getEntityRecord',
 						menuArgs
-					),
-				isResolvingPages:
-					store.isResolving( 'getEntityRecords', pageArgs ) ||
-					! store.hasFinishedResolution(
-						'getEntityRecords',
-						pageArgs
 					),
 				menu: rawMenu
 					? store.getEditedEntityRecord( ...menuArgs )
@@ -1519,34 +1430,6 @@ function NavigationEditStage() {
 		}
 	};
 
-	const customizeMenu = async () => {
-		setIsSaving( true );
-
-		try {
-			editNavigationMenu( {
-				content: createManualNavigationContentFromPages( pages ),
-			} );
-			createSuccessNotice(
-				__(
-					'Navigation menu customized. Review and save changes when you are ready.'
-				),
-				{ type: 'snackbar' }
-			);
-			setIsConfirmingCustomize( false );
-		} catch ( error ) {
-			createErrorNotice(
-				sprintf(
-					/* translators: %s: error message. */
-					__( 'Unable to customize navigation menu (%s).' ),
-					getErrorMessage( error )
-				),
-				{ type: 'snackbar' }
-			);
-		} finally {
-			setIsSaving( false );
-		}
-	};
-
 	const isMenuReady = ! isLoadingMenu && !! menu;
 	const menuTitle = isMenuReady ? getMenuTitle( menu ) : __( 'Navigation' );
 	const isEmptyManualMenu = ! isAutoMenu && manualItems.length === 0;
@@ -1647,19 +1530,18 @@ function NavigationEditStage() {
 					el(
 						MenuGroup,
 						null,
-						! isAutoMenu &&
-							el(
-								MenuItem,
-								{
-									disabled: ! isNavigationListViewReady,
-									icon: postCategoriesIcon,
-									onClick: () => {
-										setAddMode( 'more' );
-										onClose();
-									},
+						el(
+							MenuItem,
+							{
+								disabled: ! isNavigationListViewReady,
+								icon: postCategoriesIcon,
+								onClick: () => {
+									setAddMode( 'more' );
+									onClose();
 								},
-								__( 'Add menu items' )
-							),
+							},
+							__( 'Add menu items' )
+						),
 						el(
 							MenuItem,
 							{
@@ -1706,9 +1588,8 @@ function NavigationEditStage() {
 		{
 			actions: menuOptions,
 			ariaLabel: menuTitle,
-			className: `cnl-editor-stage cnl-drilldown-stage routes-navigation-edit${
-				isAutoMenu ? ' is-auto-menu' : ''
-			}`,
+			className:
+				'cnl-editor-stage cnl-drilldown-stage routes-navigation-edit',
 			hasPadding: false,
 			headingLevel: 2,
 			subTitle: __( 'Manage this navigation menu.' ),
@@ -1727,54 +1608,6 @@ function NavigationEditStage() {
 							isEmptyManualMenu ? ' is-empty-manual' : ''
 						}`,
 					},
-					isAutoMenu &&
-						el(
-							EmptyState.Root,
-							{
-								className:
-									'routes-navigation-edit__auto-summary',
-							},
-							el( EmptyState.Icon, { icon: updateIcon } ),
-							el( EmptyState.Title, null, __( 'Auto-menu' ) ),
-							el(
-								EmptyState.Description,
-								null,
-								__(
-									'This menu is kept in sync with your current'
-								),
-								' ',
-								el(
-									Button,
-									{
-										onClick: () =>
-											navigate( {
-												to: '/types/page/list/all',
-											} ),
-										variant: 'link',
-									},
-									__( 'Pages' )
-								),
-								' ',
-								__(
-									'When you add, rename, or remove pages, this menu updates automatically.'
-								)
-							),
-							el(
-								EmptyState.Actions,
-								null,
-								el(
-									Button,
-									{
-										__next40pxDefaultSize: true,
-										disabled: isResolvingPages,
-										onClick: () =>
-											setIsConfirmingCustomize( true ),
-										variant: 'primary',
-									},
-									__( 'Customize' )
-								)
-							)
-						),
 					isEmptyManualMenu &&
 						el(
 							EmptyState.Root,
@@ -1813,7 +1646,6 @@ function NavigationEditStage() {
 							)
 						),
 					el( NavigationEditListView, {
-						isAutoMenu,
 						menuTitle,
 						navigationId,
 						onAddMenuItems: openAddMenuItemsForTarget,
@@ -1824,54 +1656,6 @@ function NavigationEditStage() {
 						pendingInsertion,
 					} )
 				),
-				isConfirmingCustomize &&
-					el(
-						Modal,
-						{
-							className:
-								'routes-navigation-edit__customize-auto-menu-modal',
-							onRequestClose: () => {
-								if ( ! isSaving ) {
-									setIsConfirmingCustomize( false );
-								}
-							},
-							title: __( 'Customize this menu?' ),
-						},
-						el(
-							'p',
-							null,
-							__(
-								"Your menu won't be automatically kept in sync with your pages anymore, but you will be able to customize it manually."
-							)
-						),
-						el(
-							'div',
-							{
-								className:
-									'routes-navigation-edit__modal-actions',
-							},
-							el(
-								Button,
-								{
-									disabled: isSaving,
-									onClick: () =>
-										setIsConfirmingCustomize( false ),
-									variant: 'tertiary',
-								},
-								__( 'Cancel' )
-							),
-							el(
-								Button,
-								{
-									disabled: isSaving || isResolvingPages,
-									isBusy: isSaving,
-									onClick: customizeMenu,
-									variant: 'primary',
-								},
-								__( 'Customize menu' )
-							)
-						)
-					),
 				( addMode === 'existing-page' || addMode === 'submenu-page' ) &&
 					el( PageSelectModal, {
 						isSaving,

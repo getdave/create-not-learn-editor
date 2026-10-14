@@ -48,37 +48,25 @@ async function expectUnsavedChanges( page ) {
 }
 
 test.describe( 'Menus interactions', () => {
-	test( 'customizing an automatic menu lets its items be changed', async ( {
+	test( 'changing an automatic menu sets it by hand', async ( {
 		page,
 		rest,
 	} ) => {
+		const testPage = await rest.createPage();
 		const menu = await rest.createNavigationMenu();
-		await openMenu( page, menu );
+		const tree = await openMenu( page, menu );
+		const row = tree.getByRole( 'row', { name: testPage.title } );
 
-		await expect(
-			page.getByRole( 'button', { name: 'Add menu item' } )
-		).toHaveCount( 0 );
-
-		await page.getByRole( 'button', { name: 'Customize' } ).click();
-		const dialog = page.getByRole( 'dialog', {
-			name: 'Customize this menu?',
-		} );
-		await dialog.getByRole( 'button', { name: 'Customize menu' } ).click();
+		await expect( row ).toBeVisible( { timeout: 15000 } );
+		await row.getByRole( 'button', { name: 'Options' } ).click();
+		await page.getByRole( 'menuitem', { name: /^Remove/ } ).click();
 
 		await expectSnackbar(
 			page,
-			'Navigation menu customized. Review and save changes when you are ready.'
+			'Your menu is now set by hand. New pages won’t be added to it automatically.'
 		);
 		await expectUnsavedChanges( page );
-		await expect(
-			page.getByRole( 'heading', { name: 'Auto-menu' } )
-		).toHaveCount( 0 );
-		await expect(
-			page.getByRole( 'button', { name: 'Add menu item' } )
-		).toBeVisible();
-		await expect(
-			page.getByRole( 'button', { name: 'Add link to menu' } )
-		).toHaveCount( 0 );
+		await expect( row ).toHaveCount( 0 );
 	} );
 
 	test( 'Add menu item offers pages, links, submenus and more', async ( {
