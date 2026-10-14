@@ -25,6 +25,7 @@ import {
 } from '../../../section-picker';
 import {
 	getPageTitle,
+	useHomepage,
 	usePageLayouts,
 	usePages,
 	usePageSections,
@@ -1133,24 +1134,28 @@ function LayoutCard( { isSelected, label, onPick, outline, sectionCount } ) {
  * one with the page in it, again on every change to the page, made typing on
  * this screen crawl.
  *
- * @param {Object}  props              Component props.
- * @param {boolean} props.isFrontPage  Whether the page is the homepage.
- * @param {number}  props.pageId       Page ID.
- * @param {number}  props.sectionCount How many sections the page has.
- * @param {string}  props.slug         Page slug.
- * @param {string}  props.template     The page's chosen template slug, if any.
+ * @param {Object}  props                  Component props.
+ * @param {boolean} props.isFrontPage      Whether the page is the homepage.
+ * @param {number}  props.pageId           Page ID.
+ * @param {number}  props.sectionCount     How many sections the page has.
+ * @param {boolean} props.showsLatestPosts Whether the homepage, kept on this
+ *                                         page, lists the latest posts.
+ * @param {string}  props.slug             Page slug.
+ * @param {string}  props.template         The page's chosen template slug, if
+ *                                         any.
  * @return {Element} The layout picker.
  */
 function PageLayouts( {
 	isFrontPage,
 	pageId,
 	sectionCount,
+	showsLatestPosts,
 	slug,
 	template: current = '',
 } ) {
 	const { editEntityRecord } = useDispatch( coreDataStore );
 	const { custom, defaultTemplate, frontPageTemplate, isLoading, patterns } =
-		usePageLayouts( slug, isFrontPage );
+		usePageLayouts( slug, isFrontPage, showsLatestPosts );
 	const options = useMemo( () => {
 		const resolvePattern = ( name ) =>
 			patterns.find( ( pattern ) => pattern.name === name )?.content;
@@ -2134,16 +2139,10 @@ export function PageDetailStage( { pageId } ) {
 	);
 	// The homepage keeps its page when it shows the latest posts instead, so
 	// the choice stays here to switch back.
-	const homepageId = useSelect(
-		( selectStore ) =>
-			Number(
-				selectStore( coreDataStore ).getEditedEntityRecord(
-					'root',
-					'site'
-				)?.page_on_front
-			) || 0,
-		[]
-	);
+	const { homepageId, showOnFront } = useHomepage();
+	const isHomepage = pageId === homepageId;
+	// None of the page is on show then, only the layout listing the posts.
+	const showsLatestPosts = isHomepage && showOnFront === 'posts';
 	const listPage = pages.find( ( item ) => Number( item.id ) === pageId );
 	const title = getPageTitle( listPage || page );
 	const ancestors = getPageAncestorTitles( pages, pageId, getPageTitle );
@@ -2224,15 +2223,17 @@ export function PageDetailStage( { pageId } ) {
 		el(
 			'div',
 			{ className: 'cnl-pages-detail__body' },
-			pageId === homepageId && el( MemoizedHomepageShows ),
+			isHomepage && el( MemoizedHomepageShows ),
 			el( MemoizedPageLayouts, {
 				isFrontPage: pageId === frontPageId,
 				pageId,
 				sectionCount: blocks.length,
+				showsLatestPosts,
 				slug: page?.slug,
 				template: page?.template,
 			} ),
 			isComposing &&
+				! showsLatestPosts &&
 				el(
 					'section',
 					{
