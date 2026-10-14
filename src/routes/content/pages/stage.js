@@ -1259,6 +1259,115 @@ function PageLayouts( {
 // Typing the title changes the page on every key, but none of what this shows.
 const MemoizedPageLayouts = memo( PageLayouts );
 
+function getHomepageOptions() {
+	return [
+		{
+			description: __( 'The sections you add below' ),
+			icon: pageIcon,
+			label: __( 'This page' ),
+			value: 'page',
+		},
+		{
+			description: __( 'Your newest blog posts, newest first' ),
+			icon: postListIcon,
+			label: __( 'Your latest posts' ),
+			value: 'posts',
+		},
+	];
+}
+
+/**
+ * What visitors see first: this page, or the latest posts. It is WordPress's
+ * Reading setting, kept on the homepage itself so the choice sits where it
+ * takes effect. Like the layout, it is saved with the rest of the changes.
+ *
+ * @return {Element} The homepage choice.
+ */
+function HomepageShows() {
+	const { editEntityRecord } = useDispatch( coreDataStore );
+	const showOnFront = useSelect(
+		( selectStore ) =>
+			selectStore( coreDataStore ).getEditedEntityRecord( 'root', 'site' )
+				?.show_on_front,
+		[]
+	);
+
+	return el(
+		'section',
+		{
+			'aria-label': __( 'Your homepage shows' ),
+			className: 'cnl-homepage-shows',
+		},
+		el(
+			Stack,
+			{ direction: 'column', gap: 'xs' },
+			el(
+				'h3',
+				{ className: 'cnl-page-sections__title' },
+				__( 'Your homepage shows' )
+			),
+			el(
+				Text,
+				{ className: 'cnl-page-sections__hint', variant: 'body-sm' },
+				__( 'What visitors see first when they arrive.' )
+			)
+		),
+		el(
+			'ul',
+			{ className: 'cnl-homepage-shows__options', role: 'list' },
+			getHomepageOptions().map( ( option ) => {
+				const isSelected = showOnFront === option.value;
+
+				return el(
+					'li',
+					{ key: option.value },
+					el(
+						'button',
+						{
+							'aria-pressed': isSelected,
+							className: 'cnl-homepage-shows__option',
+							onClick: () =>
+								editEntityRecord( 'root', 'site', undefined, {
+									show_on_front: option.value,
+								} ),
+							type: 'button',
+						},
+						el( Icon, {
+							className: 'cnl-homepage-shows__icon',
+							icon: option.icon,
+						} ),
+						el(
+							'span',
+							{ className: 'cnl-homepage-shows__text' },
+							el(
+								'span',
+								{ className: 'cnl-homepage-shows__label' },
+								option.label
+							),
+							el(
+								'span',
+								{
+									className:
+										'cnl-homepage-shows__description',
+								},
+								option.description
+							)
+						),
+						isSelected &&
+							el( Icon, {
+								className: 'cnl-homepage-shows__check',
+								icon: checkIcon,
+								size: 20,
+							} )
+					)
+				);
+			} )
+		)
+	);
+}
+
+const MemoizedHomepageShows = memo( HomepageShows );
+
 function SectionGap( { index, isActive, onAdd } ) {
 	return el(
 		'li',
@@ -2023,6 +2132,18 @@ export function PageDetailStage( { pageId } ) {
 			) || null,
 		[ pageId ]
 	);
+	// The homepage keeps its page when it shows the latest posts instead, so
+	// the choice stays here to switch back.
+	const homepageId = useSelect(
+		( selectStore ) =>
+			Number(
+				selectStore( coreDataStore ).getEditedEntityRecord(
+					'root',
+					'site'
+				)?.page_on_front
+			) || 0,
+		[]
+	);
 	const listPage = pages.find( ( item ) => Number( item.id ) === pageId );
 	const title = getPageTitle( listPage || page );
 	const ancestors = getPageAncestorTitles( pages, pageId, getPageTitle );
@@ -2103,6 +2224,7 @@ export function PageDetailStage( { pageId } ) {
 		el(
 			'div',
 			{ className: 'cnl-pages-detail__body' },
+			pageId === homepageId && el( MemoizedHomepageShows ),
 			el( MemoizedPageLayouts, {
 				isFrontPage: pageId === frontPageId,
 				pageId,
