@@ -27,6 +27,7 @@ const SITE_SETTING_LABELS = {
 	description: __( 'Tagline' ),
 	site_logo: __( 'Logo' ),
 	site_icon: __( 'Browser icon' ),
+	show_on_front: __( 'Your homepage' ),
 };
 
 const TYPE_LABELS = {
@@ -51,6 +52,11 @@ function describeSiteSetting( property, value ) {
 			: __( 'Left empty' );
 	} else if ( property === 'site_logo' || property === 'site_icon' ) {
 		detail = value ? __( 'New image' ) : __( 'Image removed' );
+	} else if ( property === 'show_on_front' ) {
+		detail =
+			value === 'posts'
+				? __( 'Shows your latest posts' )
+				: __( 'Shows a page' );
 	}
 
 	return {

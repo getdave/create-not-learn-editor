@@ -41,7 +41,7 @@ const TEMPLATE_PARTS_QUERY = {
 	_fields: 'id,area,source',
 };
 
-function getCreationSteps( frontPageId ) {
+function getCreationSteps( homepageId ) {
 	return {
 		identity: {
 			description: __( 'Name your site and add a logo' ),
@@ -71,9 +71,12 @@ function getCreationSteps( frontPageId ) {
 		homepage: {
 			description: __( 'Make the first page visitors see your own' ),
 			title: __( 'Your homepage' ),
-			to: frontPageId
-				? `/types/page/edit/${ frontPageId }`
-				: '/types/page/list/default',
+			// The homepage opened up on the Pages screen, where its sections,
+			// layout and what it shows all live.
+			search: homepageId
+				? { postId: homepageId, previewId: homepageId }
+				: undefined,
+			to: '/types/page/list/all',
 		},
 		pages: {
 			description: __( 'Add pages like About and Contact' ),
@@ -106,8 +109,10 @@ function useCreationData() {
 			frontPage: frontPageId
 				? pages.find( ( page ) => page.id === frontPageId )
 				: null,
-			frontPageId,
 			globalStyles,
+			// Kept when the homepage shows the latest posts, so the step can
+			// still open the page to switch it back.
+			homepageId: Number( site?.page_on_front ) || 0,
 			isLoading:
 				! site ||
 				! store.hasFinishedResolution( 'getEntityRecords', pagesArgs ),
@@ -179,8 +184,8 @@ export default function Stage() {
 	const navigate = useNavigate();
 	const {
 		frontPage,
-		frontPageId,
 		globalStyles,
+		homepageId,
 		isLoading,
 		publishedPageCount,
 		site,
@@ -194,7 +199,7 @@ export default function Stage() {
 		templateParts,
 	} );
 	const progress = getCreationProgress( status );
-	const steps = getCreationSteps( frontPageId );
+	const steps = getCreationSteps( homepageId );
 	const siteName = decodeEntities( site?.title || settings.siteName || '' );
 	const isComplete = progress.done === progress.total;
 
@@ -292,7 +297,10 @@ export default function Stage() {
 									isDone: status[ id ],
 									key: id,
 									onSelect: () =>
-										navigate( { to: steps[ id ].to } ),
+										navigate( {
+											search: steps[ id ].search,
+											to: steps[ id ].to,
+										} ),
 									step: steps[ id ],
 								} )
 							)

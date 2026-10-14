@@ -325,6 +325,85 @@ $cnl-pages-tree-row-gap: 2px;
 }
 
 // ---------------------------------------------------------------------------
+// What the homepage shows.
+// ---------------------------------------------------------------------------
+
+.cnl-homepage-shows {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-md);
+}
+
+.cnl-homepage-shows__options {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-sm);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.cnl-homepage-shows__option {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-md);
+	width: 100%;
+	padding: var(--wpds-dimension-padding-md);
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-lg);
+	background: var(--wpds-color-background-surface-neutral);
+	color: inherit;
+	cursor: var(--wpds-cursor-control);
+	font: inherit;
+	text-align: start;
+	transition:
+		border-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle),
+		box-shadow var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+
+	&:hover {
+		border-color: var(--wpds-color-stroke-surface-neutral-strong);
+	}
+
+	&[aria-pressed="true"] {
+		border-color: $cnl-accent;
+		box-shadow: 0 0 0 1px $cnl-accent;
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: 2px;
+	}
+}
+
+.cnl-homepage-shows__icon {
+	flex: 0 0 auto;
+	fill: currentcolor;
+}
+
+.cnl-homepage-shows__text {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.cnl-homepage-shows__label {
+	font-size: var(--wpds-typography-font-size-sm);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.cnl-homepage-shows__description {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+}
+
+.cnl-homepage-shows__check {
+	flex: 0 0 auto;
+	color: $cnl-accent;
+	fill: currentcolor;
+}
+
+// ---------------------------------------------------------------------------
 // Layout picker.
 // ---------------------------------------------------------------------------
 
