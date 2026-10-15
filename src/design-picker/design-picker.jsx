@@ -168,13 +168,22 @@ export function DesignPickerNav( {
  *
  * @param {Object}   props             Component props.
  * @param {string}   props.description What starting from scratch gives you.
+ * @param {boolean}  props.isSelected  Whether it is the choice made, where
+ *                                     the choice waits to be confirmed.
  * @param {Function} props.onClick     Called when picked.
  * @return {Element} The strip.
  */
-export function StartFromScratch( { description, onClick } ) {
+export function StartFromScratch( {
+	description,
+	isSelected = false,
+	onClick,
+} ) {
 	return (
 		<button
-			className="cnl-design-picker__scratch"
+			aria-pressed={ isSelected || undefined }
+			className={ `cnl-design-picker__scratch${
+				isSelected ? ' is-selected' : ''
+			}` }
 			onClick={ onClick }
 			type="button"
 		>

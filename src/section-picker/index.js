@@ -7,9 +7,11 @@
  */
 
 export { getPlacementText } from './placement';
-export { SectionPicker } from './section-picker';
+export { SectionDesignCard, SectionPicker } from './section-picker';
 export {
 	createBlankSection,
 	getPatternSectionBlocks,
 	isSectionPattern,
+	useSectionDesigns,
 } from './patterns';
+export { searchSectionDesigns } from './groups';

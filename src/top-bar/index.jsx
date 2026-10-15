@@ -1,10 +1,10 @@
 /**
  * Top bar: the strip of boot's dark frame above the stage and canvas.
  *
- * It holds the command search in the middle and the save controls on the
- * right. The full-screen editor has a header of its own, so the bar is
- * hidden there, and on narrow screens, where the stage fills the viewport
- * and boot's sidebar save button is kept.
+ * It holds the command search in the middle, and the save controls and the
+ * button that opens the chat on the right. The full-screen editor has a
+ * header of its own, so the bar is hidden there, and on narrow screens, where
+ * the stage fills the viewport and boot's sidebar save button is kept.
  */
 
 /**
@@ -15,6 +15,7 @@ import { createRoot } from '@wordpress/element';
 /**
  * Internal dependencies
  */
+import { ChatToggle } from '../chat';
 import { CommandSearch } from './command-search';
 import { SaveControls } from './save-controls';
 
@@ -26,6 +27,7 @@ function TopBar() {
 			</div>
 			<div className="cnl-top-bar__end">
 				<SaveControls />
+				<ChatToggle />
 			</div>
 		</div>
 	);

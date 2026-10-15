@@ -31,7 +31,7 @@ import {
 	useState,
 } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
-import { plus as plusIcon } from '@wordpress/icons';
+import { check as checkIcon, plus as plusIcon } from '@wordpress/icons';
 import { store as preferencesStore } from '@wordpress/preferences';
 import { Icon, Skeleton, Text } from '@wordpress/ui';
 
@@ -117,7 +117,27 @@ function useHasBeenNearView( ref, rootRef ) {
 	return isNear;
 }
 
-function DesignCard( { onPick, pattern, Preview, scrollRef } ) {
+/**
+ * A section design: its preview, and its name with "Add" underneath.
+ *
+ * Shared with the chat, which marks the design it has added.
+ *
+ * @param {Object}   props            Component props.
+ * @param {boolean}  props.isSelected Whether the design has been added.
+ * @param {Function} props.onPick     Called with the pattern.
+ * @param {Object}   props.pattern    Block pattern.
+ * @param {Function} props.Preview    Renders the preview.
+ * @param {Object}   props.scrollRef  Scroll area ref, to render the preview
+ *                                    only once it comes near view.
+ * @return {Element} The design.
+ */
+export function SectionDesignCard( {
+	isSelected = false,
+	onPick,
+	pattern,
+	Preview,
+	scrollRef,
+} ) {
 	const ref = useRef();
 	const isNearView = useHasBeenNearView( ref, scrollRef );
 	const title = getPatternTitle( pattern );
@@ -131,7 +151,10 @@ function DesignCard( { onPick, pattern, Preview, scrollRef } ) {
 					__( 'Add %s' ),
 					title
 				) }
-				className="cnl-design-picker__card cnl-section-picker__card"
+				aria-pressed={ isSelected || undefined }
+				className={ `cnl-design-picker__card cnl-section-picker__card${
+					isSelected ? ' is-selected' : ''
+				}` }
 				onClick={ () => onPick( pattern ) }
 				title={ description || undefined }
 				type="button"
@@ -150,8 +173,11 @@ function DesignCard( { onPick, pattern, Preview, scrollRef } ) {
 						aria-hidden
 						className="cnl-design-picker__action cnl-section-picker__add"
 					>
-						<Icon icon={ plusIcon } size={ 16 } />
-						{ __( 'Add' ) }
+						<Icon
+							icon={ isSelected ? checkIcon : plusIcon }
+							size={ 16 }
+						/>
+						{ isSelected ? __( 'Added' ) : __( 'Add' ) }
 					</span>
 				</span>
 			</button>
@@ -163,7 +189,7 @@ function DesignGrid( { onPick, patterns, Preview, scrollRef } ) {
 	return (
 		<ul className="cnl-section-picker__grid" role="list">
 			{ patterns.map( ( pattern ) => (
-				<DesignCard
+				<SectionDesignCard
 					key={ pattern.name }
 					onPick={ onPick }
 					pattern={ pattern }

@@ -31,12 +31,12 @@ import {
 } from '../../site-canvas';
 import { LOCKED_PART_CONTENT_SETTING } from '../../site-canvas/constants';
 import { withUiTheme } from '../../theme';
-import { getPatternContent, getPatternTitle } from '../content/page-layouts';
+import { getPatternTitle } from '../content/page-layouts';
 import { useMenuItemsEditor } from '../navigation-edit/menu-items-editor';
-import { SiteIdentityFields, useSiteIdentity } from '../static/identity';
+import { SiteIdentityFields, useSiteIdentity } from '../../pickers/identity';
+import { SitePartLayouts } from '../../pickers/site-part-layouts';
 import {
 	SITE_PART_PATHS,
-	putLayoutFirst,
 	useSitePart,
 	useSitePartContents,
 	useSitePartLayouts,
@@ -50,18 +50,13 @@ import {
 	Text,
 	__,
 	_n,
-	checkIcon,
 	compassIcon,
 	coreDataStore,
 	footerIcon,
 	headerIcon,
 	layoutIcon,
-	parseBlocks,
-	serialize,
 	siteLogoIcon,
 	sprintf,
-	useDispatch,
-	useMemo,
 	useRef,
 	useSelect,
 } from '../../wordpress-packages';
@@ -104,7 +99,6 @@ const SITE_PARTS = {
 		icon: footerIcon,
 		linksLabel: __( 'Footer options' ),
 		missing: __( 'Your homepage doesn’t have a footer.' ),
-		noLayouts: __( 'Your theme doesn’t offer any layouts for its footer.' ),
 		noOptions: __(
 			'Your footer has no name, logo or menu, and your theme offers no other layouts for it.'
 		),
@@ -117,7 +111,6 @@ const SITE_PARTS = {
 		icon: headerIcon,
 		linksLabel: __( 'Header options' ),
 		missing: __( 'Your homepage doesn’t have a header.' ),
-		noLayouts: __( 'Your theme doesn’t offer any layouts for its header.' ),
 		noOptions: __(
 			'Your header has no name, logo or menu, and your theme offers no other layouts for it.'
 		),
@@ -272,100 +265,6 @@ function SitePartLinks( { area, clientId, id } ) {
 	return <ScreenLinks label={ part.linksLabel } links={ links } />;
 }
 
-function LayoutCard( { isCurrent, onSelect, pattern } ) {
-	const title = getPatternTitle( pattern );
-
-	return (
-		<li>
-			<button
-				aria-pressed={ isCurrent }
-				className={ `cnl-site-part__layout${
-					isCurrent ? ' is-current' : ''
-				}` }
-				onClick={ () => ! isCurrent && onSelect( pattern ) }
-				type="button"
-			>
-				<span aria-hidden className="cnl-site-part__layout-preview">
-					<LazyEditorPreview
-						content={ getPatternContent( pattern ) }
-						description={ title }
-					/>
-				</span>
-				<span className="cnl-site-part__layout-footer">
-					<span className="cnl-site-part__layout-title">
-						{ title }
-					</span>
-					{ isCurrent && (
-						<span className="cnl-site-part__layout-current">
-							<Icon icon={ checkIcon } size={ 16 } />
-							{ __( 'Current' ) }
-						</span>
-					) }
-				</span>
-			</button>
-		</li>
-	);
-}
-
-/**
- * The theme's layouts for the part. Picking one swaps the part's blocks for
- * it as an unsaved change, saved with everything else.
- *
- * @param {Object} props
- * @param {string} props.area `header` or `footer`.
- * @param {string} props.id   The part's template part ID.
- * @return {Element} The layouts, or a note when the theme has none.
- */
-function Layouts( { area, id } ) {
-	const { editEntityRecord } = useDispatch( coreDataStore );
-	const { content, currentName, hasResolved, layouts } = useSitePartLayouts(
-		area,
-		id
-	);
-	/*
-	 * The layout in use when the screen opens leads the list. Picking another
-	 * leaves the order alone, so the list doesn't jump under the pointer.
-	 */
-	const leadRef = useRef();
-	if ( leadRef.current === undefined && layouts.length && content ) {
-		leadRef.current = currentName;
-	}
-	const lead = leadRef.current;
-	const orderedLayouts = useMemo(
-		() => putLayoutFirst( layouts, lead ),
-		[ layouts, lead ]
-	);
-
-	if ( ! hasResolved ) {
-		return <Loading />;
-	}
-
-	if ( ! layouts.length ) {
-		return <Note>{ SITE_PARTS[ area ].noLayouts }</Note>;
-	}
-
-	const select = ( pattern ) =>
-		editEntityRecord( 'postType', 'wp_template_part', id, {
-			blocks: parseBlocks( getPatternContent( pattern ) ),
-			// A new function on every edit, as the editor does, so each
-			// change makes the part dirty and gets its own undo level.
-			content: ( { blocks = [] } ) => serialize( blocks ),
-		} );
-
-	return (
-		<ul aria-label={ __( 'Layouts' ) } className="cnl-site-part__layouts">
-			{ orderedLayouts.map( ( pattern ) => (
-				<LayoutCard
-					isCurrent={ pattern.name === currentName }
-					key={ pattern.name }
-					onSelect={ select }
-					pattern={ pattern }
-				/>
-			) ) }
-		</ul>
-	);
-}
-
 /**
  * The menu the part shows, its items edited in place. Changes wait for the
  * save, like any other.
@@ -392,7 +291,13 @@ function PartMenu( { clientId } ) {
 
 function SitePartView( { area, clientId, id, view } ) {
 	if ( view === LAYOUTS_VIEW ) {
-		return <Layouts area={ area } id={ id } />;
+		return (
+			<SitePartLayouts
+				area={ area }
+				id={ id }
+				Preview={ LazyEditorPreview }
+			/>
+		);
 	}
 
 	if ( view === IDENTITY_VIEW ) {

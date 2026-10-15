@@ -14,12 +14,9 @@ import {
 	OTHER_PAGE_LAYOUT_TYPE,
 	getPageLayoutGroups,
 	getPatternContent,
-	getPatternDescription,
-	getPatternPreviewContent,
 	getPatternPreviewContentWithTitle,
 	getPatternTitle,
 	getSelectedTemplateContent,
-	isPageLayoutPattern,
 } from './page-layouts';
 import { useAddPageToMenu, useKeepPagesOutOfMenu } from './use-main-menu';
 import { useHomepageState, useSwitchHomepage } from './pages/homepage';
@@ -33,12 +30,15 @@ import {
 } from '../../design-picker';
 import { getTemplateTitle } from './helpers';
 import {
+	PageLayoutCard,
+	usePageLayoutPatterns,
+} from '../../pickers/page-designs';
+import {
 	Button,
 	CheckboxControl,
 	chevronLeftIcon,
 	chevronRightIcon,
 	coreDataStore,
-	Icon,
 	InputControl,
 	Notice,
 	SelectControl,
@@ -55,7 +55,6 @@ import {
 	useDispatch,
 	useId,
 	useMemo,
-	useSelect,
 	useState,
 } from '../../wordpress-packages';
 
@@ -99,30 +98,6 @@ function getPageTemplateOptions( templates ) {
 	];
 }
 
-function usePageLayoutPatterns() {
-	return useSelect( ( select ) => {
-		const store = select( coreDataStore );
-		const patterns = store.getBlockPatterns?.() || EMPTY_ARRAY;
-
-		return {
-			isResolving: store.isResolving?.( 'getBlockPatterns' ) || false,
-			patterns: patterns.filter( isPageLayoutPattern ),
-		};
-	}, [] );
-}
-
-function PageLayoutPreviewPlaceholder() {
-	return (
-		<div className="cnl-add-page-layout-placeholder">
-			<div className="cnl-add-page-layout-placeholder__brand" />
-			<div className="cnl-add-page-layout-placeholder__title" />
-			<div className="cnl-add-page-layout-placeholder__line" />
-			<div className="cnl-add-page-layout-placeholder__line" />
-			<div className="cnl-add-page-layout-placeholder__media" />
-		</div>
-	);
-}
-
 function PageLayoutSidebarPlaceholder() {
 	return (
 		<Stack
@@ -157,59 +132,6 @@ function PageLayoutResultsPlaceholder( { columns, rows } ) {
 					key={ index }
 				/>
 			) ) }
-		</div>
-	);
-}
-
-/*
- * The preview scrolls independently, so the choose action is a button in the
- * card footer rather than the whole card. That keeps the scroll region and the
- * click target from competing.
- */
-function PageLayoutCard( { onSelect, pageTemplateContent, pattern } ) {
-	const previewContent = getPatternPreviewContent(
-		pattern,
-		pageTemplateContent
-	);
-	const title = getPatternTitle( pattern );
-	const description = getPatternDescription( pattern );
-
-	return (
-		<div
-			className="cnl-design-picker__card cnl-add-page-layout-card"
-			title={ description || undefined }
-		>
-			<div className="cnl-design-picker__preview cnl-add-page-layout-card__preview">
-				<div className="cnl-add-page-layout-preview-page">
-					{ previewContent ? (
-						<LazyEditorPreview
-							content={ previewContent }
-							description={ title }
-							placeholder={ <PageLayoutPreviewPlaceholder /> }
-						/>
-					) : (
-						<PageLayoutPreviewPlaceholder />
-					) }
-				</div>
-			</div>
-			<div className="cnl-design-picker__card-footer">
-				<span className="cnl-design-picker__name">{ title }</span>
-				<button
-					className="cnl-design-picker__action"
-					onClick={ () => onSelect( pattern ) }
-					type="button"
-				>
-					{ __( 'Use design' ) }
-					<Icon
-						icon={
-							document.documentElement.dir === 'rtl'
-								? chevronLeftIcon
-								: chevronRightIcon
-						}
-						size={ 16 }
-					/>
-				</button>
-			</div>
 		</div>
 	);
 }
@@ -686,6 +608,7 @@ export default function AddPageFlow( {
 							onSelect={ handleSelectLayout }
 							pageTemplateContent={ pageTemplateContent }
 							pattern={ pattern }
+							Preview={ LazyEditorPreview }
 						/>
 					) ) }
 				</div>
