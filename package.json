@@ -26,7 +26,8 @@
 		"lint:js": "wp-scripts lint-js src routes scripts playwright.config.js vitest.config.mjs tests/e2e tests/unit",
 		"lint:css": "wp-scripts lint-style 'src/**/*.scss' 'packages/*/src/**/*.scss'",
 		"plugin-zip": "wp-scripts plugin-zip",
-		"wp-env": "node scripts/wp-env.mjs"
+		"wp-env": "node scripts/wp-env.mjs",
+		"wporg-assets": "node scripts/render-wordpress-org-assets.mjs"
 	},
 	"wpPlugin": {
 		"name": "cnl_editor",
