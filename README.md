@@ -1,6 +1,10 @@
+<img src=".wordpress-org/icon.svg" alt="" width="72" height="72">
+
 # Create Not Learn Editor
 
 [![Try the demo in WordPress Playground](https://img.shields.io/badge/Try_the_demo-WordPress_Playground-3858e9?style=for-the-badge&logo=wordpress&logoColor=white)](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/getdave/create-not-learn-editor/trunk/demos/blueprint.json)
+
+![The Create Not Learn editor, with the Create your site checklist beside a live preview of the Fernhouse demo site](.wordpress-org/screenshot-1.jpg)
 
 [Try Create Not Learn in your browser](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/getdave/create-not-learn-editor/trunk/demos/blueprint.json). The demo opens the latest build of `trunk` in the editor, with the Fernhouse demo site ready to edit. There is nothing to install, and your changes go when you close the tab.
 
@@ -177,6 +181,14 @@ Playground can't install from the plugin source, which needs building first, or 
 
 Keep the Gutenberg version in the blueprint in step with `.wp-env.json`. Canvas is left out, as the plugin doesn't need it.
 
+### Plugin directory images
+
+`.wordpress-org/` holds the images for a WordPress.org plugin directory listing: the icon, the banner and screenshots, named the way the directory expects. They are not part of the plugin zip.
+
+The icon is drawn in `.wordpress-org/icon.svg` and the banner in `scripts/wordpress-org-assets/banner.html`. Both use the Mainstay theme's colours, and the banner borrows its fonts and photos, so the listing looks like the sites the editor makes. After changing either, run `npm run wporg-assets` to render the PNG sizes the directory asks for.
+
+The screenshot at the top of this README is `.wordpress-org/screenshot-1.jpg`. It shows the Fernhouse demo site in a 1440 by 900 window, so retake it from a fresh `wp-env` site when the editor changes.
+
 ## Scripts
 
 - `npm run dev` watches and rebuilds development assets.
@@ -189,6 +201,7 @@ Keep the Gutenberg version in the blueprint in step with `.wp-env.json`. Canvas 
 - `npm run test:unit` runs the unit tests with Vitest. Its settings live in `vitest.config.mjs`.
 - `npm run plugin-zip` creates an installable plugin zip.
 - `npm run test:e2e` runs every end-to-end test against the `wp-env` tests site. `test:e2e:smoke`, `test:e2e:views` and `test:e2e:interactions` run one group. See [the end-to-end tests guide](tests/e2e/README.md).
+- `npm run wporg-assets` renders the plugin directory icon and banner PNGs in `.wordpress-org/`.
 - `npm run wp-env` proxies to `wp-env`, after preparing the shared downloads on `start`.
 
 ## Vendored ListView Bridge
@@ -299,6 +312,7 @@ http://localhost:<dev-port>/wp-admin/admin.php?page=create-not-learn-editor
 - `.wp-env.json` defines the local WordPress and Gutenberg plugin environment.
 - `themes/mainstay/` is the demo block theme the development site uses. `scripts/demo-site/` seeds its content.
 - `demos/` holds the WordPress Playground blueprints for the demo link.
+- `.wordpress-org/` holds the plugin directory icon, banner and screenshots.
 
 ## Current Design Constraints
 

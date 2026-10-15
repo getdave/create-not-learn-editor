@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+	<title>Create Not Learn</title>
+	<rect width="256" height="256" fill="#2e6b4f"/>
+	<rect x="56" y="52" width="144" height="28" rx="7" fill="#fbfbf8"/>
+	<rect x="56" y="96" width="144" height="64" rx="9" fill="none" stroke="#7fa893" stroke-width="4" stroke-dasharray="10 8"/>
+	<rect x="76" y="86" width="144" height="64" rx="9" fill="#f2c14e"/>
+	<rect x="56" y="176" width="144" height="28" rx="7" fill="#fbfbf8"/>
+</svg>
