@@ -330,3 +330,29 @@ export function getPageMoveChanges( tree, pageId, target ) {
 			);
 		} );
 }
+
+/**
+ * Take a page out of a tree, with its sub-pages, for it to be shown somewhere
+ * else.
+ *
+ * @param {Object[]} tree   Tree from `buildPageTree`.
+ * @param {number}   pageId Page to take out.
+ * @return {Object} `{ node, tree }`: the page's node, or null if it isn't in
+ *                  the tree, and the tree without it.
+ */
+export function takePageFromTree( tree, pageId ) {
+	let taken = null;
+	const visit = ( nodes ) =>
+		nodes.reduce( ( result, node ) => {
+			if ( Number( node.page.id ) === Number( pageId ) ) {
+				taken = node;
+			} else {
+				result.push( { ...node, children: visit( node.children ) } );
+			}
+
+			return result;
+		}, [] );
+	const rest = pageId ? visit( tree ) : tree;
+
+	return { node: taken, tree: rest };
+}

@@ -28,7 +28,19 @@ const SITE_SETTING_LABELS = {
 	site_logo: __( 'Logo' ),
 	site_icon: __( 'Browser icon' ),
 	show_on_front: __( 'Your homepage' ),
+	page_on_front: __( 'Your homepage' ),
+	page_for_posts: __( 'Blog page' ),
 };
+
+/*
+ * What the homepage shows is kept in three settings. Changed together, they
+ * are one change: listed once, and discarded together.
+ */
+const HOMEPAGE_SETTINGS = [
+	'show_on_front',
+	'page_on_front',
+	'page_for_posts',
+];
 
 const TYPE_LABELS = {
 	'postType/page': __( 'Page' ),
@@ -39,7 +51,23 @@ const TYPE_LABELS = {
 	'postType/wp_block': __( 'Section' ),
 };
 
-function describeSiteSetting( property, value ) {
+function describeHomepage( site, getPageTitle ) {
+	if ( site?.show_on_front !== 'page' ) {
+		return __( 'Shows your latest posts' );
+	}
+
+	const title = getPageTitle( site?.page_on_front );
+
+	return title
+		? sprintf(
+				/* translators: %s: page title. */
+				__( 'Shows “%s”' ),
+				title
+			)
+		: __( 'Shows a page' );
+}
+
+function describeSiteSetting( property, value, { site, getPageTitle } ) {
 	let detail = __( 'Site setting' );
 
 	if ( property === 'title' || property === 'description' ) {
@@ -52,11 +80,10 @@ function describeSiteSetting( property, value ) {
 			: __( 'Left empty' );
 	} else if ( property === 'site_logo' || property === 'site_icon' ) {
 		detail = value ? __( 'New image' ) : __( 'Image removed' );
-	} else if ( property === 'show_on_front' ) {
-		detail =
-			value === 'posts'
-				? __( 'Shows your latest posts' )
-				: __( 'Shows a page' );
+	} else if ( property === 'show_on_front' || property === 'page_on_front' ) {
+		detail = describeHomepage( site, getPageTitle );
+	} else if ( property === 'page_for_posts' ) {
+		detail = getPageTitle( value ) || __( 'None' );
 	}
 
 	return {
@@ -65,11 +92,14 @@ function describeSiteSetting( property, value ) {
 	};
 }
 
-function describeChange( record, { site, getEntityConfig } ) {
+function describeChange( record, { site, getEntityConfig, getPageTitle } ) {
 	const { kind, name, property, title } = record;
 
 	if ( kind === 'root' && name === 'site' ) {
-		return describeSiteSetting( property, site?.[ property ] );
+		return describeSiteSetting( property, site?.[ property ], {
+			getPageTitle,
+			site,
+		} );
 	}
 
 	if ( kind === 'root' && name === 'globalStyles' ) {
@@ -98,32 +128,58 @@ function getChangeId( { kind, name, key, property } ) {
  */
 export function useChanges() {
 	const { dirtyEntityRecords } = useEntitiesSavedStatesIsDirty();
-	const { editedSite, savedSite, getEntityConfig, isSaving } = useSelect(
-		( select ) => {
-			const store = select( coreStore );
+	const {
+		editedSite,
+		savedSite,
+		getEditedEntityRecord,
+		getEntityConfig,
+		isSaving,
+	} = useSelect( ( select ) => {
+		const store = select( coreStore );
 
-			return {
-				editedSite: store.getEditedEntityRecord( 'root', 'site' ),
-				savedSite: store.getRawEntityRecord( 'root', 'site' ),
-				getEntityConfig: store.getEntityConfig,
-				isSaving: store
-					.__experimentalGetDirtyEntityRecords()
-					.some( ( { kind, name, key } ) =>
-						store.isSavingEntityRecord( kind, name, key )
-					),
-			};
-		},
-		[]
-	);
+		return {
+			getEditedEntityRecord: store.getEditedEntityRecord,
+			editedSite: store.getEditedEntityRecord( 'root', 'site' ),
+			savedSite: store.getRawEntityRecord( 'root', 'site' ),
+			getEntityConfig: store.getEntityConfig,
+			isSaving: store
+				.__experimentalGetDirtyEntityRecords()
+				.some( ( { kind, name, key } ) =>
+					store.isSavingEntityRecord( kind, name, key )
+				),
+		};
+	}, [] );
 	const { clearEntityRecordEdits, editEntityRecord } =
 		useDispatch( coreStore );
+	const getPageTitle = ( id ) =>
+		( Number( id ) &&
+			getEditedEntityRecord( 'postType', 'page', Number( id ) )
+				?.title ) ||
+		'';
 	const { saveDirtyEntities } = unlock( useDispatch( coreStore ) );
 
-	const changes = dirtyEntityRecords.map( ( record ) => ( {
-		...record,
-		id: getChangeId( record ),
-		...describeChange( record, { site: editedSite, getEntityConfig } ),
-	} ) );
+	const isHomepageSwitched = dirtyEntityRecords.some(
+		( { kind, name, property } ) =>
+			kind === 'root' && name === 'site' && property === 'show_on_front'
+	);
+	const changes = dirtyEntityRecords
+		.filter(
+			( { kind, name, property } ) =>
+				! isHomepageSwitched ||
+				kind !== 'root' ||
+				name !== 'site' ||
+				property === 'show_on_front' ||
+				! HOMEPAGE_SETTINGS.includes( property )
+		)
+		.map( ( record ) => ( {
+			...record,
+			id: getChangeId( record ),
+			...describeChange( record, {
+				getEntityConfig,
+				getPageTitle,
+				site: editedSite,
+			} ),
+		} ) );
 
 	/*
 	 * A site setting is put back to its saved value, which core counts as no
@@ -132,9 +188,20 @@ export function useChanges() {
 	 */
 	const discard = ( { kind, name, key, property } ) => {
 		if ( kind === 'root' && name === 'site' ) {
-			editEntityRecord( 'root', 'site', undefined, {
-				[ property ]: savedSite?.[ property ],
-			} );
+			const properties =
+				property === 'show_on_front' ? HOMEPAGE_SETTINGS : [ property ];
+
+			editEntityRecord(
+				'root',
+				'site',
+				undefined,
+				Object.fromEntries(
+					properties.map( ( setting ) => [
+						setting,
+						savedSite?.[ setting ],
+					] )
+				)
+			);
 		} else {
 			clearEntityRecordEdits( kind, name, key );
 		}

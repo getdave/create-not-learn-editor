@@ -9,6 +9,7 @@ import { getErrorMessage } from '../../../records';
 import { isPageInMenu } from '../menu-status';
 import useMainMenu, { useAddPageToMenu } from '../use-main-menu';
 import { getPageTitle } from './data';
+import { useHomepageState, useUseAsHomepage } from './homepage';
 import {
 	__,
 	Button,
@@ -77,21 +78,30 @@ function RenamePageModal( { onClose, pageId, title } ) {
 /**
  * What can be done with an opened page, behind its options button.
  *
- * Adding to the menu is only offered for published pages the menu does not
- * already reach.
+ * Adding to the menu is only offered for pages the menu does not already
+ * reach, and using the page as the homepage for pages that aren't it.
  *
- * @param {Object}   props        Component props.
- * @param {Object}   props.page   Page record.
- * @param {number}   props.pageId Page ID.
- * @param {Function} props.onEdit Opens the page in the full editor.
+ * @param {Object}   props            Component props.
+ * @param {boolean}  props.isHomepage Whether the page is the homepage.
+ * @param {Object}   props.page       Page record.
+ * @param {number}   props.pageId     Page ID.
+ * @param {Function} props.onEdit     Opens the page in the full editor.
  * @return {Element} The options menu.
  */
-export function PageOptions( { page, pageId, onEdit } ) {
+export function PageOptions( { isHomepage, page, pageId, onEdit } ) {
 	const { createErrorNotice, createSuccessNotice } =
 		useDispatch( noticesStore );
 	const mainMenu = useMainMenu();
 	const addPageToMenu = useAddPageToMenu();
+	const homepage = useHomepageState();
+	const useAsHomepage = useUseAsHomepage( homepage );
 	const [ isRenaming, setIsRenaming ] = useState( false );
+	const canUseAsHomepage =
+		! isHomepage &&
+		homepage.canSwitch &&
+		homepage.shows !== 'theme' &&
+		Boolean( page?.status ) &&
+		page.status !== 'trash';
 	const title = useSelect(
 		( selectStore ) => {
 			const { getEditedEntityRecord, getEntityRecord } =
@@ -108,8 +118,10 @@ export function PageOptions( { page, pageId, onEdit } ) {
 		},
 		[ pageId ]
 	);
-	// A draft can go in the menu too; it shows there once published.
+	// A draft can go in the menu too; it shows there once published. The
+	// homepage goes in as a Home link, from its row.
 	const canAddToMenu =
+		! isHomepage &&
 		Boolean( page && mainMenu.menuId && mainMenu.menuPages ) &&
 		! isPageInMenu( page, mainMenu.menuPages );
 
@@ -160,6 +172,19 @@ export function PageOptions( { page, pageId, onEdit } ) {
 									{ __( 'Add to menu' ) }
 								</MenuItem>
 							) }
+							{ canUseAsHomepage && (
+								<MenuItem
+									onClick={ () => {
+										onClose();
+										useAsHomepage.request( {
+											...page,
+											id: pageId,
+										} );
+									} }
+								>
+									{ __( 'Use as homepage' ) }
+								</MenuItem>
+							) }
 						</MenuGroup>
 						<MenuGroup>
 							<MenuItem
@@ -197,6 +222,7 @@ export function PageOptions( { page, pageId, onEdit } ) {
 					title={ typeof title === 'string' ? title : '' }
 				/>
 			) }
+			{ useAsHomepage.modal }
 		</>
 	);
 }

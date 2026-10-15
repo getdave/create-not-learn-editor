@@ -586,6 +586,21 @@ $cnl-pages-tree-row-gap: 2px;
 	font-size: var(--wpds-typography-font-size-sm);
 }
 
+// The homepage's second line can be a long page title, so it gives way to
+// "Homepage" rather than pushing the row's buttons out.
+.cnl-pages-menu__page--homepage .cnl-pages-menu__page-role,
+.cnl-pages-tree__item--homepage > .cnl-pages-tree__row .cnl-pages-tree__role {
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cnl-homepage-problem {
+	margin: 0;
+}
+
 // ---------------------------------------------------------------------------
 // A page, opened up.
 // ---------------------------------------------------------------------------
@@ -631,6 +646,22 @@ $cnl-pages-tree-row-gap: 2px;
 	margin: 0;
 	padding: 0;
 	list-style: none;
+}
+
+// "A page" has options of its own, sat inside its card at the end.
+.cnl-homepage-shows__choice.has-options {
+	position: relative;
+
+	.cnl-homepage-shows__option {
+		padding-inline-end: calc(var(--wpds-dimension-padding-md) + 36px);
+	}
+}
+
+.cnl-homepage-shows__more {
+	position: absolute;
+	inset-inline-end: var(--wpds-dimension-padding-sm);
+	top: 50%;
+	transform: translateY(-50%);
 }
 
 .cnl-homepage-shows__option {

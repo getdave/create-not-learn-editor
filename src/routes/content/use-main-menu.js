@@ -48,7 +48,7 @@ function getMenuTitleText( menu ) {
  * @param {number} menuId Menu ID.
  * @return {Promise<string>} Serialized menu content.
  */
-async function getEditedMenuContent( menuId ) {
+export async function getEditedMenuContent( menuId ) {
 	await resolveSelect( coreDataStore ).getEntityRecord(
 		'postType',
 		'wp_navigation',

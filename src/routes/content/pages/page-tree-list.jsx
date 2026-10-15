@@ -19,7 +19,10 @@ import {
 	getPageDropTarget,
 	getPageKeyboardTarget,
 	getPageMoveChanges,
+	takePageFromTree,
 } from './page-tree';
+import { getHomepageSummary, parseTarget, useHomepageState } from './homepage';
+import { HOMEPAGE } from './homepage-state';
 import { getPageIcon, getPageRole, getStatusBadge } from './page-labels';
 import {
 	__,
@@ -30,6 +33,7 @@ import {
 	chevronRightSmallIcon,
 	coreDataStore,
 	EmptyState,
+	homeIcon,
 	Icon,
 	Modal,
 	noticesStore,
@@ -213,6 +217,105 @@ function PageTreeRow( {
 							roles={ roles }
 						/>
 					) ) }
+				</ul>
+			) }
+		</li>
+	);
+}
+
+/**
+ * The homepage, first in the tree whatever it shows. It stays put: it can't be
+ * dragged, deleted or put under another page.
+ *
+ * @param {Object}    props             Component props.
+ * @param {Element[]} props.childRows   Rows for the pages under its page.
+ * @param {Object}    props.homepage    Result of `useHomepageState`.
+ * @param {boolean}   props.isCollapsed Whether those pages are hidden.
+ * @param {boolean}   props.isPreviewed Whether the canvas shows it.
+ * @param {Function}  props.onEdit      Opens it.
+ * @param {Function}  props.onPreview   Shows it on the canvas.
+ * @param {Function}  props.onToggle    Shows or hides the pages under it.
+ * @return {Element} The row.
+ */
+function HomepageTreeRow( {
+	childRows,
+	homepage,
+	isCollapsed,
+	isPreviewed,
+	onEdit,
+	onPreview,
+	onToggle,
+} ) {
+	const { badge, summary } = getHomepageSummary( homepage );
+
+	return (
+		<li className="cnl-pages-tree__item cnl-pages-tree__item--homepage">
+			<div
+				className={ `cnl-pages-tree__row${
+					isPreviewed ? ' is-previewed' : ''
+				}` }
+				style={ { '--cnl-pages-tree-depth': 0 } }
+			>
+				{ childRows.length ? (
+					<Button
+						aria-expanded={ ! isCollapsed }
+						className="cnl-pages-tree__toggle"
+						icon={
+							isCollapsed
+								? chevronRightSmallIcon
+								: chevronDownSmallIcon
+						}
+						label={
+							isCollapsed
+								? __( 'Show pages under Homepage' )
+								: __( 'Hide pages under Homepage' )
+						}
+						onClick={ onToggle }
+						size="small"
+					/>
+				) : (
+					<span
+						aria-hidden
+						className="cnl-pages-tree__toggle-spacer"
+					/>
+				) }
+				<button
+					aria-current={ isPreviewed ? 'page' : undefined }
+					className="cnl-pages-tree__link"
+					onClick={ onPreview }
+					type="button"
+				>
+					<Icon className="cnl-pages-tree__icon" icon={ homeIcon } />
+					<span className="cnl-pages-tree__title">
+						{ __( 'Homepage' ) }
+					</span>
+					{ summary && (
+						<span className="cnl-pages-tree__role">
+							{ summary }
+						</span>
+					) }
+					{ badge && (
+						<Badge
+							className="cnl-pages-tree__status"
+							intent={ badge.intent }
+						>
+							{ badge.label }
+						</Badge>
+					) }
+				</button>
+				<div className="cnl-pages-tree__actions">
+					<Button
+						className="cnl-pages-tree__edit"
+						icon={ pencilIcon }
+						label={ __( 'Edit Homepage' ) }
+						onClick={ onEdit }
+						size="compact"
+					/>
+				</div>
+			</div>
+			{ childRows.length > 0 && ! isCollapsed && (
+				<ul className="cnl-pages-tree__children" role="list">
+					{ childRows }
 				</ul>
 			) }
 		</li>
@@ -418,19 +521,38 @@ export function PagesTree( { canCreate, onAddPage } ) {
 		() => ( { frontPageId, postsPageId } ),
 		[ frontPageId, postsPageId ]
 	);
+	const homepage = useHomepageState();
 	const tree = useMemo(
 		() => buildPageTree( effectivePages, { frontPageId } ),
 		[ effectivePages, frontPageId ]
 	);
-	const visibleTree = useMemo(
-		() => filterPageTree( tree, search, getPageTitle ),
-		[ search, tree ]
+	// The homepage's page is listed as the homepage, first, with any pages
+	// under it. Moves still work out where pages go from the whole tree.
+	const { node: homeNode, tree: otherPages } = useMemo(
+		() => takePageFromTree( tree, homepage.pageId ),
+		[ homepage.pageId, tree ]
 	);
-	const previewedId =
-		Number( searchParams.previewId ) ||
-		frontPageId ||
-		Number( tree[ 0 ]?.page.id ) ||
-		0;
+	const visibleTree = useMemo(
+		() => filterPageTree( otherPages, search, getPageTitle ),
+		[ otherPages, search ]
+	);
+	const visibleHomeChildren = useMemo(
+		() => filterPageTree( homeNode?.children || [], search, getPageTitle ),
+		[ homeNode, search ]
+	);
+	const needle = search.trim().toLowerCase();
+	const showsHomepage =
+		! needle ||
+		__( 'Homepage' ).toLowerCase().includes( needle ) ||
+		( homeNode &&
+			getPageTitle( homeNode.page ).toLowerCase().includes( needle ) ) ||
+		visibleHomeChildren.length > 0;
+	let previewedId = parseTarget( searchParams.previewId ) || HOMEPAGE;
+
+	if ( previewedId === homepage.pageId ) {
+		previewedId = HOMEPAGE;
+	}
+
 	const canMove = ! search.trim();
 
 	// Forget a move once the saved page reflects it.
@@ -736,6 +858,31 @@ export function PagesTree( { canCreate, onAddPage } ) {
 				}` }
 				role="list"
 			>
+				{ showsHomepage && (
+					<HomepageTreeRow
+						childRows={ visibleHomeChildren.map( ( node ) => (
+							<PageTreeRow
+								collapsed={ collapsed }
+								depth={ 1 }
+								dnd={ dnd }
+								key={ node.page.id }
+								node={ node }
+								onDelete={ trash.requestDelete }
+								onEdit={ editPage }
+								onPreview={ previewPage }
+								onToggle={ toggle }
+								previewedId={ previewedId }
+								roles={ roles }
+							/>
+						) ) }
+						homepage={ homepage }
+						isCollapsed={ collapsed.has( HOMEPAGE ) }
+						isPreviewed={ previewedId === HOMEPAGE }
+						onEdit={ () => editPage( HOMEPAGE ) }
+						onPreview={ () => previewPage( HOMEPAGE ) }
+						onToggle={ () => toggle( HOMEPAGE ) }
+					/>
+				) }
 				{ visibleTree.map( ( node ) => (
 					<PageTreeRow
 						collapsed={ collapsed }
@@ -752,7 +899,7 @@ export function PagesTree( { canCreate, onAddPage } ) {
 					/>
 				) ) }
 			</ul>
-			{ ! visibleTree.length && (
+			{ ! visibleTree.length && ! showsHomepage && (
 				<Text className="cnl-pages-tree__no-results" variant="body-sm">
 					{ __( 'No pages match your search.' ) }
 				</Text>

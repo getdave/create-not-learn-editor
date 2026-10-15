@@ -22,6 +22,8 @@ import {
 	isPageLayoutPattern,
 } from './page-layouts';
 import { useAddPageToMenu, useKeepPagesOutOfMenu } from './use-main-menu';
+import { useHomepageState, useSwitchHomepage } from './pages/homepage';
+import { HOMEPAGE } from './pages/homepage-state';
 import {
 	DesignPicker,
 	DesignPickerNav,
@@ -244,6 +246,10 @@ export default function AddPageFlow( {
 	const { saveEntityRecord } = useDispatch( coreDataStore );
 	const addPageToMenu = useAddPageToMenu();
 	const keepPagesOutOfMenu = useKeepPagesOutOfMenu();
+	// A page started for the homepage is published, to be seen there, and
+	// leaves the menu as it is: the homepage is in it or not already.
+	const isForHomepage = menuPlacement === 'homepage';
+	const { showPage } = useSwitchHomepage( useHomepageState() );
 	const [ addToMenu, setAddToMenu ] = useState( true );
 	const menuListsAllPages = Boolean( mainMenu.menuPages?.listsAllPages );
 	const [ startedBlank, setStartedBlank ] = useState( false );
@@ -389,12 +395,25 @@ export default function AddPageFlow( {
 					content: selectedLayout
 						? getPatternContent( selectedLayout )
 						: '',
-					status: publishImmediately ? 'publish' : 'draft',
+					status:
+						publishImmediately || isForHomepage
+							? 'publish'
+							: 'draft',
 					template: selectedTemplateSlug || undefined,
 					title: trimmedTitle,
 				},
 				{ throwOnError: true }
 			);
+
+			if ( isForHomepage ) {
+				showPage( newPage );
+				onClose();
+				navigate( {
+					search: { postId: HOMEPAGE, previewId: HOMEPAGE },
+					to: '/types/page/list/all',
+				} );
+				return;
+			}
 
 			if ( mainMenu.menuId ) {
 				if ( menuPlacement === 'not-in-menu' ) {
@@ -468,19 +487,21 @@ export default function AddPageFlow( {
 						value={ pageTitle }
 					/>
 					<div className="cnl-add-page-form__settings">
-						<div className="cnl-add-page-form__checkbox-item">
-							<CheckboxControl
-								checked={ publishImmediately }
-								disabled={ isBusy }
-								label={ __( 'Publish immediately' ) }
-								onChange={ setPublishImmediately }
-							/>
-							<p className="cnl-add-page-form__checkbox-help">
-								{ __(
-									'Your page will be visible to visitors immediately.'
-								) }
-							</p>
-						</div>
+						{ ! isForHomepage && (
+							<div className="cnl-add-page-form__checkbox-item">
+								<CheckboxControl
+									checked={ publishImmediately }
+									disabled={ isBusy }
+									label={ __( 'Publish immediately' ) }
+									onChange={ setPublishImmediately }
+								/>
+								<p className="cnl-add-page-form__checkbox-help">
+									{ __(
+										'Your page will be visible to visitors immediately.'
+									) }
+								</p>
+							</div>
+						) }
 						{ mainMenu.menuId && ! menuPlacement && (
 							<div className="cnl-add-page-form__checkbox-item">
 								<CheckboxControl

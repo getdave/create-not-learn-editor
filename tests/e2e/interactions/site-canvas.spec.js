@@ -194,7 +194,7 @@ test.describe( 'Site canvas interactions', () => {
 
 		await page.getByRole( 'button', { name: 'Page Options' } ).click();
 		await expect(
-			page.getByRole( 'menuitem', { name: 'Configure Homepage' } )
+			page.getByRole( 'menuitem', { name: 'Manage homepage' } )
 		).toBeVisible();
 	} );
 

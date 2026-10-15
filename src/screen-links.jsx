@@ -30,7 +30,7 @@ export default function ScreenLinks( { label, links } ) {
 			{ links.map( ( { description, icon, search, title, to } ) => (
 				<Button
 					className="cnl-screen-links__link"
-					key={ to }
+					key={ title }
 					onClick={ () => navigate( { search, to } ) }
 				>
 					<Icon className="cnl-screen-links__icon" icon={ icon } />
