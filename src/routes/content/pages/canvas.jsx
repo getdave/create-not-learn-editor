@@ -23,19 +23,16 @@ import { useNavigate, useSearch } from '@wordpress/route';
  * Internal dependencies
  */
 import { settings } from '../../../settings';
+import { MODE_BROWSE, useCanvasMode } from '../../../site-canvas/mode';
 import {
 	SiteCanvas,
 	useCanvasDocument,
 	useSiteCanvas,
 } from '../../../site-canvas';
-import {
-	getPageTitle,
-	useHomepage,
-	useLatestPostsTemplateId,
-	usePages,
-	usePageSections,
-	usePreviewStructure,
-} from './data';
+import { getErrorMessage } from '../../../records';
+import { getPageTitle, usePageSections, usePreviewStructure } from './data';
+import { getHomepageSummary, parseTarget, useHomepageState } from './homepage';
+import { HOMEPAGE, isIndexTemplateId } from './homepage-state';
 import {
 	getSectionTitle,
 	getTemplateElementKey,
@@ -466,9 +463,9 @@ function CanvasEmptyState() {
 }
 
 /**
- * Whether the preview shows an unsaved change: a page whose only edit is its
- * layout, or the site's whose only edit is what the homepage shows, both of
- * which `getPagePreviewUrl` passes along.
+ * Whether the preview shows an unsaved change: a page whose only edits are its
+ * layout or publishing it, or the site's whose only edits are what the
+ * homepage shows, all of which `getPagePreviewUrl` passes along.
  *
  * @param {Object}   change Unsaved change, from `useChanges`.
  * @param {Function} select The registry's `select`.
@@ -479,9 +476,9 @@ function isPassedToPreview( change, select ) {
 	let shown;
 
 	if ( kind === 'postType' && name === 'page' ) {
-		shown = 'template';
+		shown = [ 'status', 'template' ];
 	} else if ( kind === 'root' && name === 'site' ) {
-		shown = 'show_on_front';
+		shown = [ 'page_on_front', 'show_on_front' ];
 	} else {
 		return false;
 	}
@@ -494,18 +491,28 @@ function isPassedToPreview( change, select ) {
 		) || {}
 	);
 
-	return edits.length > 0 && edits.every( ( edit ) => edit === shown );
+	return (
+		edits.length > 0 && edits.every( ( edit ) => shown.includes( edit ) )
+	);
 }
 
-function PageDocument( { isFrontPage, page, showsLatestPosts } ) {
+function PageDocument( { homepage, page } ) {
 	const isPublished = page?.status === 'publish';
-	const link = showsLatestPosts ? settings.homeUrl : page?.link;
-	const path = isPublished || showsLatestPosts ? getPagePath( link ) : '';
-	const meta = showsLatestPosts
-		? __( 'Homepage · Your latest posts' )
-		: [ __( 'Page' ), getStatusLabel( page?.status ) ]
-				.filter( Boolean )
-				.join( ' · ' );
+	let link = page?.link;
+	let path = isPublished ? getPagePath( link ) : '';
+	let heading = getPageTitle( page );
+	let meta = [ __( 'Page' ), getStatusLabel( page?.status ) ]
+		.filter( Boolean )
+		.join( ' · ' );
+
+	if ( homepage ) {
+		link = settings.homeUrl;
+		path = getPagePath( link );
+		heading = __( 'Homepage' );
+		const { badge, summary } = getHomepageSummary( homepage );
+
+		meta = summary || badge?.label || '';
+	}
 
 	return (
 		<div className="cnl-editor-homepage-document">
@@ -513,18 +520,14 @@ function PageDocument( { isFrontPage, page, showsLatestPosts } ) {
 				<div className="cnl-editor-homepage-document__heading">
 					<Icon
 						className="cnl-editor-homepage-document__icon"
-						icon={
-							isFrontPage || showsLatestPosts
-								? homeIcon
-								: pageIcon
-						}
+						icon={ homepage ? homeIcon : pageIcon }
 					/>
 					<Tooltip.Root disabled={ ! path }>
 						<Tooltip.Trigger
 							className="cnl-editor-homepage-document__title"
 							render={ <h1 /> }
 						>
-							{ getPageTitle( page ) }
+							{ heading }
 						</Tooltip.Trigger>
 						<Tooltip.Popup>{ path }</Tooltip.Popup>
 					</Tooltip.Root>
@@ -616,31 +619,106 @@ function useComposeSyncHook( pageId ) {
 	);
 }
 
+/**
+ * The layout the canvas edits while the homepage lists the latest posts.
+ *
+ * Without a `home` layout, WordPress lists them in `index`, which every other
+ * list of posts uses too, like categories and search results. Editing that in
+ * place would change all of them, so as soon as the canvas opens it to edit,
+ * the homepage gets a `home` layout of its own, copied from `index`, and the
+ * canvas moves on to it once it is there. Nothing looks different until it
+ * is changed, and only the homepage changes then.
+ *
+ * @param {Object}  args
+ * @param {string}  args.templateId The layout WordPress uses, if known.
+ * @param {boolean} args.isEditing  Whether the canvas is open to edit.
+ * @return {string|undefined} The layout to edit.
+ */
+function useLatestPostsLayout( { templateId, isEditing } ) {
+	const { invalidateResolution, saveEntityRecord } =
+		useDispatch( coreDataStore );
+	const { createErrorNotice } = useDispatch( noticesStore );
+	const isCopying = useRef( false );
+	const indexContent = useSelect(
+		( select ) =>
+			isIndexTemplateId( templateId )
+				? select( coreDataStore ).getEntityRecord(
+						'postType',
+						'wp_template',
+						templateId
+					)?.content?.raw
+				: undefined,
+		[ templateId ]
+	);
+
+	useEffect( () => {
+		if (
+			! isEditing ||
+			typeof indexContent !== 'string' ||
+			isCopying.current
+		) {
+			return;
+		}
+
+		isCopying.current = true;
+		saveEntityRecord(
+			'postType',
+			'wp_template',
+			{
+				content: indexContent,
+				slug: 'home',
+				status: 'publish',
+				title: __( 'Blog Home' ),
+			},
+			{ throwOnError: true }
+		)
+			.then( () =>
+				invalidateResolution( 'getDefaultTemplateId', [
+					{ slug: 'front-page' },
+				] )
+			)
+			.catch( ( error ) =>
+				createErrorNotice( getErrorMessage( error ), {
+					type: 'snackbar',
+				} )
+			)
+			.finally( () => {
+				isCopying.current = false;
+			} );
+	}, [
+		createErrorNotice,
+		indexContent,
+		invalidateResolution,
+		isEditing,
+		saveEntityRecord,
+	] );
+
+	return templateId;
+}
+
 function PagesCanvas() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
-	const drilledId = Number( searchParams.postId ) || 0;
-	const { frontPageId, isLoading, pages } = usePages();
+	const homepage = useHomepageState();
+	const drilled = parseTarget( searchParams.postId );
+	let target = drilled || parseTarget( searchParams.previewId ) || HOMEPAGE;
+
+	// The homepage's page is only ever shown as the homepage.
+	if ( target === homepage.pageId && homepage.pageId ) {
+		target = HOMEPAGE;
+	}
+
+	const isHomepage = target === HOMEPAGE;
+	const pageId = isHomepage ? homepage.pageId : target;
+	// With no page behind it, the homepage lists the latest posts, or is
+	// whatever the theme's layout makes it.
+	const showsLatestPosts = isHomepage && ! pageId;
 	const editorRef = useRef();
-	const fallbackId =
-		frontPageId ||
-		Number(
-			pages.find( ( page ) => ! Number( page.parent ) )?.id ||
-				pages[ 0 ]?.id
-		) ||
-		0;
-	const pageId = drilledId || Number( searchParams.previewId ) || fallbackId;
-	const { homepageId, savedShowOnFront, showOnFront } = useHomepage();
-	const isHomepage = Boolean( pageId ) && pageId === homepageId;
-	// The homepage's page, kept while the homepage lists the latest posts.
-	// The canvas shows the homepage as visitors see it then, not the page.
-	const showsLatestPosts = isHomepage && showOnFront === 'posts';
-	const latestPostsTemplateId = useLatestPostsTemplateId( showsLatestPosts );
 	/*
 	 * Only what the canvas shows of the page. The edited record is new on
 	 * every keystroke, as the editor writes the page's blocks back to it.
 	 */
-	const { link, status, template, title } = useSelect(
+	const { id, link, status, template, title } = useSelect(
 		( select ) => {
 			const record = pageId
 				? select( coreDataStore ).getEditedEntityRecord(
@@ -651,6 +729,7 @@ function PagesCanvas() {
 				: null;
 
 			return {
+				id: record?.id,
 				link: record?.link,
 				status: record?.status,
 				template: record?.template,
@@ -661,20 +740,40 @@ function PagesCanvas() {
 	);
 	const page = useMemo(
 		() =>
-			link || status || title ? { link, status, template, title } : null,
-		[ link, status, template, title ]
+			link || status || title
+				? { id, link, status, template, title }
+				: null,
+		[ id, link, status, template, title ]
 	);
-	const savedTemplate = useSelect(
-		( select ) =>
-			pageId
+	const saved = useSelect(
+		( select ) => {
+			const record = pageId
 				? select( coreDataStore ).getEntityRecord(
 						'postType',
 						'page',
 						pageId
-					)?.template
-				: '',
+					)
+				: null;
+
+			return {
+				status: record?.status,
+				template: record?.template || '',
+			};
+		},
 		[ pageId ]
 	);
+	const site = useSelect(
+		( select ) =>
+			select( coreDataStore ).getEditedEntityRecord( 'root', 'site' ),
+		[]
+	);
+	const isEditing = useCanvasMode() !== MODE_BROWSE;
+	const latestPostsTemplateId = useLatestPostsLayout( {
+		isEditing: showsLatestPosts && isEditing,
+		templateId: showsLatestPosts
+			? homepage.latestPostsTemplateId
+			: undefined,
+	} );
 	const pinnedEntity = useMemo( () => {
 		if ( showsLatestPosts ) {
 			return latestPostsTemplateId
@@ -688,15 +787,17 @@ function PagesCanvas() {
 	const canvas = useSiteCanvas( {
 		isShownInPreview,
 		pinnedEntity,
-		url: getPagePreviewUrl(
-			page,
-			savedTemplate,
-			isHomepage
-				? { homeUrl: settings.homeUrl, savedShowOnFront, showOnFront }
-				: null
-		),
+		url: getPagePreviewUrl( {
+			homeUrl: settings.homeUrl,
+			isHomepage,
+			page: showsLatestPosts ? null : page,
+			savedSite: homepage.saved || site,
+			savedStatus: saved.status,
+			savedTemplate: saved.template,
+			site,
+		} ),
 	} );
-	const canvasDocument = useCanvasDocument( editorRef, pageId );
+	const canvasDocument = useCanvasDocument( editorRef, `${ target }` );
 	const useComposeSync = useComposeSyncHook( pageId );
 	const scrollRequest = useSectionBridge( ( state ) => state.scrollRequest );
 	const insertionIndex = useSectionBridge(
@@ -715,11 +816,14 @@ function PagesCanvas() {
 			previewPageId !== pageId &&
 			canvas.isPreviewing
 		) {
+			const next =
+				previewPageId === homepage.pageId ? HOMEPAGE : previewPageId;
+
 			navigate( {
 				search: {
 					...searchParams,
-					postId: drilledId ? previewPageId : undefined,
-					previewId: previewPageId,
+					postId: drilled ? next : undefined,
+					previewId: next,
 				},
 				to: LIST_PATH,
 			} );
@@ -738,13 +842,17 @@ function PagesCanvas() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ scrollRequest, insertionIndex ] );
 
-	if ( ! pageId ) {
-		return isLoading ? null : <CanvasEmptyState />;
+	if ( homepage.isLoading ) {
+		return null;
+	}
+
+	if ( ! pageId && ! isHomepage ) {
+		return <CanvasEmptyState />;
 	}
 
 	return (
 		<>
-			{ ! canvas.isComposing && ! showsLatestPosts && (
+			{ ! canvas.isComposing && pageId > 0 && (
 				<LinkedSections
 					canvasDocument={ canvasDocument }
 					pageId={ pageId }
@@ -752,17 +860,16 @@ function PagesCanvas() {
 			) }
 			<SiteCanvas
 				canvas={ canvas }
-				className={ `cnl-pages-canvas${ drilledId ? ' is-drilled' : '' }` }
+				className={ `cnl-pages-canvas${ drilled ? ' is-drilled' : '' }` }
 				useComposeSync={ useComposeSync }
 				document={
 					<PageDocument
-						isFrontPage={ pageId === frontPageId }
+						homepage={ isHomepage ? homepage : null }
 						page={ page }
-						showsLatestPosts={ showsLatestPosts }
 					/>
 				}
 				editorChildren={
-					! drilledId && (
+					! drilled && (
 						<p className="cnl-pages-canvas__hint">
 							{ __( 'Click any part of the page to change it.' ) }
 						</p>

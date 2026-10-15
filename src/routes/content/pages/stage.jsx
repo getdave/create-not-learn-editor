@@ -20,14 +20,13 @@ import {
 	getPlacementText,
 	SectionPicker,
 } from '../../../section-picker';
-import { getPageTitle, useHomepage, usePages, usePageSections } from './data';
+import { getPageTitle, usePages, usePageSections } from './data';
 import { getPageAncestorTitles } from './page-tree';
 import { getSectionTitle, insertItems } from './page-sections';
 import { sectionBridge } from './section-bridge';
 import { LIST_PATH } from './page-tree-list';
 import { PageOptions } from './page-options';
 import { MemoizedPageLayouts } from './page-layout-picker';
-import { MemoizedHomepageShows } from './homepage-shows';
 import { SectionList } from './section-list';
 import {
 	__,
@@ -99,14 +98,23 @@ function selectSectionWhenEditorLoads( index ) {
  * works on the same sections on the page itself. It may not be needed there
  * at all.
  *
- * @param {Object} props        Component props.
- * @param {number} props.pageId Page ID.
+ * The homepage's page opens as the homepage, with what the homepage shows
+ * above the page's own details.
+ *
+ * @param {Object}  props            Component props.
+ * @param {Element} props.intro      Shown first, for the homepage.
+ * @param {boolean} props.isHomepage Whether the page is the homepage.
+ * @param {number}  props.pageId     Page ID.
  * @return {Element} The page stage.
  */
-export function PageDetailStage( { pageId } ) {
+export function PageDetailStage( {
+	intro = null,
+	isHomepage = false,
+	pageId,
+} ) {
 	const navigate = useNavigate();
 	const siteTrail = useSiteTrail();
-	const { frontPageId, pages } = usePages();
+	const { pages } = usePages();
 	const { blocks, isReady, setBlocks } = usePageSections( pageId );
 	const { createSuccessNotice } = useDispatch( noticesStore );
 	const [ insertAt, setInsertAt ] = useState( null );
@@ -120,15 +128,13 @@ export function PageDetailStage( { pageId } ) {
 			) || null,
 		[ pageId ]
 	);
-	// The homepage keeps its page when it shows the latest posts instead, so
-	// the choice stays here to switch back.
-	const { homepageId, showOnFront } = useHomepage();
-	const isHomepage = pageId === homepageId;
-	// None of the page is on show then, only the layout listing the posts.
-	const showsLatestPosts = isHomepage && showOnFront === 'posts';
 	const listPage = pages.find( ( item ) => Number( item.id ) === pageId );
-	const title = getPageTitle( listPage || page );
-	const ancestors = getPageAncestorTitles( pages, pageId, getPageTitle );
+	const title = isHomepage
+		? __( 'Homepage' )
+		: getPageTitle( listPage || page );
+	const ancestors = isHomepage
+		? []
+		: getPageAncestorTitles( pages, pageId, getPageTitle );
 
 	// Leaving a page forgets what was picked on it. Arriving keeps a section
 	// picked by clicking it on the canvas.
@@ -183,6 +189,7 @@ export function PageDetailStage( { pageId } ) {
 		navigate( { search: { postId: id }, to: '/wp_template_part' } );
 	const actions = (
 		<PageOptions
+			isHomepage={ isHomepage }
 			onEdit={ () => editPage() }
 			page={ listPage ? { ...listPage, ...page } : page }
 			pageId={ pageId }
@@ -210,16 +217,15 @@ export function PageDetailStage( { pageId } ) {
 			headingLevel={ 2 }
 		>
 			<div className="cnl-pages-detail__body">
-				{ isHomepage && <MemoizedHomepageShows /> }
+				{ intro }
 				<MemoizedPageLayouts
-					isFrontPage={ pageId === frontPageId }
+					isFrontPage={ isHomepage }
 					pageId={ pageId }
 					sectionCount={ blocks.length }
-					showsLatestPosts={ showsLatestPosts }
 					slug={ page?.slug }
 					template={ page?.template }
 				/>
-				{ isComposing && ! showsLatestPosts && (
+				{ isComposing && (
 					<section
 						aria-label={ __( 'Sections' ) }
 						className="cnl-page-sections"

@@ -144,6 +144,37 @@ test.describe( 'Pages view', () => {
 		);
 	} );
 
+	test( 'lists the homepage once, and opens it from the options menu', async ( {
+		page,
+	} ) => {
+		const stage = getStage( page );
+
+		await visitEditor( page, '/types/page' );
+
+		// One Homepage row, in the menu or out of it, whatever it shows.
+		await expect(
+			stage.getByRole( 'button', { name: 'Edit Homepage' } )
+		).toHaveCount( 1, { timeout: 15000 } );
+
+		await stage
+			.getByRole( 'button', { name: 'Page Options', exact: true } )
+			.click();
+		await page.getByRole( 'menuitem', { name: 'Manage homepage' } ).click();
+
+		await expect( page ).toHaveURL( /postId%3Dhome/ );
+		await expect(
+			stage
+				.getByRole( 'navigation', { name: 'Breadcrumbs' } )
+				.getByText( 'Homepage' )
+		).toBeVisible();
+		await expect(
+			stage.getByRole( 'region', { name: 'Your homepage shows' } )
+		).toBeVisible();
+		await expect(
+			page.locator( '.cnl-editor-homepage-document__title' )
+		).toHaveText( 'Homepage', { timeout: 15000 } );
+	} );
+
 	test( 'lists page layouts from the options menu', async ( { page } ) => {
 		await visitEditor( page, '/types/page' );
 

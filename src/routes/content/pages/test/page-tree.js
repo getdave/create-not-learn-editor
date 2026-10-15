@@ -9,6 +9,7 @@ import {
 	getPageDropTarget,
 	getPageKeyboardTarget,
 	getPageMoveChanges,
+	takePageFromTree,
 } from '../page-tree';
 
 const getTitle = ( page ) => page.title;
@@ -125,5 +126,32 @@ describe( 'page tree', () => {
 				{ id: 1, menu_order: 4, parent: 0 },
 			] );
 		} );
+	} );
+} );
+
+describe( 'takePageFromTree', () => {
+	test( 'takes a page out with its sub-pages, wherever it is', () => {
+		const tree = buildPageTree( pages );
+		const { node, tree: rest } = takePageFromTree( tree, 2 );
+
+		expect( node.page.title ).toBe( 'About' );
+		expect( node.children.map( ( child ) => child.page.title ) ).toEqual( [
+			'Team',
+		] );
+		expect( countPageTree( rest ) ).toBe( countPageTree( tree ) - 2 );
+
+		const nested = takePageFromTree( tree, 4 );
+
+		expect( nested.node.page.title ).toBe( 'Design' );
+		expect( countPageTree( nested.tree ) ).toBe(
+			countPageTree( tree ) - 1
+		);
+	} );
+
+	test( 'leaves the tree alone without a page to take', () => {
+		const tree = buildPageTree( pages );
+
+		expect( takePageFromTree( tree, 0 ) ).toEqual( { node: null, tree } );
+		expect( takePageFromTree( tree, 99 ).node ).toBeNull();
 	} );
 } );

@@ -41,7 +41,7 @@ const TEMPLATE_PARTS_QUERY = {
 	_fields: 'id,area,source',
 };
 
-function getCreationSteps( homepageId ) {
+function getCreationSteps() {
 	return {
 		identity: {
 			description: __( 'Name your site and add a logo' ),
@@ -71,11 +71,10 @@ function getCreationSteps( homepageId ) {
 		homepage: {
 			description: __( 'Make the first page visitors see your own' ),
 			title: __( 'Your homepage' ),
-			// The homepage opened up on the Pages screen, where its sections,
-			// layout and what it shows all live.
-			search: homepageId
-				? { postId: homepageId, previewId: homepageId }
-				: undefined,
+			// The homepage opened up on the Pages screen, where what it shows,
+			// its sections and its layout all live. `home` stands for it there
+			// (`HOMEPAGE` in the Pages screen), whatever it shows.
+			search: { postId: 'home', previewId: 'home' },
 			to: '/types/page/list/all',
 		},
 		pages: {
@@ -110,9 +109,6 @@ function useCreationData() {
 				? pages.find( ( page ) => page.id === frontPageId )
 				: null,
 			globalStyles,
-			// Kept when the homepage shows the latest posts, so the step can
-			// still open the page to switch it back.
-			homepageId: Number( site?.page_on_front ) || 0,
 			isLoading:
 				! site ||
 				! store.hasFinishedResolution( 'getEntityRecords', pagesArgs ),
@@ -175,7 +171,6 @@ export default function Stage() {
 	const {
 		frontPage,
 		globalStyles,
-		homepageId,
 		isLoading,
 		publishedPageCount,
 		site,
@@ -189,7 +184,7 @@ export default function Stage() {
 		templateParts,
 	} );
 	const progress = getCreationProgress( status );
-	const steps = getCreationSteps( homepageId );
+	const steps = getCreationSteps();
 	const siteName = decodeEntities( site?.title || settings.siteName || '' );
 	const isComplete = progress.done === progress.total;
 

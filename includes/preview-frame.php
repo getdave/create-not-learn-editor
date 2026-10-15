@@ -21,6 +21,7 @@ function cnl_editor_register_preview_frame_hooks() {
 	add_action( 'wp_footer', 'cnl_editor_output_preview_navigation_script', 999 );
 	add_filter( 'page_template_hierarchy', 'cnl_editor_preview_page_template' );
 	add_filter( 'pre_option_show_on_front', 'cnl_editor_preview_show_on_front' );
+	add_filter( 'pre_option_page_on_front', 'cnl_editor_preview_page_on_front' );
 }
 
 /**
@@ -108,6 +109,30 @@ function cnl_editor_preview_show_on_front( $value ) {
 	}
 
 	return $choice;
+}
+
+/**
+ * Show the homepage with the page it will show once that is saved.
+ *
+ * Picking a page for the homepage is an unsaved change like the choice above.
+ * The canvas passes the page's ID along as `cnl-editor-page-on-front`, and the
+ * preview shows it, for those who could save it.
+ *
+ * @param mixed $value The option's value, or false to read it as saved.
+ * @return mixed The page ID passed along, or `$value`.
+ */
+function cnl_editor_preview_page_on_front( $value ) {
+	if ( ! did_action( 'init' ) || ! cnl_editor_is_preview_frame_request() ) {
+		return $value;
+	}
+
+	$page_id = filter_input( INPUT_GET, 'cnl-editor-page-on-front', FILTER_VALIDATE_INT );
+
+	if ( ! is_int( $page_id ) || $page_id < 0 || ! current_user_can( 'manage_options' ) ) {
+		return $value;
+	}
+
+	return $page_id;
 }
 
 /**

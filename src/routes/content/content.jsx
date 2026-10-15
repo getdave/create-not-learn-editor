@@ -10,6 +10,9 @@ import { EMPTY_ARRAY } from './page-layouts';
 import { requestDistractionFreeEntry } from '../../editor-layer/distraction-free';
 import useMainMenu from './use-main-menu';
 import { PageDetailStage } from './pages/stage';
+import { parseTarget, useHomepageState } from './pages/homepage';
+import { HOMEPAGE } from './pages/homepage-state';
+import HomepageStage from './pages/homepage-stage';
 import PagesMenuGroups from './pages/menu-groups';
 import AddPageFlow from './add-page-flow';
 import Canvas from './canvas';
@@ -162,8 +165,12 @@ function Stage() {
 		type,
 	} = useContentRecords();
 	const mainMenu = useMainMenu();
+	const homepage = useHomepageState();
 	const { frontPageId, postsPageId } = useSelect( ( select ) => {
-		const site = select( coreDataStore ).getEntityRecord( 'root', 'site' );
+		const site = select( coreDataStore ).getEditedEntityRecord(
+			'root',
+			'site'
+		);
 
 		return {
 			frontPageId:
@@ -205,13 +212,32 @@ function Stage() {
 
 	const listPath = `/types/${ type.name }/list/all`;
 	const showTemplates = activeTab === 'templates';
-	const drilledPageId =
-		isPages && ! showTemplates ? Number( searchParams.postId ) || 0 : 0;
+	const drilled =
+		isPages && ! showTemplates ? parseTarget( searchParams.postId ) : 0;
 
-	if ( drilledPageId ) {
+	// The homepage's page opens as the homepage, however it was reached.
+	if ( drilled === HOMEPAGE || ( drilled && drilled === homepage.pageId ) ) {
 		return (
-			<PageDetailStage key={ drilledPageId } pageId={ drilledPageId } />
+			<>
+				<HomepageStage
+					onStartNewPage={ () =>
+						setAddingPage( { menuPlacement: 'homepage' } )
+					}
+				/>
+				{ addingPage && (
+					<AddPageFlow
+						mainMenu={ mainMenu }
+						menuPlacement={ addingPage.menuPlacement }
+						onClose={ () => setAddingPage( null ) }
+						templates={ templates }
+					/>
+				) }
+			</>
 		);
+	}
+
+	if ( drilled ) {
+		return <PageDetailStage key={ drilled } pageId={ drilled } />;
 	}
 	const onChangeContentView = ( nextView ) => {
 		setContentView( nextView );
@@ -270,7 +296,11 @@ function Stage() {
 			to: listPath,
 		} );
 	};
-	const configureHomepage = () => {};
+	const manageHomepage = () =>
+		navigate( {
+			search: { postId: HOMEPAGE, previewId: HOMEPAGE },
+			to: listPath,
+		} );
 	const totalPages = Math.max(
 		1,
 		Math.ceil( posts.length / ( contentView.perPage || 20 ) )
@@ -344,11 +374,11 @@ function Stage() {
 							</MenuItem>
 							<MenuItem
 								onClick={ () => {
-									configureHomepage();
+									manageHomepage();
 									onClose();
 								} }
 							>
-								{ __( 'Configure Homepage' ) }
+								{ __( 'Manage homepage' ) }
 							</MenuItem>
 						</MenuGroup>
 					) }

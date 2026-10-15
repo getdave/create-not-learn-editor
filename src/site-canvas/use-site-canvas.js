@@ -17,6 +17,8 @@
  *   an out-of-date page.
  * - Changes made while browsing, from the sidebar, switch to Edit, unless
  *   the preview shows them too.
+ * - A layout the editor tidies as it opens it underneath Browse isn't
+ *   changed: see `useIgnoreLayoutTidying`.
  */
 
 /**
@@ -31,6 +33,7 @@ import {
 	coreDataStore,
 	dispatch,
 	select,
+	subscribe,
 	useCallback,
 	useEffect,
 	useRef,
@@ -101,6 +104,74 @@ function isSameEntity( a, b ) {
 		a?.postType === b?.postType &&
 		String( a?.postId ) === String( b?.postId )
 	);
+}
+
+/**
+ * Keep a layout the editor has open underneath Browse as it was saved.
+ *
+ * Opening a theme's layout, the editor brings some blocks up to date, like
+ * an old text alignment, or the number of posts a list shows. That isn't a
+ * change anyone made, but it would count as one: the canvas would leave
+ * Browse to show it, and Review changes would list the layout. While
+ * browsing, the editor is hidden and the sidebar never changes a layout's
+ * content, so any change to a layout that had none is the editor's own, and
+ * is undone as it is made.
+ *
+ * @param {?Object} editorEntity `{ postType, postId }` the editor has open.
+ * @param {boolean} isPreviewing Whether the canvas is in Browse.
+ */
+function useIgnoreLayoutTidying( editorEntity, isPreviewing ) {
+	const postId =
+		editorEntity?.postType === 'wp_template' ? editorEntity.postId : null;
+
+	useEffect( () => {
+		if ( ! postId || ! isPreviewing ) {
+			return undefined;
+		}
+
+		const isEdited = () =>
+			select( coreDataStore ).hasEditsForEntityRecord(
+				'postType',
+				'wp_template',
+				postId
+			);
+
+		// Changed before Browse, by someone: kept.
+		if ( isEdited() ) {
+			return undefined;
+		}
+
+		/*
+		 * What was saved is put back, rather than every edit cleared: the
+		 * editor keeps the blocks it has, which clearing would make it parse
+		 * and tidy again.
+		 */
+		return subscribe( () => {
+			if ( ! isEdited() ) {
+				return;
+			}
+
+			const store = select( coreDataStore );
+			const saved =
+				store.getRawEntityRecord( 'postType', 'wp_template', postId ) ||
+				{};
+			const edits = store.getEntityRecordNonTransientEdits(
+				'postType',
+				'wp_template',
+				postId
+			);
+
+			dispatch( coreDataStore ).editEntityRecord(
+				'postType',
+				'wp_template',
+				postId,
+				Object.fromEntries(
+					Object.keys( edits ).map( ( key ) => [ key, saved[ key ] ] )
+				),
+				{ undoIgnore: true }
+			);
+		}, coreDataStore );
+	}, [ isPreviewing, postId ] );
 }
 
 /**
@@ -206,6 +277,8 @@ export function useSiteCanvas( {
 	] );
 
 	const editorEntity = pinnedEntity || followedEntity;
+
+	useIgnoreLayoutTidying( editorEntity, isPreviewing );
 	/*
 	 * Whether the page on show can be opened in the full-screen editor.
 	 * In Browse, nothing can be while the preview is on an archive, say, or

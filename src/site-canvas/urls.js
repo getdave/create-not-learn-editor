@@ -12,6 +12,9 @@ export const TEMPLATE_PARAM = 'cnl-editor-template';
 // preview's PHP.
 export const SHOW_ON_FRONT_PARAM = 'cnl-editor-show-on-front';
 
+// Which page the homepage shows, before it is saved. Read by the preview's PHP.
+export const PAGE_ON_FRONT_PARAM = 'cnl-editor-page-on-front';
+
 // Query args that say how a page is being looked at, not which page it is.
 const VIEWING_PARAMS = [
 	PREVIEW_PARAM,
@@ -76,6 +79,7 @@ export function getLiveUrl( url ) {
 	parsed.searchParams.delete( 'cnl-editor-preview-refresh' );
 	parsed.searchParams.delete( TEMPLATE_PARAM );
 	parsed.searchParams.delete( SHOW_ON_FRONT_PARAM );
+	parsed.searchParams.delete( PAGE_ON_FRONT_PARAM );
 
 	return parsed.href;
 }

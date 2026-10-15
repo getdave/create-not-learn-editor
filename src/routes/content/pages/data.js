@@ -43,7 +43,8 @@ export function getPageTitle( page ) {
 }
 
 /**
- * Every page on the site, with the pages the site treats specially.
+ * Every page on the site, with the pages the site treats specially. Those
+ * count unsaved changes to the homepage, as the rest of the screen does.
  *
  * @return {Object} Pages, loading state, and the homepage and blog page IDs.
  */
@@ -51,7 +52,7 @@ export function usePages() {
 	return useSelect( ( select ) => {
 		const store = select( coreDataStore );
 		const args = [ 'postType', 'page', PAGES_QUERY ];
-		const site = store.getEntityRecord( 'root', 'site' );
+		const site = store.getEditedEntityRecord( 'root', 'site' );
 		const isStaticFront = site?.show_on_front === 'page';
 
 		return {
@@ -66,47 +67,6 @@ export function usePages() {
 				: 0,
 		};
 	}, [] );
-}
-
-/**
- * The homepage's page, and what the homepage shows: that page, or the latest
- * posts. The page is kept while it shows the latest posts, so the choice can
- * be switched back on it.
- *
- * @return {Object} `{ homepageId, savedShowOnFront, showOnFront }`, what it
- *                  shows with unsaved edits and as saved.
- */
-export function useHomepage() {
-	return useSelect( ( select ) => {
-		const store = select( coreDataStore );
-		const edited = store.getEditedEntityRecord( 'root', 'site' );
-
-		return {
-			homepageId: Number( edited?.page_on_front ) || 0,
-			savedShowOnFront: store.getEntityRecord( 'root', 'site' )
-				?.show_on_front,
-			showOnFront: edited?.show_on_front,
-		};
-	}, [] );
-}
-
-/**
- * The layout the homepage lists the latest posts in. WordPress takes the
- * first of front-page, home and index the theme has.
- *
- * @param {boolean} isNeeded Whether the homepage lists the latest posts.
- * @return {string|undefined} Its template ID, once known.
- */
-export function useLatestPostsTemplateId( isNeeded ) {
-	return useSelect(
-		( select ) =>
-			isNeeded
-				? select( coreDataStore ).getDefaultTemplateId( {
-						slug: 'front-page',
-					} )
-				: undefined,
-		[ isNeeded ]
-	);
 }
 
 /**

@@ -1,4 +1,9 @@
 /**
+ * WordPress dependencies
+ */
+import { useNavigate } from '@wordpress/route';
+
+/**
  * Internal dependencies
  */
 import { withUiTheme } from '../../theme';
@@ -51,7 +56,7 @@ function PageOptionsDropdown( {
 							onConfigureHomepage();
 						} }
 					>
-						{ __( 'Configure Homepage' ) }
+						{ __( 'Manage homepage' ) }
 					</MenuItem>
 				</MenuGroup>
 			) }
@@ -90,6 +95,7 @@ function EmptyPreview() {
 }
 
 function PreviewDocument( { canvas } ) {
+	const navigate = useNavigate();
 	const { isLoadingContext, previewContext } = canvas;
 	const previewLabel = previewContext?.previewLabel || __( 'Home' );
 	const previewStatusLabel = isLoadingContext
@@ -133,7 +139,13 @@ function PreviewDocument( { canvas } ) {
 					previewContext?.previewStatus === 'homepage'
 				}
 				isBusy={ false }
-				onConfigureHomepage={ () => {} }
+				// The homepage opened up on the Pages screen.
+				onConfigureHomepage={ () =>
+					navigate( {
+						search: { postId: 'home', previewId: 'home' },
+						to: '/types/page/list/all',
+					} )
+				}
 			/>
 		</div>
 	);

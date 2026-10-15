@@ -34,6 +34,19 @@ import { getMenuPagesFromBlocks } from '../menu-status';
 import ScreenLinks from '../../../screen-links';
 import useMainMenu from '../use-main-menu';
 import { getPageTitle, usePages } from './data';
+import {
+	getHomeLinkContext,
+	getHomepageSummary,
+	parseTarget,
+	registerHomeLinkVariation,
+	useHomepageState,
+} from './homepage';
+import {
+	findHomeMenuItem,
+	HOMEPAGE,
+	isHomeMenuItem,
+	withoutHomepagePage,
+} from './homepage-state';
 import { getPageIcon, getPageRole, getStatusBadge } from './page-labels';
 import { PagesTree, usePageTrash } from './page-tree-list';
 import {
@@ -46,6 +59,7 @@ import {
 	chevronDownSmallIcon,
 	chevronRightSmallIcon,
 	DropdownMenu,
+	homeIcon,
 	Icon,
 	infoIcon,
 	MenuGroup,
@@ -93,8 +107,22 @@ function createMenuItemFromPage( page ) {
 }
 
 /**
- * The menu items being dragged, if they are all links to pages and so can be
- * dropped out of the menu.
+ * The menu item for the homepage: a Home link, which goes to the homepage
+ * whatever it shows.
+ *
+ * @return {Object} Serialized-shape menu item.
+ */
+function createHomeLinkBlock() {
+	return {
+		attributes: { label: __( 'Home' ) },
+		innerBlocks: [],
+		name: 'core/home-link',
+	};
+}
+
+/**
+ * The menu items being dragged, if they are all links to pages or Home links,
+ * and so can be dropped out of the menu.
  *
  * @param {Object}   selectors                          Block editor selectors for the menu.
  * @param {Function} selectors.getBlock                 Gets a block.
@@ -105,8 +133,10 @@ function getDraggedPageItems( { getBlock, getDraggedBlockClientIds } ) {
 	const clientIds = getDraggedBlockClientIds();
 
 	return clientIds.length &&
-		clientIds.every( ( clientId ) =>
-			getLinkedPageId( getBlock( clientId ) )
+		clientIds.every(
+			( clientId ) =>
+				getLinkedPageId( getBlock( clientId ) ) ||
+				getBlock( clientId )?.name === 'core/home-link'
 		)
 		? clientIds
 		: EMPTY_ARRAY;
@@ -168,6 +198,46 @@ function GroupHeader( {
 	);
 }
 
+const HOME_ICON_PATH =
+	'M12 4L4 7.9V20h16V7.9L12 4zm6.5 14.5H14V13h-4v5.5H5.5V8.8L12 5.7l6.5 3.1v9.7z';
+const LINK_ICON_PATH =
+	'M12.5 14.5h-1V16h1c2.2 0 4-1.8 4-4s-1.8-4-4-4h-1v1.5h1c1.4 0 2.5 1.1 2.5 2.5s-1.1 2.5-2.5 2.5zm-4 1.5v-1.5h-1C6.1 14.5 5 13.4 5 12s1.1-2.5 2.5-2.5h1V8h-1c-2.2 0-4 1.8-4 4s1.8 4 4 4h1zm-1-3.2h5v-1.5h-5v1.5zM18 4H9c-1.1 0-2 .9-2 2v.5h1.5V6c0-.3.2-.5.5-.5h9c.3 0 .5.2.5.5v12c0 .3-.2.5-.5.5H9c-.3 0-.5-.2-.5-.5v-.5H7v.5c0 1.1.9 2 2 2h9c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z';
+
+function getIconRule( clientId, path ) {
+	const icon = encodeURIComponent(
+		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="${ path }"/></svg>`
+	);
+	const target = `.cnl-pages-menu [data-block="${ clientId }"] .block-editor-list-view-block-select-button > .block-editor-block-icon`;
+
+	return `${ target } svg { visibility: hidden; } ${ target } { background-color: currentColor; mask: url("data:image/svg+xml,${ icon }") center / 24px 24px no-repeat; }`;
+}
+
+/**
+ * Icons for the menu items that go home, which the list view draws from the
+ * kind of block rather than what it means here. Only the item standing for
+ * the homepage has a house, even when it is a link to its page. Any other
+ * Home link is just another link, so it doesn't look like the homepage too.
+ *
+ * @param {Object[]} items `{ clientId, name }` for each item that goes home,
+ *                         the one standing for the homepage first.
+ * @return {string} CSS.
+ */
+function getHomeIconStyles( items ) {
+	return items
+		.map( ( { clientId, name }, index ) => {
+			if ( index === 0 ) {
+				return name === 'core/home-link'
+					? ''
+					: getIconRule( clientId, HOME_ICON_PATH );
+			}
+
+			return name === 'core/home-link'
+				? getIconRule( clientId, LINK_ICON_PATH )
+				: '';
+		} )
+		.join( '\n' );
+}
+
 /**
  * A menu item's options, with ways to edit or delete the page it links to, and
  * a badge when visitors can't see that page yet.
@@ -176,13 +246,48 @@ function GroupHeader( {
  * @return {Element} The badge and options.
  */
 function MenuItemOptions( props ) {
-	const { clientId, isAutomatic, pageActions, statusById } = props;
+	const {
+		clientId,
+		homepage,
+		homepageClientId,
+		isAutomatic,
+		pageActions,
+		statusById,
+	} = props;
 	const { removeBlocks } = useDispatch( blockEditorStore );
 	const block = useSelect(
 		( selectFromStore ) =>
 			selectFromStore( blockEditorStore ).getBlock( clientId ),
 		[ clientId ]
 	);
+
+	// The homepage, linked one way or another. Its house says so. It opens as
+	// the homepage, and can be taken out of the menu but not deleted.
+	if ( block && clientId === homepageClientId ) {
+		const { badge } = getHomepageSummary( homepage );
+
+		return (
+			<div className="cnl-pages-menu__item-options">
+				{ badge && (
+					<Badge
+						className="cnl-pages-menu__status"
+						intent={ badge.intent }
+					>
+						{ badge.label }
+					</Badge>
+				) }
+				<Button
+					className="cnl-pages-menu__edit"
+					icon={ pencilIcon }
+					label={ __( 'Edit Homepage' ) }
+					onClick={ () => pageActions.editPage( HOMEPAGE ) }
+					size="small"
+				/>
+				<NavigationListViewMoreMenu { ...props } />
+			</div>
+		);
+	}
+
 	const pageId = getLinkedPageId( block );
 	const title = getNavigationItemLabel( block );
 	const status = getStatusBadge( statusById.get( pageId ) );
@@ -299,6 +404,7 @@ function getOtherMenusDescription( otherMenuAreas ) {
 function InMenuGroup( {
 	canCreate,
 	groupNames,
+	homepage,
 	menuBlocks,
 	menuId,
 	menuTitle,
@@ -341,29 +447,85 @@ function InMenuGroup( {
 			).includes( '<!-- wp:page-list' ),
 		[ menuId ]
 	);
+	const homeContext = useMemo(
+		() => getHomeLinkContext( homepage ),
+		[ homepage ]
+	);
+	// Every item that goes home, as `clientId:name`, top to bottom. The first
+	// stands for the homepage.
+	const homeItems = useSelect(
+		( selectFromStore ) => {
+			const store = selectFromStore( blockEditorStore );
+			const found = [];
+			const visit = ( clientIds ) =>
+				clientIds.forEach( ( clientId ) => {
+					const block = store.getBlock( clientId );
+
+					if ( isHomeMenuItem( block, homeContext ) ) {
+						found.push( `${ clientId }:${ block.name }` );
+					}
+
+					visit( store.getBlockOrder( clientId ) );
+				} );
+
+			visit( store.getBlockOrder( store.getBlockOrder()[ 0 ] || '' ) );
+
+			return found.join( ',' );
+		},
+		[ homeContext ]
+	);
+	const homeItemList = useMemo(
+		() =>
+			homeItems
+				.split( ',' )
+				.filter( Boolean )
+				.map( ( item ) => {
+					const [ clientId, name ] = item.split( ':' );
+
+					return { clientId, name };
+				} ),
+		[ homeItems ]
+	);
+	const homepageClientId = homeItemList[ 0 ]?.clientId;
+	const homeIconStyles = useMemo(
+		() => getHomeIconStyles( homeItemList ),
+		[ homeItemList ]
+	);
 	const blockSettingsMenu = useMemo(
 		() => ( props ) => (
 			<MenuItemOptions
 				{ ...props }
+				homepage={ homepage }
+				homepageClientId={ homepageClientId }
 				isAutomatic={ isAutomatic }
 				pageActions={ pageActions }
 				statusById={ statusById }
 			/>
 		),
-		[ isAutomatic, pageActions, statusById ]
+		[ homepage, homepageClientId, isAutomatic, pageActions, statusById ]
 	);
 	const openPage = ( block ) => {
-		const pageId = getLinkedPageId( block );
+		if ( Date.now() - activatedAt.current >= 500 ) {
+			return;
+		}
 
-		if ( pageId && Date.now() - activatedAt.current < 500 ) {
-			previewPage( pageId );
+		if ( isHomeMenuItem( block, homeContext ) ) {
+			previewPage( HOMEPAGE );
+		} else if ( getLinkedPageId( block ) ) {
+			previewPage( getLinkedPageId( block ) );
 		}
 	};
+
+	useEffect( () => registerHomeLinkVariation(), [] );
 	const isEmpty = ! menuBlocks.length;
 	const { previewedId } = pageActions;
 	const { clearSelectedBlock, selectBlock } = useDispatch( blockEditorStore );
 	const previewedClientId = useSelect(
 		( selectFromStore ) => {
+			if ( previewedId === HOMEPAGE ) {
+				return homepageClientId;
+			}
+
 			const store = selectFromStore( blockEditorStore );
 
 			return [
@@ -375,7 +537,7 @@ function InMenuGroup( {
 					previewedId
 			);
 		},
-		[ previewedId ]
+		[ homepageClientId, previewedId ]
 	);
 
 	// Mark the page in the canvas as the picked item, however it got there.
@@ -484,6 +646,7 @@ function InMenuGroup( {
 				onToggle={ () => setIsOpen( ! isOpen ) }
 				title={ groupNames.inMenu }
 			/>
+			{ homeIconStyles && <style>{ homeIconStyles }</style> }
 			{ isOpen && ! isEmpty && (
 				<div
 					onClickCapture={ ( event ) => {
@@ -554,6 +717,89 @@ function InMenuGroup( {
 				</div>
 			) }
 		</section>
+	);
+}
+
+/**
+ * The homepage, while the menu doesn't go to it. It can be dragged into the
+ * menu, or added with +, as a Home link. It can't be deleted.
+ *
+ * @param {Object}   props             Component props.
+ * @param {Object}   props.homepage    Result of `useHomepageState`.
+ * @param {boolean}  props.isPreviewed Whether the canvas shows it.
+ * @param {Function} props.onAddToMenu Adds it to the menu.
+ * @param {Object}   props.pageActions Ways to show and open pages.
+ * @return {Element} The row.
+ */
+function HomepageMenuRow( {
+	homepage,
+	isPreviewed,
+	onAddToMenu,
+	pageActions,
+} ) {
+	const { badge, summary } = getHomepageSummary( homepage );
+
+	return (
+		<li
+			className={ `cnl-pages-menu__page cnl-pages-menu__page--homepage${
+				isPreviewed ? ' is-previewed' : ''
+			}` }
+			draggable
+			onDragStart={ ( event ) => {
+				event.dataTransfer.effectAllowed = 'copyMove';
+				event.dataTransfer.setData(
+					'wp-blocks',
+					JSON.stringify( {
+						blocks: [ createHomeLinkBlock() ],
+						type: 'inserter',
+					} )
+				);
+				event.dataTransfer.setData( 'text/plain', __( 'Homepage' ) );
+			} }
+		>
+			{ /* eslint-disable-next-line jsx-a11y/role-supports-aria-props -- aria-description is a global attribute in ARIA 1.3. */ }
+			<button
+				aria-current={ isPreviewed ? 'page' : undefined }
+				aria-description={ __(
+					'Drag into your menu to add it to the menu.'
+				) }
+				className="cnl-pages-menu__page-link"
+				onClick={ () => pageActions.previewPage( HOMEPAGE ) }
+				type="button"
+			>
+				<Icon className="cnl-pages-menu__page-icon" icon={ homeIcon } />
+				<span className="cnl-pages-menu__page-title">
+					{ __( 'Homepage' ) }
+				</span>
+				{ summary && (
+					<span className="cnl-pages-menu__page-role">
+						{ summary }
+					</span>
+				) }
+				{ badge && (
+					<Badge
+						className="cnl-pages-menu__status"
+						intent={ badge.intent }
+					>
+						{ badge.label }
+					</Badge>
+				) }
+			</button>
+			<div className="cnl-pages-menu__page-actions">
+				<Button
+					icon={ pencilIcon }
+					label={ __( 'Edit Homepage' ) }
+					onClick={ () => pageActions.editPage( HOMEPAGE ) }
+					size="small"
+				/>
+				<Button
+					icon={ plusIcon }
+					label={ __( 'Add Homepage to your menu' ) }
+					onClick={ onAddToMenu }
+					size="small"
+				/>
+			</div>
+		</li>
 	);
 }
 
@@ -656,6 +902,7 @@ function NotInMenuRow( {
 function NotInMenuGroup( {
 	canCreate,
 	groupNames,
+	homepage,
 	menuBlocks,
 	onAddPage,
 	pageActions,
@@ -671,14 +918,23 @@ function NotInMenuGroup( {
 		() => getMenuPagesFromBlocks( menuBlocks ).pageIds,
 		[ menuBlocks ]
 	);
+	// The homepage is listed as itself, never as its page too.
+	const isHomeInMenu = useMemo(
+		() =>
+			Boolean(
+				findHomeMenuItem( menuBlocks, getHomeLinkContext( homepage ) )
+			),
+		[ homepage, menuBlocks ]
+	);
+	const showsHomepage = ! homepage.isLoading && ! isHomeInMenu;
 	const notInMenu = useMemo(
 		() =>
-			pages
+			withoutHomepagePage( pages, homepage.pageId )
 				.filter( ( page ) => ! linkedPageIds.has( Number( page.id ) ) )
 				.sort( ( a, b ) =>
 					getPageTitle( a ).localeCompare( getPageTitle( b ) )
 				),
-		[ linkedPageIds, pages ]
+		[ homepage.pageId, linkedPageIds, pages ]
 	);
 	const addToMenu = ( page ) =>
 		insertBlock(
@@ -687,6 +943,16 @@ function NotInMenuGroup( {
 			rootClientId,
 			false
 		);
+	const addHomepageToMenu = () =>
+		insertBlock(
+			createEditorBlocksFromNavigationBlocks( [
+				createHomeLinkBlock(),
+			] )[ 0 ],
+			undefined,
+			rootClientId,
+			false
+		);
+	const count = notInMenu.length + ( showsHomepage ? 1 : 0 );
 
 	return (
 		<section
@@ -728,15 +994,25 @@ function NotInMenuGroup( {
 						/>
 					)
 				}
-				count={ notInMenu.length }
+				count={ count }
 				info={ groupNames.notInMenuInfo }
 				isOpen={ isOpen }
 				onToggle={ () => setIsOpen( ! isOpen ) }
 				title={ groupNames.notInMenu }
 			/>
 			{ isOpen &&
-				( notInMenu.length ? (
+				( count ? (
 					<ul className="cnl-pages-menu__pages" role="list">
+						{ showsHomepage && (
+							<HomepageMenuRow
+								homepage={ homepage }
+								isPreviewed={
+									pageActions.previewedId === HOMEPAGE
+								}
+								onAddToMenu={ addHomepageToMenu }
+								pageActions={ pageActions }
+							/>
+						) }
 						{ notInMenu.map( ( page ) => (
 							<NotInMenuRow
 								isPreviewed={
@@ -775,6 +1051,7 @@ export default function PagesMenuGroups( { canCreate, onAddPage } ) {
 	const mainMenu = useMainMenu();
 	const { isLoading: isLoadingMenu, menuId, menuTitle } = mainMenu;
 	const { frontPageId, isLoading, pages, postsPageId } = usePages();
+	const homepage = useHomepageState();
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
 	const [ menuBlocks, setMenuBlocks ] = useState( null );
@@ -782,11 +1059,13 @@ export default function PagesMenuGroups( { canCreate, onAddPage } ) {
 		() => ( { frontPageId, postsPageId } ),
 		[ frontPageId, postsPageId ]
 	);
-	const previewedId =
-		Number( searchParams.previewId ) ||
-		frontPageId ||
-		Number( pages[ 0 ]?.id ) ||
-		0;
+	// The canvas shows the homepage until something else is picked.
+	let previewedId = parseTarget( searchParams.previewId ) || HOMEPAGE;
+
+	if ( previewedId === homepage.pageId ) {
+		previewedId = HOMEPAGE;
+	}
+
 	const trash = usePageTrash( { pages, previewedId } );
 	const pageActions = useMemo(
 		() => ( {
@@ -849,6 +1128,7 @@ export default function PagesMenuGroups( { canCreate, onAddPage } ) {
 					<InMenuGroup
 						canCreate={ canCreate }
 						groupNames={ groupNames }
+						homepage={ homepage }
 						menuBlocks={ menuBlocks }
 						menuId={ menuId }
 						menuTitle={ menuTitle }
@@ -861,6 +1141,7 @@ export default function PagesMenuGroups( { canCreate, onAddPage } ) {
 					<NotInMenuGroup
 						canCreate={ canCreate }
 						groupNames={ groupNames }
+						homepage={ homepage }
 						menuBlocks={ menuBlocks }
 						onAddPage={ onAddPage }
 						pageActions={ pageActions }
