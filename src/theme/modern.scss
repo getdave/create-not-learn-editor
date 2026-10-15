@@ -82,6 +82,23 @@ $heading-font-family: "EB Garamond", "Georgia", "Times New Roman", serif;
 	}
 
 	/*
+	 * The nav items in the black sidebar only get a text color change on
+	 * hover and keyboard focus, which barely reads against the dark
+	 * background. Add a subtle background so the state is visible.
+	 */
+	[class*="__sidebar"] .components-item {
+
+		&:hover,
+		&:focus-visible {
+			background: rgba(255, 255, 255, 0.08);
+		}
+
+		&:active {
+			background: rgba(255, 255, 255, 0.12);
+		}
+	}
+
+	/*
 	 * Breadcrumb trails, such as Menus / Navigation, read as one title,
 	 * with the parents muted so the current screen stands out.
 	 */
@@ -186,6 +203,12 @@ $heading-font-family: "EB Garamond", "Georgia", "Times New Roman", serif;
 		.routes-styles__look-preview {
 			transition-duration: var(--wpds-motion-duration-sm);
 			transition-property: border-color, box-shadow, outline-color;
+			transition-timing-function: var(--wpds-motion-easing-subtle);
+		}
+
+		[class*="__sidebar"] .components-item {
+			transition-duration: var(--wpds-motion-duration-sm);
+			transition-property: background-color;
 			transition-timing-function: var(--wpds-motion-easing-subtle);
 		}
 	}
