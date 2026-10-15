@@ -94,3 +94,41 @@
 .cnl-site-part__menu .routes-navigation-edit__body {
 	padding: 0;
 }
+
+// A row for each social link: its address, and its options beside it, level
+// with the field rather than its label.
+.cnl-site-part__social-links {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-lg);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.cnl-site-part__social-link {
+	display: flex;
+	align-items: flex-end;
+	gap: var(--wpds-dimension-gap-xs);
+
+	> :first-child {
+		flex: 1;
+		min-width: 0;
+	}
+}
+
+// The popover opens outside the screen's theme, without its tokens. Core
+// takes the padding off a dropdown holding a menu, so it goes inside.
+.cnl-site-part__add-social-content {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	width: 260px;
+	padding: 8px;
+}
+
+// Core has dozens of services, so the list scrolls under the search.
+.cnl-site-part__add-social-list {
+	max-height: 280px;
+	overflow-y: auto;
+}
