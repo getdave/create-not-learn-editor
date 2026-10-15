@@ -49,6 +49,13 @@ The `wp-env` instance auto-installs and activates the [Automattic/canvas](https:
 - Section colours in Compose come from the theme's `styles/sections/*.json` block style variations, which must set colours. Header and footer layouts are patterns with `Block Types: core/template-part/header` or `core/template-part/footer`.
 - Bundled photos are CC0 (StockSnap) and fonts are OFL; credit new ones in `themes/mainstay/readme.txt`.
 
+## Playground Demo
+
+- The README's demo link opens WordPress Playground with `demos/blueprint.json`. Keep blueprints and other Playground demo files in `demos/`. The seed script stays in `scripts/demo-site/` because wp-env runs it too.
+- The blueprint installs from the `playground-build` branch, which `.github/workflows/plugin-zip.yml` replaces on every push to `trunk`. Never commit to that branch by hand.
+- Keep the blueprint's Gutenberg version in step with `.wp-env.json`.
+- Anything the demo site needs at runtime must be in the plugin zip, the Mainstay theme or `scripts/demo-site/seed.php`, as those are all the blueprint gets.
+
 ## Development Commands
 
 Use these commands from the repo root:
