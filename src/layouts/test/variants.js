@@ -1,6 +1,6 @@
-// The real package pulls in ES modules this Jest set-up cannot load, so its
-// `cloneBlock` is mirrored here, as other tests in the repo mock it too.
-jest.mock( '@wordpress/blocks', () => {
+// The real package imports JSON without the import attribute Node needs, so
+// its `cloneBlock` is mirrored here, as other tests in the repo mock it too.
+vi.mock( '@wordpress/blocks', () => {
 	let id = 0;
 
 	function cloneBlock( block, mergeAttributes = {}, newInnerBlocks ) {
@@ -20,6 +20,7 @@ jest.mock( '@wordpress/blocks', () => {
 /**
  * External dependencies
  */
+import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 

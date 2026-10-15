@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import { describe, expect, it } from 'vitest';
+
+/**
  * Internal dependencies
  */
 import { getLayoutDescription, getLayoutOutline } from '../layout-outline';
@@ -100,7 +105,11 @@ describe( 'getLayoutOutline', () => {
 
 		expect(
 			getLayoutOutline( main( columns( CONTENT, widgets ) ) )
-		).toMatchObject( { before: [], after: [], sidebar: 'end' } );
+		).toMatchObject( {
+			before: [],
+			after: [],
+			sidebar: 'end',
+		} );
 		expect(
 			getLayoutOutline( main( columns( widgets, CONTENT ) ) ).sidebar
 		).toBe( 'start' );

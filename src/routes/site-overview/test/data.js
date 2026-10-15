@@ -1,21 +1,26 @@
-jest.mock( '@wordpress/route', () => ( {
-	useNavigate: jest.fn(),
-	useSearch: jest.fn(),
+/**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock( '@wordpress/route', () => ( {
+	useNavigate: vi.fn(),
+	useSearch: vi.fn(),
 } ) );
-jest.mock( '../../../wordpress-packages', () => ( {
-	...jest.requireActual( '@wordpress/i18n' ),
+vi.mock( '../../../wordpress-packages', async () => ( {
+	...( await vi.importActual( '@wordpress/i18n' ) ),
 	homeIcon: 'home',
 	pageIcon: 'page',
 	postIcon: 'post',
 	postListIcon: 'post-list',
 	storeIcon: 'store',
-	useCallback: jest.fn(),
-	useSelect: jest.fn(),
-	addQueryArgs: jest.fn(),
-	apiFetch: jest.fn(),
-	createReduxStore: jest.fn( () => ( {} ) ),
-	register: jest.fn(),
-	select: jest.fn(),
+	useCallback: vi.fn(),
+	useSelect: vi.fn(),
+	addQueryArgs: vi.fn(),
+	apiFetch: vi.fn(),
+	createReduxStore: vi.fn( () => ( {} ) ),
+	register: vi.fn(),
+	select: vi.fn(),
 } ) );
 
 /**

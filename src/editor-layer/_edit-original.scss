@@ -20,9 +20,9 @@
 @mixin hide-edit-original {
 
 	.block-editor-block-toolbar.is-synced
-		.components-toolbar-group:has(> .block-editor-block-toolbar__slot):not(
-			:has(~ .components-toolbar-group > .block-editor-block-toolbar__slot)
-		) {
+	.components-toolbar-group:has(> .block-editor-block-toolbar__slot):not(
+		:has(~ .components-toolbar-group > .block-editor-block-toolbar__slot)
+	) {
 		display: none;
 	}
 }

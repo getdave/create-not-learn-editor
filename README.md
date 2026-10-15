@@ -174,6 +174,7 @@ src/vendor/gutenberg/list-view
 Do not edit those files by hand. Regenerate them with:
 
 ```sh
+- `npm run test:unit` runs the unit tests with Vitest. Its settings live in `vitest.config.mjs`.
 npm run sync:list-view
 ```
 

@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
+
+/**
  * Internal dependencies
  */
 import {
@@ -10,7 +15,7 @@ import {
 
 describe( 'navigation link attribute helpers', () => {
 	test( 'updates custom links without creating an entity link', () => {
-		const setAttributes = jest.fn();
+		const setAttributes = vi.fn();
 		const result = updateNavigationLinkAttributes(
 			{
 				label: 'External',
@@ -29,7 +34,7 @@ describe( 'navigation link attribute helpers', () => {
 	} );
 
 	test( 'keeps entity metadata for post type suggestions', () => {
-		const setAttributes = jest.fn();
+		const setAttributes = vi.fn();
 		const result = updateNavigationLinkAttributes(
 			{
 				id: 42,
@@ -61,7 +66,7 @@ describe( 'navigation link attribute helpers', () => {
 	} );
 
 	test( 'severs an entity link when the URL points to a different path', () => {
-		const setAttributes = jest.fn();
+		const setAttributes = vi.fn();
 		const result = updateNavigationLinkAttributes(
 			{
 				url: 'https://example.com/contact/',

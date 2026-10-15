@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import { describe, expect, it, vi } from 'vitest';
+
+/**
  * Internal dependencies
  */
 import { observeHost } from '../portal-host';
@@ -23,7 +28,7 @@ describe( 'observeHost', () => {
 		const root = document.createElement( 'div' );
 		const region = createRegion();
 		root.appendChild( region );
-		const onHost = jest.fn();
+		const onHost = vi.fn();
 
 		const stop = observeHost( REGION, HOST, onHost, root );
 
@@ -36,7 +41,7 @@ describe( 'observeHost', () => {
 
 	it( 'waits for a region that mounts later', async () => {
 		const root = document.createElement( 'div' );
-		const onHost = jest.fn();
+		const onHost = vi.fn();
 		const stop = observeHost( REGION, HOST, onHost, root );
 
 		expect( onHost ).not.toHaveBeenCalled();
@@ -54,7 +59,7 @@ describe( 'observeHost', () => {
 		const root = document.createElement( 'div' );
 		const region = createRegion();
 		root.appendChild( region );
-		const onHost = jest.fn();
+		const onHost = vi.fn();
 		const stop = observeHost( REGION, HOST, onHost, root );
 
 		region.remove();
@@ -74,7 +79,7 @@ describe( 'observeHost', () => {
 		const root = document.createElement( 'div' );
 		const region = createRegion();
 		root.appendChild( region );
-		const onHost = jest.fn();
+		const onHost = vi.fn();
 		const stop = observeHost( REGION, HOST, onHost, root );
 
 		await flush();

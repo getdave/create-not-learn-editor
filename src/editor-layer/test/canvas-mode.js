@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import { describe, expect, it, vi } from 'vitest';
+
+/**
  * Internal dependencies
  */
 import { isEditCanvas, subscribeToEditCanvas } from '../canvas-mode';
@@ -38,7 +43,7 @@ describe( 'isEditCanvas', () => {
 describe( 'subscribeToEditCanvas', () => {
 	it( 'reports entering and leaving the edit canvas', async () => {
 		const { root, layout } = createRoot();
-		const onChange = jest.fn();
+		const onChange = vi.fn();
 		const unsubscribe = subscribeToEditCanvas( onChange, root );
 
 		layout.classList.add( FULL_CANVAS );
@@ -52,7 +57,7 @@ describe( 'subscribeToEditCanvas', () => {
 
 	it( 'ignores class changes that do not touch the marker', async () => {
 		const { root, layout } = createRoot();
-		const onChange = jest.fn();
+		const onChange = vi.fn();
 		const unsubscribe = subscribeToEditCanvas( onChange, root );
 
 		layout.classList.add( 'is-selected' );
@@ -64,7 +69,7 @@ describe( 'subscribeToEditCanvas', () => {
 
 	it( 'follows a layout that boot replaces', async () => {
 		const { root, layout } = createRoot();
-		const onChange = jest.fn();
+		const onChange = vi.fn();
 		const unsubscribe = subscribeToEditCanvas( onChange, root );
 
 		const replacement = document.createElement( 'div' );
@@ -78,7 +83,7 @@ describe( 'subscribeToEditCanvas', () => {
 
 	it( 'stops reporting once unsubscribed', async () => {
 		const { root, layout } = createRoot();
-		const onChange = jest.fn();
+		const onChange = vi.fn();
 
 		subscribeToEditCanvas( onChange, root )();
 		layout.classList.add( FULL_CANVAS );

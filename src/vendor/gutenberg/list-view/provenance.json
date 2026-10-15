@@ -1,7 +1,7 @@
 {
 	"source": "@wordpress/block-editor",
-	"sourceVersion": "17.1.0",
-	"sourceGitHead": "485f42ae8a1c58ceea18371a507fd4acfa86fbd8",
+	"sourceVersion": "18.1.0",
+	"sourceGitHead": "12441e2520c78b2254a792a8cba40c34110be060",
 	"sourceDirectory": "src/components/list-view",
 	"patch": "patches/gutenberg-list-view.patch",
 	"patchChecksum": "5563793b5c57345c8a377892bf7ab7f83e76776504e03716d72a52e97b830c6b",

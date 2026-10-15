@@ -1,4 +1,9 @@
-jest.mock( '../../../wordpress-packages', () => ( {
+/**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock( '../../../wordpress-packages', () => ( {
 	__: ( text ) => text,
 } ) );
 

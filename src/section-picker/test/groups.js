@@ -1,8 +1,13 @@
-jest.mock( '@wordpress/blocks', () => ( {
-	createBlock: jest.fn(),
-	parse: jest.fn(),
+/**
+ * External dependencies
+ */
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock( '@wordpress/blocks', () => ( {
+	createBlock: vi.fn(),
+	parse: vi.fn(),
 } ) );
-jest.mock( '@wordpress/core-data', () => ( { store: {} } ) );
+vi.mock( '@wordpress/core-data', () => ( { store: {} } ) );
 
 /**
  * Internal dependencies

@@ -1,5 +1,6 @@
-const fs = require( 'fs/promises' );
-const path = require( 'path' );
+import { describe, expect, test } from 'vitest';
+import fs from 'fs/promises';
+import path from 'path';
 
 const repoRoot = process.cwd();
 const srcRoot = path.join( repoRoot, 'src' );

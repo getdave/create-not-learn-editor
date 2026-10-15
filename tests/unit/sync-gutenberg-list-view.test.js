@@ -1,6 +1,7 @@
-const fs = require( 'fs/promises' );
-const path = require( 'path' );
-const { execFileSync } = require( 'child_process' );
+import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'fs/promises';
+import path from 'path';
+import { execFileSync } from 'child_process';
 
 const repoRoot = process.cwd();
 

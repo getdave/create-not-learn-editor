@@ -1,4 +1,9 @@
-jest.mock( '@wordpress/blocks', () => ( {
+/**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock( '@wordpress/blocks', () => ( {
 	createBlock: ( name, attributes = {}, innerBlocks = [] ) => ( {
 		attributes,
 		clientId: `mock-client-id-${ name }`,

@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import { describe, expect, test } from 'vitest';
+
+/**
  * Internal dependencies
  */
 import {
@@ -47,7 +52,11 @@ describe( 'site overview viewport', () => {
 		).toEqual( { k: 0.5, x: 0, y: 50 } );
 		expect(
 			fitView( { height: 100, width: 100, x: 0, y: 0 }, size, 0 )
-		).toEqual( { k: 1, x: 450, y: 250 } );
+		).toEqual( {
+			k: 1,
+			x: 450,
+			y: 250,
+		} );
 	} );
 
 	test( 'centres a rectangle at the current zoom level', () => {

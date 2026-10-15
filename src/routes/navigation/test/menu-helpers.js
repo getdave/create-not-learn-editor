@@ -1,14 +1,19 @@
-jest.mock( '@wordpress/route', () => ( {
-	useSearch: jest.fn(),
+/**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock( '@wordpress/route', () => ( {
+	useSearch: vi.fn(),
 } ) );
-jest.mock( '../../../wordpress-packages', () => ( {
-	...jest.requireActual( '@wordpress/i18n' ),
-	useMemo: jest.fn(),
-	addQueryArgs: jest.fn(),
-	apiFetch: jest.fn(),
-	createReduxStore: jest.fn( () => ( {} ) ),
-	register: jest.fn(),
-	select: jest.fn(),
+vi.mock( '../../../wordpress-packages', async () => ( {
+	...( await vi.importActual( '@wordpress/i18n' ) ),
+	useMemo: vi.fn(),
+	addQueryArgs: vi.fn(),
+	apiFetch: vi.fn(),
+	createReduxStore: vi.fn( () => ( {} ) ),
+	register: vi.fn(),
+	select: vi.fn(),
 } ) );
 
 /**
@@ -80,8 +85,8 @@ describe( 'menu helpers', () => {
 	} );
 
 	test( 'opens a menu on its own screen, linking back to Menus', () => {
-		jest.useFakeTimers();
-		const navigate = jest.fn();
+		vi.useFakeTimers();
+		const navigate = vi.fn();
 
 		navigateToNavigationEditRoute( navigate, { id: 'a b' } );
 		navigateToNavigationEditRoute( navigate, '' );
@@ -91,6 +96,6 @@ describe( 'menu helpers', () => {
 			'/navigation/edit/a%20b'
 		);
 		expect( navigate.mock.calls[ 0 ][ 0 ].search ).toBeTruthy();
-		jest.useRealTimers();
+		vi.useRealTimers();
 	} );
 } );

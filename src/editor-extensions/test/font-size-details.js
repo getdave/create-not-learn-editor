@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import { describe, expect, it } from 'vitest';
+
+/**
  * Internal dependencies
  */
 import {
@@ -82,7 +87,10 @@ describe( 'getFontSizeAttributes', () => {
 
 	it( 'goes back to the default size', () => {
 		expect( getFontSizeAttributes( { fontSize: 'large' }, null ) ).toEqual(
-			{ fontSize: undefined, style: undefined }
+			{
+				fontSize: undefined,
+				style: undefined,
+			}
 		);
 	} );
 } );
