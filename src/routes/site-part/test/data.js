@@ -70,6 +70,12 @@ const PATTERNS = [
 		name: 'theme/footer',
 	},
 	{
+		blockTypes: [ 'core/template-part/footer' ],
+		content:
+			'<!-- wp:social-links --><!-- wp:social-link {"url":"#","service":"facebook"} /--><!-- /wp:social-links -->',
+		name: 'theme/footer-social',
+	},
+	{
 		blockTypes: [ 'core/template-part/header' ],
 		content: '<!-- wp:site-title /-->',
 		inserter: false,
@@ -98,7 +104,11 @@ describe( 'site part data', () => {
 			hasLogo: false,
 			hasNavigation: false,
 			hasSiteTitle: true,
+			hasSocialLinks: false,
 		} );
+		expect(
+			getSitePartContents( [ 'core/social-links' ] ).hasSocialLinks
+		).toBe( true );
 	} );
 
 	test( 'offers the theme’s layouts for the area', () => {
@@ -131,6 +141,12 @@ describe( 'site part data', () => {
 		expect(
 			getCurrentPatternName( '<!-- wp:site-tagline /-->', layouts )
 		).toBeNull();
+		expect(
+			getCurrentPatternName(
+				'<!-- wp:social-links --><!-- wp:social-link {"url":"https://instagram.com/me","service":"instagram"} /--><!-- /wp:social-links -->',
+				getSitePartPatterns( PATTERNS, 'footer' )
+			)
+		).toBe( 'theme/footer-social' );
 		expect( getCurrentPatternName( '', layouts ) ).toBeNull();
 	} );
 

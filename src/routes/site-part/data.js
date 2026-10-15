@@ -51,7 +51,7 @@ export function pickSitePart( parts, area ) {
  * @param {string} theme Current theme's stylesheet.
  * @return {Object[]} `{ area, clientId, id }` items.
  */
-function getSiteParts( store, theme ) {
+export function getSiteParts( store, theme ) {
 	const parts = [];
 	const visit = ( rootClientId ) =>
 		store.getBlockOrder( rootClientId ).forEach( ( clientId ) => {
@@ -116,7 +116,8 @@ export function useSitePart( area ) {
  * What a site part holds that the screen offers controls for.
  *
  * @param {string[]} names Names of every block in the part.
- * @return {Object} `{ hasLogo, hasNavigation, hasSiteTitle }`.
+ * @return {Object} `{ hasLogo, hasNavigation, hasSiteTitle,
+ *                  hasSocialLinks }`.
  */
 export function getSitePartContents( names ) {
 	const has = ( name ) => ( names || EMPTY_ARRAY ).includes( name );
@@ -125,6 +126,7 @@ export function getSitePartContents( names ) {
 		hasLogo: has( 'core/site-logo' ),
 		hasNavigation: has( 'core/navigation' ),
 		hasSiteTitle: has( 'core/site-title' ),
+		hasSocialLinks: has( 'core/social-links' ),
 	};
 }
 
@@ -134,8 +136,8 @@ export function getSitePartContents( names ) {
  * menu, shows no menu: its links are changed where they are, on the canvas.
  *
  * @param {?string} clientId The part's client ID in the editor.
- * @return {Object} `{ hasLogo, hasNavigation, hasSiteTitle, navigationRef,
- *                  showsMenu }`.
+ * @return {Object} `{ hasLogo, hasNavigation, hasSiteTitle, hasSocialLinks,
+ *                  navigationRef, showsMenu }`.
  */
 export function useSitePartContents( clientId ) {
 	const { names, navigationRef, showsMenu } = useSelect(
@@ -224,22 +226,27 @@ function normalize( markup ) {
 }
 
 /*
- * Without what placing a layout adds to it: the name a pattern is stamped
- * with in a part, and the menu a Navigation block without one is given.
+ * Without what placing a layout adds to it, or fills in on it: the name a
+ * pattern is stamped with in a part, the menu a Navigation block without one
+ * is given, and the site's social links.
  */
 function withoutPlacementDetails( blocks ) {
 	return blocks.map( ( block ) => {
 		const key = block.attributes ? 'attributes' : 'attrs';
 		const { metadata, ...attributes } = block[ key ] || {};
+		const name = getBlockName( block );
 
-		if ( getBlockName( block ) === 'core/navigation' ) {
+		if ( name === 'core/navigation' ) {
 			delete attributes.ref;
 		}
 
 		return {
 			...block,
 			[ key ]: attributes,
-			innerBlocks: withoutPlacementDetails( block.innerBlocks || [] ),
+			innerBlocks:
+				name === 'core/social-links'
+					? []
+					: withoutPlacementDetails( block.innerBlocks || [] ),
 		};
 	} );
 }
@@ -258,8 +265,9 @@ function toComparable( content ) {
  * Which of the theme's layouts a site part is using, if any.
  *
  * A part that only places a pattern, as many themes' own parts do, uses that
- * pattern. Otherwise its blocks must match a layout's, give or take spacing
- * and what placing it adds. A part that has been changed since matches none.
+ * pattern. Otherwise its blocks must match a layout's, give or take spacing,
+ * what placing it adds and the social links filled in on it. A part that
+ * has been changed since matches none.
  *
  * @param {string}   content  The part's markup.
  * @param {Object[]} patterns The part's layouts.
