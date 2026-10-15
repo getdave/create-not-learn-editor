@@ -417,7 +417,7 @@ function createStage( area ) {
 			: null;
 
 		return (
-			<div className="cnl-editor-stage cnl-drilldown-stage routes-styles cnl-site-part">
+			<div className="cnl-editor-stage routes-styles cnl-site-part">
 				<Stack direction="column" gap="xs">
 					<Breadcrumbs
 						items={

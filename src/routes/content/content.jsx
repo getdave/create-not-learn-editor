@@ -512,8 +512,7 @@ function Stage() {
 						] }
 					/>
 				),
-				className:
-					'cnl-editor-stage cnl-drilldown-stage cnl-editor-content-page',
+				className: 'cnl-editor-stage cnl-editor-content-page',
 			}
 		: {
 				actions: pageActions,

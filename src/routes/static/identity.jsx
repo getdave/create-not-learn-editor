@@ -259,7 +259,7 @@ export function SiteIdentityFields() {
 
 export function SiteIdentityStage() {
 	return (
-		<div className="cnl-editor-stage cnl-drilldown-stage routes-styles cnl-editor-identity">
+		<div className="cnl-editor-stage routes-styles cnl-editor-identity">
 			<DesignScreenHeading
 				description={ __(
 					'How your site introduces itself. Shown in your header, browser tabs, and search results.'

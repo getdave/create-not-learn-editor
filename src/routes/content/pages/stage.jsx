@@ -212,7 +212,7 @@ export function PageDetailStage( {
 					] }
 				/>
 			}
-			className="cnl-editor-stage cnl-drilldown-stage cnl-pages-detail"
+			className="cnl-editor-stage cnl-pages-detail"
 			hasPadding={ false }
 			headingLevel={ 2 }
 		>
