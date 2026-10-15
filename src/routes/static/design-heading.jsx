@@ -7,8 +7,7 @@ import { Breadcrumbs, Stack, Text, __ } from '../../wordpress-packages';
 /**
  * The title of a screen under Design. Screens linked from Design lead with a
  * breadcrumb back to it, as there is no sidebar item to return by. Opened
- * from the "Your site" checklist, or the Header or Footer screen, they lead
- * back there instead.
+ * from the "Your site" checklist, they lead back there instead.
  *
  * @param {Object}  props             Component props.
  * @param {string}  props.description Sentence under the title.

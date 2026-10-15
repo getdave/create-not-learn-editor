@@ -7,6 +7,9 @@
  * In Edit the part is entered as a section, as core does when a pattern or
  * template part is edited in place. That makes everything outside it inert,
  * so all that is added here is keeping it entered and scrolled to.
+ *
+ * Within the part, what the screen's view changes, like its menu, is outlined
+ * in the admin's accent colour, so it is clear what is being edited.
  */
 
 /**
@@ -22,15 +25,47 @@ import {
 
 const SPOTLIGHT_ATTRIBUTE = 'data-cnl-spotlight';
 const FADED_ATTRIBUTE = 'data-cnl-spotlight-faded';
+const FOCUS_ATTRIBUTE = 'data-cnl-spotlight-focus';
 const STYLE_ID = 'cnl-site-part-spotlight';
+
+/*
+ * What each of the screen's views changes, as the blocks the editor has and
+ * as they appear in the saved site. A menu is the part's first, the one the
+ * screen edits; the name and logo are all there are.
+ */
+const FOCUS_TARGETS = {
+	identity: {
+		blockNames: [
+			'core/site-logo',
+			'core/site-title',
+			'core/site-tagline',
+		],
+		selector:
+			'.wp-block-site-logo, .wp-block-site-title, .wp-block-site-tagline',
+	},
+	menu: {
+		blockNames: [ 'core/navigation' ],
+		isFirstOnly: true,
+		selector: '.wp-block-navigation',
+	},
+};
 
 /*
  * The rest of the page is faded back, and the dark backdrop laid over it.
  * The backdrop is the part's own shadow, spread far enough to cover any
  * page, with the part lifted over what follows it so the shadow lies on top.
  * `:where()` keeps a theme's sticky or fixed header as it is.
+ *
+ * What is being edited in the part is outlined, a little outside itself so
+ * the outline doesn't sit on its text. The accent colour is set on the root
+ * when the styles are added, as the canvas has the theme's styles, not ours.
  */
 const SPOTLIGHT_STYLES = `
+[${ FOCUS_ATTRIBUTE }] {
+	outline: 2px solid var(--cnl-spotlight-accent) !important;
+	outline-offset: 4px !important;
+	border-radius: 2px;
+}
 :where([${ SPOTLIGHT_ATTRIBUTE }]) { position: relative; }
 [${ SPOTLIGHT_ATTRIBUTE }] {
 	z-index: 99999;
@@ -46,6 +81,12 @@ const SPOTLIGHT_STYLES = `
 }
 @keyframes cnl-spotlight-fade {
 	from { opacity: 1; }
+}
+@media not (prefers-reduced-motion) {
+	[${ FOCUS_ATTRIBUTE }] { animation: cnl-spotlight-focus 0.3s ease-out; }
+}
+@keyframes cnl-spotlight-focus {
+	from { outline-color: transparent; outline-offset: 10px; }
 }
 `;
 
@@ -74,15 +115,91 @@ const PREVIEW_SELECTORS = {
 const NOT_FADED =
 	'style, script, link, meta, template, noscript, body > svg, .block-canvas-cover';
 
+function getAccentColor() {
+	return (
+		window
+			.getComputedStyle( document.body )
+			.getPropertyValue( '--wp-admin-theme-color' )
+			.trim() || '#3858e9'
+	);
+}
+
 function addStyles( canvasDocument, css ) {
 	canvasDocument.getElementById( STYLE_ID )?.remove();
 
 	const style = canvasDocument.createElement( 'style' );
 	style.id = STYLE_ID;
-	style.textContent = css;
+	style.textContent = `:root { --cnl-spotlight-accent: ${ getAccentColor() }; }
+${ css }`;
 	canvasDocument.head.appendChild( style );
 
 	return style;
+}
+
+/**
+ * Outline what is being edited, and only that. Marks left from an earlier
+ * render are cleared, and those still right left alone.
+ *
+ * @param {Document}      canvasDocument The canvas document.
+ * @param {HTMLElement[]} nodes          What is being edited.
+ */
+function markFocus( canvasDocument, nodes ) {
+	canvasDocument
+		.querySelectorAll( `[${ FOCUS_ATTRIBUTE }]` )
+		.forEach( ( other ) => {
+			if ( ! nodes.includes( other ) ) {
+				other.removeAttribute( FOCUS_ATTRIBUTE );
+			}
+		} );
+
+	nodes.forEach( ( node ) => {
+		if ( ! node.hasAttribute( FOCUS_ATTRIBUTE ) ) {
+			node.setAttribute( FOCUS_ATTRIBUTE, '' );
+		}
+	} );
+}
+
+/**
+ * What a view changes in the part, in the saved site.
+ *
+ * @param {HTMLElement} part  The part.
+ * @param {?string}     focus The screen's view.
+ * @return {HTMLElement[]} The nodes to outline.
+ */
+function getPreviewFocusNodes( part, focus ) {
+	const target = FOCUS_TARGETS[ focus ];
+
+	if ( ! target ) {
+		return [];
+	}
+
+	const nodes = [ ...part.querySelectorAll( target.selector ) ];
+
+	return target.isFirstOnly ? nodes.slice( 0, 1 ) : nodes;
+}
+
+/**
+ * What a view changes in the part, as blocks in the editor.
+ *
+ * @param {Object}  store    `blockEditorStore` selectors.
+ * @param {string}  clientId The part's client ID.
+ * @param {?string} focus    The screen's view.
+ * @return {string[]} Client IDs of the blocks to outline.
+ */
+function getFocusClientIds( store, clientId, focus ) {
+	const target = FOCUS_TARGETS[ focus ];
+
+	if ( ! target || ! clientId ) {
+		return [];
+	}
+
+	const clientIds = store
+		.getClientIdsOfDescendants( clientId )
+		.filter( ( id ) =>
+			target.blockNames.includes( store.getBlockName( id ) )
+		);
+
+	return target.isFirstOnly ? clientIds.slice( 0, 1 ) : clientIds;
 }
 
 /**
@@ -138,11 +255,12 @@ function markSpotlight( node, area ) {
 function clearSpotlight( canvasDocument ) {
 	canvasDocument
 		.querySelectorAll(
-			`[${ SPOTLIGHT_ATTRIBUTE }], [${ FADED_ATTRIBUTE }]`
+			`[${ SPOTLIGHT_ATTRIBUTE }], [${ FADED_ATTRIBUTE }], [${ FOCUS_ATTRIBUTE }]`
 		)
 		.forEach( ( node ) => {
 			node.removeAttribute( SPOTLIGHT_ATTRIBUTE );
 			node.removeAttribute( FADED_ATTRIBUTE );
+			node.removeAttribute( FOCUS_ATTRIBUTE );
 		} );
 }
 
@@ -176,10 +294,11 @@ function scrollToPart( node, area ) {
  *
  * @param {Object}  options
  * @param {string}  options.area         `header` or `footer`.
+ * @param {?string} options.focus        The screen's view.
  * @param {Object}  options.frame        The canvas's preview frame.
  * @param {boolean} options.isPreviewing Whether Browse is on.
  */
-function usePreviewSpotlight( { area, frame, isPreviewing } ) {
+function usePreviewSpotlight( { area, focus, frame, isPreviewing } ) {
 	const iframeRef = frame.frameProps.ref;
 	const isLoading = frame.isLoading;
 
@@ -209,6 +328,7 @@ function usePreviewSpotlight( { area, frame, isPreviewing } ) {
 
 		const style = addStyles( previewDocument, SPOTLIGHT_STYLES );
 		markSpotlight( node, area );
+		markFocus( previewDocument, getPreviewFocusNodes( node, focus ) );
 
 		if ( isPreviewing ) {
 			scrollToPart( node, area );
@@ -218,7 +338,7 @@ function usePreviewSpotlight( { area, frame, isPreviewing } ) {
 			style.remove();
 			clearSpotlight( previewDocument );
 		};
-	}, [ area, iframeRef, isLoading, isPreviewing ] );
+	}, [ area, focus, iframeRef, isLoading, isPreviewing ] );
 }
 
 /**
@@ -228,6 +348,8 @@ function usePreviewSpotlight( { area, frame, isPreviewing } ) {
  * @param {string}    options.area           `header` or `footer`.
  * @param {?Document} options.canvasDocument The editor's canvas document.
  * @param {?string}   options.clientId       The part's client ID.
+ * @param {?string}   options.focus          The screen's view, which picks
+ *                                           what is outlined in the part.
  * @param {Object}    options.frame          The canvas's preview frame.
  * @param {boolean}   options.isPreviewing   Whether Browse is on.
  */
@@ -235,16 +357,27 @@ export function useSitePartSpotlight( {
 	area,
 	canvasDocument,
 	clientId,
+	focus,
 	frame,
 	isPreviewing,
 } ) {
-	usePreviewSpotlight( { area, frame, isPreviewing } );
+	usePreviewSpotlight( { area, focus, frame, isPreviewing } );
 
 	const registry = useRegistry();
 	const editedSection = useSelect(
 		( select ) =>
 			unlock( select( blockEditorStore ) ).getEditedContentOnlySection(),
 		[]
+	);
+	// Joined, so the selector returns a value that only changes when they do.
+	const focusClientIds = useSelect(
+		( select ) =>
+			getFocusClientIds(
+				select( blockEditorStore ),
+				clientId,
+				focus
+			).join( ',' ),
+		[ clientId, focus ]
 	);
 	const isActive = Boolean( clientId && canvasDocument && ! isPreviewing );
 
@@ -282,6 +415,16 @@ export function useSitePartSpotlight( {
 
 			if ( node ) {
 				markSpotlight( node, area );
+				markFocus(
+					canvasDocument,
+					focusClientIds
+						.split( ',' )
+						.filter( Boolean )
+						.map( ( id ) =>
+							canvasDocument.getElementById( `block-${ id }` )
+						)
+						.filter( Boolean )
+				);
 			} else {
 				clearSpotlight( canvasDocument );
 			}
@@ -302,7 +445,7 @@ export function useSitePartSpotlight( {
 			style.remove();
 			clearSpotlight( canvasDocument );
 		};
-	}, [ area, canvasDocument, clientId ] );
+	}, [ area, canvasDocument, clientId, focusClientIds ] );
 
 	/*
 	 * Bring it into view whenever it comes on show. Its blocks render a moment
