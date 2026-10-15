@@ -1,13 +1,7 @@
 /**
  * Internal dependencies
  */
-import {
-	Button,
-	compassIcon,
-	EmptyState,
-	layoutIcon,
-	__,
-} from '../../wordpress-packages';
+import { Button, compassIcon, EmptyState, __ } from '../../wordpress-packages';
 
 export function NavigationLocationsEmptyState( {
 	disabled,
@@ -43,22 +37,6 @@ export function NavigationNoMenuSelectedEmptyState() {
 		<EmptyState.Root className="routes-navigation-locations-canvas__empty-state">
 			<EmptyState.Icon icon={ compassIcon } />
 			<EmptyState.Title>{ __( 'No menu selected' ) }</EmptyState.Title>
-		</EmptyState.Root>
-	);
-}
-
-export function NavigationLocationsUnavailableEmptyState() {
-	return (
-		<EmptyState.Root className="routes-navigation-choose-location-modal__empty-state">
-			<EmptyState.Icon icon={ layoutIcon } />
-			<EmptyState.Title>
-				{ __( 'No menu locations found' ) }
-			</EmptyState.Title>
-			<EmptyState.Description>
-				{ __(
-					'Add a menu space to a header, footer, or other site area before choosing a location here.'
-				) }
-			</EmptyState.Description>
 		</EmptyState.Root>
 	);
 }

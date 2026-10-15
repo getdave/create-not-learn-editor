@@ -51,13 +51,12 @@ import {
 	NavigationSitePreview,
 	NavigationSitePreviewNotice,
 } from '../navigation/site-preview';
+import { ChooseLocationModal } from '../navigation/choose-location-modal';
 import {
 	NavigationLocationsEmptyState,
 	NavigationNoMenuSelectedEmptyState,
 } from './empty-states';
-import ChooseLocationModal, {
-	useNavigationLocations,
-} from './choose-location-modal';
+import { useNavigationLocations } from './use-navigation-locations';
 import { EMPTY_ARRAY, getMenuTitle } from './shared';
 
 function getBlockName( block ) {
@@ -114,12 +113,6 @@ function getTemplatePartPreviewBlocks( part, navigationId, menuBlocks ) {
 	);
 }
 
-/*
- * Rendering the canvas as a preview drops the editor's own header, sidebars and
- * notices, leaving the canvas alone. Mirrors what `@wordpress/boot` passes for a
- * route whose canvas `isPreview`. Kept at module scope because the editor
- * provider pushes settings into the store whenever their identity changes.
- */
 function getCanvasViewDeviceOptions() {
 	return [
 		{ icon: desktopIcon, label: __( 'Desktop view' ), value: 'Desktop' },

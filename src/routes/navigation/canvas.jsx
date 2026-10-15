@@ -31,7 +31,6 @@ import {
 } from './menu-helpers';
 import { useNavigationMenus } from './use-navigation-menus';
 import { ChooseLocationModal } from './choose-location-modal';
-import { AddNavigationModal } from './add-navigation-modal';
 
 export function Canvas() {
 	const { editEntityRecord } = useDispatch( coreDataStore );
@@ -48,8 +47,6 @@ export function Canvas() {
 	} = useNavigationMenus();
 	const [ locationModalMode, setLocationModalMode ] = useState( null );
 	const [ isSavingLocations, setIsSavingLocations ] = useState( false );
-	const [ isAddNavigationModalOpen, setIsAddNavigationModalOpen ] =
-		useState( false );
 
 	if ( isLoading ) {
 		return (
@@ -249,11 +246,6 @@ export function Canvas() {
 						}
 					} }
 					templateParts={ templateParts }
-				/>
-			) }
-			{ isAddNavigationModalOpen && (
-				<AddNavigationModal
-					onClose={ () => setIsAddNavigationModalOpen( false ) }
 				/>
 			) }
 		</section>
