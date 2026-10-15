@@ -2,6 +2,10 @@ name: Plugin zip
 
 # Builds an installable plugin zip on every push to trunk and attaches it to
 # the workflow run as an artifact.
+#
+# It also publishes the zip, the Mainstay theme and the demo site seed script
+# to the `playground-build` branch, which `demos/blueprint.json` installs
+# from. That is what keeps the README's Playground demo on the latest trunk.
 
 on:
   push:
@@ -14,11 +18,13 @@ concurrency:
   group: plugin-zip-trunk
   cancel-in-progress: true
 
+# Write access is only for pushing the `playground-build` branch.
 permissions:
-  contents: read
+  contents: write
 
 env:
   ZIP_NAME: create-not-learn-editor.zip
+  PLAYGROUND_BRANCH: playground-build
 
 jobs:
   build:
@@ -68,3 +74,33 @@ jobs:
           ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
         run: |
           echo "Download [${ZIP_NAME}](${ARTIFACT_URL}) built from \`${GITHUB_SHA::7}\`." >> "$GITHUB_STEP_SUMMARY"
+
+      # Playground can't install from workflow artifacts or release assets,
+      # which don't allow cross-origin downloads, but it can fetch from
+      # raw.githubusercontent.com. So the files the blueprint needs go on a
+      # branch of their own. It holds a single commit, replaced on every
+      # build, so old zips don't pile up in the history.
+      - name: Publish Playground build
+        if: github.ref == 'refs/heads/trunk'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir playground-build
+          cp "$ZIP_NAME" scripts/demo-site/seed.php playground-build/
+          (cd themes && zip -qr ../playground-build/mainstay.zip mainstay)
+          cat > playground-build/README.md <<EOF
+          # Playground build
+
+          Generated from [\`${GITHUB_SHA::7}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}) by \`.github/workflows/plugin-zip.yml\`. Do not edit or commit to this branch, it is replaced on every push to trunk.
+
+          These are the files [\`demos/blueprint.json\`](https://github.com/${GITHUB_REPOSITORY}/blob/trunk/demos/blueprint.json) installs.
+          EOF
+          cd playground-build
+          git init -q -b "$PLAYGROUND_BRANCH"
+          git add .
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Playground build of ${GITHUB_SHA::7}"
+          git push --force -q \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/$PLAYGROUND_BRANCH"

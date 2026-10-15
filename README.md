@@ -1,5 +1,9 @@
 # Create Not Learn Editor
 
+[![Try the demo in WordPress Playground](https://img.shields.io/badge/Try_the_demo-WordPress_Playground-3858e9?style=for-the-badge&logo=wordpress&logoColor=white)](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/getdave/create-not-learn-editor/trunk/demos/blueprint.json)
+
+[Try Create Not Learn in your browser](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/getdave/create-not-learn-editor/trunk/demos/blueprint.json). The demo opens the latest build of `trunk` in the editor, with the Fernhouse demo site ready to edit. There is nothing to install, and your changes go when you close the tab.
+
 Create Not Learn Editor is a standalone WordPress plugin that experiments with a focused, extensible site-editing experience.
 
 The plugin is intentionally not part of the Gutenberg repository. It consumes released WordPress and Gutenberg packages, declares the released Gutenberg plugin as a WordPress plugin dependency, and can be installed like a normal plugin.
@@ -148,6 +152,14 @@ npm run plugin-zip
 
 Generated `build/` assets and plugin zips are intentionally ignored by git. The source repo is the canonical state; build artifacts are generated when needed.
 
+### Playground demo
+
+The demo link at the top of this README opens [WordPress Playground](https://wordpress.org/playground/) with `demos/blueprint.json`. The blueprint installs Gutenberg, this plugin and the Mainstay theme, runs `scripts/demo-site/seed.php` to build Fernhouse, and lands in the editor.
+
+Playground can't install from the plugin source, which needs building first, or from workflow artifacts. So on every push to `trunk`, `.github/workflows/plugin-zip.yml` builds the plugin zip and publishes it to the `playground-build` branch, along with a zip of the theme and the seed script. The blueprint installs from that branch, so the demo always runs the latest successful build of `trunk`.
+
+Keep the Gutenberg version in the blueprint in step with `.wp-env.json`. Canvas is left out, as the plugin doesn't need it.
+
 ## Scripts
 
 - `npm run dev` watches and rebuilds development assets.
@@ -268,6 +280,7 @@ http://localhost:<dev-port>/wp-admin/admin.php?page=create-not-learn-editor
 - `@wordpress/build` creates the browser bundles and asset metadata under `build/`.
 - `.wp-env.json` defines the local WordPress and Gutenberg plugin environment.
 - `themes/mainstay/` is the demo block theme the development site uses. `scripts/demo-site/` seeds its content.
+- `demos/` holds the WordPress Playground blueprints for the demo link.
 
 ## Current Design Constraints
 
