@@ -3,9 +3,6 @@
  * "Your site", so every step has a way back to the list. The screens stay
  * where they live in the editor; only the trail changes, and only on visits
  * that began at the checklist.
- *
- * The Header and Footer screens, themselves steps on the checklist, lead on
- * to other screens in the same way: those carry the part in their trail too.
  */
 
 /**
@@ -25,22 +22,7 @@ const EMPTY_ARRAY = [];
  */
 export const FROM_SITE_SEARCH = { from: 'site' };
 
-const SITE_PART_CRUMBS = {
-	footer: () => ( { label: __( 'Footer' ), to: '/design/footer' } ),
-	header: () => ( { label: __( 'Header' ), to: '/design/header' } ),
-};
-
 const NAVIGATION_FROM = 'navigation';
-
-/**
- * Search params the Header or Footer screen adds to the screens it opens.
- *
- * @param {string} area `header` or `footer`.
- * @return {Object} Search params.
- */
-export function getFromSitePartSearch( area ) {
-	return { from: area };
-}
 
 /**
  * Search params the Menus screen adds to the edit screen it opens.
@@ -61,10 +43,9 @@ export function getSiteCrumb() {
 }
 
 /**
- * The breadcrumbs leading back to where the visit began: "Your site", and
- * the Header or Footer screen when it began there. Visits from the Menus
- * screen lead back there instead, since it isn't part of that checklist.
- * Empty for visits that began anywhere else.
+ * The breadcrumbs leading back to where the visit began: "Your site". Visits
+ * from the Menus screen lead back there instead, since it isn't part of that
+ * checklist. Empty for visits that began anywhere else.
  *
  * @return {Object[]} Breadcrumb items, to put before the screen's own.
  */
@@ -78,10 +59,6 @@ export function useSiteTrail() {
 
 		if ( from === NAVIGATION_FROM ) {
 			return [ { label: __( 'Menus' ), to: '/navigation' } ];
-		}
-
-		if ( Object.hasOwn( SITE_PART_CRUMBS, from ) ) {
-			return [ getSiteCrumb(), SITE_PART_CRUMBS[ from ]() ];
 		}
 
 		return EMPTY_ARRAY;

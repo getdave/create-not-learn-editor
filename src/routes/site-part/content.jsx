@@ -4,6 +4,10 @@
  * Like a page on the Pages screen: the stage holds what can be changed about
  * the part as a whole, and the canvas shows the homepage with the part in the
  * spotlight, editable in place.
+ *
+ * Each thing that can be changed opens as a view of the same screen, rather
+ * than another screen, so the part stays in the spotlight throughout, with
+ * what the view changes outlined in it.
  */
 
 /**
@@ -19,7 +23,7 @@ import { useForcedBlockEditorSettings } from '../../editor-layer/settings-guard'
 import { cnlEditorStore, getTitleText } from '../../records';
 import ScreenLinks from '../../screen-links';
 import { settings } from '../../settings';
-import { getFromSitePartSearch, getSiteCrumb } from '../../site-trail';
+import { getSiteCrumb } from '../../site-trail';
 import {
 	SiteCanvas,
 	useCanvasDocument,
@@ -28,8 +32,8 @@ import {
 import { LOCKED_PART_CONTENT_SETTING } from '../../site-canvas/constants';
 import { withUiTheme } from '../../theme';
 import { getPatternContent, getPatternTitle } from '../content/page-layouts';
-import useMainMenu from '../content/use-main-menu';
-import { useSiteIdentity } from '../static/identity';
+import { useMenuItemsEditor } from '../navigation-edit/menu-items-editor';
+import { SiteIdentityFields, useSiteIdentity } from '../static/identity';
 import {
 	SITE_PART_PATHS,
 	putLayoutFirst,
@@ -63,11 +67,34 @@ import {
 } from '../../wordpress-packages';
 
 const LOCKED_PART_SETTINGS = { [ LOCKED_PART_CONTENT_SETTING ]: true };
-const PAGES_PATH = '/types/page/list/default';
-const IDENTITY_PATH = '/design/identity';
 
-// The search param that opens a part's layouts, over the same canvas.
+// The search params that open a part's views, over the same canvas.
 const LAYOUTS_VIEW = 'layouts';
+const IDENTITY_VIEW = 'identity';
+const MENU_VIEW = 'menu';
+
+// What each view is called, and the line under its heading.
+const VIEWS = {
+	[ IDENTITY_VIEW ]: {
+		description: () =>
+			__(
+				'Change them here, and see them on the right. Save to keep them.'
+			),
+		title: () => __( 'Name & logo' ),
+	},
+	[ LAYOUTS_VIEW ]: {
+		description: () =>
+			__( 'Pick one to try it on the right. Save to keep it.' ),
+		title: () => __( 'Layouts' ),
+	},
+	[ MENU_VIEW ]: {
+		description: () =>
+			__(
+				'The links in your menu. Change them here, and see them on the right. Save to keep them.'
+			),
+		title: () => __( 'Menu' ),
+	},
+};
 
 const SITE_PARTS = {
 	footer: {
@@ -115,15 +142,15 @@ function Loading() {
 }
 
 /**
- * The menu the part shows, and where to change it. The site's main menu is
- * managed with its pages, on Pages & menu; any other on its own.
+ * The menu the part shows: the one its Navigation block names, or, as the
+ * block does without one, the site's first.
  *
  * @param {?number} navigationRef The menu the Navigation block shows.
- * @return {Object} `{ title, to }`.
+ * @return {Object} `{ menuId, title }`. `menuId` is undefined when the site
+ *                  has no menus.
  */
 function usePartMenu( navigationRef ) {
-	const { menuId: mainMenuId } = useMainMenu();
-	const { menuId, title } = useSelect(
+	return useSelect(
 		( select ) => {
 			const id =
 				navigationRef ||
@@ -140,14 +167,6 @@ function usePartMenu( navigationRef ) {
 		},
 		[ navigationRef ]
 	);
-
-	return {
-		title,
-		to:
-			! menuId || menuId === mainMenuId
-				? PAGES_PATH
-				: `/navigation/edit/${ encodeURIComponent( menuId ) }`,
-	};
 }
 
 function getLayoutsDescription( { currentName, layouts } ) {
@@ -190,9 +209,9 @@ function getIdentityLink( { hasLogo, hasSiteTitle }, site ) {
 }
 
 /**
- * What can be changed about the part, each a row leading to its own screen:
+ * What can be changed about the part, each a row leading to its own view:
  * its layouts, then the site's name and logo and the menu, when it shows
- * them. Those screens lead back here in their breadcrumbs.
+ * them.
  *
  * @param {Object} props
  * @param {string} props.area     `header` or `footer`.
@@ -211,7 +230,6 @@ function SitePartLinks( { area, clientId, id } ) {
 		return <Loading />;
 	}
 
-	const from = getFromSitePartSearch( area );
 	const links = [];
 
 	// The theme's patterns can be slow to arrive, so the row shows while
@@ -232,18 +250,18 @@ function SitePartLinks( { area, clientId, id } ) {
 		links.push( {
 			...getIdentityLink( contents, identity.site ),
 			icon: siteLogoIcon,
-			search: from,
-			to: IDENTITY_PATH,
+			search: { view: IDENTITY_VIEW },
+			to: SITE_PART_PATHS[ area ],
 		} );
 	}
 
-	if ( contents.showsMenu ) {
+	if ( contents.showsMenu && menu.menuId ) {
 		links.push( {
 			description: menu.title || __( 'Your menu' ),
 			icon: compassIcon,
-			search: from,
+			search: { view: MENU_VIEW },
 			title: __( 'Edit menu' ),
-			to: menu.to,
+			to: SITE_PART_PATHS[ area ],
 		} );
 	}
 
@@ -348,51 +366,87 @@ function Layouts( { area, id } ) {
 	);
 }
 
+/**
+ * The menu the part shows, its items edited in place. Changes wait for the
+ * save, like any other.
+ *
+ * @param {Object} props
+ * @param {string} props.clientId The part's client ID in the editor.
+ * @return {Element} The menu's items.
+ */
+function PartMenu( { clientId } ) {
+	const { navigationRef } = useSitePartContents( clientId );
+	const { menuId } = usePartMenu( navigationRef );
+	const { editor, isMenuReady } = useMenuItemsEditor( menuId );
+
+	if ( ! menuId ) {
+		return <Note>{ __( 'Your site doesn’t have a menu yet.' ) }</Note>;
+	}
+
+	if ( ! isMenuReady ) {
+		return <Loading />;
+	}
+
+	return <div className="cnl-site-part__menu">{ editor }</div>;
+}
+
+function SitePartView( { area, clientId, id, view } ) {
+	if ( view === LAYOUTS_VIEW ) {
+		return <Layouts area={ area } id={ id } />;
+	}
+
+	if ( view === IDENTITY_VIEW ) {
+		return <SiteIdentityFields />;
+	}
+
+	if ( view === MENU_VIEW ) {
+		return <PartMenu clientId={ clientId } />;
+	}
+
+	return <SitePartLinks area={ area } clientId={ clientId } id={ id } />;
+}
+
 function createStage( area ) {
 	const part = SITE_PARTS[ area ];
 
 	return function SitePartStage() {
-		const { view } = useSearch( { strict: false } );
+		const { view: viewName } = useSearch( { strict: false } );
 		const { clientId, id, isEditorReady } = useSitePart( area );
-		const isLayouts = view === LAYOUTS_VIEW;
+		const view = Object.hasOwn( VIEWS, viewName )
+			? VIEWS[ viewName ]
+			: null;
 
 		return (
 			<div className="cnl-editor-stage cnl-drilldown-stage routes-styles cnl-site-part">
 				<Stack direction="column" gap="xs">
 					<Breadcrumbs
 						items={
-							isLayouts
+							view
 								? [
 										getSiteCrumb(),
 										{
 											label: part.title,
 											to: SITE_PART_PATHS[ area ],
 										},
-										{ label: __( 'Layouts' ) },
+										{ label: view.title() },
 									]
 								: [ getSiteCrumb(), { label: part.title } ]
 						}
 					/>
 					<Note>
-						{ isLayouts
-							? __(
-									'Pick one to try it on the right. Save to keep it.'
-								)
-							: part.description }
+						{ view ? view.description() : part.description }
 					</Note>
 				</Stack>
 				{ ! isEditorReady && <Loading /> }
 				{ isEditorReady && ! id && <Note>{ part.missing }</Note> }
-				{ id &&
-					( isLayouts ? (
-						<Layouts area={ area } id={ id } />
-					) : (
-						<SitePartLinks
-							area={ area }
-							clientId={ clientId }
-							id={ id }
-						/>
-					) ) }
+				{ id && (
+					<SitePartView
+						area={ area }
+						clientId={ clientId }
+						id={ id }
+						view={ view && viewName }
+					/>
+				) }
 			</div>
 		);
 	};
@@ -423,6 +477,7 @@ function PartDocument( { area } ) {
 
 function createCanvas( area ) {
 	return function SitePartCanvas() {
+		const { view } = useSearch( { strict: false } );
 		const canvas = useSiteCanvas( { url: settings.homeUrl } );
 		const editorRef = useRef();
 		const { clientId, id } = useSitePart( area );
@@ -435,6 +490,7 @@ function createCanvas( area ) {
 			area,
 			canvasDocument,
 			clientId,
+			focus: view,
 			frame: canvas.frame,
 			isPreviewing: canvas.isPreviewing,
 		} );

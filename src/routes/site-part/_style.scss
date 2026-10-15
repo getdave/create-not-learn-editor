@@ -89,3 +89,8 @@
 		fill: currentcolor;
 	}
 }
+
+// The menu's items line up with the heading, as the stage has its own padding.
+.cnl-site-part__menu .routes-navigation-edit__body {
+	padding: 0;
+}
