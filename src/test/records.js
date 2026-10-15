@@ -1,10 +1,15 @@
-jest.mock( '../wordpress-packages', () => ( {
+/**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock( '../wordpress-packages', () => ( {
 	__: ( text ) => text,
-	addQueryArgs: jest.fn(),
-	apiFetch: jest.fn(),
-	createReduxStore: jest.fn( () => ( {} ) ),
-	register: jest.fn(),
-	select: jest.fn(),
+	addQueryArgs: vi.fn(),
+	apiFetch: vi.fn(),
+	createReduxStore: vi.fn( () => ( {} ) ),
+	register: vi.fn(),
+	select: vi.fn(),
 } ) );
 
 /**

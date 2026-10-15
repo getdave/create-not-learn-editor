@@ -1,5 +1,10 @@
-jest.mock( '@wordpress/blocks', () => ( {
-	getBlockType: jest.fn(),
+/**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock( '@wordpress/blocks', () => ( {
+	getBlockType: vi.fn(),
 } ) );
 
 /**

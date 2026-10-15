@@ -1,9 +1,14 @@
 /**
+ * External dependencies
+ */
+import { describe, expect, it, vi } from 'vitest';
+
+/**
  * Internal dependencies
  */
 import { createSettingsGuard } from '../settings-guard';
 
-jest.mock( '@wordpress/block-editor', () => ( {
+vi.mock( '@wordpress/block-editor', () => ( {
 	store: 'core/block-editor',
 } ) );
 
@@ -20,13 +25,13 @@ function createIO( userSettings = {} ) {
 	const io = {
 		settled: true,
 		getSettings: () => settings,
-		updateSettings: jest.fn( ( changes ) => {
+		updateSettings: vi.fn( ( changes ) => {
 			settings = { ...settings, ...changes };
 			listeners.forEach( ( listener ) => listener() );
 		} ),
 		getUserSetting: ( key ) => userSettings[ key ],
 		isSettled: () => io.settled,
-		subscribe: jest.fn( ( listener ) => {
+		subscribe: vi.fn( ( listener ) => {
 			listeners.push( listener );
 			return () => {
 				listeners = listeners.filter( ( l ) => l !== listener );

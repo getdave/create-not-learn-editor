@@ -3,6 +3,11 @@ jest.mock( '@wordpress/blocks', () => ( {
 } ) );
 
 /**
+ * External dependencies
+ */
+import { describe, expect, test } from 'vitest';
+
+/**
  * Internal dependencies
  */
 import { getPagePreviewUrl } from '../preview-url';

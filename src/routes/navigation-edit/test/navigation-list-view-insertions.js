@@ -1,10 +1,15 @@
+/**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
+
 const mockLinkVariations = [
 	{ attributes: { kind: 'post-type', type: 'page' }, name: 'page' },
 	{ attributes: { kind: 'custom' }, isDefault: true, name: 'custom-link' },
 ];
 let mockRegisteredVariations = mockLinkVariations;
 
-jest.mock( '../../../wordpress-packages', () => ( {
+vi.mock( '../../../wordpress-packages', () => ( {
 	createBlock: ( name, attributes = {}, innerBlocks = [] ) => ( {
 		attributes,
 		clientId: `mock-client-id-${ name }`,

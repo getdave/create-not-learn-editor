@@ -30,21 +30,21 @@ This is a standalone WordPress plugin repo for Create Not Learn Editor.
 - `*.zip` plugin packages are generated and ignored by git.
 - Do not commit `node_modules/`, `build/`, or plugin zip files.
 - Run `npm run build` before runtime checks or `npm run plugin-zip`.
-- `.wp-env/plugins/canvas` is a generated local checkout and ignored by git; see Canvas Plugin in wp-env below.
+- `.wp-env/sources/` is generated and ignored by git; see wp-env Sources below.
 
-## Canvas Plugin in wp-env
+## wp-env Sources
 
-The `wp-env` instance auto-installs and activates the [Automattic/canvas](https://github.com/Automattic/canvas) plugin alongside Gutenberg on every start.
+Always run wp-env through `npm run wp-env ...`, not the `wp-env` binary. `npm run wp-env` runs `scripts/wp-env.mjs`, which serves wp-env's downloads from a cache shared by every checkout before passing the command on.
 
-- Canvas ships no release zip and requires `npm ci && npm run build` before WordPress can activate it. wp-env only clones git-sourced plugins — it never builds them — so `scripts/ensure-canvas-plugin.mjs` clones/updates Canvas into `.wp-env/plugins/canvas` and builds it before `wp-env` runs. It skips the rebuild when the checked-out commit hasn't changed.
-- The `npm run wp-env` script runs that ensure script first, then forwards to the real `wp-env` command (`"wp-env": "node scripts/ensure-canvas-plugin.mjs && wp-env"` in `package.json`). Always invoke wp-env through `npm run wp-env ...`, not the `wp-env` binary directly, or Canvas won't get built.
-- `.wp-env.json` points its plugin entry at the local built copy (`./.wp-env/plugins/canvas`), not a bare `Automattic/canvas` or GitHub URL string — wp-env's git-source shorthand only clones, so pointing there directly reproduces the missing-build-assets failure.
-- Canvas requires WordPress 7.1+, which is why `.wp-env.json` pins `core` to `https://wordpress.org/wordpress-7.1.zip`. Don't lower it back to 7.0 without also dropping Canvas.
-- wp-env activates every entry in `"plugins"` as one `set -eo pipefail` batch — if any plugin fails to activate (including Canvas, if its build step is skipped), the whole `wp-env start` aborts and tears down, so the plugin listed after it (`.`, this plugin) never activates either. Keep Canvas's build step working, don't just drop it from the plugins list to "fix" a failed start.
+- Every checkout gets its own wp-env work directory, so letting wp-env download for itself means WordPress, Gutenberg and two PHPUnit clones per checkout. That is enough traffic to get throttled by wordpress.org and GitHub. Don't point `.wp-env.json` back at download URLs.
+- On `start`, the script fills the cache (`~/.cache/create-not-learn-editor/wp-env`, or `CNL_WP_ENV_CACHE`) with anything missing, then sets up `.wp-env/sources/`, which `.wp-env.json` points at. Gutenberg is a symlink into the cache. WordPress is copied into the checkout, because wp-env writes `wp-config.php` and uploads into it.
+- Versions live in `scripts/wp-env.mjs`, not `.wp-env.json`. Each version downloads once; to change one, update its `key` with its URL.
+- wp-env always runs `git fetch` in its PHPUnit clones. The script points them at a cached wordpress-develop clone, so that fetch stays local.
+- Keep the environment to what the editor needs: WordPress, Gutenberg, this plugin and the Mainstay theme. Optional plugins such as [Canvas](https://github.com/Automattic/canvas) belong in a local, git-ignored `.wp-env.override.json`, as the README describes, not in `.wp-env.json`.
 
 ## Demo Theme and Site
 
-- `themes/mainstay/` is a block theme built for this editor and the default theme on the `wp-env` development site. It is not part of the plugin and is not in the plugin zip.
+- `themes/mainstay/` is a block theme built for this editor and the default theme on the `wp-env` development site. It is the only theme `.wp-env.json` adds; the tests site runs WordPress's bundled default theme, because wp-env doesn't activate themes. It is not part of the plugin and is not in the plugin zip.
 - `.wp-env.json` runs `scripts/setup-demo-site.mjs` after start. It runs `scripts/demo-site/seed.php` once per site (guarded by the `cnl_demo_site_version` option) to activate Mainstay and add the Fernhouse demo pages, posts and menu. Keep it additive and idempotent: never overwrite content someone has changed. It only touches the development environment, not the tests site.
 - Section colours in Compose come from the theme's `styles/sections/*.json` block style variations, which must set colours. Header and footer layouts are patterns with `Block Types: core/template-part/header` or `core/template-part/footer`.
 - Bundled photos are CC0 (StockSnap) and fonts are OFL; credit new ones in `themes/mainstay/readme.txt`.
@@ -88,7 +88,7 @@ npm run build
 npm run check:list-view
 npm run lint:js
 npm run lint:css
-find . -path ./node_modules -prune -o -path ./build -prune -o -name '*.php' -print | xargs -n1 php -l
+find . -path ./node_modules -prune -o -path ./build -prune -o -path ./.wp-env -prune -o -name '*.php' -print | xargs -n1 php -l
 ```
 
 For runtime checks, use the `wp-env` instance from Development Commands above.

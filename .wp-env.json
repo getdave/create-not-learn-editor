@@ -1,14 +1,10 @@
 {
-	"core": "https://wordpress.org/wordpress-7.1.zip",
+	"core": "./.wp-env/sources/wordpress",
 	"plugins": [
-		"https://downloads.wordpress.org/plugin/gutenberg.24.0.0.zip",
-		"./.wp-env/plugins/canvas",
+		"./.wp-env/sources/plugins/gutenberg",
 		"."
 	],
-	"themes": [
-		"https://github.com/WordPress/ipsum/archive/refs/heads/trunk.zip",
-		"./themes/mainstay"
-	],
+	"themes": [ "./themes/mainstay" ],
 	"config": {
 		"WP_DEBUG": true,
 		"SCRIPT_DEBUG": true

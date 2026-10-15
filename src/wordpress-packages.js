@@ -67,8 +67,11 @@ import {
 	useRegistry,
 	useSelect,
 } from '@wordpress/data';
-import { DataViewsPicker, filterSortAndPaginate } from '@wordpress/dataviews';
-import { DataViews } from '@wordpress/dataviews/wp';
+import {
+	DataViews,
+	DataViewsPicker,
+	filterSortAndPaginate,
+} from '@wordpress/dataviews';
 import {
 	flushSync,
 	memo,

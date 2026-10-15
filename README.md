@@ -111,7 +111,24 @@ WP_ENV_PORT="<dev-port>" WP_ENV_TESTS_PORT="<test-port>" npm run wp-env start
 
 Use available non-default local ports for `WP_ENV_PORT` and `WP_ENV_TESTS_PORT`.
 
-The local environment uses WordPress 7.0 and installs Gutenberg 24.0.0 from the released plugin zip.
+The local environment uses WordPress 7.1 with the released Gutenberg 24.0.0 plugin. `npm run wp-env start` downloads these once into a cache that every checkout shares (`~/.cache/create-not-learn-editor/wp-env`), rather than once per checkout.
+
+To try another plugin alongside the editor, such as [Canvas](https://github.com/Automattic/canvas), build it somewhere and map it in a `.wp-env.override.json` next to `.wp-env.json`. The file is ignored by git.
+
+```json
+{
+	"mappings": {
+		"wp-content/plugins/canvas": "~/path/to/canvas"
+	}
+}
+```
+
+Then restart and activate it:
+
+```sh
+npm run wp-env start
+npm run wp-env run cli wp plugin activate canvas
+```
 
 ### Demo site
 
@@ -169,9 +186,10 @@ Keep the Gutenberg version in the blueprint in step with `.wp-env.json`. Canvas 
 - `npm run check:list-view` verifies the committed ListView bridge is current.
 - `npm run lint:js` runs JavaScript linting.
 - `npm run lint:css` runs stylesheet linting.
+- `npm run test:unit` runs the unit tests with Vitest. Its settings live in `vitest.config.mjs`.
 - `npm run plugin-zip` creates an installable plugin zip.
 - `npm run test:e2e` runs every end-to-end test against the `wp-env` tests site. `test:e2e:smoke`, `test:e2e:views` and `test:e2e:interactions` run one group. See [the end-to-end tests guide](tests/e2e/README.md).
-- `npm run wp-env` proxies to `wp-env`.
+- `npm run wp-env` proxies to `wp-env`, after preparing the shared downloads on `start`.
 
 ## Vendored ListView Bridge
 
@@ -260,7 +278,7 @@ npm run build
 npm run check:list-view
 npm run lint:js
 npm run lint:css
-find . -path ./node_modules -prune -o -path ./build -prune -o -name '*.php' -print | xargs -n1 php -l
+find . -path ./node_modules -prune -o -path ./build -prune -o -path ./.wp-env -prune -o -name '*.php' -print | xargs -n1 php -l
 ```
 
 When checking runtime behavior, start `wp-env` with explicit local ports and visit:

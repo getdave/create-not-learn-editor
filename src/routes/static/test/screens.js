@@ -1,10 +1,15 @@
 /**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
+
+/**
  * Internal dependencies
  */
 import { getCurrentEditorPath, getStaticScreen } from '../screens';
 
 // The screens only need `__`; the real module pulls in the whole editor.
-jest.mock( '../../../wordpress-packages', () => ( {
+vi.mock( '../../../wordpress-packages', () => ( {
 	__: ( text ) => text,
 } ) );
 

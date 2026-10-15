@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
+
+/**
  * Internal dependencies
  */
 import {
@@ -9,14 +14,14 @@ import {
 	putLayoutFirst,
 } from '../data';
 
-jest.mock( '@wordpress/blocks', () => ( { createBlock: jest.fn() } ) );
+vi.mock( '@wordpress/blocks', () => ( { createBlock: vi.fn() } ) );
 
 /*
  * The real parser, and a stand-in serializer that keeps what comparing two
  * parts needs: each block's name, attributes and inner blocks.
  */
-jest.mock( '../../../wordpress-packages', () => {
-	const { parse } = jest.requireActual(
+vi.mock( '../../../wordpress-packages', async () => {
+	const { parse } = await vi.importActual(
 		'@wordpress/block-serialization-default-parser'
 	);
 	const strip = ( blocks ) =>
@@ -38,11 +43,11 @@ jest.mock( '../../../wordpress-packages', () => {
 	};
 } );
 
-jest.mock( '../../content/pages/data', () => ( {
+vi.mock( '../../content/pages/data', () => ( {
 	getSitePartArea: () => undefined,
 } ) );
 
-jest.mock( '../../../records', () => ( {
+vi.mock( '../../../records', () => ( {
 	getTitleText: ( title ) =>
 		typeof title === 'string' ? title : title?.rendered || '',
 } ) );
