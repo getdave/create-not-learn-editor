@@ -134,10 +134,11 @@ function ChatPanel() {
 						{ messages.length > 0 && (
 							<Button
 								icon={ plusIcon }
-								label={ __( 'New chat' ) }
 								onClick={ startNewChat }
 								size="compact"
-							/>
+							>
+								{ __( 'New chat' ) }
+							</Button>
 						) }
 						<Button
 							icon={ closeIcon }
@@ -150,8 +151,9 @@ function ChatPanel() {
 				<div className="cnl-chat__messages" ref={ scrollRef }>
 					{ messages.length ? (
 						<div aria-live="polite" className="cnl-chat__log">
-							{ messages.map( ( message ) => (
+							{ messages.map( ( message, index ) => (
 								<Message
+									isLast={ index === messages.length - 1 }
 									key={ message.id }
 									message={ message }
 									scrollRef={ scrollRef }

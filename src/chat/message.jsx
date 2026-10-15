@@ -13,6 +13,7 @@ import {
 	color as colorIcon,
 	footer as footerIcon,
 	header as headerIcon,
+	navigation as navigationIcon,
 	page as pageIcon,
 	plus as plusIcon,
 	siteLogo as siteLogoIcon,
@@ -26,6 +27,7 @@ import { Icon } from '@wordpress/ui';
  * Internal dependencies
  */
 import {
+	choosePage,
 	finishStreaming,
 	pick,
 	prepareWidget,
@@ -42,6 +44,7 @@ const SUGGESTION_ICONS = {
 	color: colorIcon,
 	footer: footerIcon,
 	header: headerIcon,
+	navigation: navigationIcon,
 	page: pageIcon,
 	section: plusIcon,
 	siteLogo: siteLogoIcon,
@@ -138,11 +141,13 @@ function Thinking() {
 function Widget( { message, scrollRef } ) {
 	const skill = SKILLS[ message.skillId ];
 	const entity = skill.useEntity?.( message.params ) || null;
-	const needsSnapshot = !! skill.keys;
-	const isReady = ! needsSnapshot || !! message.snapshot;
+	// Pickers that report their record themselves can be used straight away.
+	const needsRecord =
+		skill.needsRecord?.( message.params ) ?? !! skill.useEntity;
+	const isReady = ! needsRecord || !! message.snapshot;
 
 	useEffect( () => {
-		prepareWidget( message, entity );
+		prepareWidget( message.id, entity );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ entity ] );
 
@@ -152,9 +157,14 @@ function Widget( { message, scrollRef } ) {
 				<skill.Widget
 					entity={ entity }
 					message={ message }
+					onChoosePage={ ( page ) => choosePage( message.id, page ) }
+					onEntity={ ( reported ) =>
+						prepareWidget( message.id, reported )
+					}
 					onPick={ ( label, payload ) =>
 						pick( message.id, label, payload )
 					}
+					onSend={ () => sendMessage( '' ) }
 					scrollRef={ scrollRef }
 				/>
 			) : (
@@ -166,7 +176,7 @@ function Widget( { message, scrollRef } ) {
 	);
 }
 
-function AssistantMessage( { message, scrollRef } ) {
+function AssistantMessage( { isLast, message, scrollRef } ) {
 	const isStreaming = message.status === 'streaming';
 	const isSettled = ! [ 'thinking', 'streaming', 'saving' ].includes(
 		message.status
@@ -177,82 +187,96 @@ function AssistantMessage( { message, scrollRef } ) {
 			className={ `cnl-chat-message is-assistant is-${ message.status }` }
 			data-message-id={ message.id }
 		>
-			<span aria-hidden className="cnl-chat-message__avatar">
-				<Icon icon={ sparkleIcon } size={ 16 } />
-			</span>
-			<div className="cnl-chat-message__body">
-				{ message.status === 'thinking' ? (
-					<Thinking />
-				) : (
-					<StreamingText
-						isStreaming={ isStreaming }
-						onDone={ () => finishStreaming( message.id ) }
-						text={ message.text }
-					/>
-				) }
-				{ message.hasWidget && message.status === 'ready' && (
-					<Widget message={ message } scrollRef={ scrollRef } />
-				) }
-				{ message.status === 'committed' && message.summary && (
-					<div className="cnl-chat-message__summary">
-						<Icon icon={ checkIcon } size={ 16 } />
-						{ message.summary }
-					</div>
-				) }
-				{ isSettled && message.suggestions && <Suggestions /> }
-				{ isSettled && message.actions?.length > 0 && (
-					<div className="cnl-chat-message__actions">
-						{ message.actions.map( ( action ) => (
+			<div className="cnl-chat-message__row">
+				<span aria-hidden className="cnl-chat-message__avatar">
+					<Icon icon={ sparkleIcon } size={ 16 } />
+				</span>
+				<div className="cnl-chat-message__body">
+					{ message.status === 'thinking' ? (
+						<Thinking />
+					) : (
+						<StreamingText
+							isStreaming={ isStreaming }
+							onDone={ () => finishStreaming( message.id ) }
+							text={ message.text }
+						/>
+					) }
+					{ message.status === 'committed' && message.summary && (
+						<div className="cnl-chat-message__summary">
+							<Icon icon={ checkIcon } size={ 16 } />
+							{ message.summary }
+						</div>
+					) }
+					{ isSettled && message.actions?.length > 0 && (
+						<div className="cnl-chat-message__actions">
+							{ message.actions.map( ( action ) => (
+								<Button
+									key={ action }
+									onClick={ () => runAction( action ) }
+									size="compact"
+									variant="secondary"
+								>
+									{ ACTION_LABELS[ action ] }
+								</Button>
+							) ) }
+						</div>
+					) }
+					{ isSettled && message.undo && (
+						<div className="cnl-chat-message__actions">
+							{ message.undoState === 'undone' ? (
+								<span className="cnl-chat-message__undone">
+									{ __( 'Undone' ) }
+								</span>
+							) : (
+								<Button
+									disabled={ message.undoState === 'undoing' }
+									icon={ undoIcon }
+									onClick={ () => undoChange( message.id ) }
+									size="compact"
+									variant="tertiary"
+								>
+									{ __( 'Undo' ) }
+								</Button>
+							) }
+						</div>
+					) }
+					{ message.status === 'error' && message.retry && (
+						<div className="cnl-chat-message__actions">
 							<Button
-								key={ action }
-								onClick={ () => runAction( action ) }
+								onClick={ () => retrySave( message.id ) }
 								size="compact"
 								variant="secondary"
 							>
-								{ ACTION_LABELS[ action ] }
+								{ __( 'Try again' ) }
 							</Button>
-						) ) }
-					</div>
-				) }
-				{ isSettled && message.undo && (
-					<div className="cnl-chat-message__actions">
-						{ message.undoState === 'undone' ? (
-							<span className="cnl-chat-message__undone">
-								{ __( 'Undone' ) }
-							</span>
-						) : (
-							<Button
-								disabled={ message.undoState === 'undoing' }
-								icon={ undoIcon }
-								onClick={ () => undoChange( message.id ) }
-								size="compact"
-								variant="tertiary"
-							>
-								{ __( 'Undo' ) }
-							</Button>
-						) }
-					</div>
-				) }
-				{ message.status === 'error' && message.retry && (
-					<div className="cnl-chat-message__actions">
-						<Button
-							onClick={ () => retrySave( message.id ) }
-							size="compact"
-							variant="secondary"
-						>
-							{ __( 'Try again' ) }
-						</Button>
-					</div>
-				) }
+						</div>
+					) }
+				</div>
 			</div>
+			{ message.hasWidget && message.status === 'ready' && (
+				<Widget message={ message } scrollRef={ scrollRef } />
+			) }
+			{ isSettled && message.suggestions && <Suggestions /> }
+			{ isSettled && isLast && message.offersNext && (
+				<div className="cnl-chat-message__next">
+					<span className="cnl-chat-message__next-label">
+						{ __( 'What would you like to do next?' ) }
+					</span>
+					<Suggestions />
+				</div>
+			) }
 		</div>
 	);
 }
 
-export function Message( { message, scrollRef } ) {
+export function Message( { isLast, message, scrollRef } ) {
 	return message.role === 'user' ? (
 		<UserMessage message={ message } />
 	) : (
-		<AssistantMessage message={ message } scrollRef={ scrollRef } />
+		<AssistantMessage
+			isLast={ isLast }
+			message={ message }
+			scrollRef={ scrollRef }
+		/>
 	);
 }

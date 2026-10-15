@@ -4,9 +4,10 @@
  * A scripted stand-in for a language model: each request the chat can help
  * with is matched by the words it is likely to be asked in, in order, so a
  * more particular request wins over a broader one, and small talk only
- * counts when nothing else does. "Add a section to my
- * About page" is about a section, not a page, and "make my header colors
- * warmer" is about colors, not the header's layout.
+ * counts when nothing else does. "Add a section to my About page" is about
+ * a section, not a page, "add the About page to my menu" is about the menu,
+ * and "make my header colors warmer" is about colors, not the header's
+ * layout.
  *
  * Kept free of React and WordPress packages so it can be tested on its own.
  */
@@ -21,6 +22,10 @@ const RULES = [
 		test: /^\s*(undo|undo (that|it)|put it back|change it back|revert( (that|it))?|go back)\b/i,
 	},
 	{ skill: 'add-section', test: /\bsections?\b/i },
+	{
+		skill: 'menu',
+		test: /\b(menus?|navigation|nav ?bar|nav links)\b/i,
+	},
 	{
 		skill: 'add-page',
 		test: /\b(add|create|make|new|start|build)\b.*\bpages?\b/i,

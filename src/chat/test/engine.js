@@ -30,6 +30,8 @@ describe( 'matchRequest', () => {
 		[ 'Create a new page called Our story', 'add-page' ],
 		[ 'add a testimonials section', 'add-section' ],
 		[ 'add a section to my about page', 'add-section' ],
+		[ 'change my menu', 'menu' ],
+		[ 'add the About page to my navigation', 'menu' ],
 		[ 'make my header colors warmer', 'colors' ],
 		[ 'hi', 'greeting' ],
 		[ 'Hello there!', 'greeting' ],

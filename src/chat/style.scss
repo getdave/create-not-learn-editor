@@ -162,7 +162,6 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--wpds-dimension-gap-sm);
-	margin-block-start: var(--wpds-dimension-gap-md);
 
 	&.is-large {
 		flex-direction: column;
@@ -227,9 +226,18 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 		justify-content: flex-end;
 	}
 
+	// The words sit beside the avatar; pickers and suggestions below take the
+	// chat's full width.
 	&.is-assistant {
+		flex-direction: column;
 		gap: var(--wpds-dimension-gap-md);
 	}
+}
+
+.cnl-chat-message__row {
+	display: flex;
+	gap: var(--wpds-dimension-gap-md);
+	min-width: 0;
 }
 
 @keyframes cnl-chat-message-in {
@@ -335,6 +343,32 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	font-size: var(--wpds-typography-font-size-sm);
 }
 
+.cnl-chat-message__next {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-sm);
+	margin-block-start: var(--wpds-dimension-gap-sm);
+
+	.cnl-chat-suggestions {
+		margin: 0;
+	}
+}
+
+.cnl-chat-message__next-label {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+}
+
+.cnl-chat-choices__label {
+	flex: 1;
+	min-width: 0;
+}
+
+.cnl-chat-choices__meta {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+}
+
 /*
  * The thinking dots.
  */
@@ -385,7 +419,7 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
  * styles from their screens; this only fits them to the narrower column.
  */
 .cnl-chat-widget {
-	margin-block-start: var(--wpds-dimension-gap-md);
+	min-width: 0;
 	padding: var(--wpds-dimension-padding-md);
 	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
 	border-radius: 14px;
@@ -444,22 +478,12 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	gap: var(--wpds-dimension-gap-md);
 }
 
-// Page designs, one to a row, at a height that shows the top of the page.
-.cnl-chat-widget__designs {
-	display: flex;
-	flex-direction: column;
-	gap: var(--wpds-dimension-gap-md);
-
-	.cnl-add-page-layout-card {
-		height: 240px;
-	}
+// Page designs, tall enough to show the top of the page.
+.cnl-chat-widget__designs .cnl-add-page-layout-card {
+	height: 260px;
 }
 
-// Section designs, one to a row.
 .cnl-chat-widget__sections {
-	display: flex;
-	flex-direction: column;
-	gap: var(--wpds-dimension-gap-md);
 	margin: 0;
 	padding: 0;
 	list-style: none;
@@ -469,15 +493,124 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	}
 }
 
+.cnl-chat-widget__heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--wpds-dimension-gap-md);
+}
+
+.components-button.cnl-chat-widget__more {
+	align-self: center;
+}
+
+.components-button.cnl-chat-widget__confirm {
+	justify-content: center;
+	width: 100%;
+}
+
+/*
+ * A carousel of designs: one card at a time, with the next peeking in, so it
+ * is clear there are more to swipe to.
+ */
+.cnl-chat-carousel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-sm);
+	min-width: 0;
+}
+
+.cnl-chat-carousel__track {
+	container-type: inline-size;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scroll-snap-type: x mandatory;
+	scrollbar-width: none;
+	// Room for focus and selection rings, which the scroller would clip.
+	margin: -4px;
+	padding: 4px;
+
+	&::-webkit-scrollbar {
+		display: none;
+	}
+
+	> * {
+		display: flex;
+		flex-direction: row;
+		gap: var(--wpds-dimension-gap-md);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	> * > * {
+		flex: 0 0 86cqw;
+		min-width: 0;
+		scroll-snap-align: start;
+	}
+}
+
+.cnl-chat-carousel__controls {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--wpds-dimension-gap-sm);
+}
+
+.cnl-chat-carousel__count {
+	min-width: 56px;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+	text-align: center;
+}
+
+/*
+ * A short list to choose from, like which page a section goes on.
+ */
+.cnl-chat-choices {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-xs);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.cnl-chat-choices__item {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-sm);
+	width: 100%;
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-md);
+	background: var(--wpds-color-background-surface-neutral-strong);
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+	text-align: start;
+
+	svg {
+		flex: 0 0 auto;
+		color: var(--wpds-color-foreground-content-neutral-weak);
+	}
+
+	&:hover {
+		border-color: $accent;
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: 1px;
+	}
+}
+
 .cnl-add-page-layout-card.is-selected,
 .cnl-section-picker__card.is-selected {
 	border-color: $accent;
 	box-shadow: 0 0 0 1px $accent;
 }
 
-.cnl-chat-widget__more {
-	align-self: center;
-}
 
 /*
  * Where a message is typed.
@@ -560,6 +693,25 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 		background: var(--wpds-color-background-surface-neutral-weak);
 		color: var(--wpds-color-foreground-content-neutral-weak);
 	}
+}
+
+// While a change waits, the button says what sending does.
+.components-button.cnl-chat-composer__send.is-labelled {
+	gap: 4px;
+	width: auto;
+	padding-inline: 12px 10px;
+	border-radius: 999px;
+	background: $accent;
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	white-space: nowrap;
+
+	svg {
+		fill: currentcolor;
+	}
+}
+
+.cnl-chat-composer__box.has-pending .cnl-chat-composer__input {
+	padding-inline-end: 140px;
 }
 
 .cnl-chat-composer__hint {

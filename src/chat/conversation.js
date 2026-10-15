@@ -27,7 +27,7 @@ import {
 	saveEntity,
 	takeSnapshot,
 } from './entity-changes';
-import { FALLBACK_REPLY, SKILLS, openRoute } from './skills';
+import { FALLBACK_REPLY, SKILLS, getSectionsReply, openRoute } from './skills';
 import { chatActions, createMessageId, getChat } from './store';
 
 // How long the chat seems to think before it answers.
@@ -86,7 +86,9 @@ async function respond( text ) {
 	}
 
 	const skill = match && SKILLS[ match.skill ];
-	const reply = skill ? skill.reply( match.params ) : FALLBACK_REPLY;
+	const reply = skill
+		? await skill.reply( match.params, text )
+		: FALLBACK_REPLY;
 
 	update( id, {
 		actions: reply.actions,
@@ -145,6 +147,7 @@ async function save( id, pending, picked ) {
 		}
 
 		update( id, {
+			offersNext: true,
 			skillId: pending.skillId,
 			status: 'streaming',
 			text: skill.done( pending, picked ),
@@ -220,19 +223,51 @@ export function finishStreaming( id ) {
 /**
  * Note how the record a picker changes stands, before anything is picked.
  *
- * @param {Object} message The reply showing the picker.
- * @param {Array}  entity  `[ kind, name, key ]`.
+ * @param {string} id     The reply showing the picker.
+ * @param {Array}  entity `[ kind, name, key ]`.
  */
-export function prepareWidget( message, entity ) {
-	const skill = SKILLS[ message.skillId ];
+export function prepareWidget( id, entity ) {
+	const message = getChat().getMessage( id );
+	const skill = SKILLS[ message?.skillId ];
 
-	if ( message.snapshot || ! entity || ! skill.keys ) {
+	if ( ! message || message.snapshot || ! entity || ! skill?.keys ) {
 		return;
 	}
 
-	update( message.id, {
+	update( id, {
 		entity,
 		snapshot: takeSnapshot( entity, skill.keys, skill.hasBlocks ),
+	} );
+}
+
+/**
+ * A page was chosen for a section to go on: answer as if it had been asked
+ * for, and show the page on the canvas.
+ *
+ * @param {string} id   The reply that asked which page.
+ * @param {Object} page `{ id, title }`.
+ */
+export async function choosePage( id, page ) {
+	const asked = getChat().getMessage( id );
+
+	update( id, { status: 'committed', summary: page.title } );
+	addMessage( { role: 'user', text: page.title } );
+	openRoute( '/types/page/list/all', { previewId: page.id } );
+
+	const replyId = addMessage( { role: 'assistant', status: 'thinking' } );
+
+	await wait( THINKING_MS );
+
+	update( replyId, {
+		hasWidget: true,
+		params: {
+			search: asked?.params?.search || '',
+			pageId: page.id,
+			pageTitle: page.title,
+		},
+		skillId: 'add-section',
+		status: 'streaming',
+		text: getSectionsReply( asked?.params?.search, page.title ),
 	} );
 }
 
@@ -322,6 +357,7 @@ export async function undoChange( id, replyId = null ) {
 
 		update( id, { undoState: 'undone' } );
 		update( answerId, {
+			offersNext: true,
 			status: 'streaming',
 			text: skill.undone || __( 'Done. I’ve put it back how it was.' ),
 			undone: true,

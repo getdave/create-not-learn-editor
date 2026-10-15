@@ -6,12 +6,17 @@
  * shows it straight away, and sending saves that one record.
  *
  * A skill says:
- * - `reply( params )`: what the chat says when asked, as `{ text, ... }`.
+ * - `reply( params, text )`: what the chat says when asked, as `{ text, ... }`,
+ *   or a promise of it.
  * - `Widget`: the picker it shows under the reply, if any.
  * - `useEntity( params )`: the record its picker changes, `[ kind, name, key ]`.
+ *   A picker that only knows its record once loaded reports it through
+ *   `onEntity` instead.
  * - `keys` and `hasBlocks`: what about the record the picker changes.
+ * - `needsRecord( params )`: whether the picker waits for its record to be
+ *   noted before it shows, when that depends on the request.
  * - `chip`, `request` and `done`: how a pick reads in the composer, as the
- *   message sent, and once saved.
+ *   message sent, and once saved. `action` names the send button for it.
  * - `commit` and `undo`: for skills that don't edit a record in place.
  *
  * Imported package by package rather than through `src/wordpress-packages`,
@@ -24,10 +29,16 @@
 import apiFetch from '@wordpress/api-fetch';
 import { Button } from '@wordpress/components';
 import { store as coreDataStore } from '@wordpress/core-data';
-import { dispatch, useDispatch, useSelect } from '@wordpress/data';
+import {
+	dispatch,
+	resolveSelect,
+	useDispatch,
+	useSelect,
+} from '@wordpress/data';
 import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
-import { InputControl, Text } from '@wordpress/ui';
+import { __, _n, sprintf } from '@wordpress/i18n';
+import { home as homeIcon, page as pageIcon } from '@wordpress/icons';
+import { Icon, InputControl, Spinner, Text } from '@wordpress/ui';
 
 /**
  * Internal dependencies
@@ -47,11 +58,16 @@ import {
 	searchSectionDesigns,
 	useSectionDesigns,
 } from '../section-picker';
+import { Carousel } from './carousel';
 import { getBlocksEdit } from './entity-changes';
-import { findTargetPage } from './target-page';
+import {
+	PAGES_QUERY,
+	findNamedPage,
+	findTargetPage,
+	toPages,
+} from './target-page';
+import { useChatExtras } from './use-chat-extras';
 import { useLazyPreview } from './use-lazy-preview';
-
-const DESIGNS_SHOWN = 4;
 
 /*
  * The site's global styles record: the one the Design, Colors and Fonts
@@ -192,30 +208,37 @@ function SitePartWidget( { entity, message, onPick } ) {
 	}
 
 	return (
-		<SitePartLayouts
-			area={ message.params.area }
-			id={ entity[ 2 ] }
-			onPick={ onPick }
-			Preview={ Preview }
-		/>
+		<Carousel label={ __( 'Layouts' ) }>
+			<SitePartLayouts
+				area={ message.params.area }
+				id={ entity[ 2 ] }
+				onPick={ onPick }
+				Preview={ Preview }
+			/>
+		</Carousel>
 	);
 }
 
-function ShowMore( { count, onClick } ) {
+function Loading() {
 	return (
-		<Button
-			__next40pxDefaultSize
-			className="cnl-chat-widget__more"
-			onClick={ onClick }
-			variant="secondary"
-		>
-			{ sprintf(
-				/* translators: %d: number of designs not shown yet. */
-				__( 'Show %d more' ),
-				count
-			) }
-		</Button>
+		<div className="cnl-editor-spinner">
+			<Spinner />
+		</div>
 	);
+}
+
+/*
+ * The menu editor comes from the chat-extras module, which loads the first
+ * time it is needed.
+ */
+function MenuWidget( { onEntity, onPick } ) {
+	const extras = useChatExtras();
+
+	if ( ! extras ) {
+		return <Loading />;
+	}
+
+	return <extras.MenuWidget onEntity={ onEntity } onPick={ onPick } />;
 }
 
 /**
@@ -247,76 +270,174 @@ function rankDesigns( patterns, search ) {
 			...patterns.filter( ( pattern ) => ! matches.includes( pattern ) ),
 		],
 		hasMatches: matches.length > 0,
+		matches,
 	};
 }
 
-function PageWidget( { message, onPick } ) {
-	const Preview = useLazyPreview();
-	const { isResolving, patterns } = usePageLayoutPatterns();
-	const [ title, setTitle ] = useState( message.params?.title || '' );
-	const [ choice, setChoice ] = useState();
-	const [ shown, setShown ] = useState( DESIGNS_SHOWN );
-	const { designs } = useMemo(
-		() =>
-			rankDesigns(
-				patterns,
-				( message.params?.title || '' ).toLowerCase()
-			),
-		[ patterns, message.params?.title ]
+/**
+ * The designs to offer: those that suit the request, until asked for all.
+ *
+ * @param {Object[]} patterns Designs.
+ * @param {string}   search   Words from the request.
+ * @return {Object} `{ designs, hasMatches, more, showAll }`. `more` is how
+ *                  many are held back, and `showAll` shows them.
+ */
+function useSuitableDesigns( patterns, search ) {
+	const [ isShowingAll, setIsShowingAll ] = useState( false );
+	const ranked = useMemo(
+		() => rankDesigns( patterns, search ),
+		[ patterns, search ]
 	);
-	const report = ( nextTitle, nextChoice ) => {
-		if ( nextChoice !== undefined && nextTitle.trim() ) {
-			onPick( nextTitle.trim(), {
-				pattern: nextChoice,
-				title: nextTitle.trim(),
-			} );
-		}
+	const isFiltered = ranked.hasMatches && ! isShowingAll;
+
+	return {
+		designs: isFiltered ? ranked.matches : ranked.designs,
+		hasMatches: ranked.hasMatches,
+		more: isFiltered ? ranked.designs.length - ranked.matches.length : 0,
+		showAll: () => setIsShowingAll( true ),
 	};
+}
+
+function ShowAllDesigns( { more, onClick } ) {
+	if ( ! more ) {
+		return null;
+	}
 
 	return (
-		<div className="cnl-chat-widget__stack">
+		<Button
+			className="cnl-chat-widget__more"
+			onClick={ onClick }
+			variant="link"
+		>
+			{ sprintf(
+				/* translators: %d: number of other designs. */
+				_n( 'See %d other design', 'See %d other designs', more ),
+				more
+			) }
+		</Button>
+	);
+}
+
+/*
+ * Naming a page comes first, on its own, so the designs offered can suit it:
+ * a "Contact" page leads with contact designs.
+ */
+function PageNameStep( { onContinue, title, setTitle } ) {
+	return (
+		<form
+			className="cnl-chat-widget__stack"
+			onSubmit={ ( event ) => {
+				event.preventDefault();
+
+				if ( title.trim() ) {
+					onContinue();
+				}
+			} }
+		>
 			<InputControl
 				autoComplete="off"
 				label={ __( 'Page name' ) }
-				onValueChange={ ( value ) => {
-					setTitle( value );
-					report( value, choice );
-				} }
+				onValueChange={ setTitle }
 				placeholder={ __( 'For example, Contact' ) }
 				value={ title }
 			/>
+			<Button
+				__next40pxDefaultSize
+				accessibleWhenDisabled
+				disabled={ ! title.trim() }
+				type="submit"
+				variant="primary"
+			>
+				{ __( 'Show designs' ) }
+			</Button>
+		</form>
+	);
+}
+
+function PageWidget( { message, onPick, onSend } ) {
+	const Preview = useLazyPreview();
+	const { isResolving, patterns } = usePageLayoutPatterns();
+	const [ title, setTitle ] = useState( message.params?.title || '' );
+	const [ isNaming, setIsNaming ] = useState( ! message.params?.title );
+	const [ choice, setChoice ] = useState();
+	const name = title.trim();
+	// Ranked once named, so the order holds while the name is edited.
+	const [ rankedFor, setRankedFor ] = useState( name );
+	const { designs, more, showAll } = useSuitableDesigns(
+		patterns,
+		rankedFor
+	);
+	const choose = ( nextChoice ) => {
+		setChoice( nextChoice );
+		onPick( name, { pattern: nextChoice, title: name } );
+	};
+
+	if ( isNaming ) {
+		return (
+			<PageNameStep
+				onContinue={ () => {
+					setIsNaming( false );
+					setRankedFor( name );
+
+					if ( choice !== undefined ) {
+						onPick( name, { pattern: choice, title: name } );
+					}
+				} }
+				setTitle={ setTitle }
+				title={ title }
+			/>
+		);
+	}
+
+	return (
+		<div className="cnl-chat-widget__stack">
+			<div className="cnl-chat-widget__heading">
+				<Text variant="body-md">
+					{ sprintf(
+						/* translators: %s: page name. */
+						__( 'Designs for “%s”' ),
+						name
+					) }
+				</Text>
+				<Button onClick={ () => setIsNaming( true ) } variant="link">
+					{ __( 'Change name' ) }
+				</Button>
+			</div>
+			{ isResolving && ! patterns.length && <Loading /> }
+			{ designs.length > 0 && (
+				<Carousel label={ __( 'Page designs' ) }>
+					<div className="cnl-chat-widget__designs">
+						{ designs.map( ( pattern ) => (
+							<PageLayoutCard
+								isSelected={ choice === pattern }
+								key={ pattern.name }
+								onSelect={ () => choose( pattern ) }
+								pattern={ pattern }
+								Preview={ Preview }
+							/>
+						) ) }
+					</div>
+				</Carousel>
+			) }
+			<ShowAllDesigns more={ more } onClick={ showAll } />
 			<StartFromScratch
 				description={ __( 'A blank page to fill in yourself' ) }
 				isSelected={ choice === null }
-				onClick={ () => {
-					setChoice( null );
-					report( title, null );
-				} }
+				onClick={ () => choose( null ) }
 			/>
-			{ isResolving && ! patterns.length && (
-				<Text className="routes-styles__muted" variant="body-sm">
-					{ __( 'Finding designs…' ) }
-				</Text>
-			) }
-			<div className="cnl-chat-widget__designs">
-				{ designs.slice( 0, shown ).map( ( pattern ) => (
-					<PageLayoutCard
-						isSelected={ choice === pattern }
-						key={ pattern.name }
-						onSelect={ () => {
-							setChoice( pattern );
-							report( title, pattern );
-						} }
-						pattern={ pattern }
-						Preview={ Preview }
-					/>
-				) ) }
-			</div>
-			{ designs.length > shown && (
-				<ShowMore
-					count={ Math.min( DESIGNS_SHOWN, designs.length - shown ) }
-					onClick={ () => setShown( shown + DESIGNS_SHOWN ) }
-				/>
+			{ choice !== undefined && (
+				<Button
+					__next40pxDefaultSize
+					className="cnl-chat-widget__confirm"
+					onClick={ onSend }
+					variant="primary"
+				>
+					{ sprintf(
+						/* translators: %s: page name. */
+						__( 'Create “%s”' ),
+						name
+					) }
+				</Button>
 			) }
 		</div>
 	);
@@ -365,16 +486,79 @@ function scrollToNewSection( before ) {
 	}, 100 );
 }
 
-function SectionWidget( { entity, message, onPick, scrollRef } ) {
+/*
+ * Which page a section goes on, asked when there is no page being worked on.
+ */
+function PageChooser( { onChoose } ) {
+	const { homeId, isLoading, records } = useSelect( ( select ) => {
+		const store = select( coreDataStore );
+		const site = store.getEntityRecord( 'root', 'site' );
+		const args = [ 'postType', 'page', PAGES_QUERY ];
+
+		return {
+			homeId: site?.show_on_front === 'page' ? site.page_on_front : null,
+			isLoading: ! store.hasFinishedResolution(
+				'getEntityRecords',
+				args
+			),
+			records: store.getEntityRecords( ...args ),
+		};
+	}, [] );
+	// The homepage first, as the Pages screen lists it.
+	const ordered = useMemo( () => {
+		const pages = toPages( records );
+
+		return [
+			...pages.filter( ( page ) => page.id === homeId ),
+			...pages.filter( ( page ) => page.id !== homeId ),
+		];
+	}, [ homeId, records ] );
+
+	if ( isLoading ) {
+		return <Loading />;
+	}
+
+	return (
+		<ul className="cnl-chat-choices" role="list">
+			{ ordered.map( ( page ) => (
+				<li key={ page.id }>
+					<button
+						className="cnl-chat-choices__item"
+						onClick={ () => onChoose( page ) }
+						type="button"
+					>
+						<Icon
+							icon={ page.id === homeId ? homeIcon : pageIcon }
+							size={ 20 }
+						/>
+						<span className="cnl-chat-choices__label">
+							{ page.title || __( '(no title)' ) }
+						</span>
+						{ page.status === 'draft' && (
+							<span className="cnl-chat-choices__meta">
+								{ __( 'Draft' ) }
+							</span>
+						) }
+					</button>
+				</li>
+			) ) }
+		</ul>
+	);
+}
+
+function SectionWidget( { entity, message, onChoosePage, onPick, scrollRef } ) {
 	const Preview = useLazyPreview();
 	const { editEntityRecord } = useDispatch( coreDataStore );
 	const { isLoading, patterns } = useSectionDesigns();
-	const [ shown, setShown ] = useState( DESIGNS_SHOWN );
 	const search = message.params?.search || '';
-	const { designs, hasMatches } = useMemo(
-		() => rankDesigns( patterns, search ),
-		[ patterns, search ]
+	const { designs, hasMatches, more, showAll } = useSuitableDesigns(
+		patterns,
+		search
 	);
+
+	if ( message.params?.choosePage ) {
+		return <PageChooser onChoose={ onChoosePage } />;
+	}
 
 	if ( ! entity ) {
 		return null;
@@ -409,26 +593,27 @@ function SectionWidget( { entity, message, onPick, scrollRef } ) {
 					) }
 				</Text>
 			) }
-			<ul className="cnl-chat-widget__sections" role="list">
-				{ designs.slice( 0, shown ).map( ( pattern ) => (
-					<SectionDesignCard
-						isSelected={
-							message.pickedPayload?.patternName === pattern.name
-						}
-						key={ pattern.name }
-						onPick={ pick }
-						pattern={ pattern }
-						Preview={ Preview }
-						scrollRef={ scrollRef }
-					/>
-				) ) }
-			</ul>
-			{ designs.length > shown && (
-				<ShowMore
-					count={ Math.min( DESIGNS_SHOWN, designs.length - shown ) }
-					onClick={ () => setShown( shown + DESIGNS_SHOWN ) }
-				/>
+			{ isLoading && ! patterns.length && <Loading /> }
+			{ designs.length > 0 && (
+				<Carousel label={ __( 'Section designs' ) }>
+					<ul className="cnl-chat-widget__sections" role="list">
+						{ designs.map( ( pattern ) => (
+							<SectionDesignCard
+								isSelected={
+									message.pickedPayload?.patternName ===
+									pattern.name
+								}
+								key={ pattern.name }
+								onPick={ pick }
+								pattern={ pattern }
+								Preview={ Preview }
+								scrollRef={ scrollRef }
+							/>
+						) ) }
+					</ul>
+				</Carousel>
 			) }
+			<ShowAllDesigns more={ more } onClick={ showAll } />
 		</div>
 	);
 }
@@ -439,6 +624,34 @@ function SectionWidget( { entity, message, onPick, scrollRef } ) {
  * ---------------------------------------------------------------------------
  */
 
+/**
+ * What the chat says over the section designs.
+ *
+ * @param {string} search    What kind of section was asked for, if said.
+ * @param {string} pageTitle The page it goes on.
+ * @return {string} The reply.
+ */
+export function getSectionsReply( search, pageTitle ) {
+	const title = pageTitle || __( 'this page' );
+
+	return search
+		? sprintf(
+				/* translators: 1: kind of section, 2: page name. */
+				__(
+					'Here are some %1$s sections you could add to “%2$s”. Pick one and it’ll appear at the bottom of the page.'
+				),
+				search,
+				title
+			)
+		: sprintf(
+				/* translators: %s: page name. */
+				__(
+					'Here are some sections you could add to “%s”. Pick one and it’ll appear at the bottom of the page.'
+				),
+				title
+			);
+}
+
 export const SUGGESTIONS = [
 	{ text: __( 'Change my colors' ), icon: 'color' },
 	{ text: __( 'Try a new look' ), icon: 'styles' },
@@ -446,6 +659,7 @@ export const SUGGESTIONS = [
 	{ text: __( 'Rename my site' ), icon: 'siteLogo' },
 	{ text: __( 'Change my header' ), icon: 'header' },
 	{ text: __( 'Change my footer' ), icon: 'footer' },
+	{ text: __( 'Change my menu' ), icon: 'navigation' },
 	{ text: __( 'Add a page' ), icon: 'page' },
 	{ text: __( 'Add a section' ), icon: 'section' },
 ];
@@ -584,17 +798,18 @@ export const SKILLS = {
 			sprintf( __( 'Done. Your footer now uses “%s”.' ), label ),
 	},
 	'add-page': {
+		action: __( 'Create page' ),
 		reply: ( { title } ) => ( {
 			text: title
 				? sprintf(
 						/* translators: %s: page name. */
 						__(
-							'Let’s add a “%s” page. Pick a design to start from, or start blank, and press send when you’re ready.'
+							'Let’s add a “%s” page. Here are the designs that suit it best. Pick one, or start blank, then create it.'
 						),
 						title
 					)
 				: __(
-						'What should the new page be called? Give it a name and pick a design to start from, then press send.'
+						'What should the new page be called? Once it has a name, I’ll show you the designs that suit it.'
 					),
 		} ),
 		Widget: PageWidget,
@@ -655,39 +870,42 @@ export const SKILLS = {
 		keys: [ 'blocks', 'content' ],
 		hasBlocks: true,
 		useEntity: useTargetPageEntity,
-		reply: ( { search } ) => {
-			const page = findTargetPage();
+		// Asking which page comes before any page is changed.
+		needsRecord: ( { choosePage } ) => ! choosePage,
+		action: __( 'Add section' ),
+		async reply( { search }, text ) {
+			// A page named in the request wins, once the pages have loaded.
+			await Promise.all( [
+				resolveSelect( coreDataStore ).getEntityRecords(
+					'postType',
+					'page',
+					PAGES_QUERY
+				),
+				resolveSelect( coreDataStore ).getEntityRecord(
+					'root',
+					'site'
+				),
+			] );
+
+			const named = findNamedPage( text );
+			const current = findTargetPage();
+			const page = named || current;
 
 			if ( ! page ) {
 				return {
-					actions: [ 'open-pages' ],
-					text: __(
-						'Which page should it go on? Open a page on the right, then ask me again.'
-					),
-					widget: false,
+					params: { choosePage: true },
+					text: __( 'Which page should the section go on?' ),
 				};
 			}
 
-			const title = page.title || __( 'this page' );
+			// Show the page named on the canvas, to see the section added.
+			if ( named && named.id !== current?.id ) {
+				openRoute( '/types/page/list/all', { previewId: named.id } );
+			}
 
 			return {
-				params: { pageId: page.id, pageTitle: title },
-				text: search
-					? sprintf(
-							/* translators: 1: kind of section, 2: page name. */
-							__(
-								'Here are some %1$s sections you could add to “%2$s”. Pick one and it’ll appear at the bottom of the page.'
-							),
-							search,
-							title
-						)
-					: sprintf(
-							/* translators: %s: page name. */
-							__(
-								'Here are some sections you could add to “%s”. Pick one and it’ll appear at the bottom of the page.'
-							),
-							title
-						),
+				params: { pageId: page.id, pageTitle: page.title },
+				text: getSectionsReply( search, page.title ),
 			};
 		},
 		Widget: SectionWidget,
@@ -704,6 +922,21 @@ export const SKILLS = {
 				label,
 				message.params.pageTitle
 			),
+	},
+	menu: {
+		keys: [ 'blocks', 'content' ],
+		hasBlocks: true,
+		reply: () => ( {
+			text: __(
+				'Here’s your menu. Drag links to reorder them, rename them, or add pages and links. You’ll see each change on your site as you make it.'
+			),
+		} ),
+		Widget: MenuWidget,
+		chip: ( { label } ) =>
+			/* translators: %s: menu name. */
+			sprintf( __( 'Menu: %s' ), label ),
+		request: () => __( 'Keep my menu changes' ),
+		done: () => __( 'Done. Your menu is saved.' ),
 	},
 	greeting: {
 		reply: () => ( {

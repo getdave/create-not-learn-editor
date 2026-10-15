@@ -3156,11 +3156,14 @@ $sidebar-strip-width: 64px;
 
 @media (min-width: 782px) {
 
-	#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) .cnl-sidebar-toggle {
+	#create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) .cnl-sidebar-toggle,
+	body.cnl-chat-is-open #create-not-learn-editor-app [class*="__layout"] .cnl-sidebar-toggle {
 		display: flex;
 	}
 
-	body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) > [class*="__sidebar"] {
+	// On a task, or with the chat open, which takes the room. See `src/chat`.
+	body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(.cnl-drilldown-stage) > [class*="__sidebar"],
+	body.cnl-chat-is-open:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"] > [class*="__sidebar"] {
 		width: $sidebar-strip-width;
 
 		// The toggle stands in for the Back button and section title.

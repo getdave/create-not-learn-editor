@@ -10,7 +10,7 @@ import {
 	Path,
 	SVG,
 } from '@wordpress/components';
-import { useSelect } from '@wordpress/data';
+import { subscribe, useSelect } from '@wordpress/data';
 import {
 	createElement as el,
 	createRoot,
@@ -34,6 +34,11 @@ import { Icon, Tooltip } from '@wordpress/ui';
  * Internal dependencies
  */
 import {
+	STORE_NAME as CHAT_STORE,
+	chatActions,
+	getChat,
+} from '../../../src/chat/store';
+import {
 	WORKSPACES,
 	getActiveWorkspace,
 	resetRouteToHome,
@@ -47,11 +52,16 @@ import {
 const ON_TASK_SELECTOR = '.cnl-drilldown-stage';
 
 /*
- * What can be pointed at in the sidebar while it is a strip of icons, being
- * on a task and the sidebar not expanded again. Matches the rule in
- * `src/style.scss`.
+ * What can be pointed at in the sidebar while it is a strip of icons: on a
+ * task, or with the chat open, and the sidebar not expanded again. Matches
+ * the rule in `src/style.scss`.
  */
-const STRIP_ITEM_SELECTOR = `body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(${ ON_TASK_SELECTOR }) > [class*="__sidebar"] :is([class*="__item-wrapper"] > *, .cnl-sidebar-workspace__toggle)`;
+const STRIP_ITEMS =
+	':is([class*="__item-wrapper"] > *, .cnl-sidebar-workspace__toggle)';
+const STRIP_ITEM_SELECTOR = [
+	`body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(${ ON_TASK_SELECTOR }) > [class*="__sidebar"] ${ STRIP_ITEMS }`,
+	`body.cnl-chat-is-open:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"] > [class*="__sidebar"] ${ STRIP_ITEMS }`,
+].join( ', ' );
 
 const EXPANDED_CLASS = 'cnl-sidebar-is-expanded';
 
@@ -172,8 +182,37 @@ function StripTooltip() {
  */
 function expandOnStripNavigation() {
 	document.addEventListener( 'click', ( event ) => {
-		if ( event.target.closest?.( STRIP_ITEM_SELECTOR ) ) {
+		// With the chat open, it keeps the room, and the strip stays.
+		if (
+			event.target.closest?.( STRIP_ITEM_SELECTOR ) &&
+			! getChat().isOpen()
+		) {
 			expansion.set( true );
+		}
+	} );
+}
+
+/**
+ * The sidebar and the chat take turns at the room beside the stage: opening
+ * the chat folds the sidebar to its strip of icons, and expanding the sidebar
+ * again closes the chat.
+ */
+function shareRoomWithChat() {
+	let wasOpen = getChat().isOpen();
+
+	subscribe( () => {
+		const isOpen = getChat().isOpen();
+
+		if ( isOpen && ! wasOpen ) {
+			expansion.set( false );
+		}
+
+		wasOpen = isOpen;
+	}, CHAT_STORE );
+
+	expansion.subscribe( () => {
+		if ( expansion.get() && getChat().isOpen() ) {
+			chatActions().setOpen( false );
 		}
 	} );
 }
@@ -364,6 +403,8 @@ function createWorkspaceSwitcher() {
  * - A tooltip naming each icon while the sidebar is a strip of icons.
  * - Going back to the sidebar's top level takes the stage home too.
  * - Clicking an icon in the strip expands the sidebar back out.
+ * - Opening the chat folds the sidebar to its strip, and expanding the
+ *   sidebar closes the chat.
  *
  * Boot's sidebar has no slot for extra content, so these are placed relative
  * to boot's own Dashboard link and the menu that follows it. The sidebar can remount, on narrow screens for
@@ -381,6 +422,7 @@ export function enhanceSidebar( { userName } = {} ) {
 	mountStripTooltip();
 	returnHomeWithSidebar();
 	expandOnStripNavigation();
+	shareRoomWithChat();
 
 	let isScheduled = false;
 	const place = () => {

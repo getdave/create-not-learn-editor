@@ -101,7 +101,11 @@ export function Composer( { pending } ) {
 				send();
 			} }
 		>
-			<div className="cnl-chat-composer__box">
+			<div
+				className={ `cnl-chat-composer__box${
+					pending ? ' has-pending' : ''
+				}` }
+			>
 				{ pending && (
 					<div className="cnl-chat-composer__pending">
 						<PickChip
@@ -134,30 +138,38 @@ export function Composer( { pending } ) {
 					} }
 					placeholder={
 						pending
-							? __( 'Press send to keep this change' )
+							? __( 'Or ask for something else…' )
 							: __( 'Ask for a change to your site…' )
 					}
 					ref={ textareaRef }
 					rows={ 1 }
 					value={ text }
 				/>
-				<Button
-					accessibleWhenDisabled
-					className="cnl-chat-composer__send"
-					disabled={ ! canSend }
-					icon={ arrowUpIcon }
-					label={
-						pending
-							? __( 'Send and keep this change' )
-							: __( 'Send' )
-					}
-					type="submit"
-				/>
+				{ pending ? (
+					// Named for what sending does, so it reads as the way on.
+					<Button
+						accessibleWhenDisabled
+						className="cnl-chat-composer__send is-labelled"
+						disabled={ ! canSend }
+						type="submit"
+						variant="primary"
+					>
+						{ SKILLS[ pending.skillId ].action || __( 'Save' ) }
+						<Icon icon={ arrowUpIcon } size={ 16 } />
+					</Button>
+				) : (
+					<Button
+						accessibleWhenDisabled
+						className="cnl-chat-composer__send"
+						disabled={ ! canSend }
+						icon={ arrowUpIcon }
+						label={ __( 'Send' ) }
+						type="submit"
+					/>
+				) }
 			</div>
 			<p className="cnl-chat-composer__hint">
-				{ __(
-					'You see each change on your site as you pick it. Send keeps it.'
-				) }
+				{ __( 'Changes show on your site as you pick them.' ) }
 			</p>
 		</form>
 	);
