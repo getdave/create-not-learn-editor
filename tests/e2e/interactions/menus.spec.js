@@ -316,4 +316,54 @@ test.describe( 'Menus interactions', () => {
 			)
 			.toBe( true );
 	} );
+
+	test( 'shows changes from the tree in the location previews', async ( {
+		page,
+		rest,
+	} ) => {
+		const savedParts = await rest.getNavigationTemplateParts();
+		test.skip(
+			savedParts.length === 0,
+			'No site parts with a navigation block to put a menu in.'
+		);
+
+		const menu = await rest.createNavigationMenu( {
+			content: [
+				'<!-- wp:navigation-link {"label":"Removed link","url":"https://example.com/removed/","kind":"custom"} /-->',
+				'<!-- wp:navigation-link {"label":"Kept link","url":"https://example.com/kept/","kind":"custom"} /-->',
+			].join( '\n' ),
+		} );
+		const tree = await openMenu( page, menu );
+		const canvas = page.locator( '.routes-navigation-canvas' );
+		const getPreviewText = async () =>
+			(
+				await getFrameTexts(
+					page,
+					'.routes-navigation-locations-canvas__preview iframe'
+				)
+			).join( '\n' );
+
+		await canvas
+			.getByRole( 'checkbox', { name: 'Preview Site' } )
+			.uncheck();
+		await canvas.getByRole( 'button', { name: 'Choose location' } ).click();
+
+		const dialog = page.getByRole( 'dialog', { name: 'Choose location' } );
+		await dialog.getByRole( 'checkbox' ).first().check();
+		await dialog.getByRole( 'button', { name: 'Add to location' } ).click();
+
+		await expect
+			.poll( getPreviewText, { timeout: 15000 } )
+			.toContain( 'Removed link' );
+
+		const row = tree.getByRole( 'row', { name: 'Removed link' } );
+		await row.getByRole( 'button', { name: 'Options' } ).click();
+		await page.getByRole( 'menuitem', { name: /^Remove/ } ).click();
+		await expect( row ).toHaveCount( 0 );
+
+		await expect
+			.poll( getPreviewText, { timeout: 15000 } )
+			.not.toContain( 'Removed link' );
+		expect( await getPreviewText() ).toContain( 'Kept link' );
+	} );
 } );
