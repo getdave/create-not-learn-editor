@@ -2,6 +2,8 @@ const {
 	expect,
 	expectCanvasMode,
 	getSitePreview,
+	getStage,
+	openSidebarLink,
 	test,
 	visitEditor,
 	writeParityScreenshot,
@@ -39,6 +41,33 @@ test.describe( 'Home view', () => {
 				} )
 			).toBeVisible();
 		}
+	} );
+
+	test( 'keeps the sidebar links the same size when another screen loads', async ( {
+		page,
+	} ) => {
+		const names = [ 'My site', 'Site Overview', 'Pages', 'Design' ];
+		const getHeights = () =>
+			Promise.all(
+				names.map( async ( name ) => {
+					const box = await page
+						.getByRole( 'link', { name, exact: true } )
+						.boundingBox();
+					return box.height;
+				} )
+			);
+
+		const before = await getHeights();
+
+		// Each screen's script arrives when it is first opened, or hovered.
+		// One that brings its own copy of a component's styles overrides the
+		// sidebar's, which once made every link taller.
+		await openSidebarLink( page, 'Pages' );
+		await expect(
+			getStage( page ).getByRole( 'heading', { level: 2, name: 'Pages' } )
+		).toBeVisible();
+
+		expect( await getHeights() ).toEqual( before );
 	} );
 
 	test( 'opens the homepage in Browse', async ( { page } ) => {
