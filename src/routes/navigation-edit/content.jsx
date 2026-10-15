@@ -229,7 +229,7 @@ function NavigationEditStage() {
 					/>
 				) : undefined
 			}
-			className="cnl-editor-stage cnl-drilldown-stage routes-navigation-edit"
+			className="cnl-editor-stage routes-navigation-edit"
 			hasPadding={ false }
 			headingLevel={ 2 }
 			subTitle={ __( 'Manage this navigation menu.' ) }

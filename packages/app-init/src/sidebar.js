@@ -41,24 +41,18 @@ import {
 } from '../../../src/workspaces';
 
 /*
- * On a task: a screen drilled into one page or menu. The sidebar is a strip
- * of icons then.
+ * What can be pointed at in the sidebar while it is a strip of icons, the
+ * sidebar not being expanded. Matches the rule in `src/style.scss`.
  */
-const ON_TASK_SELECTOR = '.cnl-drilldown-stage';
-
-/*
- * What can be pointed at in the sidebar while it is a strip of icons, being
- * on a task and the sidebar not expanded again. Matches the rule in
- * `src/style.scss`.
- */
-const STRIP_ITEM_SELECTOR = `body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"]:has(${ ON_TASK_SELECTOR }) > [class*="__sidebar"] :is([class*="__item-wrapper"] > *, .cnl-sidebar-workspace__toggle)`;
+const STRIP_ITEM_SELECTOR = `body:not(.cnl-sidebar-is-expanded) #create-not-learn-editor-app [class*="__layout"] > [class*="__sidebar"] :is([class*="__item-wrapper"] > *, .cnl-sidebar-workspace__toggle)`;
 
 const EXPANDED_CLASS = 'cnl-sidebar-is-expanded';
 
 /*
- * Whether the sidebar has been expanded again while on a task. Held as a
- * class on <body>, which the strip's rule keys off, and lasts until the task
- * is left.
+ * Whether the sidebar is expanded rather than a strip of icons. Held as a
+ * class on <body>, which the strip's rule keys off. It is expanded on first
+ * landing in the editor, or when toggled open, until another screen is
+ * picked.
  */
 const expansion = {
 	listeners: new Set(),
@@ -91,7 +85,7 @@ const drawerLeftCollapsed = el(
 
 /**
  * Expand the sidebar from its strip of icons, or fold it back. Sits where
- * the greeting does, and only shows while on a task.
+ * the greeting does.
  *
  * @return {Element} The toggle.
  */
@@ -167,14 +161,38 @@ function StripTooltip() {
 }
 
 /**
- * Clicking an item in the sidebar's strip of icons is navigating somewhere
- * else, so expand the sidebar back out to show where that landed.
+ * The screen on show, which is the route's path. Other search parameters
+ * move around within a screen.
+ *
+ * @return {string} Route path. No route at all is home.
  */
-function expandOnStripNavigation() {
+function getRoutePath() {
+	return new URL( window.location.href ).searchParams.get( 'p' ) ?? '/';
+}
+
+/*
+ * Set while a change of route only follows the sidebar, as when going Back
+ * to its top level, so the sidebar stays expanded through it.
+ */
+let isFollowingSidebar = false;
+
+/**
+ * Clicking an item in the sidebar's strip of icons that opens a section of
+ * the menu, like Advanced, rather than a screen, expands the sidebar to show
+ * that section. Picking a screen leaves it as a strip.
+ */
+function expandOnStripDrilldown() {
 	document.addEventListener( 'click', ( event ) => {
-		if ( event.target.closest?.( STRIP_ITEM_SELECTOR ) ) {
-			expansion.set( true );
+		if ( ! event.target.closest?.( STRIP_ITEM_SELECTOR ) ) {
+			return;
 		}
+
+		const path = getRoutePath();
+		window.requestAnimationFrame( () => {
+			if ( getRoutePath() === path ) {
+				expansion.set( true );
+			}
+		} );
 	} );
 }
 
@@ -331,12 +349,8 @@ function returnHomeWithSidebar() {
 			const isTopLevel = document.querySelector(
 				'[class*="__sidebar"] [class*="__title-icon"] h1:empty'
 			);
-			// No route at all is home too.
-			const isHome =
-				( new URL( window.location.href ).searchParams.get( 'p' ) ??
-					'/' ) === '/';
-
-			if ( isTopLevel && ! isHome ) {
+			if ( isTopLevel && getRoutePath() !== '/' ) {
+				isFollowingSidebar = true;
 				resetRouteToHome();
 			}
 		} );
@@ -357,13 +371,15 @@ function createWorkspaceSwitcher() {
  * - A Dashboard link showing the WordPress logo, replacing boot's text link,
  *   which `src/style.scss` hides.
  * - A greeting above the main menu, hidden inside menu sections by CSS.
- * - A toggle in the greeting's row, while on a task, to expand the sidebar
- *   from its strip of icons and fold it back.
+ * - A toggle in the greeting's row to expand the sidebar from its strip of
+ *   icons and fold it back. It starts expanded on landing in the editor, and
+ *   folds to the strip whenever another screen is picked.
  * - A workspace switcher in its own section below the menu, outside boot's
  *   navigation screens so it stays put when drilling in and out.
  * - A tooltip naming each icon while the sidebar is a strip of icons.
  * - Going back to the sidebar's top level takes the stage home too.
- * - Clicking an icon in the strip expands the sidebar back out.
+ * - Clicking an icon in the strip that opens a menu section expands the
+ *   sidebar to show it.
  *
  * Boot's sidebar has no slot for extra content, so these are placed relative
  * to boot's own Dashboard link and the menu that follows it. The sidebar can remount, on narrow screens for
@@ -380,7 +396,10 @@ export function enhanceSidebar( { userName } = {} ) {
 
 	mountStripTooltip();
 	returnHomeWithSidebar();
-	expandOnStripNavigation();
+	expandOnStripDrilldown();
+	expansion.set( true );
+
+	let routePath = getRoutePath();
 
 	let isScheduled = false;
 	const place = () => {
@@ -406,9 +425,13 @@ export function enhanceSidebar( { userName } = {} ) {
 			welcome.after( sidebarToggle );
 		}
 
-		// Leaving the task folds the sidebar again next time.
-		if ( ! document.querySelector( ON_TASK_SELECTOR ) ) {
-			expansion.set( false );
+		// Picking another screen folds the sidebar to its strip of icons.
+		if ( getRoutePath() !== routePath ) {
+			routePath = getRoutePath();
+			if ( ! isFollowingSidebar ) {
+				expansion.set( false );
+			}
+			isFollowingSidebar = false;
 		}
 
 		const menu = backButton.parentElement.querySelector(
