@@ -24,9 +24,14 @@ const TEMPLATE_PARTS_QUERY = {
 
 export function useNavigationLocations( navigationId ) {
 	const mergeEdits = useMemo( () => createEditedTemplatePartsCache(), [] );
-	const { isResolvingTemplateParts, menus, templateParts } = useSelect(
+	const { isResolvingTemplateParts, menu, menus, templateParts } = useSelect(
 		( select ) => {
 			const store = select( coreDataStore );
+			const menuRecordArgs = [
+				'postType',
+				NAVIGATION_POST_TYPE,
+				navigationId,
+			];
 			const menuArgs = [
 				'postType',
 				NAVIGATION_POST_TYPE,
@@ -47,6 +52,12 @@ export function useNavigationLocations( navigationId ) {
 						'getEntityRecords',
 						templatePartArgs
 					),
+				// With its unsaved edits, so the previews show what the tree
+				// shows.
+				menu:
+					navigationId && store.getEntityRecord( ...menuRecordArgs )
+						? store.getEditedEntityRecord( ...menuRecordArgs )
+						: null,
 				menus: store.getEntityRecords( ...menuArgs ) || EMPTY_ARRAY,
 				templateParts: mergeEdits( rawTemplateParts, ( id ) =>
 					store.getEditedEntityRecord(
@@ -57,7 +68,7 @@ export function useNavigationLocations( navigationId ) {
 				),
 			};
 		},
-		[ mergeEdits ]
+		[ mergeEdits, navigationId ]
 	);
 	const fallbackMenuId = menus[ 0 ]?.id;
 	const locationsMap = useMemo(
@@ -68,9 +79,7 @@ export function useNavigationLocations( navigationId ) {
 	return {
 		isResolvingTemplateParts,
 		locations: locationsMap[ navigationId ] || EMPTY_ARRAY,
-		menu:
-			menus.find( ( menu ) => Number( menu.id ) === navigationId ) ||
-			null,
+		menu,
 		templateParts,
 	};
 }
