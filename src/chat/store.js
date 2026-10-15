@@ -23,8 +23,36 @@ import {
 
 export const STORE_NAME = 'create-not-learn-editor/chat';
 
+/*
+ * Where the chat sits: in the stage, in place of the screen, or docked to the
+ * right of the canvas. Both are being tried, so the last one picked is
+ * remembered on this browser.
+ */
+export const PLACEMENT_STAGE = 'stage';
+export const PLACEMENT_DOCK = 'dock';
+const PLACEMENT_KEY = 'cnl-chat-placement';
+
+function getSavedPlacement() {
+	try {
+		return window.localStorage.getItem( PLACEMENT_KEY ) === PLACEMENT_DOCK
+			? PLACEMENT_DOCK
+			: PLACEMENT_STAGE;
+	} catch {
+		return PLACEMENT_STAGE;
+	}
+}
+
+export function savePlacement( placement ) {
+	try {
+		window.localStorage.setItem( PLACEMENT_KEY, placement );
+	} catch {
+		// Not remembered, then.
+	}
+}
+
 const DEFAULT_STATE = {
 	isOpen: false,
+	placement: PLACEMENT_STAGE,
 	messages: [],
 	/*
 	 * What has been picked and not yet sent: `{ messageId, skillId, label,
@@ -37,6 +65,8 @@ export function reducer( state = DEFAULT_STATE, action ) {
 	switch ( action.type ) {
 		case 'SET_CHAT_OPEN':
 			return { ...state, isOpen: action.isOpen };
+		case 'SET_CHAT_PLACEMENT':
+			return { ...state, placement: action.placement };
 		case 'ADD_CHAT_MESSAGE':
 			return {
 				...state,
@@ -54,7 +84,11 @@ export function reducer( state = DEFAULT_STATE, action ) {
 		case 'SET_CHAT_PENDING':
 			return { ...state, pending: action.pending };
 		case 'RESET_CHAT':
-			return { ...DEFAULT_STATE, isOpen: state.isOpen };
+			return {
+				...DEFAULT_STATE,
+				isOpen: state.isOpen,
+				placement: state.placement,
+			};
 	}
 
 	return state;
@@ -63,9 +97,20 @@ export function reducer( state = DEFAULT_STATE, action ) {
 if ( ! select( STORE_NAME ) ) {
 	register(
 		createReduxStore( STORE_NAME, {
-			reducer,
+			reducer: ( state, action ) =>
+				reducer(
+					state ?? {
+						...DEFAULT_STATE,
+						placement: getSavedPlacement(),
+					},
+					action
+				),
 			actions: {
 				setOpen: ( isOpen ) => ( { isOpen, type: 'SET_CHAT_OPEN' } ),
+				setPlacement: ( placement ) => ( {
+					placement,
+					type: 'SET_CHAT_PLACEMENT',
+				} ),
 				addMessage: ( message ) => ( {
 					message,
 					type: 'ADD_CHAT_MESSAGE',
@@ -83,6 +128,7 @@ if ( ! select( STORE_NAME ) ) {
 			},
 			selectors: {
 				isOpen: ( state ) => state.isOpen,
+				getPlacement: ( state ) => state.placement,
 				getMessages: ( state ) => state.messages,
 				getMessage: ( state, id ) =>
 					state.messages.find( ( message ) => message.id === id ),
@@ -101,7 +147,8 @@ export function chatActions() {
 }
 
 /**
- * @return {Object} `{ isOpen, messages, pending }`, kept up to date.
+ * @return {Object} `{ isOpen, messages, pending, placement }`, kept up to
+ *                  date.
  */
 export function useChat() {
 	return useSelect( ( selectStore ) => {
@@ -111,6 +158,7 @@ export function useChat() {
 			isOpen: store.isOpen(),
 			messages: store.getMessages(),
 			pending: store.getPending(),
+			placement: store.getPlacement(),
 		};
 	}, [] );
 }

@@ -1,11 +1,12 @@
 /*
- * The chat, docked to the right of the canvas by `mountChat()`, and its
- * button in the top bar.
+ * The chat, placed by `mountChat()` in the stage or docked to the right of
+ * the canvas, and its button in the top bar.
  *
- * Boot's layout matched by its CSS-module suffixes, as the top bar does. The
- * chat sits beside the surfaces in boot's row, so they narrow to make room.
- * Like the top bar, it is left out of the full-screen editor and narrow
- * screens.
+ * Boot's layout matched by its CSS-module suffixes, as the top bar does. In
+ * the stage, the chat covers the stage and the screen in it is hidden.
+ * Docked, it sits beside the surfaces in boot's row, so they narrow to make
+ * room. Like the top bar, it is left out of the full-screen editor and
+ * narrow screens.
  */
 $chat-width: 368px;
 $top-bar-height: 56px;
@@ -20,12 +21,33 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 
 @media (min-width: 782px) {
 
-	body.cnl-chat-is-open #{$layout} .cnl-chat-host {
+	body.cnl-chat-is-open:not(.cnl-chat-in-stage) #{$layout} > .cnl-chat-host {
 		display: flex;
 		flex: 0 0 $chat-width;
 		min-width: 0;
 		min-height: 0;
 		margin: $top-bar-height $gap $gap 0;
+	}
+
+	body.cnl-chat-is-open.cnl-chat-in-stage #{$layout} [class*="__stage"]:has(> .cnl-chat-host) {
+		position: relative;
+		overflow: hidden;
+
+		> :not(.cnl-chat-host) {
+			display: none !important;
+		}
+
+		> .cnl-chat-host {
+			display: flex;
+			position: absolute;
+			inset: 0;
+		}
+
+		// The stage is the card here, so the chat needn't be one too.
+		.cnl-chat {
+			border-radius: 0;
+			animation: none;
+		}
 	}
 }
 

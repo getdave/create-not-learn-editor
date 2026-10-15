@@ -182,20 +182,16 @@ function StripTooltip() {
  */
 function expandOnStripNavigation() {
 	document.addEventListener( 'click', ( event ) => {
-		// With the chat open, it keeps the room, and the strip stays.
-		if (
-			event.target.closest?.( STRIP_ITEM_SELECTOR ) &&
-			! getChat().isOpen()
-		) {
+		if ( event.target.closest?.( STRIP_ITEM_SELECTOR ) ) {
 			expansion.set( true );
 		}
 	} );
 }
 
 /**
- * The sidebar and the chat take turns at the room beside the stage: opening
- * the chat folds the sidebar to its strip of icons, and expanding the sidebar
- * again closes the chat.
+ * The sidebar and the chat take turns: opening the chat folds the sidebar to
+ * its strip of icons, and expanding the sidebar again, or clicking anything
+ * in it, closes the chat.
  */
 function shareRoomWithChat() {
 	let wasOpen = getChat().isOpen();
@@ -215,6 +211,23 @@ function shareRoomWithChat() {
 			chatActions().setOpen( false );
 		}
 	} );
+
+	// Using the sidebar at all is going back to working without the chat.
+	document.addEventListener(
+		'click',
+		( event ) => {
+			if (
+				getChat().isOpen() &&
+				event.target.closest?.(
+					'#create-not-learn-editor-app [class*="__layout"] > [class*="__sidebar"]'
+				)
+			) {
+				chatActions().setOpen( false );
+			}
+		},
+		// Before the strip's own handling, which then expands the sidebar.
+		true
+	);
 }
 
 /**
@@ -403,8 +416,8 @@ function createWorkspaceSwitcher() {
  * - A tooltip naming each icon while the sidebar is a strip of icons.
  * - Going back to the sidebar's top level takes the stage home too.
  * - Clicking an icon in the strip expands the sidebar back out.
- * - Opening the chat folds the sidebar to its strip, and expanding the
- *   sidebar closes the chat.
+ * - Opening the chat folds the sidebar to its strip, and expanding or
+ *   clicking anything in the sidebar closes the chat.
  *
  * Boot's sidebar has no slot for extra content, so these are placed relative
  * to boot's own Dashboard link and the menu that follows it. The sidebar can remount, on narrow screens for

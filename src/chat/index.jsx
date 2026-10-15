@@ -2,9 +2,11 @@
  * The chat: ask for a change in your own words, and pick it with the same
  * controls the screens use, without leaving the page you're on.
  *
- * Docked to the right of the canvas, beside every screen. It answers from a
- * script rather than a language model: see `engine.js` for how requests are
- * understood, and `skills.jsx` for what it can do.
+ * It sits in the stage, in place of the screen, with the site on the canvas
+ * beside it, or docked to the right of the canvas; both are being tried, and
+ * a button in its header swaps them. It answers from a script rather than a
+ * language model: see `engine.js` for how requests are understood, and
+ * `skills.jsx` for what it can do.
  *
  * Imported package by package rather than through `src/wordpress-packages`.
  * That barrel reaches `@wordpress/lazy-editor`, and this module is mounted from
@@ -16,6 +18,7 @@
  * WordPress dependencies
  */
 import { Button } from '@wordpress/components';
+import { subscribe } from '@wordpress/data';
 import {
 	createRoot,
 	useEffect,
@@ -23,7 +26,12 @@ import {
 	useRef,
 } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { closeSmall as closeIcon, plus as plusIcon } from '@wordpress/icons';
+import {
+	closeSmall as closeIcon,
+	drawerLeft as drawerLeftIcon,
+	drawerRight as drawerRightIcon,
+	plus as plusIcon,
+} from '@wordpress/icons';
 import { ThemeProvider } from '@wordpress/theme';
 import { Icon, Text } from '@wordpress/ui';
 
@@ -34,10 +42,52 @@ import { startNewChat } from './conversation';
 import { Composer } from './composer';
 import { sparkleIcon } from './icons';
 import { Message, Suggestions } from './message';
-import { chatActions, useChat } from './store';
+import {
+	PLACEMENT_DOCK,
+	PLACEMENT_STAGE,
+	STORE_NAME,
+	chatActions,
+	getChat,
+	savePlacement,
+	useChat,
+} from './store';
 
 // Set on the page while the chat is open, so the canvas makes room for it.
 const OPEN_CLASS = 'cnl-chat-is-open';
+// Set while the chat sits in the stage, which then shows it alone.
+const IN_STAGE_CLASS = 'cnl-chat-in-stage';
+
+const LAYOUT = '#create-not-learn-editor-app [class*="__layout"]';
+const SURFACES = `${ LAYOUT } > [class*="__surfaces"]`;
+const STAGE = `${ SURFACES } > [class*="__wrapper"] > [class*="__stage"]`;
+
+function setPlacement( placement ) {
+	savePlacement( placement );
+	chatActions().setPlacement( placement );
+}
+
+/*
+ * Swap between the stage and the dock, while both are being tried.
+ */
+function PlacementToggle( { placement } ) {
+	const isInStage = placement === PLACEMENT_STAGE;
+
+	return (
+		<Button
+			icon={ isInStage ? drawerRightIcon : drawerLeftIcon }
+			label={
+				isInStage
+					? __( 'Move to the right of the site' )
+					: __( 'Move to the left of the site' )
+			}
+			onClick={ () =>
+				setPlacement( isInStage ? PLACEMENT_DOCK : PLACEMENT_STAGE )
+			}
+			showTooltip
+			size="compact"
+		/>
+	);
+}
 
 /*
  * The light surface boot gives its stage and canvas. The chat sits outside
@@ -79,13 +129,17 @@ function EmptyConversation() {
 }
 
 function ChatPanel() {
-	const { isOpen, messages, pending } = useChat();
+	const { isOpen, messages, pending, placement } = useChat();
 	const scrollRef = useRef();
 	const lastMessage = messages[ messages.length - 1 ];
 
 	useEffect( () => {
 		document.body.classList.toggle( OPEN_CLASS, isOpen );
-	}, [ isOpen ] );
+		document.body.classList.toggle(
+			IN_STAGE_CLASS,
+			placement === PLACEMENT_STAGE
+		);
+	}, [ isOpen, placement ] );
 
 	/*
 	 * Keep the newest message in view as it arrives and grows. A reply with a
@@ -140,6 +194,7 @@ function ChatPanel() {
 								{ __( 'New chat' ) }
 							</Button>
 						) }
+						<PlacementToggle placement={ placement } />
 						<Button
 							icon={ closeIcon }
 							label={ __( 'Close' ) }
@@ -194,12 +249,14 @@ export function ChatToggle() {
 }
 
 /**
- * Add the chat to boot's layout, beside the canvas.
+ * Add the chat to boot's layout: into the stage, or beside the canvas.
  *
- * Boot lays its sidebar and surfaces out in a row, so the chat is added to
- * the end of the row, and the surfaces narrow to make room while it is open.
- * The layout can remount, so the chat is put back whenever it goes missing,
- * as the top bar is.
+ * In the stage, the chat is added to boot's stage element, and the screen
+ * already there is hidden while the chat is open, so closing the chat finds
+ * the screen as it was. Docked, it is added after boot's surfaces, which lie
+ * in a row with the sidebar, so they narrow to make room. Boot can remount
+ * either, so the chat is put back whenever it goes missing, as the top bar
+ * is.
  */
 export function mountChat() {
 	const container = document.createElement( 'div' );
@@ -210,25 +267,37 @@ export function mountChat() {
 	const place = () => {
 		isScheduled = false;
 
-		if ( container.isConnected ) {
+		const stage =
+			getChat().getPlacement() === PLACEMENT_STAGE &&
+			document.querySelector( STAGE );
+
+		if ( stage ) {
+			if ( container.parentElement !== stage ) {
+				stage.append( container );
+			}
+
 			return;
 		}
 
-		const surfaces = document.querySelector(
-			'#create-not-learn-editor-app [class*="__layout"] > [class*="__surfaces"]'
-		);
+		// Docked, or no stage on this screen to sit in.
+		const surfaces = document.querySelector( SURFACES );
 
-		if ( surfaces ) {
+		if ( surfaces && surfaces.nextElementSibling !== container ) {
 			surfaces.after( container );
 		}
 	};
-
-	new window.MutationObserver( () => {
+	const schedule = () => {
 		if ( ! isScheduled ) {
 			isScheduled = true;
 			window.requestAnimationFrame( place );
 		}
-	} ).observe( document.body, { childList: true, subtree: true } );
+	};
+
+	new window.MutationObserver( schedule ).observe( document.body, {
+		childList: true,
+		subtree: true,
+	} );
+	subscribe( schedule, STORE_NAME );
 
 	place();
 }

@@ -24,6 +24,7 @@ describe( 'chat reducer', () => {
 			isOpen: false,
 			messages: [],
 			pending: null,
+			placement: 'stage',
 		} );
 	} );
 
@@ -48,12 +49,22 @@ describe( 'chat reducer', () => {
 		] );
 	} );
 
+	test( 'moves between the stage and the dock', () => {
+		expect(
+			reducer( initial, {
+				type: 'SET_CHAT_PLACEMENT',
+				placement: 'dock',
+			} ).placement
+		).toBe( 'dock' );
+	} );
+
 	test( 'a reset keeps the panel open but forgets the conversation', () => {
 		const state = reducer(
 			{
 				isOpen: true,
 				messages: [ { id: 'a' } ],
 				pending: { messageId: 'a' },
+				placement: 'dock',
 			},
 			{ type: 'RESET_CHAT' }
 		);
@@ -62,6 +73,7 @@ describe( 'chat reducer', () => {
 			isOpen: true,
 			messages: [],
 			pending: null,
+			placement: 'dock',
 		} );
 	} );
 } );
