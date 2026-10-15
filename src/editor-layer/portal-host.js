@@ -104,7 +104,7 @@ export function observeHost( selector, className, onHost, root = document ) {
  *
  * @example
  * const host = usePortalHost( EDITOR_REGIONS.header, 'cnl-editor-layer__header' );
- * return host && createPortal( el( MyHeader ), host );
+ * return host && createPortal( <MyHeader />, host );
  *
  * @param {string} selector  Region to mount into. See `EDITOR_REGIONS`.
  * @param {string} className Class applied to the host element.
