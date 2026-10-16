@@ -8,6 +8,10 @@ export const PREVIEW_PARAM = 'cnl-editor-preview';
 // A layout to show a page in before it is saved. Read by the preview's PHP.
 export const TEMPLATE_PARAM = 'cnl-editor-template';
 
+// A layout to show any page in, whatever layout WordPress would pick. Read by
+// the preview's PHP.
+export const LAYOUT_PARAM = 'cnl-editor-layout';
+
 // What the homepage shows, page or posts, before it is saved. Read by the
 // preview's PHP.
 export const SHOW_ON_FRONT_PARAM = 'cnl-editor-show-on-front';
@@ -78,6 +82,7 @@ export function getLiveUrl( url ) {
 	parsed.searchParams.delete( PREVIEW_PARAM );
 	parsed.searchParams.delete( 'cnl-editor-preview-refresh' );
 	parsed.searchParams.delete( TEMPLATE_PARAM );
+	parsed.searchParams.delete( LAYOUT_PARAM );
 	parsed.searchParams.delete( SHOW_ON_FRONT_PARAM );
 	parsed.searchParams.delete( PAGE_ON_FRONT_PARAM );
 

@@ -2,7 +2,12 @@
  * Internal dependencies
  */
 import { getTemplateDisplayTitle } from '../../records';
-import { __ } from '../../wordpress-packages';
+import {
+	__,
+	layoutIcon,
+	postFeaturedImageIcon,
+	postListIcon,
+} from '../../wordpress-packages';
 
 export const DEFAULT_CONTENT_VIEW = {
 	fields: [ 'author', 'status', 'comments', 'date' ],
@@ -43,4 +48,16 @@ export function getStatusLabel( status ) {
 
 export function getTemplateTitle( template ) {
 	return getTemplateDisplayTitle( template ) || __( 'Untitled template' );
+}
+
+export function getTemplateIcon( template ) {
+	if ( template?.slug === 'home' ) {
+		return postListIcon;
+	}
+
+	if ( template?.slug === 'single' ) {
+		return postFeaturedImageIcon;
+	}
+
+	return layoutIcon;
 }

@@ -3,7 +3,7 @@
 The canvas beside Home, Pages and Design. A Browse | Edit toggle at the left of its toolbar switches between looking at the site and changing it. While editing, a Compose button beside it steps back to work on the page's sections, and undo and redo follow it.
 
 - **Browse**, the default. The saved site in an iframe, as visitors see it. Links can be followed to other pages.
-- **Edit**. The page in core's editor. Each section made of other blocks starts content-only, so its words and images can be changed, and "Edit" on its toolbar unlocks it. "Open in full editor", in the toolbar's More options menu, opens the full-screen editor for anything the canvas doesn't suit.
+- **Edit**. The page in core's editor. Each section made of other blocks starts content-only, so its words and images can be changed, and "Edit" on its toolbar unlocks it. A layout, like Single Post, opens unlocked, as its sections are mostly a post's title, image and content. "Open in full editor", in the toolbar's More options menu, opens the full-screen editor for anything the canvas doesn't suit.
 - **Compose**. The same editor zoomed out, with our own layer over it for working on the page's sections. It is editing from further away, so the toggle stays on Edit. The Compose button, or Escape with nothing picked, returns to Edit.
 
 The mode is shared by every canvas, so it carries over from page to page and screen to screen. It lives in a small data store (`mode.js`), because app init and each route are built separately. Nothing is saved, so every visit starts in Browse.
@@ -18,7 +18,7 @@ Moving to Browse with unsaved changes asks to save or discard them, because the 
 | `use-site-canvas.js` | `useSiteCanvas()`: the canvas's state and the rules for moving between modes. |
 | `mode.js` | The shared mode: `useCanvasMode()`, `getCanvasMode()`, `setCanvasMode()`. |
 | `toolbar.js` | The Browse \| Edit toggle, the Compose button, undo and redo, the preview's history and device, and the More options menu, with the way to the full-screen editor. |
-| `use-section-lock.js` | In Edit, every section made of other blocks starts content-only, with core's own lock, kept in the editor's settings rather than the page. |
+| `use-section-lock.js` | In Edit, every section of a page or post made of other blocks starts content-only, with core's own lock, kept in the editor's settings rather than the page. A layout's sections aren't locked: they are mostly a post's title, image and content, so there would be nothing left to change. |
 | `edit-section-controls.js` | A section's Layout and Color on core's block toolbar in Edit, and core's unlock button said as "Edit" and "Done". |
 | `section-outline.js` | In Edit, the section pointed at, and the section holding the selection, outlined and named as Compose does, a step thicker than core's outlines around blocks. Core's outline around the page's content as a whole is hidden in their favour. Drawn inside the editor's content region, whose isolated stacking is the only place it can sit under core's block toolbars, and lets every click through. |
 | `use-canvas-styles.js` | `useCanvasStyles()`: styles kept in the editor's canvas while wanted, put back when the editor swaps its iframe. Used by Compose and the section outlines. |

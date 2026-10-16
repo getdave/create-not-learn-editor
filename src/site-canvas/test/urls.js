@@ -49,6 +49,14 @@ describe( 'site canvas URLs', () => {
 		).toBe( `${ ORIGIN }/about/` );
 	} );
 
+	test( 'leaves a previewed layout out of the live URL', () => {
+		expect(
+			getLiveUrl(
+				`${ ORIGIN }/hello/?cnl-editor-preview=1&cnl-editor-layout=single`
+			)
+		).toBe( `${ ORIGIN }/hello/` );
+	} );
+
 	test( 'leaves an unsaved homepage choice out of the live URL', () => {
 		expect(
 			getLiveUrl(

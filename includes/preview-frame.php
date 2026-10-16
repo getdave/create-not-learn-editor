@@ -20,6 +20,11 @@ function cnl_editor_register_preview_frame_hooks() {
 	add_action( 'wp_head', 'cnl_editor_output_preview_frame_styles', 999 );
 	add_action( 'wp_footer', 'cnl_editor_output_preview_navigation_script', 999 );
 	add_filter( 'page_template_hierarchy', 'cnl_editor_preview_page_template' );
+
+	foreach ( cnl_editor_get_template_hierarchy_types() as $type ) {
+		add_filter( "{$type}_template_hierarchy", 'cnl_editor_preview_layout', 20 );
+	}
+
 	add_filter( 'pre_option_show_on_front', 'cnl_editor_preview_show_on_front' );
 	add_filter( 'pre_option_page_on_front', 'cnl_editor_preview_page_on_front' );
 }
@@ -81,6 +86,63 @@ function cnl_editor_preview_page_template( $templates ) {
 	if ( 'default' !== $slug ) {
 		array_unshift( $templates, $slug );
 	}
+
+	return $templates;
+}
+
+/**
+ * The template types WordPress looks up a request's template through.
+ *
+ * Each runs its candidates through a `{$type}_template_hierarchy` filter, and
+ * the first type the request matches decides the template.
+ *
+ * @return string[] Template types, as they appear in the filter names.
+ */
+function cnl_editor_get_template_hierarchy_types() {
+	return array(
+		'404',
+		'search',
+		'frontpage',
+		'home',
+		'privacy',
+		'taxonomy',
+		'attachment',
+		'single',
+		'page',
+		'singular',
+		'category',
+		'tag',
+		'author',
+		'date',
+		'archive',
+		'index',
+	);
+}
+
+/**
+ * Show a page of the site in a layout, whatever layout WordPress would pick.
+ *
+ * The Layouts tabs preview the layout picked there on a page that would use
+ * it, like the latest post for Single Post. Another layout could win that
+ * page, a more specific one, so the canvas passes the picked layout's slug
+ * along as `cnl-editor-layout`, and the preview puts it first in line, for
+ * those who could change layouts.
+ *
+ * @param string[] $templates Template candidates, most specific first.
+ * @return string[] The candidates, with the layout leading.
+ */
+function cnl_editor_preview_layout( $templates ) {
+	if ( ! cnl_editor_is_preview_frame_request() ) {
+		return $templates;
+	}
+
+	$slug = filter_input( INPUT_GET, 'cnl-editor-layout', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+
+	if ( ! is_string( $slug ) || '' === $slug || ! current_user_can( 'edit_theme_options' ) ) {
+		return $templates;
+	}
+
+	array_unshift( $templates, sanitize_title( $slug ) );
 
 	return $templates;
 }

@@ -94,7 +94,16 @@ export function SiteCanvas( {
 	}, [ canCompose, canvas.isComposing ] );
 
 	useComposeZoom( isComposing && Boolean( editorEntity ), editorRef );
-	useSectionLock( isEditing && Boolean( editorEntity ) );
+	/*
+	 * A layout's sections are mostly the post's title, image and content,
+	 * filled in from each post. Locked to their content, they would leave
+	 * nothing to change.
+	 */
+	useSectionLock(
+		isEditing &&
+			Boolean( editorEntity ) &&
+			editorEntity.postType !== 'wp_template'
+	);
 
 	// Open what was picked in Compose in Edit, selected and in view.
 	const editFromCompose = ( clientId, isSitePart ) => {
