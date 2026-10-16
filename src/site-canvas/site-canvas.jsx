@@ -54,6 +54,11 @@ import { useZoomGestures, ZoomControls } from './zoom-controls';
  *                                        the caller needs one.
  * @param {Element}  props.emptyPreview   Shown when there is nothing to
  *                                        preview.
+ * @param {?string}  props.focusId        The one section, header or footer a
+ *                                        canvas about it works on, in the
+ *                                        editor's client IDs. Edit's section
+ *                                        layer offers nothing else on the
+ *                                        page. See `SectionModesLayer`.
  * @param {boolean}  props.canCompose     Whether Compose is offered. A canvas
  *                                        about one part of the site, not a
  *                                        page's sections, does without.
@@ -70,6 +75,7 @@ export function SiteCanvas( {
 	editorChildren,
 	editorRef: givenEditorRef,
 	emptyPreview = null,
+	focusId = null,
 	useComposeSync,
 } ) {
 	const navigate = useNavigate();
@@ -212,6 +218,7 @@ export function SiteCanvas( {
 				{ ( isEditing || isComposing ) && editorEntity && (
 					<SectionModesLayer
 						editorRef={ editorRef }
+						focusId={ focusId }
 						isComposing={ isComposing }
 						onExitCompose={ () => canvas.requestMode( MODE_EDIT ) }
 						useSync={ useComposeSync }

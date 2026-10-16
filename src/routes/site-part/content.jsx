@@ -127,7 +127,7 @@ const VIEWS = {
 const SITE_PARTS = {
 	footer: {
 		description: __(
-			'Shown at the bottom of every page. Click its text on the right to change it.'
+			'Shown at the bottom of every page. Pick Edit design or Edit content on it, on the right, to change it.'
 		),
 		icon: footerIcon,
 		linksLabel: __( 'Footer options' ),
@@ -139,7 +139,7 @@ const SITE_PARTS = {
 	},
 	header: {
 		description: __(
-			'Shown at the top of every page. Click its text on the right to change it.'
+			'Shown at the top of every page. Pick Edit design or Edit content on it, on the right, to change it.'
 		),
 		icon: headerIcon,
 		linksLabel: __( 'Header options' ),
@@ -726,6 +726,8 @@ function createCanvas( area ) {
 				className={ `cnl-site-part-canvas is-${ area }` }
 				document={ <PartDocument area={ area } /> }
 				editorRef={ editorRef }
+				// The part is all Edit offers, the rest of the page dimmed.
+				focusId={ clientId }
 			/>
 		);
 	};
