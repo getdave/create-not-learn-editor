@@ -14,7 +14,7 @@ import {
 	useRef,
 	useState,
 } from '@wordpress/element';
-import { __, isRTL } from '@wordpress/i18n';
+import { __, isRTL, sprintf } from '@wordpress/i18n';
 import {
 	check as checkIcon,
 	chevronLeft as chevronLeftIcon,
@@ -40,13 +40,16 @@ import {
 	cancelPending,
 	choosePage,
 	commitPending,
+	finishSavedPick,
 	finishStreaming,
 	openScreen,
 	pick,
 	prepareWidget,
 	runAction,
+	savePick,
 	sendMessage,
 	undoChange,
+	undoSavedPick,
 } from './conversation';
 import { sparkleIcon } from './icons';
 import { PAGE_SUGGESTIONS, SKILLS, SUGGESTION_GROUPS } from './skills';
@@ -332,7 +335,11 @@ function Widget( { message, scrollRef } ) {
 							prepareWidget( message.id, reported )
 						}
 						onPick={ ( label, payload ) =>
-							pick( message.id, label, payload )
+							( skill.savesOnPick ? savePick : pick )(
+								message.id,
+								label,
+								payload
+							)
 						}
 						onStep={ setStep }
 						scrollRef={ scrollRef }
@@ -343,13 +350,17 @@ function Widget( { message, scrollRef } ) {
 					</div>
 				) }
 			</div>
-			{ isReady && ( skill.hasFooter?.( message.params ) ?? true ) && (
-				<WidgetFooter
-					message={ message }
-					skill={ skill }
-					step={ step }
-				/>
-			) }
+			{ isReady &&
+				( skill.hasFooter?.( message.params ) ?? true ) &&
+				( skill.savesOnPick ? (
+					<SavedPickFooter message={ message } />
+				) : (
+					<WidgetFooter
+						message={ message }
+						skill={ skill }
+						step={ step }
+					/>
+				) ) }
 		</div>
 	);
 }
@@ -462,6 +473,72 @@ function WidgetFooter( { message, skill, step } ) {
 	);
 }
 
+/*
+ * Under a picker that saves each pick as it is made: nothing until something
+ * is picked, then that it saved, with Undo to take it back and Done to put
+ * the picker away. Another pick swaps it.
+ */
+function SavedPickFooter( { message } ) {
+	const { pickedLabel, saveError, saveState, undo } = message;
+	const isSaving = saveState === 'saving';
+
+	if ( ! saveState && ! undo ) {
+		return null;
+	}
+
+	let status = null;
+
+	if ( isSaving ) {
+		status = __( 'Saving your change…' );
+	} else if ( saveState === 'error' ) {
+		status = saveError;
+	} else {
+		status = sprintf(
+			/* translators: %s: what was picked. */
+			__( 'Added “%s”. Pick another to swap it.' ),
+			pickedLabel
+		);
+	}
+
+	return (
+		<div
+			className={ `cnl-chat-widget__footer${
+				saveState ? ` is-${ saveState }` : ''
+			}` }
+		>
+			<span className="cnl-chat-widget__status" role="status">
+				{ status }
+			</span>
+			<div className="cnl-chat-widget__buttons">
+				{ isSaving && <Spinner className="cnl-chat-widget__spinner" /> }
+				{ undo && (
+					<Button
+						__next40pxDefaultSize
+						accessibleWhenDisabled
+						disabled={ isSaving }
+						icon={ undoIcon }
+						onClick={ () => undoSavedPick( message.id ) }
+						variant="tertiary"
+					>
+						{ __( 'Undo' ) }
+					</Button>
+				) }
+				{ undo && (
+					<Button
+						__next40pxDefaultSize
+						accessibleWhenDisabled
+						disabled={ isSaving }
+						onClick={ () => finishSavedPick( message.id ) }
+						variant="primary"
+					>
+						{ __( 'Done' ) }
+					</Button>
+				) }
+			</div>
+		</div>
+	);
+}
+
 function AssistantMessage( { isLast, message, scrollRef } ) {
 	const isStreaming = message.status === 'streaming';
 	const isSettled = ! [ 'thinking', 'streaming', 'saving' ].includes(
@@ -518,25 +595,34 @@ function AssistantMessage( { isLast, message, scrollRef } ) {
 							) ) }
 						</div>
 					) }
-					{ isSettled && message.undo && (
-						<div className="cnl-chat-message__actions">
-							{ message.undoState === 'undone' ? (
-								<span className="cnl-chat-message__undone">
-									{ __( 'Undone' ) }
-								</span>
-							) : (
-								<Button
-									disabled={ message.undoState === 'undoing' }
-									icon={ undoIcon }
-									onClick={ () => undoChange( message.id ) }
-									size="compact"
-									variant="tertiary"
-								>
-									{ __( 'Undo' ) }
-								</Button>
-							) }
-						</div>
-					) }
+					{ isSettled &&
+						message.undo &&
+						// An open picker's footer has its own Undo.
+						! (
+							message.hasWidget && message.status === 'ready'
+						) && (
+							<div className="cnl-chat-message__actions">
+								{ message.undoState === 'undone' ? (
+									<span className="cnl-chat-message__undone">
+										{ __( 'Undone' ) }
+									</span>
+								) : (
+									<Button
+										disabled={
+											message.undoState === 'undoing'
+										}
+										icon={ undoIcon }
+										onClick={ () =>
+											undoChange( message.id )
+										}
+										size="compact"
+										variant="tertiary"
+									>
+										{ __( 'Undo' ) }
+									</Button>
+								) }
+							</div>
+						) }
 				</div>
 			</div>
 			{ message.hasWidget && message.status === 'ready' && (
