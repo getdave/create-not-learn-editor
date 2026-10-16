@@ -8,12 +8,20 @@ import { useNavigate } from '@wordpress/route';
  */
 import { namespace } from '../../settings';
 import { cnlEditorStore, getErrorMessage } from '../../records';
-import { isDynamicNode, useSelectedNode, useSiteOverview } from './data';
+import { MODE_EDIT, setCanvasMode } from '../../site-canvas/mode';
+import {
+	getEditDestination,
+	isDynamicNode,
+	useSelectedNode,
+	useSiteOverview,
+} from './data';
 import { layoutSiteOverview } from './layout';
 import {
 	centerOn,
+	constrainView,
 	fitView,
 	getNextZoomStep,
+	getScaleLimits,
 	isRectInView,
 	zoomAt,
 } from './viewport';
@@ -73,7 +81,7 @@ export default function Canvas() {
 	const { error, isLoading, siteOverview } = useSiteOverview();
 	const [ selectedId, setSelectedId ] = useSelectedNode();
 	const [ hoveredId, setHoveredId ] = useState( '' );
-	const [ view, setView ] = useState( { k: 1, x: 0, y: 0 } );
+	const [ view, setRawView ] = useState( { k: 1, x: 0, y: 0 } );
 	const [ isAnimating, setIsAnimating ] = useState( false );
 	const [ isPanning, setIsPanning ] = useState( false );
 	const viewportRef = useRef();
@@ -83,10 +91,26 @@ export default function Canvas() {
 	const dragRef = useRef( null );
 	const suppressClickRef = useRef( false );
 	const didFitRef = useRef( false );
+	const boundsRef = useRef( null );
 	const hasSize = size.width > 0 && size.height > 0;
 
 	viewRef.current = view;
 	sizeRef.current = size;
+
+	/*
+	 * Every change of view is kept within the site: no further out than
+	 * fitting all of it on screen, and never moved off it.
+	 */
+	const setView = useCallback( ( next ) => {
+		setRawView( ( current ) => {
+			const nextView =
+				typeof next === 'function' ? next( current ) : next;
+
+			return boundsRef.current
+				? constrainView( nextView, boundsRef.current, sizeRef.current )
+				: nextView;
+		} );
+	}, [] );
 
 	/*
 	 * Pages may have changed since the map was last fetched. Only a map
@@ -107,6 +131,12 @@ export default function Canvas() {
 		() => ( siteOverview ? layoutSiteOverview( siteOverview ) : null ),
 		[ siteOverview ]
 	);
+	boundsRef.current = layout?.bounds || null;
+	const scaleLimits =
+		layout && hasSize ? getScaleLimits( layout.bounds, size ) : null;
+	const zoomLevel = scaleLimits ? view.k / scaleLimits.min : 1;
+	const isReset = ! scaleLimits || view.k <= scaleLimits.min + 0.0001;
+	const canZoomIn = !! scaleLimits && view.k < scaleLimits.max - 0.0001;
 	const nodesById = useMemo(
 		() => new Map( ( layout?.nodes || [] ).map( ( n ) => [ n.id, n ] ) ),
 		[ layout ]
@@ -134,10 +164,13 @@ export default function Canvas() {
 		return ids;
 	}, [ activeId, layout ] );
 
-	const animateTo = useCallback( ( nextView ) => {
-		setIsAnimating( ! prefersReducedMotion() );
-		setView( nextView );
-	}, [] );
+	const animateTo = useCallback(
+		( nextView ) => {
+			setIsAnimating( ! prefersReducedMotion() );
+			setView( nextView );
+		},
+		[ setView ]
+	);
 
 	useEffect( () => {
 		if ( ! isAnimating ) {
@@ -187,30 +220,56 @@ export default function Canvas() {
 		) {
 			animateTo( centerOn( viewRef.current, node, currentSize ) );
 		}
-	}, [ animateTo, hasSize, layout, nodesById, selectedId ] );
+	}, [ animateTo, hasSize, layout, nodesById, selectedId, setView ] );
+
+	/*
+	 * When the canvas changes size, as the sidebar opens or closes, the level
+	 * that fits the site changes too. Showing the whole site keeps showing
+	 * it; a closer view is kept within the new limits.
+	 */
+	const fitScaleRef = useRef( null );
+	const fitScale = scaleLimits?.min;
+
+	useEffect( () => {
+		if ( ! fitScale || ! layout ) {
+			return;
+		}
+
+		const previousFitScale = fitScaleRef.current;
+		fitScaleRef.current = fitScale;
+
+		if ( previousFitScale === null || previousFitScale === fitScale ) {
+			return;
+		}
+
+		if ( Math.abs( viewRef.current.k - previousFitScale ) < 0.0001 ) {
+			setView( fitView( layout.bounds, sizeRef.current ) );
+		} else {
+			setView( ( current ) => current );
+		}
+	}, [ fitScale, layout, setView ] );
 
 	const zoomBy = useCallback(
 		( direction ) => {
+			if ( ! layout ) {
+				return;
+			}
+
 			const current = viewRef.current;
-			const { height, width } = sizeRef.current;
+			const currentSize = sizeRef.current;
+			const { max, min } = getScaleLimits( layout.bounds, currentSize );
+			const step = getNextZoomStep( current.k / min, direction );
 
 			animateTo(
-				zoomAt( current, getNextZoomStep( current.k, direction ), {
-					x: width / 2,
-					y: height / 2,
+				zoomAt( current, Math.min( max, Math.max( min, step * min ) ), {
+					x: currentSize.width / 2,
+					y: currentSize.height / 2,
 				} )
 			);
 		},
-		[ animateTo ]
+		[ animateTo, layout ]
 	);
-	const resetZoom = useCallback( () => {
-		const { height, width } = sizeRef.current;
-
-		animateTo(
-			zoomAt( viewRef.current, 1, { x: width / 2, y: height / 2 } )
-		);
-	}, [ animateTo ] );
-	const fit = useCallback( () => {
+	const reset = useCallback( () => {
 		if ( layout ) {
 			animateTo( fitView( layout.bounds, sizeRef.current ) );
 		}
@@ -275,7 +334,7 @@ export default function Canvas() {
 			viewport.removeEventListener( 'wheel', onWheel );
 			viewport.removeEventListener( 'scroll', onScroll );
 		};
-	}, [] );
+	}, [ setView ] );
 
 	const onPointerDown = ( event ) => {
 		// Main button, or the wheel button, which pans in many design tools.
@@ -388,7 +447,7 @@ export default function Canvas() {
 			zoomBy( -1 );
 		} else if ( event.key === '0' ) {
 			event.preventDefault();
-			fit();
+			reset();
 		} else if ( event.key === 'Escape' && selectedId ) {
 			event.preventDefault();
 			setSelectedId( '' );
@@ -411,10 +470,15 @@ export default function Canvas() {
 		[ animateTo ]
 	);
 
+	// Pages open in a site canvas, in Edit, rather than the full-screen
+	// editor.
 	const onOpen = useCallback(
 		( node ) => {
-			if ( node.editLink ) {
-				navigate( { to: node.editLink } );
+			const destination = getEditDestination( node );
+
+			if ( destination ) {
+				setCanvasMode( MODE_EDIT );
+				navigate( destination );
 			}
 		},
 		[ navigate ]
@@ -436,22 +500,14 @@ export default function Canvas() {
 					) }
 				</div>
 				<ZoomControls
-					onFit={ fit }
-					onReset={ resetZoom }
+					canZoomIn={ canZoomIn }
+					isReset={ isReset }
+					onReset={ reset }
 					onZoom={ zoomBy }
-					zoom={ view.k }
+					zoom={ zoomLevel }
 				/>
 			</header>
 			<div className="cnl-site-overview__body">
-				{ selectedNode && (
-					<SelectedPage
-						group={ groupsByName.get( selectedNode.group ) }
-						key={ selectedNode.id }
-						node={ selectedNode }
-						onClose={ () => setSelectedId( '' ) }
-						onOpen={ onOpen }
-					/>
-				) }
 				{ /* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- The canvas pans and zooms from the pointer and keyboard. */ }
 				<div
 					aria-describedby="cnl-site-overview-help"
@@ -560,10 +616,26 @@ export default function Canvas() {
 						id="cnl-site-overview-help"
 					>
 						{ __(
-							'Drag or scroll to move around. Pinch, or hold Ctrl or ⌘ and scroll, to zoom. Double-click a page to edit it.'
+							'Drag or scroll to move around. Pinch, or hold Ctrl or ⌘ and scroll, to zoom. Click a page for details, or double-click it to edit it.'
 						) }
 					</p>
 				</div>
+				{ selectedNode && hasSize && (
+					<SelectedPage
+						group={ groupsByName.get( selectedNode.group ) }
+						isAnimating={ isAnimating }
+						key={ selectedNode.id }
+						node={ selectedNode }
+						onClose={ () => setSelectedId( '' ) }
+						onEdit={
+							getEditDestination( selectedNode )
+								? () => onOpen( selectedNode )
+								: undefined
+						}
+						size={ size }
+						view={ view }
+					/>
+				) }
 			</div>
 		</section>
 	);

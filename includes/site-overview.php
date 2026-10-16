@@ -84,7 +84,7 @@ function cnl_editor_get_site_overview_home_node( $page_on_front ) {
 		'description' => __( 'The first page visitors see', 'create-not-learn-editor' ),
 		'url'         => home_url( '/' ),
 		'previewUrl'  => cnl_editor_get_site_overview_preview_url( home_url( '/' ) ),
-		'editLink'    => '',
+		'canEdit'     => false,
 	);
 
 	if ( $page_on_front ) {
@@ -97,7 +97,7 @@ function cnl_editor_get_site_overview_home_node( $page_on_front ) {
 				'title'       => cnl_editor_get_site_overview_post_title( $post ),
 				'status'      => $post->post_status,
 				'statusLabel' => cnl_editor_get_preview_post_status_label( $post ),
-				'editLink'    => cnl_editor_get_post_edit_route( $page_on_front ),
+				'canEdit'     => current_user_can( 'edit_post', $page_on_front ),
 			)
 		);
 	}
@@ -108,7 +108,8 @@ function cnl_editor_get_site_overview_home_node( $page_on_front ) {
 		$node,
 		array(
 			'description' => __( 'Lists your latest posts', 'create-not-learn-editor' ),
-			'editLink'    => $template ? cnl_editor_get_site_overview_template_edit_route( $template ) : '',
+			'canEdit'     => null !== $template,
+			'template'    => cnl_editor_get_site_overview_template_summary( $template ),
 			'layout'      => $template ? $template->title : '',
 		)
 	);
@@ -265,7 +266,8 @@ function cnl_editor_get_site_overview_collection_node( $post_type, $url, $page_i
 			: __( 'Not on your site yet. Choose a page to list them in Settings.', 'create-not-learn-editor' ),
 		'url'         => $url ? $url : '',
 		'previewUrl'  => $url ? cnl_editor_get_site_overview_preview_url( $url ) : '',
-		'editLink'    => $template ? cnl_editor_get_site_overview_template_edit_route( $template ) : '',
+		'canEdit'     => $page ? current_user_can( 'edit_post', $page->ID ) : false,
+		'template'    => cnl_editor_get_site_overview_template_summary( $template ),
 		'layout'      => $template ? $template->title : '',
 	);
 }
@@ -312,7 +314,7 @@ function cnl_editor_get_site_overview_single_node( $post_type, $count ) {
 		'url'         => $url ? $url : '',
 		'previewUrl'  => $url ? cnl_editor_get_site_overview_preview_url( $url ) : '',
 		'previewOf'   => $latest ? cnl_editor_get_site_overview_post_title( get_post( $latest[0] ) ) : '',
-		'editLink'    => $template ? cnl_editor_get_site_overview_template_edit_route( $template ) : '',
+		'template'    => cnl_editor_get_site_overview_template_summary( $template ),
 		'layout'      => $template ? $template->title : '',
 	);
 }
@@ -370,7 +372,7 @@ function cnl_editor_get_site_overview_pages( $page_on_front, $archive_page_ids )
 			'statusLabel' => cnl_editor_get_preview_post_status_label( $page ),
 			'url'         => $is_published ? $url : '',
 			'previewUrl'  => $url ? cnl_editor_get_site_overview_preview_url( $url ) : '',
-			'editLink'    => cnl_editor_get_post_edit_route( $page->ID ),
+			'canEdit'     => current_user_can( 'edit_post', $page->ID ),
 		);
 
 		$edges[] = array(
@@ -422,13 +424,23 @@ function cnl_editor_get_site_overview_template( $slugs ) {
 }
 
 /**
- * Get the editor route that edits a template.
+ * Get what the editor needs to know about a template to open it in place:
+ * its ID, and what it takes to tell which content type's layouts it is among.
  *
- * @param WP_Block_Template $template Template.
- * @return string Route.
+ * @param WP_Block_Template|null $template Template.
+ * @return array|null Template, or null when there is none.
  */
-function cnl_editor_get_site_overview_template_edit_route( $template ) {
-	return '/wp_template?postId=' . rawurlencode( $template->id );
+function cnl_editor_get_site_overview_template_summary( $template ) {
+	if ( ! $template ) {
+		return null;
+	}
+
+	return array(
+		'id'          => $template->id,
+		'slug'        => $template->slug,
+		'title'       => $template->title,
+		'description' => $template->description,
+	);
 }
 
 /**
