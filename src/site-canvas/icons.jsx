@@ -1,6 +1,6 @@
 /**
- * The site canvas's own icon, for a page made of sections, which
- * `@wordpress/icons` has nothing for. Drawn on the same 24px grid.
+ * The site canvas's own icons, for a page made of sections and for zooming
+ * out, which `@wordpress/icons` has nothing for. Drawn on the same 24px grid.
  */
 
 /**
@@ -20,5 +20,22 @@ export const sectionsIcon = (
 			fillRule="evenodd"
 		/>
 		<path d="M5.5 10.5h13v3h-13z" />
+	</svg>
+);
+
+// Zoom out: core's search magnifier, drawn the same way, with a minus in it.
+// No fill is set inline, as core's is, as buttons fill their icons.
+export const zoomOutIcon = (
+	<svg
+		{ ...SVG_PROPS }
+		stroke="currentColor"
+		strokeWidth="1.5"
+		style={ { fill: 'none' } }
+	>
+		<path
+			d="M5 19L9.28769 14.7123M18.25 11C18.25 13.8995 15.8995 16.25 13 16.25C10.1005 16.25 7.75 13.8995 7.75 11C7.75 8.10051 10.1005 5.75 13 5.75C15.8995 5.75 18.25 8.10051 18.25 11Z"
+			vectorEffect="non-scaling-stroke"
+		/>
+		<path d="M10.5 11h5" vectorEffect="non-scaling-stroke" />
 	</svg>
 );

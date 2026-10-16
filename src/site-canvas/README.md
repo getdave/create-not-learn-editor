@@ -17,11 +17,12 @@ Moving to Browse with unsaved changes asks to save or discard them, because the 
 | `site-canvas.js` | `SiteCanvas`: the toolbar, the editor, the preview laid over it, Edit's section layer and the Compose layer. |
 | `use-site-canvas.js` | `useSiteCanvas()`: the canvas's state and the rules for moving between modes. |
 | `mode.js` | The shared mode: `useCanvasMode()`, `getCanvasMode()`, `setCanvasMode()`. |
-| `toolbar.js` | The Browse \| Edit toggle, the Compose button, undo and redo, the preview's history and device, and the More options menu, with the way to the full-screen editor. |
+| `toolbar.js` | The Browse \| Edit toggle, the Compose button (labelled "Zoom out"), undo and redo, the preview's history and device, and the More options menu, with the way to the full-screen editor. |
+| `zoom-controls.jsx` | Compose from the canvas itself: a zoom in and zoom out pair in its corner, as on a map, and a pinch on a trackpad, or Ctrl or ⌘ with the scroll wheel. One gesture moves one step. |
 | `use-section-lock.js` | In Edit, every section of a page or post made of other blocks starts content-only, with core's own lock, kept in the editor's settings rather than the page. A layout's sections aren't locked: they are mostly a post's title, image and content, so there would be nothing left to change. |
 | `edit-section-controls.js` | Core's unlock button said as "Edit" and "Done", and core's "Shuffle styles" hidden, in Edit. |
 | `use-canvas-styles.js` | `useCanvasStyles()`: styles kept in the editor's canvas while wanted, put back when the editor swaps its iframe. Used by Compose and Edit's section layer. |
-| `icons.js` | An icon for a page built from stacked sections, for the empty page in Compose. Compose's button uses the editor's own zoom-out icon. |
+| `icons.js` | An icon for a page built from stacked sections, for the empty page in Compose, and a zoom-out magnifier for Compose's button. |
 | `section-modes/` | Edit's section layer. See below. |
 | `compose/` | Compose. See below. |
 
