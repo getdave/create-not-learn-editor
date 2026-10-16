@@ -186,7 +186,7 @@ export function groupLayouts( patterns ) {
 		...getLayoutGroups(),
 		{
 			name: 'layout-more',
-			label: __( 'More layouts' ),
+			label: __( 'More templates' ),
 			description: __( 'Other shapes' ),
 			categories: EMPTY_ARRAY,
 		},

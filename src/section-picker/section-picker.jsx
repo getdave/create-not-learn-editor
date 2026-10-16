@@ -1,8 +1,8 @@
 /**
  * The "Add a section" picker: every section design the site offers, grouped
- * by what it is for, in one modal. A switch at the top swaps the designs for
- * plain layouts, grouped by shape and shown as wireframes to fill in with your
- * own content.
+ * by what it is for, in one modal. Three ways to start sit at the top:
+ * designs, templates, which are plain layouts grouped by shape and shown as
+ * wireframes to fill in with your own content, or a blank section.
  *
  * Shared by the Pages screen and the editor, so it knows nothing about where
  * the section goes beyond the sentence describing it. Each caller passes the
@@ -18,7 +18,6 @@ import {
 	SearchControl,
 	/* eslint-disable @wordpress/no-unsafe-wp-apis -- The segmented control is still experimental in @wordpress/components and has no @wordpress/ui equivalent yet. */
 	__experimentalToggleGroupControl as ToggleGroupControl,
-	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 	__experimentalToggleGroupControlOptionIcon as ToggleGroupControlOptionIcon,
 	/* eslint-enable @wordpress/no-unsafe-wp-apis */
 } from '@wordpress/components';
@@ -31,7 +30,12 @@ import {
 	useState,
 } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
-import { check as checkIcon, plus as plusIcon } from '@wordpress/icons';
+import {
+	brush as brushIcon,
+	check as checkIcon,
+	layout as layoutIcon,
+	plus as plusIcon,
+} from '@wordpress/icons';
 import { store as preferencesStore } from '@wordpress/preferences';
 import { Icon, Skeleton, Text } from '@wordpress/ui';
 
@@ -43,7 +47,6 @@ import {
 	DesignPickerNav,
 	GridShapeIcon,
 	GroupHeading,
-	StartFromScratch,
 } from '../design-picker';
 import {
 	getPatternContent,
@@ -59,7 +62,8 @@ const PER_ROW_PREFERENCE = 'sectionPickerPerRow';
 const DEFAULT_PER_ROW = 3;
 const MODE_PREFERENCE = 'sectionPickerMode';
 
-// What the picker offers: designed sections, or plain layouts to fill in.
+// What the picker offers: designed sections, or plain layouts to fill in,
+// which it calls templates.
 const DESIGNS_MODE = 'designs';
 const LAYOUTS_MODE = 'layouts';
 
@@ -202,19 +206,105 @@ function DesignGrid( { onPick, patterns, Preview, scrollRef } ) {
 }
 
 /**
+ * One way to start a section, as a card with an icon, a name and a few words
+ * on what it gives you.
+ *
+ * @param {Object}   props             Component props.
+ * @param {string}   props.description What starting this way gives you.
+ * @param {Object}   props.icon        Icon.
+ * @param {boolean}  props.isPressed   Whether it is the choice showing below,
+ *                                     if it is a choice rather than an action.
+ * @param {string}   props.label       Name.
+ * @param {Function} props.onClick     Called when picked.
+ * @return {Element} The card.
+ */
+function StartOption( { description, icon, isPressed, label, onClick } ) {
+	return (
+		<li>
+			<button
+				aria-pressed={ isPressed }
+				className={ `cnl-section-picker__start${ isPressed ? ' is-pressed' : '' }` }
+				onClick={ onClick }
+				type="button"
+			>
+				<span aria-hidden className="cnl-section-picker__start-icon">
+					<Icon icon={ icon } />
+				</span>
+				<span className="cnl-section-picker__start-text">
+					<span className="cnl-section-picker__start-label">
+						{ label }
+					</span>
+					<span className="cnl-section-picker__start-description">
+						{ description }
+					</span>
+				</span>
+			</button>
+		</li>
+	);
+}
+
+/**
+ * The ways to start, above everything else: designs or templates, which swap
+ * what shows below, and a blank section, which is added straight away.
+ *
+ * @param {Object}   props              Component props.
+ * @param {boolean}  props.hasTemplates Whether there are templates to offer.
+ * @param {string}   props.mode         What shows below.
+ * @param {Function} props.onModeChange Called with the mode picked.
+ * @param {Function} props.onStartBlank Called to add an empty section.
+ * @return {Element} The cards.
+ */
+function StartOptions( { hasTemplates, mode, onModeChange, onStartBlank } ) {
+	return (
+		<ul
+			aria-label={ __( 'How to start' ) }
+			className="cnl-section-picker__starts"
+			role="list"
+		>
+			<StartOption
+				description={ __( 'Predesigned sections you can customize' ) }
+				icon={ brushIcon }
+				isPressed={ mode === DESIGNS_MODE }
+				label={ __( 'Designs' ) }
+				onClick={ () => onModeChange( DESIGNS_MODE ) }
+			/>
+			{ hasTemplates && (
+				<StartOption
+					description={ __(
+						'Starting points to fill with your content'
+					) }
+					icon={ layoutIcon }
+					isPressed={ mode === LAYOUTS_MODE }
+					label={ __( 'Templates' ) }
+					onClick={ () => onModeChange( LAYOUTS_MODE ) }
+				/>
+			) }
+			<StartOption
+				description={ __(
+					'An empty section to build however you like'
+				) }
+				icon={ plusIcon }
+				label={ __( 'Start blank' ) }
+				onClick={ onStartBlank }
+			/>
+		</ul>
+	);
+}
+
+/**
  * The heading over search results.
  *
  * @param {number}  count         How many matched.
  * @param {string}  search        What was typed.
- * @param {boolean} isLayoutsMode Whether layouts were searched.
+ * @param {boolean} isLayoutsMode Whether templates were searched.
  * @return {string} The heading.
  */
 function getResultsLabel( count, search, isLayoutsMode ) {
 	if ( count ) {
 		return isLayoutsMode
 			? sprintf(
-					/* translators: %d: number of layouts. */
-					_n( '%d layout', '%d layouts', count ),
+					/* translators: %d: number of section templates. */
+					_n( '%d template', '%d templates', count ),
 					count
 				)
 			: sprintf(
@@ -227,7 +317,7 @@ function getResultsLabel( count, search, isLayoutsMode ) {
 	return isLayoutsMode
 		? sprintf(
 				/* translators: %s: what was searched for. */
-				__( 'No layouts match “%s”' ),
+				__( 'No templates match “%s”' ),
 				search.trim()
 			)
 		: sprintf(
@@ -466,7 +556,7 @@ export function SectionPicker( {
 					>
 						{ isLayoutsMode
 							? __( 'Search designs instead' )
-							: __( 'Search layouts instead' ) }
+							: __( 'Search templates instead' ) }
 					</Button>
 				) }
 				{ results.length > 0 && (
@@ -483,7 +573,7 @@ export function SectionPicker( {
 		body = (
 			<Text className="cnl-design-picker__empty" variant="body-md">
 				{ __(
-					'Your theme has no section designs to offer, so start from scratch.'
+					'Your theme has no section designs to offer, so start blank.'
 				) }
 			</Text>
 		);
@@ -537,40 +627,18 @@ export function SectionPicker( {
 					key="search"
 					label={
 						isLayoutsMode
-							? __( 'Search layouts' )
+							? __( 'Search section templates' )
 							: __( 'Search section designs' )
 					}
 					onChange={ setSearch }
 					placeholder={
 						isLayoutsMode
-							? __( 'Search layouts…' )
+							? __( 'Search templates…' )
 							: __( 'Search designs…' )
 					}
 					value={ search }
 				/>,
 			] }
-			belowHeading={
-				hasLayouts && (
-					<ToggleGroupControl
-						__next40pxDefaultSize
-						className="cnl-section-picker__mode"
-						hideLabelFromVision
-						isBlock={ false }
-						label={ __( 'What to choose from' ) }
-						onChange={ switchMode }
-						value={ isLayoutsMode ? LAYOUTS_MODE : DESIGNS_MODE }
-					>
-						<ToggleGroupControlOption
-							label={ __( 'Designs' ) }
-							value={ DESIGNS_MODE }
-						/>
-						<ToggleGroupControlOption
-							label={ __( 'Layouts' ) }
-							value={ LAYOUTS_MODE }
-						/>
-					</ToggleGroupControl>
-				)
-			}
 			className="cnl-section-picker"
 			mainClassName={ `is-${ perRow }-per-row` }
 			mainRef={ scrollRef }
@@ -587,21 +655,16 @@ export function SectionPicker( {
 				/>
 			}
 			onClose={ onClose }
-			subtitle={ [
-				isLayoutsMode
-					? __(
-							'Pick a layout and fill in your own words and pictures.'
-						)
-					: __( 'Choose a design to get started.' ),
-				placement,
-			]
+			subtitle={ [ __( 'Choose how to start.' ), placement ]
 				.filter( Boolean )
 				.join( ' ' ) }
 			title={ __( 'Add a section' ) }
 		>
-			<StartFromScratch
-				description={ __( 'Build your section on a blank canvas' ) }
-				onClick={ onStartFromScratch }
+			<StartOptions
+				hasTemplates={ hasLayouts }
+				mode={ isLayoutsMode ? LAYOUTS_MODE : DESIGNS_MODE }
+				onModeChange={ switchMode }
+				onStartBlank={ onStartFromScratch }
 			/>
 			{ body }
 		</DesignPicker>
