@@ -1,5 +1,5 @@
 /**
- * The Header and Footer screens, reached from the "Your site" checklist.
+ * The Header and Footer screens, reached from the "Your site" screen.
  *
  * Like a page on the Pages screen: the stage holds what can be changed about
  * the part as a whole, and the canvas shows the homepage with the part in the

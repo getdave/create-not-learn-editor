@@ -14,7 +14,7 @@ test.describe( 'Home view', () => {
 		await visitEditor( page );
 	} );
 
-	test( 'shows the steps to create your site', async ( { page } ) => {
+	test( 'offers places to start working on the site', async ( { page } ) => {
 		await expect(
 			page.getByRole( 'heading', { level: 1, name: 'Your site' } )
 		).toBeVisible();
@@ -22,25 +22,26 @@ test.describe( 'Home view', () => {
 			page.getByRole( 'link', { name: /View site/ } )
 		).toHaveAttribute( 'target', '_blank' );
 
-		const steps = page.getByRole( 'list', {
-			name: 'Steps to create your site',
+		const links = page.getByRole( 'navigation', {
+			name: 'Start working on your site',
 		} );
-		await expect( steps.getByRole( 'listitem' ) ).toHaveCount( 7 );
-		for ( const step of [
-			'Name & logo',
-			'Header',
-			'Footer',
-			'Colors',
-			'Fonts',
+		await expect( links.getByRole( 'button' ) ).toHaveCount( 6 );
+		for ( const title of [
 			'Your homepage',
 			'Pages & menu',
+			'Name & logo',
+			'Colors & fonts',
+			'Header',
+			'Footer',
 		] ) {
 			await expect(
-				steps.getByRole( 'button', {
-					name: new RegExp( `^${ step }` ),
+				links.getByRole( 'button', {
+					name: new RegExp( `^${ title }` ),
 				} )
 			).toBeVisible();
 		}
+		// Nothing is ticked off or counted.
+		await expect( page.getByRole( 'progressbar' ) ).toHaveCount( 0 );
 	} );
 
 	test( 'keeps the sidebar links the same size when another screen loads', async ( {
