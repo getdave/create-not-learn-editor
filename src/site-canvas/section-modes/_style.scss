@@ -1,0 +1,808 @@
+/*
+ * Edit's section layer. See `section-modes-layer.jsx`.
+ *
+ * The host is appended to the editor's content region, and lays out as
+ * nothing, so the layer covers the region. The layer lets every pointer
+ * event through to the canvas but those on its own controls.
+ */
+
+$chrome-ink: #1e1e1e;
+$destructive: #cc1818;
+
+// The panel and bars are the design system's surfaces, as the bar over a
+// section is: white, edged and lifted, never a dark overlay.
+$surface: var(--wpds-color-background-surface-neutral);
+$ink: var(--wpds-color-foreground-content-neutral);
+$ink-weak: var(--wpds-color-foreground-content-neutral-weak);
+$stroke: var(--wpds-color-stroke-surface-neutral);
+$stroke-control: var(--wpds-color-stroke-interactive-neutral);
+$stroke-active: var(--wpds-color-stroke-interactive-neutral-active);
+$brand-text: var(--wpds-color-foreground-interactive-brand);
+$brand-text-active: var(--wpds-color-foreground-interactive-brand-active);
+$brand-weak: var(--wpds-color-background-interactive-brand-weak);
+$lift: 0 4px 14px rgba(0, 0, 0, 0.18);
+$hover-wash: #eef1fd;
+$theme: var(--wp-admin-theme-color);
+
+// WPDS motion: subtle for hover and colour, expressive for things entering.
+$duration-xs: var(--wpds-motion-duration-xs);
+$duration-sm: var(--wpds-motion-duration-sm);
+$duration-md: var(--wpds-motion-duration-md);
+$easing-subtle: var(--wpds-motion-easing-subtle);
+$easing-expressive: var(--wpds-motion-easing-expressive);
+$easing-balanced: var(--wpds-motion-easing-balanced);
+
+.cnl-section-modes-host {
+	display: contents;
+}
+
+.cnl-section-modes {
+	position: absolute;
+	z-index: 1;
+	inset: 0;
+	overflow: hidden;
+	pointer-events: none;
+	font-size: 13px;
+}
+
+.cnl-section-modes__clip {
+	position: absolute;
+	overflow: hidden;
+}
+
+/*
+ * What a section pointed at shows, remade for each one. Lays out as nothing,
+ * so its parts are placed on the clip as before.
+ */
+.cnl-section-modes__hover {
+	display: contents;
+}
+
+/*
+ * Arriving: the tint and outlines fade in, and the controls follow, rising a
+ * little as they come. Only on arrival, never as a section moves, so they
+ * stay with the page as it scrolls.
+ */
+@keyframes cnl-section-modes-fade {
+
+	from {
+		opacity: 0;
+	}
+}
+
+@keyframes cnl-section-modes-rise {
+
+	from {
+		opacity: 0;
+		translate: 0 4px;
+	}
+}
+
+.cnl-section-modes__tint,
+.cnl-section-modes__outline,
+.cnl-section-modes__item,
+.cnl-section-modes__bin,
+.cnl-section-modes__tab,
+.cnl-section-modes__add-section,
+.cnl-section-modes__panel,
+.cnl-section-modes__mode-bar {
+	animation: cnl-section-modes-rise $duration-md $easing-expressive both;
+}
+
+// The bar follows the tint a moment later, so it reads as arriving on it.
+.cnl-section-modes__bar {
+	animation: cnl-section-modes-rise $duration-md $easing-expressive $duration-xs both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	.cnl-section-modes *,
+	.cnl-section-modes *::before {
+		animation: none !important;
+	}
+}
+
+.cnl-section-modes button {
+	font-family: inherit;
+	pointer-events: auto;
+	cursor: pointer;
+
+	&:disabled {
+		cursor: default;
+	}
+}
+
+.cnl-section-modes svg {
+	fill: currentcolor;
+}
+
+/* The section pointed at: tinted, with its outline drawn inside its edges. */
+.cnl-section-modes__tint {
+	position: absolute;
+	box-sizing: border-box;
+	background: rgba(17, 17, 17, 0.4);
+	box-shadow: inset 0 0 0 2px $theme;
+	transition: background-color $duration-sm $easing-subtle;
+
+	// Picked but not pointed at: outlined, its words in full view.
+	&.is-picked {
+		background: transparent;
+	}
+}
+
+/* The section in a mode: outlined, untinted. */
+.cnl-section-modes__outline {
+	position: absolute;
+	box-sizing: border-box;
+	box-shadow: inset 0 0 0 2px $theme;
+}
+
+/* Its name, in a tab above its top edge, or inside it at the canvas's top. */
+.cnl-section-modes__tab {
+	position: absolute;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	box-sizing: border-box;
+	height: 24px;
+	padding: 0 10px;
+	border-radius: 6px 6px 0 0;
+	background: $theme;
+	color: #fff;
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+
+	&.is-inside {
+		border-radius: 0 0 6px 0;
+	}
+}
+
+.cnl-section-modes__tab-title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cnl-section-modes__tab-note {
+	font-weight: 500;
+	opacity: 0.85;
+}
+
+/*
+ * The bar over a section pointed at: Add at the start, the three modes in
+ * the middle, the section's own moves at the end.
+ */
+.cnl-section-modes__bar {
+	position: absolute;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+	align-items: center;
+	gap: 12px;
+
+	> .cnl-section-modes__bar-start {
+		justify-self: start;
+	}
+
+	> .cnl-section-modes__bar-end {
+		justify-self: end;
+	}
+
+	// The modes on a row of their own, under Add and the section's moves.
+	&.is-narrow {
+		grid-template-columns: minmax(0, 1fr) auto;
+		row-gap: 8px;
+
+		> .cnl-section-modes__group {
+			grid-column: 1 / -1;
+			grid-row: 2;
+			justify-self: center;
+		}
+
+		> .cnl-section-modes__bar-end {
+			grid-column: 2;
+			grid-row: 1;
+		}
+	}
+}
+
+.cnl-section-modes__group {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 4px;
+	border-radius: 10px;
+	background: #fff;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+	pointer-events: auto;
+}
+
+.cnl-section-modes__bar-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-width: 36px;
+	min-height: 36px;
+	padding: 0 10px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: $chrome-ink;
+	font-size: 14px;
+	font-weight: 600;
+	white-space: nowrap;
+
+	&:not(:has(span)) {
+		padding: 0;
+	}
+
+	&:hover:not(:disabled),
+	&:focus-visible {
+		outline: none;
+		background: $hover-wash;
+		color: $theme;
+	}
+
+	&:focus-visible {
+		box-shadow: inset 0 0 0 2px $theme;
+	}
+
+	&:disabled {
+		opacity: 0.35;
+	}
+
+	&.is-destructive {
+		position: relative;
+		margin-inline-start: 5px;
+
+		&::before {
+			content: "";
+			position: absolute;
+			top: 8px;
+			bottom: 8px;
+			left: -4px;
+			width: 1px;
+			background: #e2e2e2;
+		}
+
+		&:hover,
+		&:focus-visible {
+			background: #fbe9ee;
+			color: $destructive;
+		}
+	}
+}
+
+.cnl-section-modes__add-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 40px;
+	padding: 0 14px 0 10px;
+	border: 0;
+	border-radius: 8px;
+	background: #fff;
+	color: $chrome-ink;
+	font-size: 13px;
+	font-weight: 600;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+
+	&:hover,
+	&:focus-visible,
+	&[aria-expanded="true"] {
+		outline: 2px solid $theme;
+		outline-offset: 2px;
+	}
+}
+
+.cnl-section-modes__add-menu .components-popover__content {
+	min-width: 180px;
+}
+
+/* "Add section", on a section's top and bottom edges. */
+.cnl-section-modes__add-section {
+	position: absolute;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 32px;
+	padding: 0 14px 0 10px;
+	transform: translate(-50%, -50%);
+	border: 0;
+	border-radius: 999px;
+	background: $theme;
+	color: #fff;
+	font-size: 13px;
+	font-weight: 600;
+	white-space: nowrap;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+
+	&:focus-visible {
+		outline: 2px solid $chrome-ink;
+		outline-offset: 2px;
+	}
+}
+
+/* The small bar naming the mode, in Edit content and Freeform. */
+.cnl-section-modes__mode-bar {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px;
+	transform: translateX(-50%);
+	border-radius: 10px;
+	background: $surface;
+	color: $ink;
+	white-space: nowrap;
+	box-shadow: $lift;
+	pointer-events: auto;
+}
+
+.cnl-section-modes__mode-label {
+	padding: 0 8px;
+	font-weight: 600;
+	cursor: default;
+}
+
+.cnl-section-modes__sitewide {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 8px;
+	color: $ink;
+	font-size: 13px;
+}
+
+.cnl-section-modes__text-button {
+	min-height: 32px;
+	padding: 0 12px;
+	border: 1px solid $stroke-control;
+	border-radius: 6px;
+	background: transparent;
+	color: $ink;
+	font-size: 12px;
+	font-weight: 600;
+
+	&:hover:not(:disabled),
+	&:focus-visible {
+		outline: none;
+		border-color: $stroke-active;
+	}
+
+	&:disabled {
+		opacity: 0.4;
+	}
+
+	&.is-accent {
+		color: $brand-text;
+	}
+}
+
+.cnl-section-modes__done {
+	min-height: 32px;
+	padding: 0 14px;
+	border: 0;
+	border-radius: 6px;
+	background: $theme;
+	color: #fff;
+	font-size: 13px;
+	font-weight: 600;
+
+	&:focus-visible {
+		outline: 2px solid $theme;
+		outline-offset: 2px;
+	}
+}
+
+/* Edit design's panel. */
+.cnl-section-modes__panel {
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	box-sizing: border-box;
+	max-width: min(calc(100% - 32px), 760px);
+	overflow-y: auto;
+	padding: 10px 10px 12px;
+	transform: translateX(-50%);
+	border-radius: 10px;
+	background: $surface;
+	color: $ink;
+	box-shadow: $lift;
+	pointer-events: auto;
+}
+
+.cnl-section-modes__panel-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	width: 100%;
+	padding-inline-start: 4px;
+	box-sizing: border-box;
+}
+
+.cnl-section-modes__panel-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.cnl-section-modes__panel-heading {
+	color: $ink-weak;
+	font-size: 12px;
+}
+
+// "Need more control? Edit freeform", under the layouts.
+.cnl-section-modes__freeform {
+	margin: 0;
+	color: $ink-weak;
+	font-size: 12px;
+}
+
+.cnl-section-modes__link {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: $brand-text;
+	font-size: inherit;
+	font-weight: 600;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+
+	&:hover {
+		color: $brand-text-active;
+	}
+
+	&:focus-visible {
+		outline: 2px solid $theme;
+		outline-offset: 2px;
+		border-radius: 2px;
+	}
+}
+
+.cnl-section-modes__swatches {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+}
+
+/*
+ * Layouts as a carousel: a slide of cards at a time, slid along, with
+ * arrows beside and dots below once there is more than one slide.
+ */
+.cnl-section-modes__carousel {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	max-width: 100%;
+}
+
+.cnl-section-modes__carousel-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 100%;
+}
+
+// Exactly a slide's cards wide, so the arrows sit beside them.
+.cnl-section-modes__carousel-viewport {
+	width: calc(var(--cnl-layouts-per-slide) * 136px + (var(--cnl-layouts-per-slide) - 1) * 8px);
+	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
+}
+
+.cnl-section-modes__carousel-track {
+	display: flex;
+	transition: transform $duration-md $easing-balanced;
+}
+
+// Each slide the viewport's width, its cards centred in it.
+.cnl-section-modes__options {
+	display: flex;
+	flex: 0 0 100%;
+	justify-content: center;
+	gap: 8px;
+}
+
+.cnl-section-modes__carousel-arrow {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 1px solid $stroke-control;
+	border-radius: 50%;
+	background: transparent;
+	color: $ink;
+
+	&:hover:not(:disabled),
+	&:focus-visible {
+		outline: none;
+		border-color: $stroke-active;
+	}
+
+	&:disabled {
+		opacity: 0.3;
+	}
+}
+
+.cnl-section-modes__carousel-dots {
+	display: flex;
+	gap: 6px;
+}
+
+.cnl-section-modes__carousel-dot {
+	width: 8px;
+	height: 8px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: $stroke-control;
+
+	// A target larger than the dot.
+	position: relative;
+
+	&::before {
+		content: "";
+		position: absolute;
+		inset: -6px;
+	}
+
+	&[aria-current="true"] {
+		background: $theme;
+	}
+
+	&:focus-visible {
+		outline: 2px solid $theme;
+		outline-offset: 2px;
+	}
+}
+
+.cnl-section-modes__colors {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+}
+
+.cnl-section-modes__option {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 6px 8px;
+	border: 1px solid $stroke;
+	border-radius: 8px;
+	background: $surface;
+	color: $ink;
+	font-size: 12px;
+
+	&:hover,
+	&:focus-visible {
+		outline: none;
+		border-color: $stroke-active;
+	}
+
+	&[aria-pressed="true"] {
+		border-color: $theme;
+		background: $brand-weak;
+		color: $brand-text;
+	}
+}
+
+.cnl-section-modes__option {
+	width: 136px;
+
+	> span:last-child {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+
+.cnl-section-modes__preview {
+	position: relative;
+	display: block;
+	width: 120px;
+	height: 76px;
+	overflow: hidden;
+	border-radius: 4px;
+	background: #fff;
+
+	.cnl-section-modes__option[aria-pressed="true"] & {
+		box-shadow: 0 0 0 1px $theme;
+	}
+}
+
+/*
+ * Colours as Design's colour palettes show them: overlapping circles in a
+ * pill, ringed when in use, named in a tooltip.
+ */
+.cnl-section-modes .components-button.cnl-section-modes__swatch {
+	justify-content: center;
+	height: auto;
+	min-height: 40px;
+	padding: 5px;
+	border: 1px solid $stroke;
+	border-radius: 999px;
+	outline: 2px solid transparent;
+	outline-offset: -1px;
+	background: $surface;
+	color: $ink;
+	font-size: 12px;
+
+	&:hover:not(:disabled) {
+		border-color: $stroke-active;
+		color: $ink;
+	}
+
+	&:focus:not(:active) {
+		box-shadow: none;
+	}
+
+	&:focus-visible {
+		outline-color: $theme;
+		outline-offset: 2px;
+	}
+
+	&[aria-pressed="true"],
+	&[aria-pressed="true"]:hover:not(:disabled) {
+		outline-color: $theme;
+		background: $surface;
+		color: $ink;
+	}
+}
+
+.cnl-section-modes__swatch-colors {
+	display: flex;
+
+	.component-color-indicator {
+		width: 28px;
+		height: 28px;
+		// Ringed in the panel's colour, so overlapping circles stay apart.
+		box-shadow:
+			0 0 0 1.5px $surface,
+			inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+	}
+
+	.component-color-indicator + .component-color-indicator {
+		margin-inline-start: -8px;
+	}
+}
+
+.cnl-section-modes__swatch-default {
+	padding: 0 8px;
+}
+
+/* Each item, with its bin. */
+.cnl-section-modes__item {
+	position: absolute;
+	box-sizing: border-box;
+	border-radius: 2px;
+	outline: 1.5px dashed rgba(56, 88, 233, 0.5);
+	outline-offset: 4px;
+
+	&.is-doomed {
+		outline: 2px solid $destructive;
+		background: rgba(204, 24, 24, 0.12);
+	}
+}
+
+.cnl-section-modes__bin {
+	position: absolute;
+	display: grid;
+	place-items: center;
+	box-sizing: border-box;
+	width: 30px;
+	height: 30px;
+	margin: -15px 0 0 -15px;
+	padding: 0;
+	border: 1px solid #c9c9c9;
+	border-radius: 6px;
+	background: #fff;
+	color: $chrome-ink;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+
+	// A 44px target.
+	&::before {
+		content: "";
+		position: absolute;
+		inset: -8px;
+	}
+
+	&:hover,
+	&:focus-visible {
+		outline: none;
+		border-color: $destructive;
+		background: $destructive;
+		color: #fff;
+	}
+}
+
+/*
+ * An empty page's placeholder: the design system's empty state, across the
+ * canvas in a dotted box.
+ */
+.cnl-section-modes__empty {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	padding: var(--wpds-dimension-padding-2xl);
+	border: var(--wpds-border-width-sm) dotted var(--wpds-color-stroke-surface-neutral-strong);
+	border-radius: var(--wpds-border-radius-lg);
+	background: var(--wpds-color-background-surface-neutral);
+	color: var(--wpds-color-foreground-content-neutral);
+	pointer-events: auto;
+	animation: cnl-section-modes-fade $duration-sm $easing-subtle both;
+}
+
+/*
+ * A section dragged in Compose: its ghost under the pointer, held where it
+ * was grabbed, and the line where it would drop.
+ */
+.cnl-section-modes__ghost {
+	position: absolute;
+	z-index: 1;
+	max-height: 240px;
+	overflow: hidden;
+	border-radius: 4px;
+	opacity: 0.85;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+	pointer-events: none;
+}
+
+.cnl-section-modes__dragged {
+	position: absolute;
+	box-sizing: border-box;
+	background: rgba(255, 255, 255, 0.6);
+	outline: 2px dashed $theme;
+	outline-offset: -2px;
+}
+
+.cnl-section-modes__drop-line {
+	position: absolute;
+	height: 4px;
+	margin-top: -2px;
+	border-radius: 2px;
+	background: $theme;
+	box-shadow: 0 0 0 2px #fff;
+}
+
+/* A new item, highlighted a moment. */
+.cnl-section-modes__fresh {
+	position: absolute;
+	border-radius: 2px;
+	animation: cnl-section-modes-fresh 0.9s ease-out forwards;
+}
+
+@keyframes cnl-section-modes-fresh {
+
+	from {
+		box-shadow: 0 0 0 4px rgba(56, 88, 233, 0.8);
+	}
+
+	to {
+		box-shadow: 0 0 0 4px rgba(56, 88, 233, 0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	.cnl-section-modes__fresh {
+		animation: none;
+		box-shadow: 0 0 0 4px rgba(56, 88, 233, 0.5);
+	}
+}

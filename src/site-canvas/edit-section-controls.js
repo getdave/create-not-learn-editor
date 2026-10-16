@@ -1,38 +1,25 @@
 /**
- * A section's controls on core's block toolbar in Edit, to match Compose:
+ * Core's own section controls, as Edit shows them:
  *
- * - Its layouts and colours, the same dropdowns Compose has.
  * - Core's button for unlocking a section, said as "Edit" and "Done", since
- *   every section is content-only in Edit (see `use-section-lock.js`).
+ *   every section is content-only in Edit (see `use-section-lock.js`), and
+ *   Freeform unlocks it with core's own unlock.
  * - None of core's "Shuffle styles", which cycles through the same colours
- *   the Color dropdown shows.
+ *   Edit layout shows.
  *
- * The controls are a fill of core's last toolbar slot, the one left for a
- * section's toolbar.
+ * A section's layouts and colours are in Edit layout's panel. See
+ * `section-modes/`.
  */
 
 /**
  * WordPress dependencies
  */
-import {
-	/* eslint-disable @wordpress/no-unsafe-wp-apis -- The slot core's own template part toolbar buttons use, and the one left on a section's toolbar. */
-	__unstableBlockToolbarLastItem as BlockToolbarLastItem,
-	/* eslint-enable @wordpress/no-unsafe-wp-apis */
-} from '@wordpress/block-editor';
 import { addFilter, removeFilter } from '@wordpress/hooks';
 
 /**
  * Internal dependencies
  */
-import { unlock } from '../lock-unlock';
-import {
-	__,
-	blockEditorStore,
-	useDispatch,
-	useEffect,
-	useSelect,
-} from '../wordpress-packages';
-import { SectionVariationsGroup } from './compose/section-toolbar';
+import { __, useEffect } from '../wordpress-packages';
 
 const NAMESPACE = 'create-not-learn-editor/edit-section-controls';
 
@@ -100,45 +87,9 @@ function useHiddenShuffle( isActive ) {
 }
 
 /**
- * @param {Object}  props
- * @param {boolean} props.isActive Whether the canvas is in Edit.
- * @return {?Element} The controls, while a section is selected.
+ * @param {boolean} isActive Whether the canvas is in Edit.
  */
-export function EditSectionControls( { isActive } ) {
-	const { selectBlock } = useDispatch( blockEditorStore );
-	const sectionId = useSelect(
-		( select ) => {
-			if ( ! isActive ) {
-				return null;
-			}
-
-			const store = unlock( select( blockEditorStore ) );
-			const selectedId = store.getSelectedBlockClientId();
-			const root = store.getSectionRootClientId();
-
-			return selectedId &&
-				root &&
-				store.getBlockRootClientId( selectedId ) === root
-				? selectedId
-				: null;
-		},
-		[ isActive ]
-	);
-
+export function useEditSectionControls( isActive ) {
 	useSectionWording( isActive );
 	useHiddenShuffle( isActive );
-
-	if ( ! sectionId ) {
-		return null;
-	}
-
-	return (
-		<BlockToolbarLastItem>
-			<SectionVariationsGroup
-				clientId={ sectionId }
-				// The new arrangement takes the section's place, picked as it was.
-				onReplace={ ( block ) => selectBlock( block.clientId ) }
-			/>
-		</BlockToolbarLastItem>
-	);
 }

@@ -571,7 +571,7 @@ function LinkedSections( { canvasDocument, pageId } ) {
  * editor's, which are matched up by position. See `getLinkedItems`.
  *
  * @param {number} pageId The page on show.
- * @return {Function} A hook for `ComposeLayer` to call.
+ * @return {Function} A hook for `SectionModesLayer` to call while composing.
  */
 function useComposeSyncHook( pageId ) {
 	return useMemo(
@@ -871,7 +871,9 @@ function PagesCanvas() {
 				editorChildren={
 					! drilled && (
 						<p className="cnl-pages-canvas__hint">
-							{ __( 'Click any part of the page to change it.' ) }
+							{ __(
+								'Point at a section to choose how to edit it.'
+							) }
 						</p>
 					)
 				}

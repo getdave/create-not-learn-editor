@@ -3,8 +3,8 @@
  *
  * Both surfaces stay mounted. Moving to or from Browse fades the preview in or
  * out, so neither reloads, and the preview keeps its page, scroll position
- * and history while the editor is on show. Compose zooms the editor out and
- * lays its own layer over it.
+ * and history while the editor is on show. Edit and Compose share one layer
+ * over the editor, Compose zooming the editor out under it.
  */
 
 /**
@@ -16,7 +16,6 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
-import { unlock } from '../lock-unlock';
 import { getErrorMessage } from '../records';
 import {
 	__,
@@ -27,12 +26,11 @@ import {
 	useRef,
 	useSelect,
 } from '../wordpress-packages';
-import { ComposeLayer, scrollCanvasTo } from './compose/compose-layer';
-import { afterZoomIn, useComposeZoom } from './compose/use-compose-zoom';
+import { useComposeZoom } from './compose/use-compose-zoom';
 import { EDITOR_DEVICES } from './constants';
-import { EditSectionControls } from './edit-section-controls';
+import { useEditSectionControls } from './edit-section-controls';
 import { MODE_COMPOSE, MODE_EDIT } from './mode';
-import { SectionOutline } from './section-outline';
+import { SectionModesLayer } from './section-modes/section-modes-layer';
 import {
 	CanvasMoreMenu,
 	DeviceSwitcher,
@@ -43,9 +41,6 @@ import {
 } from './toolbar';
 import { UnsavedChangesDialog } from './unsaved-changes-dialog';
 import { useSectionLock } from './use-section-lock';
-
-// Long enough for the editor to zoom back in before scrolling it.
-const ZOOM_IN_SETTLE_MS = 450;
 
 /**
  * @param {Object}   props
@@ -62,8 +57,8 @@ const ZOOM_IN_SETTLE_MS = 450;
  *                                        about one part of the site, not a
  *                                        page's sections, does without.
  * @param {Function} props.useComposeSync A hook linking Compose to a list of
- *                                        the same sections elsewhere. See
- *                                        `ComposeLayer`.
+ *                                        the same sections elsewhere, while
+ *                                        composing. See `SectionModesLayer`.
  * @return {Element} The canvas.
  */
 export function SiteCanvas( {
@@ -104,77 +99,7 @@ export function SiteCanvas( {
 			Boolean( editorEntity ) &&
 			editorEntity.postType !== 'wp_template'
 	);
-
-	// Open what was picked in Compose in Edit, selected and in view.
-	const editFromCompose = ( clientId, isSitePart ) => {
-		afterZoomIn( ( registry ) => {
-			const actions = unlock( registry.dispatch( blockEditorStore ) );
-
-			actions.selectBlock( clientId );
-
-			if ( isSitePart ) {
-				actions.editContentOnlySection( clientId );
-			}
-
-			window.setTimeout(
-				() => scrollCanvasTo( editorRef, clientId ),
-				ZOOM_IN_SETTLE_MS
-			);
-		} );
-		canvas.requestMode( MODE_EDIT );
-	};
-
-	/*
-	 * Open a block double-clicked in Compose in Edit, selected and in view.
-	 * A block inside the header or footer opens it for editing first. Once
-	 * the sections are locked again, a block that can't be selected on its
-	 * own, like a section's columns, gives way to the nearest one that can.
-	 */
-	const openFromCompose = ( clientId ) => {
-		afterZoomIn( ( registry ) => {
-			if ( ! clientId ) {
-				return;
-			}
-
-			const selectors = registry.select( blockEditorStore );
-			const actions = unlock( registry.dispatch( blockEditorStore ) );
-			const part = [ clientId, ...selectors.getBlockParents( clientId ) ]
-				.reverse()
-				.find(
-					( id ) =>
-						selectors.getBlockName( id ) === 'core/template-part'
-				);
-
-			if ( part ) {
-				actions.editContentOnlySection( part );
-			}
-
-			// Wait for the section locks to settle before choosing.
-			window.requestAnimationFrame( () =>
-				window.requestAnimationFrame( () => {
-					let target = clientId;
-
-					while (
-						target &&
-						selectors.getBlockEditingMode( target ) === 'disabled'
-					) {
-						target = selectors.getBlockRootClientId( target );
-					}
-
-					if ( ! target ) {
-						return;
-					}
-
-					actions.selectBlock( target );
-					window.setTimeout(
-						() => scrollCanvasTo( editorRef, target ),
-						ZOOM_IN_SETTLE_MS
-					);
-				} )
-			);
-		} );
-		canvas.requestMode( MODE_EDIT );
-	};
+	useEditSectionControls( isEditing && Boolean( editorEntity ) );
 
 	// Published for the stylesheet, which hides core chrome by block.
 	const selectedBlockName = useSelect(
@@ -266,20 +191,14 @@ export function SiteCanvas( {
 						/>
 					) }
 					{ isEditing && editorChildren }
-					<EditSectionControls
-						isActive={ isEditing && Boolean( editorEntity ) }
-					/>
 				</div>
-				<SectionOutline
-					editorRef={ editorRef }
-					isActive={ isEditing && Boolean( editorEntity ) }
-				/>
-				{ isComposing && editorEntity && (
-					<ComposeLayer
+				{ /* One layer for Edit and Compose, kept as the canvas moves
+				between them, so what is picked carries over. */ }
+				{ ( isEditing || isComposing ) && editorEntity && (
+					<SectionModesLayer
 						editorRef={ editorRef }
-						onEdit={ editFromCompose }
-						onExit={ () => canvas.requestMode( MODE_EDIT ) }
-						onOpen={ openFromCompose }
+						isComposing={ isComposing }
+						onExitCompose={ () => canvas.requestMode( MODE_EDIT ) }
 						useSync={ useComposeSync }
 					/>
 				) }
