@@ -6,102 +6,18 @@
 /**
  * Internal dependencies
  */
-import { getSectionArrangements } from '../../layouts/variants';
 import {
-	__,
-	blockEditorStore,
-	blocksStore,
-	cloneBlock,
 	coreDataStore,
 	parseBlocks,
 	serialize,
 	useMemo,
 	useSelect,
 } from '../../wordpress-packages';
-import {
-	getActiveSectionStyle,
-	getSectionStyles,
-	withSectionStyle,
-} from '../compose/section-styles';
 
 const EMPTY_ARRAY = [];
 
-/**
- * A section's layouts and colours, each as it would look.
- *
- * @param {string} clientId The section's client ID.
- * @return {Object} `{ block, colors, layouts }`. `colors` and `layouts` are
- *                  `{ current, options }`, or null when there are none.
- */
-export function useSectionVariations( clientId ) {
-	const { block, blockStyles, themeVariations } = useSelect(
-		( select ) => {
-			const section = select( blockEditorStore ).getBlock( clientId );
-
-			return {
-				block: section,
-				blockStyles: section
-					? select( blocksStore ).getBlockStyles( section.name )
-					: EMPTY_ARRAY,
-				themeVariations: section
-					? select(
-							coreDataStore
-						).__experimentalGetCurrentThemeBaseGlobalStyles()
-							?.styles?.blocks?.[ section.name ]?.variations
-					: undefined,
-			};
-		},
-		[ clientId ]
-	);
-
-	const layouts = useMemo( () => {
-		const arrangements = block && getSectionArrangements( block );
-
-		return arrangements
-			? {
-					current: arrangements.current,
-					options: arrangements.options.map( ( option ) => ( {
-						blocks: [ option.block ],
-						block: option.block,
-						label: option.label,
-						name: option.name,
-					} ) ),
-				}
-			: null;
-	}, [ block ] );
-
-	const colors = useMemo( () => {
-		const styles = getSectionStyles( blockStyles, themeVariations );
-
-		if ( ! block || ! styles.length ) {
-			return null;
-		}
-
-		const className = block.attributes.className;
-		const withStyle = ( name ) =>
-			cloneBlock( block, {
-				className: withSectionStyle( className, name ),
-			} );
-
-		return {
-			current: getActiveSectionStyle( className, styles ),
-			options: [
-				{
-					blocks: [ withStyle( null ) ],
-					label: __( 'None' ),
-					name: null,
-				},
-				...styles.map( ( style ) => ( {
-					blocks: [ withStyle( style.name ) ],
-					label: style.label,
-					name: style.name,
-				} ) ),
-			],
-		};
-	}, [ block, blockStyles, themeVariations ] );
-
-	return { block, colors, layouts };
-}
+// A section's layouts and colours, shared with the chat's picker.
+export { useSectionVariations } from '../../pickers/section-design';
 
 /**
  * The designs a header or footer can take, each as it would look.

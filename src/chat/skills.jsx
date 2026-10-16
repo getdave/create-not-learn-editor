@@ -35,6 +35,8 @@
  * WordPress dependencies
  */
 import apiFetch from '@wordpress/api-fetch';
+import { store as blockEditorStore } from '@wordpress/block-editor';
+import { cloneBlock, store as blocksStore } from '@wordpress/blocks';
 import { Button } from '@wordpress/components';
 import { store as coreDataStore } from '@wordpress/core-data';
 import {
@@ -44,9 +46,13 @@ import {
 	useDispatch,
 	useSelect,
 } from '@wordpress/data';
-import { useEffect, useMemo, useState } from '@wordpress/element';
+import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
-import { home as homeIcon, page as pageIcon } from '@wordpress/icons';
+import {
+	home as homeIcon,
+	layout as layoutIcon,
+	page as pageIcon,
+} from '@wordpress/icons';
 import { Icon, InputControl, Spinner, Text } from '@wordpress/ui';
 
 /**
@@ -55,12 +61,24 @@ import { Icon, InputControl, Spinner, Text } from '@wordpress/ui';
 import { StartFromScratch } from '../design-picker';
 import { SiteIdentityFields } from '../pickers/identity';
 import { PageLayoutCard, usePageLayoutPatterns } from '../pickers/page-designs';
+import {
+	SectionColorSwatches,
+	SectionLayouts,
+	useSectionVariations,
+} from '../pickers/section-design';
 import { SitePartLayouts } from '../pickers/site-part-layouts';
 import { FontPicker, LookPicker, PalettePicker } from '../pickers/styles';
 import {
 	getPatternContent,
 	getPatternTitle,
 } from '../routes/content/page-layouts';
+import { getSectionArrangements } from '../layouts/variants';
+import { getSectionTitle } from '../routes/content/pages/page-sections';
+import {
+	getSectionStyles,
+	withSectionStyle,
+} from '../site-canvas/compose/section-styles';
+import { MODE_COMPOSE, setCanvasMode } from '../site-canvas/mode';
 import {
 	SectionDesignCard,
 	getPatternSectionBlocks,
@@ -70,12 +88,18 @@ import {
 import { Carousel } from './carousel';
 import { cancelPending } from './conversation';
 import { getBlocksEdit } from './entity-changes';
+import { mentionsSectionLayout } from './engine';
 import {
 	PAGES_QUERY,
 	findNamedPage,
 	findTargetPage,
 	toPages,
 } from './target-page';
+import {
+	getSectionIds,
+	getSelectedSection,
+	isEditingPage,
+} from './target-section';
 import { useChatExtras } from './use-chat-extras';
 import { useLazyPreview } from './use-lazy-preview';
 
@@ -664,6 +688,384 @@ function SectionWidget( { entity, message, onChoosePage, onPick, scrollRef } ) {
 	);
 }
 
+/**
+ * The section style a request names, like "brand" in "make this section
+ * brand", among a section's colours.
+ *
+ * @param {string}   request What was asked.
+ * @param {Object[]} options The section's colours.
+ * @return {?Object} The colour, or null.
+ */
+function findNamedColor( request, options ) {
+	const text = ( request || '' ).toLowerCase();
+
+	return (
+		options.find(
+			( option ) =>
+				option.name &&
+				new RegExp(
+					`(^|[^\\p{L}\\p{N}])${ option.label
+						.toLowerCase()
+						.replace(
+							/[.*+?^${}()|[\]\\]/g,
+							'\\$&'
+						) }($|[^\\p{L}\\p{N}])`,
+					'u'
+				).test( text )
+		) || null
+	);
+}
+
+/**
+ * What a request about a section shows: its colours, its layouts, or both,
+ * as far as the section has them. Naming one of its colours, and nothing
+ * about layout, is about colour.
+ *
+ * @param {Object}    params       The request's params.
+ * @param {?Object[]} colorOptions The section's colours, `{ label, name }`,
+ *                                 or nothing when it has none.
+ * @param {boolean}   hasLayouts   Whether it can be laid out another way.
+ * @return {Object} `{ focus, showColors, showLayouts }`, `focus` being
+ *                  `color`, `layout` or `both`.
+ */
+function getSectionOffer( params, colorOptions, hasLayouts ) {
+	let focus = params.focus || 'both';
+
+	if (
+		focus === 'both' &&
+		colorOptions?.length &&
+		findNamedColor( params.request, colorOptions ) &&
+		! mentionsSectionLayout( params.request )
+	) {
+		focus = 'color';
+	}
+
+	return {
+		focus,
+		showColors: focus !== 'layout' && !! colorOptions?.length,
+		showLayouts: focus !== 'color' && hasLayouts,
+	};
+}
+
+/**
+ * What the chat says over a section's layouts and colours.
+ *
+ * @param {Object} offer From `getSectionOffer`.
+ * @param {string} title The section's name.
+ * @return {string} The reply.
+ */
+function getSectionOfferText( offer, title ) {
+	if ( offer.showLayouts && offer.showColors ) {
+		return sprintf(
+			/* translators: %s: section name. */
+			__(
+				'Here are the layouts and colors for “%s”. Pick either, or both, and you’ll see them on your page as you go.'
+			),
+			title
+		);
+	}
+
+	if ( offer.showColors ) {
+		return sprintf(
+			/* translators: %s: section name. */
+			__(
+				'Here are the colors your theme has for “%s”. Pick one and you’ll see it on your page straight away.'
+			),
+			title
+		);
+	}
+
+	if ( offer.showLayouts ) {
+		return sprintf(
+			/* translators: %s: section name. */
+			__(
+				'Here are the other ways “%s” can be laid out, keeping what’s in it. Pick one to try it.'
+			),
+			title
+		);
+	}
+
+	return getNothingOfferedText( offer.focus, title );
+}
+
+/**
+ * What the chat says when a section has nothing of what was asked for.
+ *
+ * @param {string} focus `color`, `layout` or `both`.
+ * @param {string} title The section's name.
+ * @return {string} The reply.
+ */
+function getNothingOfferedText( focus, title ) {
+	if ( focus === 'color' ) {
+		return __(
+			'Your theme doesn’t offer any colors for sections. Compose has other ways to change it.'
+		);
+	}
+
+	if ( focus === 'layout' ) {
+		return sprintf(
+			/* translators: %s: section name. */
+			__(
+				'“%s” can’t be laid out another way without changing what’s in it. Compose has other ways to change it.'
+			),
+			title
+		);
+	}
+
+	return sprintf(
+		/* translators: %s: section name. */
+		__(
+			'There’s nothing about “%s” I can change here yet. Compose has other ways to change it.'
+		),
+		title
+	);
+}
+
+/**
+ * How a section's pick reads: its layout, its colours, or both.
+ *
+ * @param {Object} payload `{ color, layout }`, each `{ label }` if picked.
+ * @return {string} The pick, in a few words.
+ */
+function getSectionPickLabel( payload ) {
+	return [ payload.layout?.label, payload.color?.label ]
+		.filter( Boolean )
+		.join( ' · ' );
+}
+
+/*
+ * Which section to change, asked when none is selected. Picking one on the
+ * page answers too.
+ */
+function SectionChooser( { onChoose, sectionIds } ) {
+	const blocks = useSelect(
+		( select ) =>
+			select( blockEditorStore ).getBlocksByClientId( sectionIds ),
+		[ sectionIds ]
+	);
+
+	if ( ! sectionIds.length ) {
+		return (
+			<Text className="routes-styles__muted" variant="body-md">
+				{ __( 'This page doesn’t have any sections yet.' ) }
+			</Text>
+		);
+	}
+
+	return (
+		<ul className="cnl-chat-choices" role="list">
+			{ sectionIds.map( ( clientId, index ) => (
+				<li key={ clientId }>
+					<button
+						className="cnl-chat-choices__item"
+						onClick={ () => onChoose( clientId ) }
+						type="button"
+					>
+						<Icon icon={ layoutIcon } size={ 20 } />
+						<span className="cnl-chat-choices__label">
+							{ blocks[ index ]
+								? getSectionTitle( blocks[ index ] )
+								: __( 'Section' ) }
+						</span>
+					</button>
+				</li>
+			) ) }
+		</ul>
+	);
+}
+
+function SectionDesignPicker( { message, onPick } ) {
+	const Preview = useLazyPreview();
+	const { replaceBlock, selectBlock, updateBlockAttributes } =
+		useDispatch( blockEditorStore );
+	const { params } = message;
+	const [ chosen, setChosen ] = useState( () =>
+		params.sectionId
+			? { clientId: params.sectionId, index: params.sectionIndex }
+			: null
+	);
+	const { isReady, sectionIds, selectedId } = useSelect(
+		( select ) => ( {
+			isReady: isEditingPage( select, params.pageId ),
+			sectionIds: getSectionIds( select ),
+			selectedId: getSelectedSection( select, params.pageId ),
+		} ),
+		[ params.pageId ]
+	);
+
+	/*
+	 * The section stays the one chosen. Its blocks can be swapped from under
+	 * it, by a new layout or by a pick being put back, so where it was on the
+	 * page finds it again.
+	 */
+	const clientId =
+		( chosen &&
+			( sectionIds.includes( chosen.clientId )
+				? chosen.clientId
+				: sectionIds[ chosen.index ] ) ) ||
+		null;
+	const { block, colors, layouts } = useSectionVariations( clientId );
+	const titleRef = useRef();
+
+	if ( block && ! titleRef.current ) {
+		titleRef.current = getSectionTitle( block );
+	}
+
+	const choose = ( id ) =>
+		setChosen( { clientId: id, index: sectionIds.indexOf( id ) } );
+
+	// Picked on the page while the chat asks which.
+	useEffect( () => {
+		if ( ! chosen && selectedId ) {
+			choose( selectedId );
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ chosen, selectedId ] );
+
+	const { focus, showColors, showLayouts } = getSectionOffer(
+		params,
+		colors?.options,
+		!! layouts
+	);
+
+	const pickSection = ( patch ) => {
+		const payload = {
+			...message.pickedPayload,
+			title: titleRef.current,
+			...patch,
+		};
+
+		onPick( getSectionPickLabel( payload ), payload );
+	};
+
+	const pickColor = ( option ) => {
+		updateBlockAttributes( clientId, {
+			className: withSectionStyle(
+				block.attributes.className,
+				option.name
+			),
+		} );
+		pickSection( { color: { label: option.label, name: option.name } } );
+	};
+
+	const pickLayout = ( option ) => {
+		const next = cloneBlock( option.block );
+
+		replaceBlock( clientId, next );
+		// Picked again, as it was, without taking the chat's focus.
+		selectBlock( next.clientId, null );
+		setChosen( { clientId: next.clientId, index: chosen.index } );
+		pickSection( { layout: { label: option.label, name: option.name } } );
+	};
+
+	// A colour named in the request goes straight on, once.
+	const hasNamedColorRef = useRef( false );
+	useEffect( () => {
+		if ( hasNamedColorRef.current || ! colors || focus === 'layout' ) {
+			return;
+		}
+
+		hasNamedColorRef.current = true;
+		const named = findNamedColor( params.request, colors.options );
+
+		if ( named && named.name !== colors.current ) {
+			pickColor( named );
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ colors ] );
+
+	if ( ! isReady ) {
+		return <Loading />;
+	}
+
+	if ( ! chosen ) {
+		return (
+			<SectionChooser
+				onChoose={ ( id ) => {
+					// Picks it on the page too, as clicking it there does.
+					selectBlock( id, null );
+					choose( id );
+				} }
+				sectionIds={ sectionIds }
+			/>
+		);
+	}
+
+	if ( ! block ) {
+		return <Loading />;
+	}
+
+	const title = titleRef.current;
+	const note =
+		! showLayouts && ! showColors
+			? getNothingOfferedText( focus, title )
+			: null;
+
+	return (
+		<div className="cnl-chat-widget__stack">
+			<Text variant="body-md">
+				{ sprintf(
+					/* translators: %s: section name. */
+					__( 'Changing “%s”' ),
+					title
+				) }
+			</Text>
+			{ showLayouts && (
+				<div className="cnl-section-design__group">
+					{ showColors && (
+						<Text
+							className="cnl-section-design__heading"
+							variant="body-sm"
+						>
+							{ __( 'Layout' ) }
+						</Text>
+					) }
+					<Carousel label={ __( 'Layouts' ) }>
+						<SectionLayouts
+							layouts={ layouts }
+							onSelect={ pickLayout }
+							Preview={ Preview }
+						/>
+					</Carousel>
+				</div>
+			) }
+			{ showColors && (
+				<div className="cnl-section-design__group">
+					{ showLayouts && (
+						<Text
+							className="cnl-section-design__heading"
+							variant="body-sm"
+						>
+							{ __( 'Colors' ) }
+						</Text>
+					) }
+					<SectionColorSwatches
+						colors={ colors }
+						onSelect={ pickColor }
+					/>
+				</div>
+			) }
+			{ note && (
+				<Text className="routes-styles__muted" variant="body-md">
+					{ note }
+				</Text>
+			) }
+		</div>
+	);
+}
+
+function SectionDesignWidget( { entity, message, onChoosePage, onPick } ) {
+	if ( message.params?.choosePage ) {
+		return <PageChooser onChoose={ onChoosePage } />;
+	}
+
+	if ( ! entity ) {
+		return null;
+	}
+
+	return <SectionDesignPicker message={ message } onPick={ onPick } />;
+}
+
 /*
  * ---------------------------------------------------------------------------
  * The skills.
@@ -696,6 +1098,156 @@ export function getSectionsReply( search, pageTitle ) {
 				),
 				title
 			);
+}
+
+/**
+ * What the chat says over a section's layouts and colours, and what its
+ * picker needs: the section selected on the page, or none, to ask which.
+ * Asking which shows Compose, where a section can be picked.
+ *
+ * @param {Object} params       The request's params.
+ * @param {string} params.focus What it is about: `color`, `layout` or `both`.
+ * @param {Object} page         `{ id, title }`, the page the section is on.
+ * @param {string} request      What was asked.
+ * @return {Object} `{ params, text }`.
+ */
+function getSectionDesignReply( { focus = 'both' }, page, request ) {
+	const sectionId = getSelectedSection( selectFromRegistry, page.id );
+	const base = {
+		focus,
+		pageId: page.id,
+		pageTitle: page.title,
+		request,
+	};
+
+	if ( ! sectionId ) {
+		setCanvasMode( MODE_COMPOSE );
+
+		return {
+			params: base,
+			text: __(
+				'Which section would you like to change? Pick it here, or click it on your page.'
+			),
+		};
+	}
+
+	const block = selectFromRegistry( blockEditorStore ).getBlock( sectionId );
+	const title = getSectionTitle( block );
+	const colorOptions = getSectionStyles(
+		selectFromRegistry( blocksStore ).getBlockStyles( block.name ),
+		selectFromRegistry(
+			coreDataStore
+		).__experimentalGetCurrentThemeBaseGlobalStyles()?.styles?.blocks?.[
+			block.name
+		]?.variations
+	);
+	const offer = getSectionOffer(
+		base,
+		colorOptions,
+		!! getSectionArrangements( block )
+	);
+	const named = offer.showColors && findNamedColor( request, colorOptions );
+	const params = {
+		...base,
+		sectionId,
+		sectionIndex: getSectionIds().indexOf( sectionId ),
+	};
+
+	if ( ! offer.showColors && ! offer.showLayouts ) {
+		return {
+			params,
+			text: getSectionOfferText( offer, title ),
+			widget: false,
+		};
+	}
+
+	if ( named ) {
+		return {
+			params,
+			text: sprintf(
+				/* translators: 1: section name, 2: section colors name. */
+				__(
+					'I’ve given “%1$s” the “%2$s” colors, so you can see them on your page now. Pick another if you’d like.'
+				),
+				title,
+				named.label
+			),
+		};
+	}
+
+	const text = getSectionOfferText( offer, title );
+
+	return { params, text };
+}
+
+/**
+ * What the chat says once a section's pick is kept.
+ *
+ * @param {Object} payload `{ color, layout, title }`.
+ * @return {string} The reply.
+ */
+function getSectionDesignDone( payload ) {
+	const { color, layout, title } = payload;
+
+	if ( layout && color ) {
+		return sprintf(
+			/* translators: 1: section name, 2: layout name, 3: section colors name. */
+			__( 'Done. “%1$s” now uses “%2$s” with the “%3$s” colors.' ),
+			title,
+			layout.label,
+			color.label
+		);
+	}
+
+	if ( layout ) {
+		return sprintf(
+			/* translators: 1: section name, 2: layout name. */
+			__( 'Done. “%1$s” now uses “%2$s”.' ),
+			title,
+			layout.label
+		);
+	}
+
+	return color?.name
+		? sprintf(
+				/* translators: 1: section name, 2: section colors name. */
+				__( 'Done. “%1$s” now has the “%2$s” colors.' ),
+				title,
+				color.label
+			)
+		: sprintf(
+				/* translators: %s: section name. */
+				__( 'Done. “%s” now takes its colors from the page.' ),
+				title
+			);
+}
+
+/**
+ * The page a request about a section is about: one it names, or the one
+ * being worked on, shown on the canvas. Waits for the pages to load.
+ *
+ * @param {string} text The request.
+ * @return {Promise<?Object>} `{ id, title }`, or null when there is none.
+ */
+async function findRequestedPage( text ) {
+	await Promise.all( [
+		resolveSelect( coreDataStore ).getEntityRecords(
+			'postType',
+			'page',
+			PAGES_QUERY
+		),
+		resolveSelect( coreDataStore ).getEntityRecord( 'root', 'site' ),
+	] );
+
+	const named = findNamedPage( text );
+	const current = findTargetPage();
+
+	// Show the page named on the canvas, to see the change.
+	if ( named && named.id !== current?.id ) {
+		openRoute( '/types/page/list/all', { previewId: named.id } );
+	}
+
+	return named || current;
 }
 
 /*
@@ -753,6 +1305,13 @@ export const SUGGESTION_GROUPS = [
 // What to ask for about the page being worked on, when there is one.
 export const PAGE_SUGGESTIONS = [
 	{ text: __( 'Add a section' ), icon: 'section' },
+	{
+		text: () =>
+			getSelectedSection( selectFromRegistry, findTargetPage()?.id )
+				? __( 'Change this section' )
+				: __( 'Change a section' ),
+		icon: 'layout',
+	},
 ];
 
 export const SKILLS = {
@@ -1006,22 +1565,7 @@ export const SKILLS = {
 		// Asking which page comes before any page is changed.
 		needsRecord: ( { choosePage } ) => ! choosePage,
 		async reply( { search }, text ) {
-			// A page named in the request wins, once the pages have loaded.
-			await Promise.all( [
-				resolveSelect( coreDataStore ).getEntityRecords(
-					'postType',
-					'page',
-					PAGES_QUERY
-				),
-				resolveSelect( coreDataStore ).getEntityRecord(
-					'root',
-					'site'
-				),
-			] );
-
-			const named = findNamedPage( text );
-			const current = findTargetPage();
-			const page = named || current;
+			const page = await findRequestedPage( text );
 
 			if ( ! page ) {
 				return {
@@ -1030,16 +1574,12 @@ export const SKILLS = {
 				};
 			}
 
-			// Show the page named on the canvas, to see the section added.
-			if ( named && named.id !== current?.id ) {
-				openRoute( '/types/page/list/all', { previewId: named.id } );
-			}
-
-			return {
-				params: { pageId: page.id, pageTitle: page.title },
-				text: getSectionsReply( search, page.title ),
-			};
+			return SKILLS[ 'add-section' ].replyForPage( { search }, page );
 		},
+		replyForPage: ( { search }, page ) => ( {
+			params: { pageId: page.id, pageTitle: page.title, search },
+			text: getSectionsReply( search, page.title ),
+		} ),
 		Widget: SectionWidget,
 		chip: ( { label } ) =>
 			/* translators: %s: section design name. */
@@ -1051,6 +1591,47 @@ export const SKILLS = {
 				label,
 				message.params.pageTitle
 			),
+	},
+	'section-design': {
+		screen: ( { params } ) =>
+			params?.pageId
+				? {
+						canvasMode: MODE_COMPOSE,
+						name: __( 'Compose' ),
+						path: '/types/page/list/all',
+						search: { previewId: params.pageId },
+					}
+				: null,
+		action: () => __( 'Use this design' ),
+		hasFooter: ( { choosePage } ) => ! choosePage,
+		keys: [ 'blocks', 'content' ],
+		hasBlocks: true,
+		useEntity: useTargetPageEntity,
+		// Asking which page comes before any page is changed.
+		needsRecord: ( { choosePage } ) => ! choosePage,
+		async reply( params, text ) {
+			const page = await findRequestedPage( text );
+
+			if ( ! page ) {
+				return {
+					params: { choosePage: true, request: text },
+					text: __( 'Which page is the section on?' ),
+				};
+			}
+
+			return getSectionDesignReply( params, page, text );
+		},
+		replyForPage: ( params, page ) =>
+			getSectionDesignReply( params, page, params.request ),
+		Widget: SectionDesignWidget,
+		chip: ( { label, payload } ) =>
+			sprintf(
+				/* translators: 1: section name, 2: what was picked. */
+				__( 'Section: %1$s · %2$s' ),
+				payload.title,
+				label
+			),
+		done: ( { payload } ) => getSectionDesignDone( payload ),
 	},
 	menu: {
 		screen: ( { entity } ) => ( {

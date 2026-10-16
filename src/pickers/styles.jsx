@@ -37,32 +37,10 @@ import {
 	groupStyleVariations,
 } from '../routes/static/style-variations';
 import { settings as appSettings } from '../settings';
+import { resolveColor } from './resolve-color';
 
 const EMPTY_ARRAY = [];
 const EMPTY_OBJECT = {};
-
-/**
- * Turn a theme.json color reference into a CSS color for swatches.
- *
- * @param {string}   value   A color, `var:preset|color|slug`, or CSS variable.
- * @param {Object[]} palette Palette to look the slug up in.
- * @return {string|undefined} A CSS color.
- */
-function resolveColor( value, palette ) {
-	if ( typeof value !== 'string' ) {
-		return undefined;
-	}
-
-	const slug =
-		value.match( /^var:preset\|color\|(.+)$/ )?.[ 1 ] ||
-		value.match( /^var\(--wp--preset--color--([^)]+)\)$/ )?.[ 1 ];
-
-	if ( ! slug ) {
-		return value;
-	}
-
-	return palette.find( ( color ) => color.slug === slug )?.color;
-}
 
 /**
  * Turn a theme.json font family reference into a CSS font-family for swatches.
