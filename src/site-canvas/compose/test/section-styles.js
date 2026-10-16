@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
  */
 import {
 	getActiveSectionStyle,
+	getSectionStyleColors,
 	getSectionStyles,
 	withSectionStyle,
 } from '../section-styles';
@@ -82,5 +83,46 @@ describe( 'withSectionStyle', () => {
 		expect( withSectionStyle( undefined, 'section-dark' ) ).toBe(
 			'is-style-section-dark'
 		);
+	} );
+} );
+
+describe( 'getSectionStyleColors', () => {
+	const PALETTE = [
+		{ slug: 'base', color: '#fff' },
+		{ slug: 'contrast', color: '#111' },
+		{ slug: 'accent-1', color: '#c0392b' },
+	];
+
+	it( 'looks presets up in the palette', () => {
+		expect(
+			getSectionStyleColors(
+				{
+					color: {
+						background: 'var:preset|color|accent-1',
+						text: 'var(--wp--preset--color--base)',
+					},
+					elements: {
+						heading: {
+							color: { text: 'var:preset|color|contrast' },
+						},
+					},
+				},
+				PALETTE
+			)
+		).toEqual( { background: '#c0392b', heading: '#111', text: '#fff' } );
+	} );
+
+	it( 'gives headings the text colour when the style leaves them', () => {
+		expect(
+			getSectionStyleColors( { color: { text: '#222' } }, PALETTE )
+		).toEqual( { background: undefined, heading: '#222', text: '#222' } );
+	} );
+
+	it( 'leaves what it has no colour for to the page', () => {
+		expect( getSectionStyleColors( undefined, PALETTE ) ).toEqual( {
+			background: undefined,
+			heading: undefined,
+			text: undefined,
+		} );
 	} );
 } );

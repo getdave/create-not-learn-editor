@@ -8,6 +8,7 @@ import { describe, expect, test } from 'vitest';
  */
 import {
 	getPageTitleFromText,
+	getSectionFocusFromText,
 	getSectionSearchFromText,
 	getSiteNameFromText,
 	isConfirmation,
@@ -32,6 +33,16 @@ describe( 'matchRequest', () => {
 		[ 'Create a new page called Our story', 'add-page' ],
 		[ 'add a testimonials section', 'add-section' ],
 		[ 'add a section to my about page', 'add-section' ],
+		[ 'add a dark section', 'add-section' ],
+		[ 'I need a contact section', 'add-section' ],
+		[ 'make a new testimonials section', 'add-section' ],
+		[ 'Change this section', 'section-design' ],
+		[ 'Change a section', 'section-design' ],
+		[ "change this section's colour", 'section-design' ],
+		[ 'make this section darker', 'section-design' ],
+		[ 'a different layout for the hero section', 'section-design' ],
+		[ 'make the hero section brand', 'section-design' ],
+		[ 'new colors for this section', 'section-design' ],
 		[ 'change my menu', 'menu' ],
 		[ 'add the About page to my navigation', 'menu' ],
 		[ 'make my header colors warmer', 'colors' ],
@@ -130,4 +141,23 @@ describe( 'isConfirmation', () => {
 			expect( isConfirmation( text ) ).toBe( false );
 		}
 	);
+} );
+
+describe( 'getSectionFocusFromText', () => {
+	test.each( [
+		[ "change this section's colour", 'color' ],
+		[ 'make this section darker', 'color' ],
+		[ 'give this section a background', 'color' ],
+		[ 'change the layout of this section', 'layout' ],
+		[ 'put the image on the right in this section', 'layout' ],
+		[ 'change this section', 'both' ],
+		[ 'restyle the hero section', 'both' ],
+		[ 'change the colour and layout of this section', 'both' ],
+	] )( '"%s" is about %s', ( text, focus ) => {
+		expect( getSectionFocusFromText( text ) ).toBe( focus );
+		expect( matchRequest( text ) ).toEqual( {
+			skill: 'section-design',
+			params: { focus },
+		} );
+	} );
 } );
