@@ -117,14 +117,15 @@ async function waitSince( start, ms ) {
 
 /**
  * Keep a pick: save it, show it saved under the picker, fold the picker
- * away, and confirm it in the conversation.
+ * away to a line saying what was kept, and confirm it.
  *
- * @param {Object}  pending         The pick, from the store.
- * @param {Object}  options
- * @param {boolean} options.isAsked Whether a typed message already asked
- *                                  for it, so it needn't be said again.
+ * Pressing the picker's button isn't something said, so it adds nothing to
+ * the conversation on the person's side: the folded picker already says
+ * what was picked.
+ *
+ * @param {Object} pending The pick, from the store.
  */
-async function commit( pending, { isAsked = false } = {} ) {
+async function commit( pending ) {
 	const skill = SKILLS[ pending.skillId ];
 	const id = pending.messageId;
 	const picked = getChat().getMessage( id );
@@ -164,14 +165,6 @@ async function commit( pending, { isAsked = false } = {} ) {
 		status: 'committed',
 		summary: skill.chip( pending ),
 	} );
-
-	if ( ! isAsked ) {
-		addMessage( {
-			chip: skill.chip( pending ),
-			role: 'user',
-			text: skill.request( pending ),
-		} );
-	}
 
 	addMessage( {
 		offersNext: true,
@@ -213,12 +206,8 @@ export async function sendMessage( text ) {
 	const pending = getChat().getPending();
 
 	if ( pending && isConfirmation( typed ) ) {
-		addMessage( {
-			chip: SKILLS[ pending.skillId ].chip( pending ),
-			role: 'user',
-			text: typed,
-		} );
-		await commit( pending, { isAsked: true } );
+		addMessage( { role: 'user', text: typed } );
+		await commit( pending );
 		return;
 	}
 

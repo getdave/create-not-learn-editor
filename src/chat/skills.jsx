@@ -19,8 +19,8 @@
  *   named for what it does.
  * - `screen( message )`: the screen with the same controls and more, as
  *   `{ name, path, search }`, offered under the picker.
- * - `chip`, `request` and `done`: how a pick reads, as the message that keeps
- *   it, and once saved.
+ * - `chip` and `done`: how a pick reads once kept, where its picker was and
+ *   in the reply confirming it.
  * - `hasFooter( params )`: whether the picker has that button, when that
  *   depends on the request.
  * - `commit` and `undo`: for skills that don't edit a record in place.
@@ -66,6 +66,7 @@ import {
 	useSectionDesigns,
 } from '../section-picker';
 import { Carousel } from './carousel';
+import { cancelPending } from './conversation';
 import { getBlocksEdit } from './entity-changes';
 import {
 	PAGES_QUERY,
@@ -440,7 +441,18 @@ function PageWidget( { message, onPick, onStep } ) {
 						name
 					) }
 				</Text>
-				<Button onClick={ () => setIsNaming( true ) } variant="link">
+				<Button
+					onClick={ () => {
+						/*
+						 * Renaming starts the steps again: a design suited to
+						 * the new name is picked after it, not kept from before.
+						 */
+						cancelPending();
+						setChoice( undefined );
+						setIsNaming( true );
+					} }
+					variant="link"
+				>
 					{ __( 'Change name' ) }
 				</Button>
 			</div>
@@ -750,9 +762,6 @@ export const SKILLS = {
 		chip: ( { label } ) =>
 			/* translators: %s: look name. */
 			sprintf( __( 'Look: %s' ), label ),
-		request: ( { label } ) =>
-			/* translators: %s: look name. */
-			sprintf( __( 'Use the “%s” look' ), label ),
 		done: ( { label } ) =>
 			/* translators: %s: look name. */
 			sprintf( __( 'Done. Your site now has the “%s” look.' ), label ),
@@ -773,9 +782,6 @@ export const SKILLS = {
 		chip: ( { label } ) =>
 			/* translators: %s: palette name. */
 			sprintf( __( 'Colors: %s' ), label ),
-		request: ( { label } ) =>
-			/* translators: %s: palette name. */
-			sprintf( __( 'Use the “%s” colors' ), label ),
 		done: ( { label } ) =>
 			/* translators: %s: palette name. */
 			sprintf( __( 'Done. Your site now uses the “%s” colors.' ), label ),
@@ -796,9 +802,6 @@ export const SKILLS = {
 		chip: ( { label } ) =>
 			/* translators: %s: font pairing name. */
 			sprintf( __( 'Fonts: %s' ), label ),
-		request: ( { label } ) =>
-			/* translators: %s: font pairing name. */
-			sprintf( __( 'Use the “%s” fonts' ), label ),
 		done: ( { label } ) =>
 			/* translators: %s: font pairing name. */
 			sprintf( __( 'Done. Your site now uses the “%s” fonts.' ), label ),
@@ -828,9 +831,6 @@ export const SKILLS = {
 		chip: ( { label } ) =>
 			/* translators: %s: site title. */
 			sprintf( __( 'Site title: %s' ), label ),
-		request: ( { label } ) =>
-			/* translators: %s: site title. */
-			sprintf( __( 'Call my site “%s”' ), label ),
 		done: ( { label } ) =>
 			sprintf(
 				/* translators: %s: site title. */
@@ -858,8 +858,6 @@ export const SKILLS = {
 		} ),
 		Widget: LogoWidget,
 		chip: ( { label } ) => label,
-		request: ( { payload } ) =>
-			payload.logoId ? __( 'Use this logo' ) : __( 'Remove my logo' ),
 		done: ( { payload } ) =>
 			payload.logoId
 				? __( 'Done. Your logo is on your site.' )
@@ -885,9 +883,6 @@ export const SKILLS = {
 		chip: ( { label } ) =>
 			/* translators: %s: layout name. */
 			sprintf( __( 'Header: %s' ), label ),
-		request: ( { label } ) =>
-			/* translators: %s: layout name. */
-			sprintf( __( 'Use the “%s” header' ), label ),
 		done: ( { label } ) =>
 			/* translators: %s: layout name. */
 			sprintf( __( 'Done. Your header now uses “%s”.' ), label ),
@@ -912,9 +907,6 @@ export const SKILLS = {
 		chip: ( { label } ) =>
 			/* translators: %s: layout name. */
 			sprintf( __( 'Footer: %s' ), label ),
-		request: ( { label } ) =>
-			/* translators: %s: layout name. */
-			sprintf( __( 'Use the “%s” footer' ), label ),
 		done: ( { label } ) =>
 			/* translators: %s: layout name. */
 			sprintf( __( 'Done. Your footer now uses “%s”.' ), label ),
@@ -924,14 +916,7 @@ export const SKILLS = {
 			name: __( 'Pages' ),
 			path: '/types/page/list/all',
 		} ),
-		action: ( pending ) =>
-			pending
-				? sprintf(
-						/* translators: %s: page name. */
-						__( 'Create “%s”' ),
-						pending.label
-					)
-				: __( 'Create page' ),
+		action: () => __( 'Create page' ),
 		reply: ( { title } ) => ( {
 			text: title
 				? sprintf(
@@ -955,9 +940,6 @@ export const SKILLS = {
 					? getPatternTitle( payload.pattern )
 					: __( 'Blank' )
 			),
-		request: ( { label } ) =>
-			/* translators: %s: page name. */
-			sprintf( __( 'Create the “%s” page' ), label ),
 		done: ( { label } ) =>
 			sprintf(
 				/* translators: %s: page name. */
@@ -1054,9 +1036,6 @@ export const SKILLS = {
 		chip: ( { label } ) =>
 			/* translators: %s: section design name. */
 			sprintf( __( 'Section: %s' ), label ),
-		request: ( { label } ) =>
-			/* translators: %s: section design name. */
-			sprintf( __( 'Add the “%s” section' ), label ),
 		done: ( { label }, message ) =>
 			sprintf(
 				/* translators: 1: section design name, 2: page name. */
@@ -1082,7 +1061,6 @@ export const SKILLS = {
 		chip: ( { label } ) =>
 			/* translators: %s: menu name. */
 			sprintf( __( 'Menu: %s' ), label ),
-		request: () => __( 'Keep my menu changes' ),
 		done: () => __( 'Done. Your menu is saved.' ),
 	},
 	exit: {

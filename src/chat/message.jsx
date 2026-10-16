@@ -432,7 +432,7 @@ function WidgetFooter( { message, skill, step } ) {
 						{ __( 'Cancel' ) }
 					</Button>
 				) }
-				{ step && ! isPicked && ! saveState ? (
+				{ step && ! saveState ? (
 					<Button
 						__next40pxDefaultSize
 						accessibleWhenDisabled
