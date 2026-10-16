@@ -614,9 +614,29 @@
 	min-height: 0;
 }
 
+.cnl-add-page-layout-card {
+	cursor: pointer;
+}
+
 .cnl-add-page-layout-card__preview {
+	position: relative;
 	flex: 1 1 0;
 	min-height: 0;
+}
+
+/*
+ * Over the preview, so a click anywhere on it picks the design. The footer's
+ * button is the one to tab to, so this one is left out of the tab order.
+ */
+.cnl-add-page-layout-card__pick {
+	position: absolute;
+	z-index: 1;
+	inset: 0;
+	width: 100%;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	cursor: pointer;
 }
 
 .cnl-add-page-layout-preview-page,

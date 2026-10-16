@@ -14,13 +14,11 @@ import {
 	putLayoutFirst,
 } from '../data';
 
-vi.mock( '@wordpress/blocks', () => ( { createBlock: vi.fn() } ) );
-
 /*
  * The real parser, and a stand-in serializer that keeps what comparing two
  * parts needs: each block's name, attributes and inner blocks.
  */
-vi.mock( '../../../wordpress-packages', async () => {
+vi.mock( '@wordpress/blocks', async () => {
 	const { parse } = await vi.importActual(
 		'@wordpress/block-serialization-default-parser'
 	);
@@ -34,14 +32,22 @@ vi.mock( '../../../wordpress-packages', async () => {
 			] );
 
 	return {
-		blockEditorStore: {},
-		coreDataStore: {},
-		parseBlocks: parse,
+		createBlock: vi.fn(),
+		parse,
 		serialize: ( blocks ) => JSON.stringify( strip( blocks ) ),
-		useMemo: ( fn ) => fn(),
-		useSelect: () => ( {} ),
 	};
 } );
+
+vi.mock( '@wordpress/core-data', () => ( { store: {} } ) );
+vi.mock( '@wordpress/data', () => ( { useSelect: () => ( {} ) } ) );
+vi.mock( '@wordpress/element', () => ( { useMemo: ( fn ) => fn() } ) );
+
+vi.mock( '../../../wordpress-packages', () => ( {
+	blockEditorStore: {},
+	coreDataStore: {},
+	useMemo: ( fn ) => fn(),
+	useSelect: () => ( {} ),
+} ) );
 
 vi.mock( '../../content/pages/data', () => ( {
 	getSitePartArea: () => undefined,
