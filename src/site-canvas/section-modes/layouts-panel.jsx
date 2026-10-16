@@ -1,0 +1,594 @@
+/**
+ * Edit design's panel: the section's layouts, each drawn with the section's
+ * own content, and its colours below, as Design's colour palettes are
+ * shown. A header or footer offers its designs instead. Picking one changes
+ * the section underneath at once.
+ *
+ * Freeform hands the section to core's own block tools, Reset puts back how
+ * the section was when the panel opened, and Done closes it.
+ */
+
+/**
+ * WordPress dependencies
+ */
+import { BlockPreview } from '@wordpress/block-editor';
+import {
+	createContext,
+	forwardRef,
+	useContext,
+	useMemo,
+	useState,
+} from '@wordpress/element';
+import { globe as globeIcon } from '@wordpress/icons';
+
+/**
+ * Internal dependencies
+ */
+import {
+	__,
+	blockEditorStore,
+	Button,
+	chevronLeftIcon,
+	chevronRightIcon,
+	cloneBlock,
+	ColorIndicator,
+	coreDataStore,
+	isRTL,
+	LegacyIcon,
+	serialize,
+	sprintf,
+	useDispatch,
+	useSelect,
+} from '../../wordpress-packages';
+import { usePartDesigns, useSectionVariations } from './use-variations';
+import { withSectionStyle } from '../compose/section-styles';
+
+const EMPTY_ARRAY = [];
+
+// The most layouts a slide of the carousel holds.
+export const MAX_PER_SLIDE = 4;
+
+/**
+ * A colour from a theme's styles, as CSS: a preset's slug resolved against
+ * the palette, anything else as it is.
+ *
+ * @param {?string}  value   The colour, like `var:preset|color|accent`.
+ * @param {Object[]} palette `{ slug, color }` for each colour of the theme.
+ * @return {?string} The colour.
+ */
+function resolveColor( value, palette ) {
+	if ( typeof value !== 'string' ) {
+		return null;
+	}
+
+	const slug =
+		value.match( /^var:preset\|color\|(.+)$/ )?.[ 1 ] ||
+		value.match( /^var\(--wp--preset--color--([^)]+)\)$/ )?.[ 1 ];
+
+	if ( slug ) {
+		return palette.find( ( item ) => item.slug === slug )?.color || null;
+	}
+
+	return value;
+}
+
+/**
+ * A section style's background, words and accent, for its swatch.
+ *
+ * @param {?Object}  styles  The style's styles, from the theme.
+ * @param {Object[]} palette The theme's colours.
+ * @return {string[]} Up to three colours.
+ */
+function getSwatch( styles, palette ) {
+	const elements = styles?.elements || {};
+
+	return [
+		styles?.color?.background || styles?.color?.gradient,
+		styles?.color?.text,
+		elements.button?.color?.background ||
+			elements.link?.color?.text ||
+			elements.heading?.color?.text,
+	]
+		.map( ( value ) => resolveColor( value, palette ) )
+		.filter( Boolean );
+}
+
+/**
+ * The theme's colours, and its styles for each section style of a block.
+ *
+ * @param {?string} blockName The section's block type.
+ * @return {Object} `{ palette, variations }`.
+ */
+function useStyleColors( blockName ) {
+	return useSelect(
+		( select ) => {
+			const settings = select( blockEditorStore ).getSettings();
+			const features = settings.__experimentalFeatures?.color?.palette;
+
+			return {
+				palette: [
+					...( features?.theme || EMPTY_ARRAY ),
+					...( features?.default || EMPTY_ARRAY ),
+					...( settings.colors || EMPTY_ARRAY ),
+				],
+				variations: blockName
+					? select(
+							coreDataStore
+						).__experimentalGetCurrentThemeBaseGlobalStyles()
+							?.styles?.blocks?.[ blockName ]?.variations
+					: undefined,
+			};
+		},
+		[ blockName ]
+	);
+}
+
+function Preview( { blocks } ) {
+	return (
+		<span aria-hidden className="cnl-section-modes__preview" inert="">
+			<BlockPreview.Async>
+				<BlockPreview blocks={ blocks } viewportWidth={ 1200 } />
+			</BlockPreview.Async>
+		</span>
+	);
+}
+
+// How many layouts a slide of the carousel holds, set by the panel.
+const PerSlideContext = createContext( MAX_PER_SLIDE );
+
+/**
+ * Layouts as a carousel, a slide at a time, so the panel stays one row
+ * tall however many there are. It opens on the slide with the one in use.
+ *
+ * @param {Object}   props
+ * @param {?string}  props.current  The layout in use.
+ * @param {Function} props.onSelect Called with the layout picked.
+ * @param {Object[]} props.options  `{ blocks, label, name }` for each.
+ * @return {Element} The carousel.
+ */
+function LayoutOptions( { current, onSelect, options } ) {
+	const perSlide = useContext( PerSlideContext );
+	const slides = useMemo( () => {
+		const list = [];
+
+		for ( let i = 0; i < options.length; i += perSlide ) {
+			list.push( options.slice( i, i + perSlide ) );
+		}
+
+		return list;
+	}, [ options, perSlide ] );
+	const currentSlide = Math.max(
+		0,
+		slides.findIndex( ( slide ) =>
+			slide.some( ( option ) => option.name === current )
+		)
+	);
+	const [ slide, setSlide ] = useState( currentSlide );
+	const shown = Math.min( slide, slides.length - 1 );
+	const hasSlides = slides.length > 1;
+	const direction = isRTL() ? 1 : -1;
+
+	return (
+		<div
+			aria-roledescription={ hasSlides ? __( 'carousel' ) : undefined }
+			className="cnl-section-modes__carousel"
+			role="group"
+			style={ {
+				'--cnl-layouts-per-slide': Math.min( perSlide, options.length ),
+			} }
+		>
+			<div className="cnl-section-modes__carousel-row">
+				{ hasSlides && (
+					<button
+						aria-label={ __( 'Previous layouts' ) }
+						className="cnl-section-modes__carousel-arrow"
+						disabled={ shown === 0 }
+						onClick={ () => setSlide( shown - 1 ) }
+						type="button"
+					>
+						<LegacyIcon
+							icon={
+								isRTL() ? chevronRightIcon : chevronLeftIcon
+							}
+							size={ 20 }
+						/>
+					</button>
+				) }
+				<div className="cnl-section-modes__carousel-viewport">
+					<div
+						className="cnl-section-modes__carousel-track"
+						style={ {
+							transform: `translateX(${
+								direction * shown * 100
+							}%)`,
+						} }
+					>
+						{ slides.map( ( items, index ) => (
+							<div
+								aria-hidden={ index !== shown }
+								aria-label={ sprintf(
+									/* translators: 1: slide number, 2: number of slides. */
+									__( '%1$d of %2$d' ),
+									index + 1,
+									slides.length
+								) }
+								aria-roledescription={ __( 'slide' ) }
+								className="cnl-section-modes__options"
+								inert={ index !== shown ? '' : undefined }
+								key={ index }
+								role="group"
+							>
+								{ items.map( ( option ) => (
+									<button
+										aria-pressed={ option.name === current }
+										className="cnl-section-modes__option"
+										key={ option.name ?? 'none' }
+										onClick={ () =>
+											option.name !== current &&
+											onSelect( option )
+										}
+										title={ option.label }
+										type="button"
+									>
+										<Preview blocks={ option.blocks } />
+										<span>{ option.label }</span>
+									</button>
+								) ) }
+							</div>
+						) ) }
+					</div>
+				</div>
+				{ hasSlides && (
+					<button
+						aria-label={ __( 'Next layouts' ) }
+						className="cnl-section-modes__carousel-arrow"
+						disabled={ shown === slides.length - 1 }
+						onClick={ () => setSlide( shown + 1 ) }
+						type="button"
+					>
+						<LegacyIcon
+							icon={
+								isRTL() ? chevronLeftIcon : chevronRightIcon
+							}
+							size={ 20 }
+						/>
+					</button>
+				) }
+			</div>
+			{ hasSlides && (
+				<div className="cnl-section-modes__carousel-dots">
+					{ slides.map( ( items, index ) => (
+						<button
+							aria-current={ index === shown }
+							aria-label={ sprintf(
+								/* translators: 1: slide number, 2: number of slides. */
+								__( 'Show layouts %1$d of %2$d' ),
+								index + 1,
+								slides.length
+							) }
+							className="cnl-section-modes__carousel-dot"
+							key={ index }
+							onClick={ () => setSlide( index ) }
+							type="button"
+						/>
+					) ) }
+				</div>
+			) }
+		</div>
+	);
+}
+
+/**
+ * The way to Freeform, under the layouts.
+ *
+ * @param {Object}   props
+ * @param {Function} props.onFreeform Hands the section to core's own block
+ *                                    tools.
+ * @return {Element} The row.
+ */
+function FreeformRow( { onFreeform } ) {
+	return (
+		<p className="cnl-section-modes__freeform">
+			{ __( 'Need more control?' ) }{ ' ' }
+			<button
+				className="cnl-section-modes__link"
+				onClick={ onFreeform }
+				title={ __(
+					'Move, resize and restyle the blocks in this section'
+				) }
+				type="button"
+			>
+				{ __( 'Edit freeform' ) }
+			</button>
+		</p>
+	);
+}
+
+/**
+ * The only layout there is, as it is now, picked.
+ *
+ * @param {Object}   props
+ * @param {Object[]} props.blocks How it looks.
+ * @param {string}   props.label  Its name.
+ * @return {Element} The option.
+ */
+function OnlyLayout( { blocks, label } ) {
+	return (
+		<LayoutOptions
+			current="current"
+			onSelect={ () => {} }
+			options={ [ { blocks, label, name: 'current' } ] }
+		/>
+	);
+}
+
+/**
+ * A section's arrangements and colours.
+ *
+ * @param {Object}   props
+ * @param {string}   props.clientId   The section.
+ * @param {Function} props.onFreeform See `FreeformRow`.
+ * @param {Function} props.onReplace  Called with the block that takes the
+ *                                    section's place when its layout
+ *                                    changes.
+ * @return {Element} The panel's options.
+ */
+function SectionOptions( { clientId, onFreeform, onReplace } ) {
+	const { replaceBlock, updateBlockAttributes } =
+		useDispatch( blockEditorStore );
+	const { block, colors, layouts } = useSectionVariations( clientId );
+	const { palette, variations } = useStyleColors( block?.name );
+
+	return (
+		<>
+			{ layouts ? (
+				<LayoutOptions
+					current={ layouts.current }
+					onSelect={ ( option ) => {
+						const next = cloneBlock( option.block );
+
+						replaceBlock( clientId, next );
+						onReplace( next );
+					} }
+					options={ layouts.options }
+				/>
+			) : (
+				block && (
+					<OnlyLayout
+						blocks={ [ block ] }
+						label={ __( 'Current layout' ) }
+					/>
+				)
+			) }
+			<FreeformRow onFreeform={ onFreeform } />
+			{ colors && (
+				<div className="cnl-section-modes__colors">
+					<span className="cnl-section-modes__panel-heading">
+						{ __( 'Colours' ) }
+					</span>
+					<div
+						aria-label={ __( 'Colours' ) }
+						className="cnl-section-modes__swatches"
+						role="group"
+					>
+						{ colors.options.map( ( option ) => {
+							const swatch = option.name
+								? getSwatch(
+										variations?.[ option.name ],
+										palette
+									)
+								: EMPTY_ARRAY;
+
+							return (
+								<Button
+									aria-pressed={
+										option.name === colors.current
+									}
+									className="cnl-section-modes__swatch"
+									key={ option.name ?? 'none' }
+									label={
+										option.name
+											? option.label
+											: __( 'Theme' )
+									}
+									onClick={ () =>
+										option.name !== colors.current &&
+										updateBlockAttributes( clientId, {
+											className: withSectionStyle(
+												block.attributes.className,
+												option.name
+											),
+										} )
+									}
+									showTooltip
+								>
+									{ swatch.length ? (
+										<span
+											aria-hidden
+											className="cnl-section-modes__swatch-colors"
+										>
+											{ swatch.map( ( color, index ) => (
+												<ColorIndicator
+													colorValue={ color }
+													key={ index }
+												/>
+											) ) }
+										</span>
+									) : (
+										<span
+											aria-hidden
+											className="cnl-section-modes__swatch-default"
+										>
+											{ __( 'Theme' ) }
+										</span>
+									) }
+								</Button>
+							);
+						} ) }
+					</div>
+				</div>
+			) }
+		</>
+	);
+}
+
+/**
+ * A header's or footer's designs.
+ *
+ * @param {Object}   props
+ * @param {Object}   props.part       `{ area, clientId, id }`.
+ * @param {Function} props.onFreeform See `FreeformRow`.
+ * @return {Element} The panel's options.
+ */
+function PartOptions( { onFreeform, part } ) {
+	const { editEntityRecord } = useDispatch( coreDataStore );
+	const designs = usePartDesigns( part );
+	const partBlocks = useSelect(
+		( select ) => select( blockEditorStore ).getBlocks( part.clientId ),
+		[ part.clientId ]
+	);
+
+	return (
+		<>
+			{ designs.options.length ? (
+				<LayoutOptions
+					current={ designs.current }
+					onSelect={ ( option ) => {
+						const blocks = option.blocks.map( ( item ) =>
+							cloneBlock( item )
+						);
+
+						editEntityRecord(
+							'postType',
+							'wp_template_part',
+							part.id,
+							{ blocks, content: serialize( blocks ) }
+						);
+					} }
+					options={ designs.options }
+				/>
+			) : (
+				<OnlyLayout
+					blocks={ partBlocks }
+					label={ __( 'Current design' ) }
+				/>
+			) }
+			<FreeformRow onFreeform={ onFreeform } />
+		</>
+	);
+}
+
+/**
+ * @param {Object}   props
+ * @param {?Object}  props.part         The header or footer, if it is one.
+ * @param {string}   props.clientId     The section.
+ * @param {string}   props.title        Its name.
+ * @param {boolean}  props.canReset     Whether anything has changed since
+ *                                      the panel opened.
+ * @param {number}   props.removedCount How many items were taken out.
+ * @param {Object}   props.style        Where the panel sits.
+ * @param {Function} props.onDone       Closes the panel.
+ * @param {number}   props.perSlide     How many layouts a slide holds.
+ * @param {Function} props.onFreeform   Hands the section to core's own
+ *                                      block tools.
+ * @param {Function} props.onReplace    See `SectionOptions`.
+ * @param {Function} props.onReset      Puts the section back.
+ * @param {Function} props.onRestore    Puts back what was taken out.
+ * @param {Object}   ref                Ref to the panel.
+ * @return {Element} The panel.
+ */
+function LayoutsPanel(
+	{
+		canReset,
+		clientId,
+		onDone,
+		onFreeform,
+		onReplace,
+		onReset,
+		onRestore,
+		part,
+		perSlide = MAX_PER_SLIDE,
+		removedCount,
+		style,
+		title,
+	},
+	ref
+) {
+	return (
+		<div
+			aria-label={ sprintf(
+				/* translators: %s: section name. */
+				__( '%s design' ),
+				title
+			) }
+			className="cnl-section-modes__panel"
+			ref={ ref }
+			role="group"
+			style={ style }
+		>
+			<div className="cnl-section-modes__panel-head">
+				<span className="cnl-section-modes__panel-heading">
+					{ part ? __( 'Designs' ) : __( 'Layouts' ) }
+				</span>
+				<div className="cnl-section-modes__panel-actions">
+					{ removedCount > 0 && (
+						<button
+							className="cnl-section-modes__text-button is-accent"
+							onClick={ onRestore }
+							type="button"
+						>
+							{ sprintf(
+								/* translators: %d: number of items removed. */
+								__( 'Restore removed (%d)' ),
+								removedCount
+							) }
+						</button>
+					) }
+					<button
+						className="cnl-section-modes__text-button"
+						disabled={ ! canReset }
+						onClick={ onReset }
+						title={ __(
+							'Undo changes since you opened Edit design'
+						) }
+						type="button"
+					>
+						{ __( 'Reset' ) }
+					</button>
+					<button
+						className="cnl-section-modes__done"
+						onClick={ onDone }
+						type="button"
+					>
+						{ __( 'Done editing' ) }
+					</button>
+				</div>
+			</div>
+			{ part && (
+				<span className="cnl-section-modes__sitewide">
+					<LegacyIcon icon={ globeIcon } size={ 16 } />
+					{ sprintf(
+						/* translators: %s: header or footer, lowercase. */
+						__(
+							'You’re editing the %s on every page of your site'
+						),
+						title.toLowerCase()
+					) }
+				</span>
+			) }
+			<PerSlideContext.Provider value={ perSlide }>
+				{ part ? (
+					<PartOptions onFreeform={ onFreeform } part={ part } />
+				) : (
+					<SectionOptions
+						clientId={ clientId }
+						onFreeform={ onFreeform }
+						onReplace={ onReplace }
+					/>
+				) }
+			</PerSlideContext.Provider>
+		</div>
+	);
+}
+
+export default forwardRef( LayoutsPanel );

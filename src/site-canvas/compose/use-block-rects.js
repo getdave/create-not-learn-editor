@@ -1,5 +1,5 @@
 /**
- * Where blocks in the editor's canvas are on screen, for the Compose layer to
+ * Where blocks in the editor's canvas are on screen, for the section layer to
  * draw over them.
  *
  * Measured every frame while Compose is on, so the layer follows the canvas
@@ -130,4 +130,38 @@ export function useBlockRects( { isActive, layerRef, editorRef, clientIds } ) {
 	const { frame = null, ...rects } = measured;
 
 	return { frame, rects };
+}
+
+/**
+ * Scroll the canvas to a block, unless it is already in view.
+ *
+ * Scrolled on the canvas's own window rather than with `scrollIntoView`,
+ * which also scrolls every container around the iframe.
+ *
+ * @param {Object} editorRef Ref to the editor's container.
+ * @param {string} clientId  The block's client ID.
+ */
+export function scrollCanvasTo( editorRef, clientId ) {
+	const doc = getCanvasFrame( editorRef.current )?.contentDocument;
+	const node = doc?.getElementById( `block-${ clientId }` );
+
+	if ( ! node ) {
+		return;
+	}
+
+	const view = doc.defaultView;
+	const rect = node.getBoundingClientRect();
+
+	if ( rect.top >= 0 && rect.bottom <= view.innerHeight ) {
+		return;
+	}
+
+	const reduceMotion = view.matchMedia(
+		'(prefers-reduced-motion: reduce)'
+	).matches;
+
+	view.scrollTo( {
+		behavior: reduceMotion ? 'auto' : 'smooth',
+		top: view.scrollY + rect.top - 24,
+	} );
 }

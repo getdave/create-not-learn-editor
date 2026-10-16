@@ -229,8 +229,7 @@ function getCanvasEditor( page ) {
 
 /**
  * Wait for the site canvas to show a mode's surface: the site preview for
- * Browse, the editor for Edit, and the Compose layer over the editor for
- * Compose.
+ * Browse, the editor for Edit, and the editor zoomed out for Compose.
  *
  * @param {import('@playwright/test').Page} page
  * @param {'Browse'|'Edit'|'Compose'}       mode The mode.
@@ -252,13 +251,17 @@ async function expectCanvasMode( page, mode ) {
 	await expect( getSitePreview( page ) ).toBeHidden();
 	await expect( getCanvasEditor( page ) ).toBeVisible( { timeout: 15000 } );
 
-	const composeLayer = page.locator( '.cnl-compose-layer' );
+	// Compose is the same editor, zoomed out.
+	const isZoomedOut = () =>
+		getCanvasEditor( page )
+			.contentFrame()
+			.locator( 'html' )
+			.getAttribute( 'class' )
+			.then( ( value ) => /\bis-zoomed-out\b/.test( value || '' ) );
 
-	if ( mode === 'Compose' ) {
-		await expect( composeLayer ).toBeVisible( { timeout: 15000 } );
-	} else {
-		await expect( composeLayer ).toHaveCount( 0 );
-	}
+	await expect
+		.poll( isZoomedOut, { timeout: 15000 } )
+		.toBe( mode === 'Compose' );
 }
 
 /**
@@ -270,6 +273,88 @@ async function expectCanvasMode( page, mode ) {
 async function setCanvasMode( page, mode ) {
 	await pickCanvasMode( page, mode );
 	await expectCanvasMode( page, mode );
+}
+
+/**
+ * In Edit, point at a section and pick one of the ways to edit it from the
+ * bar over it: Edit design or Edit content.
+ *
+ * @param {import('@playwright/test').Page}    page
+ * @param {import('@playwright/test').Locator} target Something in the
+ *                                                    section, in the canvas.
+ * @param {string}                             mode   The way to edit it.
+ */
+async function pickSectionMode( page, target, mode ) {
+	/*
+	 * Pointed at again until the right section is in the mode: the layer
+	 * only hears the pointer once the canvas has loaded, and while the page
+	 * is still settling, the browser can move a neighbour under the pointer.
+	 */
+	await expect( async () => {
+		const done = page.locator( '.cnl-section-modes__done' );
+
+		if ( await done.count() ) {
+			await done.first().click();
+		}
+
+		await pointAtSection( page, target, { timeout: 1000 } );
+		await page
+			.locator( '.cnl-section-modes__bar' )
+			.getByRole( 'button', { name: mode, exact: true } )
+			.click( { timeout: 2000 } );
+		expect(
+			await isWithin( page, target, '.cnl-section-modes__outline' )
+		).toBe( true );
+	} ).toPass( { timeout: 20000 } );
+}
+
+/**
+ * Whether the middle of something on the canvas is inside one of the
+ * layer's boxes.
+ *
+ * @param {import('@playwright/test').Page}    page
+ * @param {import('@playwright/test').Locator} target   On the canvas.
+ * @param {string}                             selector The layer's box.
+ * @return {Promise<boolean>} Whether it is.
+ */
+async function isWithin( page, target, selector ) {
+	const lit = await page.locator( selector ).first().boundingBox();
+	const box = await target.boundingBox();
+	const x = box.x + box.width / 2;
+	const y = box.y + box.height / 2;
+
+	return (
+		Boolean( lit ) &&
+		x >= lit.x &&
+		x <= lit.x + lit.width &&
+		y >= lit.y &&
+		y <= lit.y + lit.height
+	);
+}
+
+/**
+ * In Edit or Compose, point at the section holding something until the
+ * layer lights it up, with its bar. Forced, as the bar over a short section
+ * covers it once it shows.
+ *
+ * @param {import('@playwright/test').Page}    page
+ * @param {import('@playwright/test').Locator} target          Something in
+ *                                                             the section.
+ * @param {Object}                             options
+ * @param {number}                             options.timeout How long to
+ *                                                             keep trying.
+ */
+async function pointAtSection( page, target, { timeout = 15000 } = {} ) {
+	await expect( async () => {
+		await page.mouse.move( 0, 0 );
+		await target.hover( { force: true } );
+		await expect( page.locator( '.cnl-section-modes__bar' ) ).toBeVisible( {
+			timeout: 1000,
+		} );
+		expect(
+			await isWithin( page, target, '.cnl-section-modes__tint' )
+		).toBe( true );
+	} ).toPass( { timeout } );
 }
 
 /**
@@ -388,6 +473,8 @@ module.exports = {
 	openReviewChanges,
 	openSidebarLink,
 	pickCanvasMode,
+	pickSectionMode,
+	pointAtSection,
 	setCanvasMode,
 	visitEditor,
 	writeParityScreenshot,

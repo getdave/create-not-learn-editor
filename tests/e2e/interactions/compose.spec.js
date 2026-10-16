@@ -1,12 +1,15 @@
 /**
- * The site canvas's Compose mode: the page zoomed out, with sections to add,
- * move, remove and rearrange, and a way into Edit.
+ * The site canvas's Compose mode: the page zoomed out, with the same section
+ * controls as Edit. Sections are dragged to reorder them, and a section's
+ * layout, colours and place on the page are changed without leaving.
+ * Anything else, like Edit content, goes back to Edit to do it.
  */
 const {
 	expect,
 	getCanvasEditor,
 	expectCanvasMode,
 	getStage,
+	pointAtSection,
 	setCanvasMode,
 	test,
 	visitEditor,
@@ -15,26 +18,40 @@ const {
 // A page with no blocks. The REST helper fills in a paragraph for no content.
 const EMPTY_PAGE = ' ';
 
-// The page's own sections, rather than what the template adds around them.
-function getTargets( page ) {
-	return page.locator( '.cnl-compose-layer__target:not(.is-template)' );
+/**
+ * A section tall enough, zoomed out, for its bar to sit at its top, clear of
+ * its words.
+ *
+ * @param {string} words What it says.
+ * @return {string} Its markup.
+ */
+function tallSection( words ) {
+	return `<!-- wp:group {"style":{"spacing":{"padding":{"top":"200px","bottom":"200px"}}},"layout":{"type":"constrained"}} --><div class="wp-block-group" style="padding-top:200px;padding-bottom:200px"><!-- wp:paragraph --><p>${ words }</p><!-- /wp:paragraph --></div><!-- /wp:group -->`;
 }
 
 /**
- * Pick a section from the keyboard, as the "+" between sections can sit over
- * the middle of a short one.
+ * The words in each of the page's sections, top to bottom.
  *
  * @param {import('@playwright/test').Page} page
- * @param {string}                          name The section's name.
+ * @return {Promise<string[]>} The words.
  */
-async function pickSection( page, name ) {
-	const target = getTargets( page ).and(
-		page.getByRole( 'button', { name, exact: true } )
-	);
+function getSectionWords( page ) {
+	return page.evaluate( () => {
+		const store = window.wp.data.select( 'core/block-editor' );
+		const [ root ] = store.getBlocksByName( 'core/post-content' );
 
-	await target.focus();
-	await page.keyboard.press( 'Enter' );
-	await expect( target ).toHaveAttribute( 'aria-pressed', 'true' );
+		return store
+			.getBlocks( root )
+			.map( ( section ) =>
+				(
+					section.innerBlocks[ 0 ] || section
+				).attributes.content?.toString()
+			);
+	} );
+}
+
+function getWords( page, words ) {
+	return getCanvasEditor( page ).contentFrame().getByText( words );
 }
 
 /**
@@ -63,12 +80,6 @@ async function getSettledBox( locator ) {
 		.toBe( true );
 
 	return previous;
-}
-
-async function getTargetNames( page ) {
-	return getTargets( page ).evaluateAll( ( targets ) =>
-		targets.map( ( target ) => target.getAttribute( 'aria-label' ) )
-	);
 }
 
 /**
@@ -103,36 +114,30 @@ async function openPage( page, rest, options = {} ) {
 }
 
 test.describe( 'Compose', () => {
-	test( 'zooms the page out and hides the device switcher', async ( {
+	test( 'zooms the page out with the same section controls as Edit', async ( {
 		page,
 		rest,
 	} ) => {
-		await openPage( page, rest );
+		await openPage( page, rest, { content: tallSection( 'A section' ) } );
 		await setCanvasMode( page, 'Compose' );
 
 		const toolbar = page.locator( '.cnl-editor-homepage-toolbar' );
+		const bar = page.locator( '.cnl-section-modes__bar' );
 
 		await expect(
 			toolbar.getByRole( 'radio', { name: 'Desktop view' } )
 		).toHaveCount( 0 );
-		await expect
-			.poll( () =>
-				getCanvasEditor( page )
-					.contentFrame()
-					.locator( 'html' )
-					.getAttribute( 'class' )
-			)
-			.toContain( 'is-zoomed-out' );
-		await expect( getTargets( page ).first() ).toBeAttached();
 
-		// What the template adds is marked apart from the page's content, and
-		// only its header and footer can be picked.
+		await pointAtSection( page, getWords( page, 'A section' ) );
 		await expect(
-			page.getByRole( 'button', { name: 'Header, same on every page' } )
-		).toHaveClass( /is-template/ );
+			bar.getByRole( 'button', { name: 'Edit design' } )
+		).toBeVisible();
 		await expect(
-			page.getByRole( 'button', { name: 'Footer, same on every page' } )
-		).toHaveClass( /is-template/ );
+			bar.getByRole( 'button', { name: 'Edit content' } )
+		).toBeVisible();
+		await expect(
+			bar.getByRole( 'button', { name: 'Delete section' } )
+		).toBeVisible();
 
 		await setCanvasMode( page, 'Edit' );
 		await expect(
@@ -147,85 +152,159 @@ test.describe( 'Compose', () => {
 		await openPage( page, rest, { content: EMPTY_PAGE } );
 		await setCanvasMode( page, 'Compose' );
 
-		await expect(
-			page.getByText( 'This page has no sections yet' )
-		).toBeVisible();
-		await page
-			.locator( '.cnl-compose-layer__add' )
+		const placeholder = page.locator( '.cnl-section-modes__empty' );
+
+		await expect( placeholder ).toBeVisible( { timeout: 15000 } );
+		await placeholder
 			.getByRole( 'button', { name: 'Add a section' } )
 			.click();
 		await pickLayout( page, 'Hero' );
+		await expect( placeholder ).toHaveCount( 0 );
 
-		await expect(
-			page.getByText( 'This page has no sections yet' )
-		).toBeHidden();
-		await page
-			.locator( '.cnl-compose-layer__add' )
-			.getByRole( 'button', { name: 'Add a section' } )
-			.click();
+		// Still composing, the new section picked, with "Add section" on its
+		// bottom edge.
+		await expectCanvasMode( page, 'Compose' );
+		await page.locator( '.cnl-section-modes__add-section' ).last().click();
 		await pickLayout( page, 'Image left, text right' );
 
 		await expect
-			.poll( () => getTargetNames( page ) )
-			.toEqual( [ 'Hero', 'Image left, text right' ] );
+			.poll( () =>
+				page.evaluate( () => {
+					const store = window.wp.data.select( 'core/block-editor' );
+					const [ root ] =
+						store.getBlocksByName( 'core/post-content' );
+
+					return store.getBlockOrder( root ).length;
+				} )
+			)
+			.toBe( 2 );
+		await expectCanvasMode( page, 'Compose' );
 	} );
 
-	test( 'the "+" between sections stays while the pointer moves to it', async ( {
+	test( 'drags a section to reorder the page', async ( { page, rest } ) => {
+		await openPage( page, rest, {
+			content: [ 'First', 'Second', 'Third' ]
+				.map( ( words ) => tallSection( `${ words } section` ) )
+				.join( '' ),
+		} );
+		await setCanvasMode( page, 'Compose' );
+
+		const first = await getSettledBox( getWords( page, 'First section' ) );
+		const third = await getSettledBox( getWords( page, 'Third section' ) );
+
+		await pointAtSection( page, getWords( page, 'First section' ) );
+		await page.mouse.move( first.x + 5, first.y + first.height / 2 );
+		await page.mouse.down();
+		await page.mouse.move( first.x + 5, first.y + 40, { steps: 5 } );
+		await expect(
+			page.locator( '.cnl-section-modes__drop-line' )
+		).toBeVisible();
+		await page.mouse.move( third.x + 5, third.y + third.height + 60, {
+			steps: 10,
+		} );
+		await page.mouse.up();
+
+		await expect
+			.poll( () => getSectionWords( page ) )
+			.toEqual( [ 'Second section', 'Third section', 'First section' ] );
+		await expectCanvasMode( page, 'Compose' );
+	} );
+
+	test( 'moves and deletes sections without leaving', async ( {
 		page,
 		rest,
 	} ) => {
 		await openPage( page, rest, {
 			content: [ 'First', 'Second' ]
-				.map(
-					( text ) =>
-						`<!-- wp:paragraph --><p>${ text } section</p><!-- /wp:paragraph -->`
-				)
+				.map( ( words ) => tallSection( `${ words } section` ) )
 				.join( '' ),
 		} );
 		await setCanvasMode( page, 'Compose' );
 
-		const second = page.getByRole( 'button', {
-			name: 'Second section',
-			exact: true,
-		} );
-		const box = await getSettledBox( second );
+		const bar = page.locator( '.cnl-section-modes__bar' );
 
-		await page.mouse.move( box.x + 20, box.y + box.height / 2 );
+		await pointAtSection( page, getWords( page, 'Second section' ) );
+		await bar.getByRole( 'button', { name: 'Move section up' } ).click();
+		await expect
+			.poll( () => getSectionWords( page ) )
+			.toEqual( [ 'Second section', 'First section' ] );
 
-		const add = page.locator(
-			'.cnl-compose-layer__gap.is-visible .cnl-compose-layer__gap-button'
-		);
-
-		await expect( add.first() ).toBeVisible();
-
-		const target = await getSettledBox( add.first() );
-
-		await page.mouse.move(
-			target.x + target.width / 2,
-			target.y + target.height / 2,
-			{ steps: 20 }
-		);
-		await page.mouse.down();
-		await page.mouse.up();
-
+		// Once the canvas has scrolled to the moved section, so nothing
+		// slides under the pointer, and the bar is the right section's.
+		await getSettledBox( getWords( page, 'First section' ) );
+		await pointAtSection( page, getWords( page, 'First section' ) );
 		await expect(
-			page.getByRole( 'dialog', { name: 'Add a section' } )
-		).toBeVisible();
+			page.locator( '.cnl-section-modes__hover .cnl-section-modes__tab' )
+		).toHaveText( 'First section' );
+		await bar.getByRole( 'button', { name: 'Delete section' } ).click();
+		await expect
+			.poll( () => getSectionWords( page ) )
+			.toEqual( [ 'Second section' ] );
+		await expectCanvasMode( page, 'Compose' );
 	} );
 
-	test( 'double-clicking a block opens it in Edit, selected', async ( {
+	test( 'changes a section’s layout without leaving', async ( {
+		page,
+		rest,
+	} ) => {
+		await openPage( page, rest, { content: EMPTY_PAGE } );
+		await setCanvasMode( page, 'Compose' );
+		await page
+			.locator( '.cnl-section-modes__empty' )
+			.getByRole( 'button', { name: 'Add a section' } )
+			.click();
+		await pickLayout( page, 'Image left, text right' );
+
+		await page
+			.locator( '.cnl-section-modes__bar' )
+			.getByRole( 'button', { name: 'Edit design' } )
+			.click();
+
+		const panel = page.locator( '.cnl-section-modes__panel' );
+		const option = panel
+			.locator( '.cnl-section-modes__option' )
+			.filter( { hasText: 'Image on the right' } );
+
+		await option.click();
+
+		// Still composing, the section in its new arrangement.
+		await expect( option ).toHaveAttribute( 'aria-pressed', 'true' );
+		await expectCanvasMode( page, 'Compose' );
+	} );
+
+	test( 'Edit content goes back to Edit, in Edit content', async ( {
 		page,
 		rest,
 	} ) => {
 		await openPage( page, rest, {
-			content:
-				'<!-- wp:group {"layout":{"type":"constrained"}} --><div class="wp-block-group"><!-- wp:heading --><h2 class="wp-block-heading">A heading</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Some words inside a section</p><!-- /wp:paragraph --></div><!-- /wp:group -->',
+			content: tallSection( 'Only section' ),
+		} );
+		await setCanvasMode( page, 'Compose' );
+		await pointAtSection( page, getWords( page, 'Only section' ) );
+		await page
+			.locator( '.cnl-section-modes__bar' )
+			.getByRole( 'button', { name: 'Edit content' } )
+			.click();
+
+		await expectCanvasMode( page, 'Edit' );
+		await expect(
+			page.locator( '.cnl-section-modes__mode-bar' )
+		).toHaveAttribute( 'aria-label', 'Edit content' );
+	} );
+
+	test( 'double-clicking a block goes back to Edit with it selected', async ( {
+		page,
+		rest,
+	} ) => {
+		await openPage( page, rest, {
+			content: tallSection( 'Some words inside a section' ),
 		} );
 		await setCanvasMode( page, 'Compose' );
 
-		const words = getCanvasEditor( page )
-			.contentFrame()
-			.getByText( 'Some words inside a section' );
+		const words = getWords( page, 'Some words inside a section' );
+
+		await pointAtSection( page, words );
+
 		const box = await getSettledBox( words );
 
 		await page.mouse.dblclick( box.x + 10, box.y + box.height / 2 );
@@ -247,86 +326,14 @@ test.describe( 'Compose', () => {
 			.toBe( 'Some words inside a section' );
 	} );
 
-	test( 'moves and deletes sections', async ( { page, rest } ) => {
-		await openPage( page, rest, {
-			content: [ 'First', 'Second', 'Third' ]
-				.map(
-					( text ) =>
-						`<!-- wp:paragraph --><p>${ text } section</p><!-- /wp:paragraph -->`
-				)
-				.join( '' ),
-		} );
+	test( 'Escape with nothing picked goes back to Edit', async ( {
+		page,
+		rest,
+	} ) => {
+		await openPage( page, rest, { content: tallSection( 'A section' ) } );
 		await setCanvasMode( page, 'Compose' );
-
-		await pickSection( page, 'Second section' );
-
-		const sectionToolbar = page.locator( '.cnl-compose-toolbar' );
-
-		await sectionToolbar.getByRole( 'button', { name: 'Move up' } ).click();
-		await expect
-			.poll( () => getTargetNames( page ) )
-			.toEqual( [ 'Second section', 'First section', 'Third section' ] );
-
-		// Deleting is under Options, as on core's block toolbar.
-		await sectionToolbar
-			.getByRole( 'button', { name: 'Options', exact: true } )
-			.click();
-		await page.getByRole( 'menuitem', { name: 'Delete' } ).click();
-		await expect
-			.poll( () => getTargetNames( page ) )
-			.toEqual( [ 'First section', 'Third section' ] );
-	} );
-
-	test( 'changes a section’s layout', async ( { page, rest } ) => {
-		await openPage( page, rest, { content: EMPTY_PAGE } );
-		await setCanvasMode( page, 'Compose' );
-		await page
-			.locator( '.cnl-compose-layer__add' )
-			.getByRole( 'button', { name: 'Add a section' } )
-			.click();
-		await pickLayout( page, 'Image left, text right' );
-
-		const sectionToolbar = page.locator( '.cnl-compose-toolbar' );
-
-		await sectionToolbar.getByRole( 'button', { name: /^Layout/ } ).click();
-		await page
-			.locator( '.cnl-compose-variations__option' )
-			.filter( { hasText: 'Image on the right' } )
-			.click();
-
-		// The section stays picked, now in its new arrangement.
-		await sectionToolbar.getByRole( 'button', { name: /^Layout/ } ).click();
-		await expect(
-			page
-				.locator( '.cnl-compose-variations__option.is-current' )
-				.filter( { hasText: 'Image on the right' } )
-		).toBeVisible();
-	} );
-
-	test( 'Edit opens the picked section in Edit', async ( { page, rest } ) => {
-		await openPage( page, rest, {
-			content:
-				'<!-- wp:paragraph --><p>Only section</p><!-- /wp:paragraph -->',
-		} );
-		await setCanvasMode( page, 'Compose' );
-		await pickSection( page, 'Only section' );
-		await page
-			.locator( '.cnl-compose-toolbar' )
-			.getByRole( 'button', { name: 'Edit', exact: true } )
-			.click();
-
+		await page.keyboard.press( 'Escape' );
 		await expectCanvasMode( page, 'Edit' );
-		await expect
-			.poll( () =>
-				page.evaluate( () => {
-					const store = window.wp.data.select( 'core/block-editor' );
-
-					return store.getBlockName(
-						store.getSelectedBlockClientId()
-					);
-				} )
-			)
-			.toBe( 'core/paragraph' );
 	} );
 
 	test( 'lists the page’s sections in the sidebar only while composing', async ( {

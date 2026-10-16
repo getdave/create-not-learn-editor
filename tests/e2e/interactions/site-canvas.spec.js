@@ -14,6 +14,7 @@ const {
 	getSitePreview,
 	openSidebarLink,
 	pickCanvasMode,
+	pickSectionMode,
 	setCanvasMode,
 	test,
 	visitEditor,
@@ -114,6 +115,7 @@ test.describe( 'Site canvas interactions', () => {
 			.contentFrame()
 			.getByText( testPage.body );
 
+		await pickSectionMode( page, paragraph, 'Edit content' );
 		await paragraph.click();
 		await page.keyboard.press( 'End' );
 		await page.keyboard.type( ' changed' );

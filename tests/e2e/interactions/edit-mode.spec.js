@@ -1,11 +1,14 @@
 /**
- * The site canvas's Edit mode: sections start content-only, with the same
- * Layout and Color controls as Compose, and "Edit" on their toolbar unlocks
- * them.
+ * The site canvas's Edit mode: nothing on the page can be clicked until a
+ * section's way of editing is picked from the bar over it, or the section
+ * is double-clicked. Edit content
+ * changes its words, and Edit design offers its layouts and colours, and
+ * Freeform, which unlocks it with core's own unlock.
  */
 const {
 	expect,
 	getCanvasEditor,
+	pickSectionMode,
 	setCanvasMode,
 	test,
 	visitEditor,
@@ -52,7 +55,7 @@ function getBlockToolbar( page ) {
 }
 
 test.describe( 'Edit mode', () => {
-	test( 'sections made of blocks start content-only; single blocks don’t', async ( {
+	test( 'words change only once Edit content is picked', async ( {
 		page,
 		rest,
 	} ) => {
@@ -64,9 +67,18 @@ test.describe( 'Edit mode', () => {
 		await setCanvasMode( page, 'Edit' );
 
 		const canvas = getCanvasEditor( page ).contentFrame();
+		const inside = canvas.getByText( 'Inside a section' );
+
+		// Before a mode is picked, a click selects nothing.
+		await inside.click();
+		await expect.poll( () => getSelection( page ) ).toBe( '' );
 
 		// Words inside a section can be changed, its blocks can't.
-		await canvas.getByText( 'Inside a section' ).click();
+		await pickSectionMode( page, inside, 'Edit content' );
+		await expect(
+			page.locator( '.cnl-section-modes__mode-bar' )
+		).toHaveAttribute( 'aria-label', 'Edit content' );
+		await inside.click();
 		await expect
 			.poll( () => getSelection( page ) )
 			.toBe( 'core/paragraph contentOnly' );
@@ -76,8 +88,42 @@ test.describe( 'Edit mode', () => {
 			canvas.getByText( 'Inside a section changed' )
 		).toBeVisible();
 
+		// Core's toolbar offers Remove for a block in the section, and the
+		// small bar's Restore puts it back. Core hides its toolbar while
+		// typing, until the pointer moves over the page.
+		const typed = await canvas
+			.getByText( 'Inside a section changed' )
+			.boundingBox();
+
+		await page.mouse.move( typed.x + 5, typed.y + 5 );
+		await page.mouse.move( typed.x + 15, typed.y + 8 );
+		await page
+			.locator( '.block-editor-block-contextual-toolbar' )
+			.getByRole( 'button', { name: 'Remove' } )
+			.click();
+		await expect(
+			canvas.getByText( 'Inside a section changed' )
+		).toHaveCount( 0 );
+		await page
+			.locator( '.cnl-section-modes__mode-bar' )
+			.getByRole( 'button', { name: /^Restore/ } )
+			.click();
+		await expect(
+			canvas.getByText( 'Inside a section changed' )
+		).toBeVisible();
+
+		// A click on another section leaves the mode.
+		const own = canvas.getByText( 'A section of its own' );
+
+		await own.click();
+		await expect(
+			page.locator( '.cnl-section-modes__mode-bar' )
+		).toHaveCount( 0 );
+		await expect.poll( () => getSelection( page ) ).toBe( '' );
+
 		// A section that is a single block keeps all its tools.
-		await canvas.getByText( 'A section of its own' ).click();
+		await pickSectionMode( page, own, 'Edit content' );
+		await own.click();
 		await expect
 			.poll( () => getSelection( page ) )
 			.toBe( 'core/paragraph default' );
@@ -86,20 +132,142 @@ test.describe( 'Edit mode', () => {
 		await expect(
 			getBlockToolbar( page ).getByRole( 'button', { name: 'Bold' } )
 		).toBeVisible();
+
+		// Escape leaves the mode, typing or not.
+		await page.keyboard.press( 'Escape' );
+		await expect(
+			page.locator( '.cnl-section-modes__mode-bar' )
+		).toHaveCount( 0 );
+
+		// The section stays picked, its bar showing with the pointer away,
+		// until Escape again.
+		const bar = page.locator( '.cnl-section-modes__bar' );
+
+		await page.mouse.move( 0, 0 );
+		await expect( bar ).toBeVisible();
+		await expect( page.locator( '.cnl-section-modes__tint' ) ).toHaveClass(
+			/is-picked/
+		);
+		await page.keyboard.press( 'Escape' );
+		await expect( bar ).toHaveCount( 0 );
 	} );
 
-	test( 'a section’s toolbar offers Layout, and Edit unlocks it', async ( {
+	test( 'a double click opens Edit content with the caret there', async ( {
 		page,
 		rest,
 	} ) => {
-		await openPage( page, rest, { content: EMPTY_PAGE } );
+		await openPage( page, rest, {
+			content:
+				'<!-- wp:group {"style":{"spacing":{"padding":{"top":"160px","bottom":"160px"}}},"layout":{"type":"constrained"}} --><div class="wp-block-group" style="padding-top:160px;padding-bottom:160px"><!-- wp:paragraph --><p>Double click me</p><!-- /wp:paragraph --></div><!-- /wp:group -->',
+		} );
+		await setCanvasMode( page, 'Edit' );
 
-		// Add a layout from Compose, then open it in Edit.
-		await setCanvasMode( page, 'Compose' );
-		await page
-			.locator( '.cnl-compose-layer__add' )
-			.getByRole( 'button', { name: 'Add a section' } )
-			.click();
+		const canvas = getCanvasEditor( page ).contentFrame();
+		const words = canvas.getByText( 'Double click me' );
+
+		await expect( words ).toBeVisible( { timeout: 15000 } );
+
+		// On the words themselves, clear of the bar at the section's top.
+		const box = await words.boundingBox();
+
+		// Pointed at until the section lights up, once the canvas is ready.
+		await expect( async () => {
+			await page.mouse.move( 0, 0 );
+			await page.mouse.move( box.x + 10, box.y + box.height / 2 );
+			await expect(
+				page.locator( '.cnl-section-modes__bar' )
+			).toBeVisible( { timeout: 1000 } );
+		} ).toPass( { timeout: 15000 } );
+
+		// Measured again, as the page may have settled since.
+		const settled = await words.boundingBox();
+
+		await page.mouse.dblclick(
+			settled.x + 10,
+			settled.y + settled.height / 2
+		);
+		await expect(
+			page.locator( '.cnl-section-modes__mode-bar' )
+		).toHaveAttribute( 'aria-label', 'Edit content' );
+		await expect
+			.poll( () => getSelection( page ) )
+			.toBe( 'core/paragraph contentOnly' );
+		await page.keyboard.press( 'End' );
+		await page.keyboard.type( ', then type' );
+		await expect(
+			canvas.getByText( 'Double click me, then type' )
+		).toBeVisible();
+	} );
+
+	test( 'Add puts a block last in the section, ready to type in', async ( {
+		page,
+		rest,
+	} ) => {
+		await openPage( page, rest, {
+			content:
+				'<!-- wp:group {"style":{"spacing":{"padding":{"top":"160px","bottom":"160px"}}},"layout":{"type":"constrained"}} --><div class="wp-block-group" style="padding-top:160px;padding-bottom:160px"><!-- wp:group {"layout":{"type":"constrained"}} --><div class="wp-block-group"><!-- wp:paragraph --><p>First words</p><!-- /wp:paragraph --></div><!-- /wp:group --></div><!-- /wp:group -->',
+		} );
+		await setCanvasMode( page, 'Edit' );
+
+		const canvas = getCanvasEditor( page ).contentFrame();
+		const words = canvas.getByText( 'First words' );
+		const bar = page.locator( '.cnl-section-modes__bar' );
+
+		await expect( words ).toBeVisible( { timeout: 15000 } );
+		await expect( async () => {
+			await page.mouse.move( 0, 0 );
+			await words.hover( { force: true } );
+			await expect( bar ).toBeVisible( { timeout: 1000 } );
+		} ).toPass( { timeout: 15000 } );
+		await bar.getByRole( 'button', { name: 'Add', exact: true } ).click();
+		await page.getByRole( 'menuitem', { name: 'Heading' } ).click();
+
+		// Straight into Edit content, with the caret in the new heading.
+		await expect(
+			page.locator( '.cnl-section-modes__mode-bar' )
+		).toHaveAttribute( 'aria-label', 'Edit content' );
+		await page.keyboard.type( 'Added last' );
+		await expect( canvas.getByText( 'Added last' ) ).toBeVisible();
+
+		// Last, inside the group that wraps the section's words.
+		await expect
+			.poll( () =>
+				page.evaluate( () => {
+					const store = window.wp.data.select( 'core/block-editor' );
+					const [ root ] =
+						store.getBlocksByName( 'core/post-content' );
+					const [ section ] = store.getBlocks( root );
+
+					return section.innerBlocks[ 0 ].innerBlocks.map(
+						( block ) => block.name
+					);
+				} )
+			)
+			.toEqual( [ 'core/paragraph', 'core/heading' ] );
+	} );
+
+	test( 'a section added from the picker is picked', async ( {
+		page,
+		rest,
+	} ) => {
+		await openPage( page, rest, {
+			content:
+				'<!-- wp:group {"style":{"spacing":{"padding":{"top":"160px","bottom":"160px"}}},"layout":{"type":"constrained"}} --><div class="wp-block-group" style="padding-top:160px;padding-bottom:160px"><!-- wp:paragraph --><p>Existing section</p><!-- /wp:paragraph --></div><!-- /wp:group -->',
+		} );
+		await setCanvasMode( page, 'Edit' );
+
+		const words = getCanvasEditor( page )
+			.contentFrame()
+			.getByText( 'Existing section' );
+		const addSection = page.locator( '.cnl-section-modes__add-section' );
+
+		await expect( words ).toBeVisible( { timeout: 15000 } );
+		await expect( async () => {
+			await page.mouse.move( 0, 0 );
+			await words.hover( { force: true } );
+			await expect( addSection.last() ).toBeVisible( { timeout: 1000 } );
+		} ).toPass( { timeout: 15000 } );
+		await addSection.last().click();
 
 		const picker = page.getByRole( 'dialog', { name: 'Add a section' } );
 
@@ -110,34 +278,127 @@ test.describe( 'Edit mode', () => {
 				exact: true,
 			} )
 			.click();
+
+		// Picked: outlined, named and with its bar, the pointer elsewhere.
+		await page.mouse.move( 0, 0 );
+		await expect( page.locator( '.cnl-section-modes__tab' ) ).toHaveText(
+			'Image left, text right'
+		);
+		await expect( page.locator( '.cnl-section-modes__tint' ) ).toHaveClass(
+			/is-picked/
+		);
+		await expect( page.locator( '.cnl-section-modes__bar' ) ).toBeVisible();
+	} );
+
+	test( 'Edit design offers layouts and bins, and Freeform', async ( {
+		page,
+		rest,
+	} ) => {
+		await openPage( page, rest, { content: EMPTY_PAGE } );
+		await setCanvasMode( page, 'Edit' );
+
+		// Add a layout from the empty page's placeholder.
 		await page
-			.locator( '.cnl-compose-toolbar' )
-			.getByRole( 'button', { name: 'Edit', exact: true } )
+			.locator( '.cnl-section-modes__empty' )
+			.getByRole( 'button', { name: 'Add a section' } )
+			.click( { timeout: 15000 } );
+
+		const picker = page.getByRole( 'dialog', { name: 'Add a section' } );
+
+		await picker.getByText( 'Layouts', { exact: true } ).click();
+		await picker
+			.getByRole( 'button', {
+				name: 'Add Image left, text right',
+				exact: true,
+			} )
 			.click();
 
-		const toolbar = getBlockToolbar( page );
+		const modeBar = page.locator( '.cnl-section-modes__mode-bar' );
 
-		await expect( toolbar ).toBeVisible( { timeout: 15000 } );
+		const section = getCanvasEditor( page )
+			.contentFrame()
+			.locator( '.is-root-container .wp-block-post-content > *' )
+			.first();
+
+		await pickSectionMode( page, section, 'Edit design' );
+
+		const panel = page.locator( '.cnl-section-modes__panel' );
+
+		await expect( panel ).toBeVisible();
 		await expect(
-			toolbar.getByRole( 'button', { name: 'Layout' } )
+			panel.locator( '.cnl-section-modes__option' ).nth( 1 )
 		).toBeVisible();
-		// Core's own colour shuffle gives way to Color.
+
+		// An item taken out comes back with Restore removed.
+		const bins = page.locator( '.cnl-section-modes__bin' );
+		const count = await bins.count();
+
+		expect( count ).toBeGreaterThan( 1 );
+		await bins.first().click();
+		await expect( bins ).toHaveCount( count - 1 );
+		await panel.getByRole( 'button', { name: /^Restore removed/ } ).click();
+		await expect( bins ).toHaveCount( count );
+
+		// Freeform, from the panel, is core's unlock, with none of its
+		// colour shuffle.
+		await panel.getByRole( 'button', { name: 'Edit freeform' } ).click();
+		await expect( panel ).toHaveCount( 0 );
+		await expect( modeBar ).toHaveAttribute( 'aria-label', 'Freeform' );
+
+		// Its blocks take core's full tools, not only their words.
+		await section.locator( 'p' ).first().click();
+		await expect
+			.poll( () => getSelection( page ) )
+			.toBe( 'core/paragraph default' );
 		await expect(
-			toolbar.getByRole( 'button', { name: 'Shuffle styles' } )
+			getBlockToolbar( page ).getByRole( 'button', {
+				name: 'Shuffle styles',
+			} )
 		).toBeHidden();
 
-		await toolbar
-			.getByRole( 'button', { name: 'Edit', exact: true } )
-			.click();
-		await expect(
-			toolbar.getByRole( 'button', { name: 'Done', exact: true } )
-		).toBeVisible();
+		// Back returns to the panel; Done leaves the mode.
+		await modeBar.getByRole( 'button', { name: 'Back' } ).click();
+		await expect( panel ).toBeVisible();
+		await panel.getByRole( 'button', { name: 'Done editing' } ).click();
+		await expect( panel ).toHaveCount( 0 );
+		await expect( modeBar ).toHaveCount( 0 );
+	} );
 
-		await toolbar
-			.getByRole( 'button', { name: 'Done', exact: true } )
+	test( 'an empty page offers a section or a blank start', async ( {
+		page,
+		rest,
+	} ) => {
+		await openPage( page, rest, { content: EMPTY_PAGE } );
+		await setCanvasMode( page, 'Edit' );
+
+		const placeholder = page.locator( '.cnl-section-modes__empty' );
+
+		await expect( placeholder ).toBeVisible( { timeout: 15000 } );
+
+		// Add a section opens the picker.
+		await placeholder
+			.getByRole( 'button', { name: 'Add a section' } )
 			.click();
+
+		const picker = page.getByRole( 'dialog', { name: 'Add a section' } );
+
+		await expect( picker ).toBeVisible();
+		await page.keyboard.press( 'Escape' );
+		await expect( picker ).toBeHidden();
+
+		// Start blank adds a section to type into straight away.
+		await placeholder
+			.getByRole( 'button', { name: 'Start blank' } )
+			.click();
+		await expect( placeholder ).toHaveCount( 0 );
 		await expect(
-			toolbar.getByRole( 'button', { name: 'Edit', exact: true } )
+			page.locator( '.cnl-section-modes__mode-bar' )
+		).toHaveAttribute( 'aria-label', 'Edit content' );
+		await page.keyboard.type( 'Words on a blank page' );
+		await expect(
+			getCanvasEditor( page )
+				.contentFrame()
+				.getByText( 'Words on a blank page' )
 		).toBeVisible();
 	} );
 

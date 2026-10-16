@@ -4,8 +4,8 @@
  * Core's zoom-out is used for its zoom alone: the canvas scaling down to fit,
  * keeping its place on the page. Core can't scale the canvas without also
  * turning on the rest of its zoom-out mode, its own section toolbars and
- * inserters, so the Compose layer takes every click and key over the canvas
- * to keep those from ever firing, and the stylesheet hides what they draw.
+ * inserters, so the section layer keeps every click off the canvas to keep
+ * those from ever firing, and the stylesheet hides what they draw.
  *
  * Core lays the zoomed-out page out at the width the canvas had before
  * zooming, and only scales it down to fit. The canvas is narrower than a
