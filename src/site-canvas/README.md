@@ -40,9 +40,11 @@ A page with nothing in it shows a placeholder across the canvas instead: the des
 
 A double click on a section opens it in Edit content, with the caret where the click landed, or the block there selected when it has no text, like a picture.
 
-Leaving a mode, with Done or Escape, leaves the section picked: outlined, named and with its bar, untinted, as if still pointed at, ready for the other mode. A click picks the section it lands on, and a section added from the section picker is picked and brought into view. Pointing at another section shows its bar, the picked one keeping its outline and name. Escape again, or a click off the sections, un-picks it.
+Leaving a mode, with Done editing or Escape, leaves the section picked: outlined, named and with its bar, untinted, as if still pointed at, ready for the other mode. A click picks the section it lands on, and a section added from the section picker is picked and brought into view. Pointing at another section shows its bar, the picked one keeping its outline and name. Escape again, or a click off the sections, un-picks it.
 
-Only one section is in a mode at a time. Done, a click on another section, or Escape leaves it, the section staying picked. From Freeform, Escape steps back to the panel first. The bar and the panel follow a tall section as it scrolls. The small bar naming the mode, in Edit content and Freeform, sits outside the section, under its bottom edge or over its top, so it never covers what is being edited.
+Only one section is in a mode at a time. Done editing, a click on another section, or Escape leaves it, the section staying picked. From Freeform, Escape steps back to the panel first. The bar and the panel follow a tall section as it scrolls.
+
+In Edit content and Freeform, the section has a bar with Done editing, and Restore and Back to Edit design when they apply. Its mode is named for assistive technology only. In a big section the bar is the size of the bar over a section pointed at, in the middle of whichever of its top and bottom edges is in view. A small section has a smaller bar outside it, under its bottom edge or over its top, so it never covers what is being edited.
 
 Changes rewrite the blocks around an item with core's `replaceInnerBlocks`, which a content-only section doesn't turn down, so they are undone like any other edit. Compose's Edit opens what was picked in Edit content.
 

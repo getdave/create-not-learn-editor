@@ -77,7 +77,7 @@ test.describe( 'Edit mode', () => {
 		await pickSectionMode( page, inside, 'Edit content' );
 		await expect(
 			page.locator( '.cnl-section-modes__mode-bar' )
-		).toContainText( 'Edit content' );
+		).toHaveAttribute( 'aria-label', 'Edit content' );
 		await inside.click();
 		await expect
 			.poll( () => getSelection( page ) )
@@ -188,7 +188,7 @@ test.describe( 'Edit mode', () => {
 		);
 		await expect(
 			page.locator( '.cnl-section-modes__mode-bar' )
-		).toContainText( 'Edit content' );
+		).toHaveAttribute( 'aria-label', 'Edit content' );
 		await expect
 			.poll( () => getSelection( page ) )
 			.toBe( 'core/paragraph contentOnly' );
@@ -225,7 +225,7 @@ test.describe( 'Edit mode', () => {
 		// Straight into Edit content, with the caret in the new heading.
 		await expect(
 			page.locator( '.cnl-section-modes__mode-bar' )
-		).toContainText( 'Edit content' );
+		).toHaveAttribute( 'aria-label', 'Edit content' );
 		await page.keyboard.type( 'Added last' );
 		await expect( canvas.getByText( 'Added last' ) ).toBeVisible();
 
@@ -343,7 +343,7 @@ test.describe( 'Edit mode', () => {
 		// colour shuffle.
 		await panel.getByRole( 'button', { name: 'Edit freeform' } ).click();
 		await expect( panel ).toHaveCount( 0 );
-		await expect( modeBar ).toContainText( 'Freeform' );
+		await expect( modeBar ).toHaveAttribute( 'aria-label', 'Freeform' );
 
 		// Its blocks take core's full tools, not only their words.
 		await section.locator( 'p' ).first().click();
@@ -359,7 +359,7 @@ test.describe( 'Edit mode', () => {
 		// Back returns to the panel; Done leaves the mode.
 		await modeBar.getByRole( 'button', { name: 'Back' } ).click();
 		await expect( panel ).toBeVisible();
-		await panel.getByRole( 'button', { name: 'Done' } ).click();
+		await panel.getByRole( 'button', { name: 'Done editing' } ).click();
 		await expect( panel ).toHaveCount( 0 );
 		await expect( modeBar ).toHaveCount( 0 );
 	} );
@@ -393,7 +393,7 @@ test.describe( 'Edit mode', () => {
 		await expect( placeholder ).toHaveCount( 0 );
 		await expect(
 			page.locator( '.cnl-section-modes__mode-bar' )
-		).toContainText( 'Edit content' );
+		).toHaveAttribute( 'aria-label', 'Edit content' );
 		await page.keyboard.type( 'Words on a blank page' );
 		await expect(
 			getCanvasEditor( page )

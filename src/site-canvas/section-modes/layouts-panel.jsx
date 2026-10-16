@@ -560,7 +560,7 @@ function LayoutsPanel(
 						onClick={ onDone }
 						type="button"
 					>
-						{ __( 'Done' ) }
+						{ __( 'Done editing' ) }
 					</button>
 				</div>
 			</div>

@@ -325,7 +325,10 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	}
 }
 
-/* The small bar naming the mode, in Edit content and Freeform. */
+/*
+ * The bar on a section in Edit content and Freeform: the size of the modes
+ * in the bar over a section pointed at, or smaller, outside a small section.
+ */
 .cnl-section-modes__mode-bar {
 	position: absolute;
 	display: flex;
@@ -336,15 +339,24 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	border-radius: 10px;
 	background: $surface;
 	color: $ink;
+	font-size: 14px;
 	white-space: nowrap;
 	box-shadow: $lift;
 	pointer-events: auto;
-}
 
-.cnl-section-modes__mode-label {
-	padding: 0 8px;
-	font-weight: 600;
-	cursor: default;
+	> .cnl-section-modes__text-button,
+	> .cnl-section-modes__done {
+		min-height: 36px;
+	}
+
+	&.is-small {
+		font-size: 13px;
+
+		> .cnl-section-modes__text-button,
+		> .cnl-section-modes__done {
+			min-height: 32px;
+		}
+	}
 }
 
 .cnl-section-modes__sitewide {
@@ -388,7 +400,7 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	border-radius: 6px;
 	background: $theme;
 	color: #fff;
-	font-size: 13px;
+	font-size: inherit;
 	font-weight: 600;
 
 	&:focus-visible {

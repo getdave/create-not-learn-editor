@@ -7,6 +7,7 @@
 /**
  * WordPress dependencies
  */
+import { forwardRef } from '@wordpress/element';
 import {
 	arrowDown as arrowDownIcon,
 	arrowUp as arrowUpIcon,
@@ -297,36 +298,48 @@ export function HoverBar( {
 }
 
 /**
- * The small bar that names the mode a section is in, in Edit content and
- * Freeform.
+ * The bar on a section in Edit content or Freeform: Done, and Restore and
+ * Back when there is something to restore or go back to. The mode is its
+ * name for assistive technology only; the section's outline and name say
+ * enough on screen. The size of the bar over a section pointed at, or
+ * smaller, for a small section, where it sits outside it.
  *
  * @param {Object}    props
+ * @param {boolean}   props.isSmall      Whether it is the smaller bar.
  * @param {string}    props.label        The mode's name.
  * @param {?Function} props.onBack       Goes back to Edit design's panel,
  *                                       from Freeform.
- * @param {string}    props.hint         How the mode works.
  * @param {?string}   props.sitewide     Words for a header or footer.
  * @param {number}    props.removedCount How many items were taken out.
  * @param {Object}    props.style        Where it sits.
  * @param {Function}  props.onRestore    Puts back what was taken out.
  * @param {Function}  props.onDone       Leaves the mode.
+ * @param {Object}    ref                Takes the bar's node, to measure it.
  * @return {Element} The bar.
  */
-export function ModeBar( {
-	hint,
-	label,
-	onBack,
-	onDone,
-	onRestore,
-	removedCount,
-	sitewide,
-	style,
-} ) {
+export const ModeBar = forwardRef( function ModeBar(
+	{
+		isSmall,
+		label,
+		onBack,
+		onDone,
+		onRestore,
+		removedCount,
+		sitewide,
+		style,
+	},
+	ref
+) {
 	return (
-		<div className="cnl-section-modes__mode-bar" style={ style }>
-			<span className="cnl-section-modes__mode-label" title={ hint }>
-				{ label }
-			</span>
+		<div
+			aria-label={ label }
+			className={ `cnl-section-modes__mode-bar${
+				isSmall ? ' is-small' : ''
+			}` }
+			ref={ ref }
+			role="group"
+			style={ style }
+		>
 			{ sitewide && (
 				<span className="cnl-section-modes__sitewide">
 					<LegacyIcon icon={ globeIcon } size={ 16 } />
@@ -351,10 +364,9 @@ export function ModeBar( {
 				<button
 					className="cnl-section-modes__text-button"
 					onClick={ onBack }
-					title={ __( 'Back to Edit design' ) }
 					type="button"
 				>
-					{ __( 'Back' ) }
+					{ __( 'Back to Edit design' ) }
 				</button>
 			) }
 			<button
@@ -362,8 +374,8 @@ export function ModeBar( {
 				onClick={ onDone }
 				type="button"
 			>
-				{ __( 'Done' ) }
+				{ __( 'Done editing' ) }
 			</button>
 		</div>
 	);
-}
+} );

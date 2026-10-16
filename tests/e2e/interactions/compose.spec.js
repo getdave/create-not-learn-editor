@@ -289,7 +289,7 @@ test.describe( 'Compose', () => {
 		await expectCanvasMode( page, 'Edit' );
 		await expect(
 			page.locator( '.cnl-section-modes__mode-bar' )
-		).toContainText( 'Edit content' );
+		).toHaveAttribute( 'aria-label', 'Edit content' );
 	} );
 
 	test( 'double-clicking a block goes back to Edit with it selected', async ( {

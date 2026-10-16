@@ -103,7 +103,12 @@ const BAR_ROW_GAP = 8;
 // Room either side of the "Add section" button, at the middle of the top
 // edge, that the section's name in its tab keeps clear of.
 const ADD_SECTION_CLEARANCE = 90;
-const MODE_BAR_HEIGHT = 40;
+// The bar naming the mode sits inside a section at least this big, at its
+// top, the size of the bar over a section pointed at; a smaller section has
+// a smaller one outside it, so it hides none of what is being edited.
+const MODE_BAR_ROOM_HEIGHT = 240;
+const MODE_BAR_ROOM_WIDTH = 480;
+const SMALL_MODE_BAR_HEIGHT = 40;
 // Between the small bar and the section's edge.
 const MODE_BAR_GAP = 6;
 const TAB_HEIGHT = 24;
@@ -160,6 +165,29 @@ function stickyTop( box, height, inset = INSET ) {
 			Math.max( box.top, 0 ) + inset,
 			box.top + box.height - height - inset
 		)
+	);
+}
+
+/**
+ * Where a bar inside a section goes: at its top while that is in view, else
+ * at its bottom, kept in view while the section runs past the canvas's
+ * bottom, but never past its top.
+ *
+ * @param {Object} box          The section, on the canvas.
+ * @param {number} height       The bar's height.
+ * @param {number} canvasHeight The canvas's height.
+ * @return {number} Its top, on the canvas.
+ */
+function placeAtEdge( box, height, canvasHeight ) {
+	const top = box.top + INSET;
+
+	if ( top >= 0 && top + height <= canvasHeight - INSET ) {
+		return top;
+	}
+
+	return Math.max(
+		top,
+		Math.min( box.top + box.height, canvasHeight ) - height - INSET
 	);
 }
 
@@ -406,8 +434,8 @@ export function SectionModesLayer( {
 	const [ pickedSection, setPickedSection ] = useState( null );
 	const [ doomedId, setDoomedId ] = useState( null );
 	const [ freshId, setFreshId ] = useState( null );
-	const [ panelNode, setPanelNode ] = useState( null );
-	const [ panelSize, setPanelSize ] = useState( null );
+	const [ chromeNode, setChromeNode ] = useState( null );
+	const [ chromeSize, setChromeSize ] = useState( null );
 	const activeRef = useRef( active );
 
 	activeRef.current = active;
@@ -965,26 +993,26 @@ export function SectionModesLayer( {
 		return () => window.removeEventListener( 'keydown', onKeyDown );
 	}, [ active, pickedSection ] );
 
-	// The panel's size, to place it and steer the bins around it. Watched
-	// from whenever the panel mounts, as it does again once a section that
-	// was swapped for another is measured.
+	// The size of the panel or bar on the section in a mode, to place it and
+	// steer the bins around it. Watched from whenever it mounts, as it does
+	// again once a section that was swapped for another is measured.
 	useEffect( () => {
-		if ( ! panelNode ) {
-			setPanelSize( null );
+		if ( ! chromeNode ) {
+			setChromeSize( null );
 			return undefined;
 		}
 
 		const observer = new window.ResizeObserver( () =>
-			setPanelSize( {
-				height: panelNode.offsetHeight,
-				width: panelNode.offsetWidth,
+			setChromeSize( {
+				height: chromeNode.offsetHeight,
+				width: chromeNode.offsetWidth,
 			} )
 		);
 
-		observer.observe( panelNode );
+		observer.observe( chromeNode );
 
 		return () => observer.disconnect();
-	}, [ panelNode ] );
+	}, [ chromeNode ] );
 
 	// Scrolling over the layer scrolls the canvas under it.
 	useEffect( () => {
@@ -1447,8 +1475,8 @@ export function SectionModesLayer( {
 		let chrome = null;
 
 		if ( active.mode === MODE_DESIGN ) {
-			const height = panelSize?.height || 0;
-			const width = panelSize?.width || 0;
+			const height = chromeSize?.height || 0;
+			const width = chromeSize?.width || 0;
 			const top = placeOutside( box, height, frame.height, isHeader );
 
 			obstacle = {
@@ -1470,7 +1498,7 @@ export function SectionModesLayer( {
 					onRestore={ restore }
 					part={ activePart }
 					perSlide={ getLayoutsPerSlide( frame.width ) }
-					ref={ setPanelNode }
+					ref={ setChromeNode }
 					removedCount={ removedCount }
 					style={ {
 						left: box.left + box.width / 2,
@@ -1480,40 +1508,59 @@ export function SectionModesLayer( {
 							frame.height - Math.max( top, 0 ) - INSET
 						),
 						top,
-						visibility: panelSize ? undefined : 'hidden',
+						visibility: chromeSize ? undefined : 'hidden',
 					} }
 					title={ title }
 				/>
 			);
 		} else {
 			/*
-			 * Outside the section, so it never covers what is being edited:
-			 * under its bottom edge while there is room on the canvas, else
-			 * over its top edge, at the right, clear of its name. A section
-			 * filling the canvas has it just under its bottom edge, out of
-			 * view until it is scrolled to; Escape and a click elsewhere
-			 * still leave the mode.
+			 * In a big section, in the middle of whichever of its top and
+			 * bottom edges is in view, so it is easy to find. In a small
+			 * one, smaller and outside it, so it never covers what is being
+			 * edited: under its bottom edge while there is room on the
+			 * canvas, else over its top edge, at the right, clear of its
+			 * name.
 			 */
+			const isSmall =
+				box.height < MODE_BAR_ROOM_HEIGHT ||
+				box.width < MODE_BAR_ROOM_WIDTH;
 			const below = box.top + box.height + MODE_BAR_GAP;
-			const above = box.top - MODE_BAR_HEIGHT - MODE_BAR_GAP;
-			const top =
-				isHeader || below + MODE_BAR_HEIGHT <= frame.height || above < 0
-					? below
-					: above;
-			const right = box.left + box.width - INSET;
+			const above = box.top - SMALL_MODE_BAR_HEIGHT - MODE_BAR_GAP;
+			let place = {
+				left: box.left + box.width / 2,
+				top: placeAtEdge(
+					box,
+					chromeSize?.height || BAR_HEIGHT,
+					frame.height
+				),
+			};
 
-			obstacle = null;
+			if ( isSmall ) {
+				place = {
+					left: box.left + box.width - INSET,
+					top:
+						isHeader ||
+						below + SMALL_MODE_BAR_HEIGHT <= frame.height ||
+						above < 0
+							? below
+							: above,
+					transform: 'translateX(-100%)',
+				};
+			}
+
+			obstacle =
+				isSmall || ! chromeSize
+					? null
+					: {
+							height: chromeSize.height,
+							left: place.left - chromeSize.width / 2,
+							top: place.top,
+							width: chromeSize.width,
+						};
 			chrome = (
 				<ModeBar
-					hint={
-						active.mode === MODE_CONTENT
-							? __(
-									'Click text or a picture to change it · Positions are locked'
-								)
-							: __(
-									'Select a block to move, resize or restyle it'
-								)
-					}
+					isSmall={ isSmall }
 					label={
 						active.mode === MODE_FREEFORM
 							? __( 'Freeform' )
@@ -1526,13 +1573,10 @@ export function SectionModesLayer( {
 					}
 					onDone={ exitMode }
 					onRestore={ restore }
+					ref={ setChromeNode }
 					removedCount={ removedCount }
 					sitewide={ activePart ? getSitewideText( title ) : null }
-					style={ {
-						left: right,
-						top,
-						transform: 'translateX(-100%)',
-					} }
+					style={ place }
 				/>
 			);
 		}
