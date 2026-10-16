@@ -30,6 +30,8 @@ Moving to Browse with unsaved changes asks to save or discard them, because the 
 
 Pointing at a section in Edit outlines it, names it in a tab, tints it and lays a bar over it. The header and footer are named "shown on every page", and stay where they are.
 
+A canvas about one part of the site, like the Header and Footer screens', passes it as `focusId`. The layer then offers only that part, picked from the start so its bar shows straight away, and the rest of the page can't be pointed at or clicked.
+
 - **Add**, at the bar's start: a heading, paragraph, button or image, put last in the section, inside the groups that only wrap its content, then straight into Edit content with the caret in it, or the picture selected. An image is chosen from the media library first. A section that is a single block gets it straight after, as a section of its own.
 - **Edit design**: a panel of the section's layouts, each drawn with its own content, as a carousel of up to four a slide, opening on the slide with the one in use (a section with only one shows it, picked), and its colours from the theme's section styles, shown as Design's colour palettes are. A header or footer offers its designs instead. Every item gets a bin, and "Restore removed" puts back what was taken out. Reset puts back how the section was when the panel opened, even after Freeform. The panel sits inside the section, at the top of it that is in view, and follows it as it scrolls. A section too small to hold it has it outside, under it if it fits in view, else over it. A click anywhere else on the page closes it.
   - **Freeform**, from "Need more control? Edit freeform" under the layouts: core's own unlock for the section, for core's full block tools. Back returns to the panel.
