@@ -6,6 +6,7 @@ import { useNavigate, useSearch } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { withCanvasRecovery } from '../../canvas-recovery';
 import { withUiTheme } from '../../theme';
 import { cnlEditorStore, getErrorMessage } from '../../records';
 import {
@@ -326,4 +327,4 @@ function Stage() {
 }
 
 export const stage = withUiTheme( Stage );
-export const canvas = withUiTheme( Canvas );
+export const canvas = withCanvasRecovery( withUiTheme( Canvas ) );

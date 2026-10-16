@@ -6,6 +6,7 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { withCanvasRecovery } from '../../canvas-recovery';
 import { withUiTheme } from '../../theme';
 import { settings } from '../../settings';
 import { SiteCanvas, useSiteCanvas } from '../../site-canvas';
@@ -170,4 +171,4 @@ function Canvas() {
 }
 
 export const stage = withUiTheme( Stage );
-export const canvas = withUiTheme( Canvas );
+export const canvas = withCanvasRecovery( withUiTheme( Canvas ) );

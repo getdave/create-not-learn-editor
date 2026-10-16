@@ -6,6 +6,7 @@ import { useNavigate, useParams } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { withCanvasRecovery } from '../../canvas-recovery';
 import { withUiTheme } from '../../theme';
 import { useSiteTrail } from '../../site-trail';
 import { cnlEditorStore, getErrorMessage } from '../../records';
@@ -318,4 +319,4 @@ function NavigationEditStage() {
 }
 
 export const stage = withUiTheme( NavigationEditStage );
-export const canvas = withUiTheme( NavigationEditCanvas );
+export const canvas = withCanvasRecovery( withUiTheme( NavigationEditCanvas ) );
