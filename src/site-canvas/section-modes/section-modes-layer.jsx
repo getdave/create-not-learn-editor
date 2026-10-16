@@ -43,9 +43,9 @@ import { getSectionTitle } from '../../routes/content/pages/page-sections';
 import {
 	__,
 	blockEditorStore,
+	Button,
 	cloneBlock,
 	coreDataStore,
-	LegacyIcon,
 	MediaUpload,
 	noticesStore,
 	serialize,
@@ -96,7 +96,7 @@ const STYLE_ID = 'cnl-section-modes';
 
 // Sizes on screen, in pixels.
 const INSET = 12;
-const BAR_HEIGHT = 48;
+const BAR_HEIGHT = 40;
 // Narrower than this, the bar puts the three modes on a row of their own.
 const NARROW_WIDTH = 760;
 const BAR_ROW_GAP = 8;
@@ -114,7 +114,7 @@ const MODE_BAR_GAP = 6;
 const TAB_HEIGHT = 24;
 const BIN_CLEARANCE = 20;
 // Half a bin, which is drawn centred on its spot.
-const BIN_HALF = 15;
+const BIN_HALF = 16;
 const PANEL_MIN_HEIGHT = 200;
 // Between a section and what is placed against it, outside.
 const PLACE_GAP = 8;
@@ -1303,8 +1303,9 @@ export function SectionModesLayer( {
 							[ box.top, index ],
 							[ box.top + box.height, index + 1 ],
 						].map( ( [ top, at ] ) => (
-							<button
+							<Button
 								className="cnl-section-modes__add-section"
+								icon={ plusIcon }
 								key={ at }
 								onClick={ () =>
 									openSectionPicker( {
@@ -1312,15 +1313,15 @@ export function SectionModesLayer( {
 										rootClientId: rootClientId || '',
 									} )
 								}
+								size="compact"
 								style={ {
 									left: box.left + box.width / 2,
 									top,
 								} }
-								type="button"
+								variant="primary"
 							>
-								<LegacyIcon icon={ plusIcon } size={ 16 } />
 								{ __( 'Add section' ) }
-							</button>
+							</Button>
 						) ) }
 					<HoverBar
 						canMoveDown={ index < sectionIds.length - 1 }
@@ -1477,7 +1478,18 @@ export function SectionModesLayer( {
 		if ( active.mode === MODE_DESIGN ) {
 			const height = chromeSize?.height || 0;
 			const width = chromeSize?.width || 0;
-			const top = placeOutside( box, height, frame.height, isHeader );
+			/*
+			 * Inside the section, at the top of it in view, as the bar in
+			 * Edit content is, so the panel reads as the section's own. A
+			 * section too small to hold it has it outside, under it or
+			 * over it.
+			 */
+			const fitsInside =
+				box.height >= height + INSET * 2 &&
+				box.width >= width + INSET * 2;
+			const top = fitsInside
+				? placeAtEdge( box, height, frame.height )
+				: placeOutside( box, height, frame.height, isHeader );
 
 			obstacle = {
 				height,
@@ -1634,13 +1646,14 @@ export function SectionModesLayer( {
 					};
 
 					return (
-						<button
-							aria-label={ sprintf(
+						<Button
+							className="cnl-section-modes__bin"
+							icon={ trashIcon }
+							label={ sprintf(
 								/* translators: %s: what is removed. */
 								__( 'Remove %s' ),
 								getTitle( item.clientId )
 							) }
-							className="cnl-section-modes__bin"
 							key={ item.clientId }
 							onBlur={ () => setDoomedId( null ) }
 							onClick={ () => {
@@ -1654,11 +1667,9 @@ export function SectionModesLayer( {
 							}
 							onPointerLeave={ () => setDoomedId( null ) }
 							style={ spot }
-							title={ __( 'Remove' ) }
-							type="button"
-						>
-							<LegacyIcon icon={ trashIcon } size={ 18 } />
-						</button>
+							showTooltip
+							size="compact"
+						/>
 					);
 				} ) }
 				{ chrome }
