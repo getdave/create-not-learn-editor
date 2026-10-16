@@ -29,7 +29,6 @@ import {
 	MenuItem,
 	moreVerticalIcon,
 	redoIcon,
-	squareIcon,
 	ToggleGroupControl,
 	ToggleGroupControlOption,
 	ToggleGroupControlOptionIcon,
@@ -37,6 +36,7 @@ import {
 	useDispatch,
 	useSelect,
 } from '../wordpress-packages';
+import { zoomOutIcon } from './icons';
 import { MODE_BROWSE, MODE_EDIT } from './mode';
 
 function getDeviceOptions() {
@@ -95,7 +95,8 @@ export function ModeToggle( { canEdit, mode, onChange } ) {
 
 /**
  * Step back from the page to work on its sections, and back again. Offered
- * while editing.
+ * while editing. Named for what it does to the page, Compose being our word
+ * for it, not one people would look for.
  *
  * @param {Object}   props
  * @param {boolean}  props.isComposing Whether Compose is on.
@@ -108,14 +109,12 @@ export function ComposeButton( { isComposing, onToggle } ) {
 			<Button
 				__next40pxDefaultSize
 				className="cnl-site-canvas__compose-button"
-				// The editor's own zoom-out icon, for what is a zoomed-out view.
-				icon={ squareIcon }
+				icon={ zoomOutIcon }
 				isPressed={ isComposing }
-				label={ __( 'Compose' ) }
 				onClick={ onToggle }
-				// The short hint above takes the tooltip's place.
-				showTooltip={ false }
-			/>
+			>
+				{ __( 'Zoom out' ) }
+			</Button>
 		</ComponentsTooltip>
 	);
 }

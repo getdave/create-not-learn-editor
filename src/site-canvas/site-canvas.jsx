@@ -41,6 +41,7 @@ import {
 } from './toolbar';
 import { UnsavedChangesDialog } from './unsaved-changes-dialog';
 import { useSectionLock } from './use-section-lock';
+import { useZoomGestures, ZoomControls } from './zoom-controls';
 
 /**
  * @param {Object}   props
@@ -73,6 +74,7 @@ export function SiteCanvas( {
 } ) {
 	const navigate = useNavigate();
 	const ownEditorRef = useRef();
+	const bodyRef = useRef();
 	const editorRef = givenEditorRef || ownEditorRef;
 	const { device, editorDevice, editorEntity, frame, mode } = canvas;
 	const isPreviewing = canvas.isPreviewing;
@@ -89,6 +91,19 @@ export function SiteCanvas( {
 	}, [ canCompose, canvas.isComposing ] );
 
 	useComposeZoom( isComposing && Boolean( editorEntity ), editorRef );
+
+	// Zooming out is Compose, offered wherever the toolbar offers it.
+	const canZoom = ! isPreviewing && canCompose && Boolean( editorEntity );
+	const zoomIn = () => isComposing && canvas.requestMode( MODE_EDIT );
+	const zoomOut = () => ! isComposing && canvas.requestMode( MODE_COMPOSE );
+
+	useZoomGestures( {
+		areaRef: bodyRef,
+		editorRef,
+		enabled: canZoom,
+		onZoomIn: zoomIn,
+		onZoomOut: zoomOut,
+	} );
 	/*
 	 * A layout's sections are mostly the post's title, image and content,
 	 * filled in from each post. Locked to their content, they would leave
@@ -176,7 +191,7 @@ export function SiteCanvas( {
 					/>
 				</div>
 			</header>
-			<div className="cnl-site-canvas__body">
+			<div className="cnl-site-canvas__body" ref={ bodyRef }>
 				<div
 					className="cnl-site-canvas__editor cnl-inline-editor"
 					data-selected-block={ selectedBlockName || undefined }
@@ -200,6 +215,13 @@ export function SiteCanvas( {
 						isComposing={ isComposing }
 						onExitCompose={ () => canvas.requestMode( MODE_EDIT ) }
 						useSync={ useComposeSync }
+					/>
+				) }
+				{ canZoom && (
+					<ZoomControls
+						isComposing={ isComposing }
+						onZoomIn={ zoomIn }
+						onZoomOut={ zoomOut }
 					/>
 				) }
 				{ /*

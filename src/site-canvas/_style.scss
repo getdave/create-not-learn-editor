@@ -80,6 +80,24 @@
 	}
 }
 
+/*
+ * Zoom out and back in from the canvas's corner, as on a map: a white
+ * surface like the section bars, over the editor and its section layer.
+ */
+.cnl-site-canvas__zoom-controls {
+	position: absolute;
+	z-index: 2;
+	right: 24px;
+	bottom: 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 4px;
+	border-radius: 10px;
+	background: #fff;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
 .cnl-site-canvas__awaiting {
 	display: inline-flex;
 	align-items: center;
