@@ -23,6 +23,8 @@
  *   in the reply confirming it.
  * - `hasFooter( params )`: whether the picker has that button, when that
  *   depends on the request.
+ * - `savesOnPick`: each pick is saved as it is made, with no button to keep
+ *   it. The picker stays open to swap it, with Undo and Done under it.
  * - `commit` and `undo`: for skills that don't edit a record in place.
  *
  * Imported package by package rather than through `src/wordpress-packages`,
@@ -604,6 +606,11 @@ function SectionWidget( { entity, message, onChoosePage, onPick, scrollRef } ) {
 	}
 
 	const pick = ( pattern ) => {
+		// Each pick saves, so nothing more can be picked while one does.
+		if ( message.saveState === 'saving' ) {
+			return;
+		}
+
 		const added = getPatternSectionBlocks( pattern );
 		// A pick replaces the last one, so count from the page before it.
 		const before =
@@ -677,7 +684,7 @@ export function getSectionsReply( search, pageTitle ) {
 		? sprintf(
 				/* translators: 1: kind of section, 2: page name. */
 				__(
-					'Here are some %1$s sections you could add to “%2$s”. Pick one and it’ll appear at the bottom of the page.'
+					'Here are some %1$s sections you could add to “%2$s”. Pick one and I’ll add it to the bottom of the page.'
 				),
 				search,
 				title
@@ -685,7 +692,7 @@ export function getSectionsReply( search, pageTitle ) {
 		: sprintf(
 				/* translators: %s: page name. */
 				__(
-					'Here are some sections you could add to “%s”. Pick one and it’ll appear at the bottom of the page.'
+					'Here are some sections you could add to “%s”. Pick one and I’ll add it to the bottom of the page.'
 				),
 				title
 			);
@@ -990,8 +997,9 @@ export const SKILLS = {
 						search: { previewId: params.pageId },
 					}
 				: null,
-		action: () => __( 'Add this section' ),
 		hasFooter: ( { choosePage } ) => ! choosePage,
+		// Picking a section adds it: a button to keep it went unnoticed.
+		savesOnPick: true,
 		keys: [ 'blocks', 'content' ],
 		hasBlocks: true,
 		useEntity: useTargetPageEntity,

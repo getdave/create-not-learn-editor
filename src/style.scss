@@ -1700,6 +1700,17 @@
 	}
 }
 
+// In place of a canvas that stopped working. See `canvas-recovery.jsx`.
+.cnl-canvas-recovery {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	height: 100%;
+	padding: 16px;
+	background: #fff;
+}
+
 .cnl-editor-canvas-placeholder {
 	display: flex;
 	flex-direction: column;
