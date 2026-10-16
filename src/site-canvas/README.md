@@ -31,7 +31,7 @@ Moving to Browse with unsaved changes asks to save or discard them, because the 
 Pointing at a section in Edit outlines it, names it in a tab, tints it and lays a bar over it. The header and footer are named "shown on every page", and stay where they are.
 
 - **Add**, at the bar's start: a heading, paragraph, button or image, put last in the section, inside the groups that only wrap its content, then straight into Edit content with the caret in it, or the picture selected. An image is chosen from the media library first. A section that is a single block gets it straight after, as a section of its own.
-- **Edit design**: a panel of the section's layouts, each drawn with its own content, as a carousel of up to four a slide, opening on the slide with the one in use (a section with only one shows it, picked), and its colours from the theme's section styles, shown as Design's colour palettes are. A header or footer offers its designs instead. Every item gets a bin, and "Restore removed" puts back what was taken out. Reset puts back how the section was when the panel opened, even after Freeform. The panel sits inside the section, at the top of it that is in view, and follows it as it scrolls. A section too small to hold it has it outside, under it if it fits in view, else over it. A click anywhere else on the page closes it.
+- **Edit design**: a panel of the section's layouts, each drawn with its own content, as a carousel of up to four a slide, opening on the slide with the one in use (a section with only one shows it, picked), and its colours, shown as Design's colour palettes are. A header or footer offers its designs instead, and the same colours, put on its outermost block so they show on every page; its designs are drawn, and go in, with the colour it has. Colours set on a block win over a picked one and are never taken away, so a section with colours set on its own block is offered none (colours that only repeat the page's own count as Theme), and a section with text colours set inside is offered only the colours that text can still be read on. Every item gets a bin, and "Restore removed" puts back what was taken out. Reset puts back how the section was when the panel opened, even after Freeform. The panel sits inside the section, at the top of it that is in view, and follows it as it scrolls. A section too small to hold it has it outside, under it if it fits in view, else over it. A click anywhere else on the page closes it.
   - **Freeform**, from "Need more control? Edit freeform" under the layouts: core's own unlock for the section, for core's full block tools. Back returns to the panel.
 - **Edit content**: clicks reach the section, so its words and pictures can be changed, with core's own tools, Replace for a picture among them, and Remove, added to the end of core's toolbar. Restore on the small bar puts back what was removed. Nothing is laid over the section: no bins, and the small bar naming the mode sits outside it. Core's toolbar never shows for the section's own block.
 - **Move up, move down, duplicate and delete**, at the bar's end. Deleting offers Undo.
@@ -58,7 +58,7 @@ Changes rewrite the blocks around an item with core's `replaceInnerBlocks`, whic
 | `use-section-items.js` | Removing, putting back and adding items. |
 | `empty-page.jsx` | The placeholder on a page with nothing in it. |
 | `use-section-drag.js` | Dragging a section to reorder the page, in Compose. |
-| `use-variations.js` | A section's layouts and colours, or a header's or footer's designs, for Edit design's panel. |
+| `use-variations.js` | A section's layouts and colours, or a header's or footer's designs and colours, for Edit design's panel. |
 | `remove-control.jsx` | Remove on core's block toolbar, in Edit content. |
 | `items.js` | A section's items, and where a new one goes. Pure functions. |
 
@@ -72,7 +72,9 @@ Core's zoom-out is used for its zoom alone. Core can't scale the canvas without 
 | `use-compose-structure.js` | The page's sections, the blocks of core's section root, and what the template adds around them, like the header, title and footer. |
 | `use-block-rects.js` | Where those blocks are on screen, measured every frame, and scrolling the canvas to one. |
 | `section-styles.js` | The theme's section styles, as a section's colours. |
+| `palette-colors.js` | Colour sets made from the theme's palette, for themes without section styles. |
+| `section-colors.js` | The colours a section can take, from either, and putting one on. |
 
-A section's layouts come from `src/layouts/variants/`: arrangements of the same content, worked out from the shape of the section's blocks, so they work for theme patterns as well as our layouts. Its colours are the theme's section styles. A header's or footer's designs are the theme's patterns for its area, applied as core's Design panel does.
+A section's layouts come from `src/layouts/variants/`: arrangements of the same content, worked out from the shape of the section's blocks, so they work for theme patterns as well as our layouts. Its colours are the theme's section styles, saved as core saves a block style. A theme without any gets sets made from its palette instead (soft, the page's colours swapped, and its strongest colours with readable text), saved with core's own colour settings by preset, so they follow the palette. A header's or footer's designs are the theme's patterns for its area, applied as core's Design panel does, and its colours are the same as a section's.
 
 On the Pages screen, the sidebar's "On this page" list shows only in Compose, and points at and picks the same sections as the layer.

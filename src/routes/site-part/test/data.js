@@ -156,6 +156,23 @@ describe( 'site part data', () => {
 		expect( getCurrentPatternName( '', layouts ) ).toBeNull();
 	} );
 
+	test( 'finds the layout whatever colours the part has on', () => {
+		const layouts = getSitePartPatterns( PATTERNS, 'header' );
+
+		expect(
+			getCurrentPatternName(
+				'<!-- wp:site-title {"className":"is-style-section-dark"} /-->\n<!-- wp:navigation /-->',
+				layouts
+			)
+		).toBe( 'theme/header-default' );
+		expect(
+			getCurrentPatternName(
+				'<!-- wp:site-title {"backgroundColor":"contrast","textColor":"base","style":{"elements":{"link":{"color":{"text":"var:preset|color|base"}}}}} /-->\n<!-- wp:navigation /-->',
+				layouts
+			)
+		).toBe( 'theme/header-default' );
+	} );
+
 	test( 'leads with a layout, keeping the rest in order', () => {
 		const layouts = getSitePartPatterns( PATTERNS, 'header' );
 		const names = ( list ) => list.map( ( pattern ) => pattern.name );
