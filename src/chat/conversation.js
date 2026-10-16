@@ -3,6 +3,8 @@
  *
  * Typing asks for something. Picking in a reply makes the change on the
  * site, and the button under the picker keeps it, or Cancel puts it back.
+ * Some pickers, like adding a section, save each pick as it is made, and
+ * picking again swaps it.
  * Once kept, it can be undone.
  *
  * Messages are `{ id, role, text, status }`. An assistant's message moves
@@ -73,7 +75,22 @@ function expireOpenPickers() {
 		.filter(
 			( message ) => message.hasWidget && message.status === 'ready'
 		)
-		.forEach( ( message ) => update( message.id, { status: 'expired' } ) );
+		.forEach( ( message ) => {
+			const skill = SKILLS[ message.skillId ];
+
+			// A pick already saved stays, and says so, with its undo.
+			update(
+				message.id,
+				message.undo
+					? {
+							status: 'committed',
+							summary: skill.chip( {
+								label: message.pickedLabel,
+							} ),
+						}
+					: { status: 'expired' }
+			);
+		} );
 }
 
 async function respond( text ) {
@@ -158,20 +175,35 @@ async function commit( pending ) {
 	chatActions().setPending( null );
 	update( id, { saveState: 'saved' } );
 	await wait( SAVED_MS );
+	await foldPicker( pending, undo );
+}
+
+/**
+ * Fold a picker whose pick is kept away to a line saying what was kept, and
+ * confirm it, with a way to undo it.
+ *
+ * @param {Object} kept `{ label, messageId, payload, skillId }`.
+ * @param {Object} undo What undoing it needs.
+ */
+async function foldPicker( kept, undo ) {
+	const skill = SKILLS[ kept.skillId ];
+	const id = kept.messageId;
+
 	update( id, { saveState: 'closing' } );
 	await wait( CLOSING_MS );
 	update( id, {
 		saveState: null,
 		status: 'committed',
-		summary: skill.chip( pending ),
+		summary: skill.chip( kept ),
+		undo: null,
 	} );
 
 	addMessage( {
 		offersNext: true,
 		role: 'assistant',
-		skillId: pending.skillId,
+		skillId: kept.skillId,
 		status: 'streaming',
-		text: skill.done( pending, picked ),
+		text: skill.done( kept, getChat().getMessage( id ) ),
 		undo,
 	} );
 }
@@ -303,6 +335,107 @@ export function pick( messageId, label, payload = {} ) {
 		payload,
 		skillId: message.skillId,
 	} );
+}
+
+/**
+ * Something was picked in a picker that keeps each pick as it is made: save
+ * it. The picker stays open, so another pick swaps it and saves again, until
+ * Done or the conversation moves on.
+ *
+ * @param {string} messageId The reply.
+ * @param {string} label     What was picked, in a few words.
+ * @param {Object} payload   Anything the skill needs to save it.
+ */
+export async function savePick( messageId, label, payload = {} ) {
+	const message = getChat().getMessage( messageId );
+
+	update( messageId, {
+		pickedLabel: label,
+		pickedPayload: payload,
+		saveError: null,
+		saveState: 'saving',
+	} );
+
+	try {
+		await saveEntity( message.entity );
+	} catch ( error ) {
+		update( messageId, {
+			saveError: sprintf(
+				/* translators: %s: error message. */
+				__( 'Couldn’t save. %s' ),
+				getErrorText( error )
+			),
+			saveState: 'error',
+		} );
+		return;
+	}
+
+	// Undoing puts the record back as it was before the first pick.
+	update( messageId, {
+		saveState: null,
+		undo: { entity: message.entity, snapshot: message.snapshot },
+	} );
+}
+
+/**
+ * Take back what a picker that saves as it goes has saved, and leave the
+ * picker open to pick again.
+ *
+ * @param {string} messageId The reply.
+ */
+export async function undoSavedPick( messageId ) {
+	const message = getChat().getMessage( messageId );
+
+	if ( ! message?.undo || isBusy() ) {
+		return;
+	}
+
+	update( messageId, { saveError: null, saveState: 'saving' } );
+
+	try {
+		await restoreSnapshot( message.undo.entity, message.undo.snapshot );
+	} catch ( error ) {
+		update( messageId, {
+			saveError: sprintf(
+				/* translators: %s: error message. */
+				__( 'I couldn’t undo that. %s' ),
+				getErrorText( error )
+			),
+			saveState: 'error',
+		} );
+		return;
+	}
+
+	update( messageId, {
+		pickedLabel: null,
+		pickedPayload: null,
+		saveState: null,
+		undo: null,
+	} );
+}
+
+/**
+ * Done with a picker that saves as it goes: fold it away and confirm what
+ * was kept.
+ *
+ * @param {string} messageId The reply.
+ */
+export async function finishSavedPick( messageId ) {
+	const message = getChat().getMessage( messageId );
+
+	if ( ! message?.undo || isBusy() ) {
+		return;
+	}
+
+	await foldPicker(
+		{
+			label: message.pickedLabel,
+			messageId,
+			payload: message.pickedPayload,
+			skillId: message.skillId,
+		},
+		message.undo
+	);
 }
 
 /**
