@@ -18,6 +18,14 @@
 			"step": "login"
 		},
 		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/mu-plugins/cnl-playground-canvas-fix.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/playground-build/playground-canvas-fix.php"
+			}
+		},
+		{
 			"step": "installPlugin",
 			"pluginData": {
 				"resource": "url",
