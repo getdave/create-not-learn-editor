@@ -24,8 +24,10 @@ describe( 'matchRequest', () => {
 		[ 'restyle my site', 'look' ],
 		[ 'change my header', 'header' ],
 		[ 'a new footer please', 'footer' ],
-		[ 'Rename my site to Fernhouse', 'identity' ],
-		[ 'add a logo', 'identity' ],
+		[ 'Rename my site to Fernhouse', 'site-title' ],
+		[ 'change my site title', 'site-title' ],
+		[ 'add a logo', 'logo' ],
+		[ 'change my site logo', 'logo' ],
 		[ 'add a contact page', 'add-page' ],
 		[ 'Create a new page called Our story', 'add-page' ],
 		[ 'add a testimonials section', 'add-section' ],
@@ -44,12 +46,14 @@ describe( 'matchRequest', () => {
 
 	test( 'returns null for what it cannot do', () => {
 		expect( matchRequest( 'book me a flight to Lisbon' ) ).toBeNull();
+		expect( matchRequest( 'change my tagline' ) ).toBeNull();
+		expect( matchRequest( 'change the browser icon' ) ).toBeNull();
 		expect( matchRequest( '   ' ) ).toBeNull();
 	} );
 
 	test( 'passes on what it found in the message', () => {
 		expect( matchRequest( 'rename my site to Fernhouse' ) ).toEqual( {
-			skill: 'identity',
+			skill: 'site-title',
 			params: { name: 'Fernhouse' },
 		} );
 		expect( matchRequest( 'add a contact page' ) ).toEqual( {
@@ -72,6 +76,7 @@ describe( 'getSiteNameFromText', () => {
 			'Mill Lane Plants',
 		],
 		[ 'set my site’s name to Fern & Co', 'Fern & Co' ],
+		[ 'change my site title to Fern & Co', 'Fern & Co' ],
 		[ 'rename my site', '' ],
 		[ 'add a logo', '' ],
 	] )( '"%s" names the site "%s"', ( text, name ) => {

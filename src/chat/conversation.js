@@ -1,9 +1,9 @@
 /**
  * How a conversation with the chat moves along.
  *
- * Sending asks for something, or keeps what was picked. Picking in a reply
- * makes the change on the site and waits in the composer, until it is sent
- * or cancelled. Once sent, it can be undone.
+ * Typing asks for something. Picking in a reply makes the change on the
+ * site, and the button under the picker keeps it, or Cancel puts it back.
+ * Once kept, it can be undone.
  *
  * Messages are `{ id, role, text, status }`. An assistant's message moves
  * from `thinking` to `streaming` to `ready`, and one with a picker then to
@@ -56,8 +56,10 @@ function getErrorText( error ) {
  * @return {boolean} Whether the chat is still answering.
  */
 export function isBusy( messages = getChat().getMessages() ) {
-	return messages.some( ( message ) =>
-		[ 'thinking', 'streaming', 'saving' ].includes( message.status )
+	return messages.some(
+		( message ) =>
+			[ 'thinking', 'streaming', 'saving' ].includes( message.status ) ||
+			[ 'saving', 'saved', 'closing' ].includes( message.saveState )
 	);
 }
 
@@ -101,108 +103,131 @@ async function respond( text ) {
 	} );
 }
 
-/**
- * Save what is waiting in the composer.
- *
- * @param {Object} pending The pick, from the store.
- * @param {string} typed   What was typed with it, if anything.
+/*
+ * How saving shows under the picker: long enough to be seen saving, then
+ * saved, then the picker folds away. See `WidgetFooter` in `message.jsx`.
  */
-async function commit( pending, typed = '' ) {
-	const skill = SKILLS[ pending.skillId ];
-	const picked = getChat().getMessage( pending.messageId );
+const SAVING_MIN_MS = 700;
+const SAVED_MS = 1200;
+const CLOSING_MS = 300;
 
-	chatActions().setPending( null );
-	addMessage( {
-		chip: skill.chip( pending ),
-		role: 'user',
-		text: typed || skill.request( pending ),
-	} );
-	update( picked.id, {
-		status: 'committed',
-		summary: skill.chip( pending ),
-	} );
-
-	const id = addMessage( {
-		role: 'assistant',
-		status: 'saving',
-		text: __( 'Saving…' ),
-	} );
-
-	await save( id, pending, picked );
+async function waitSince( start, ms ) {
+	await wait( Math.max( 0, start + ms - Date.now() ) );
 }
 
-async function save( id, pending, picked ) {
+/**
+ * Keep a pick: save it, show it saved under the picker, fold the picker
+ * away, and confirm it in the conversation.
+ *
+ * @param {Object}  pending         The pick, from the store.
+ * @param {Object}  options
+ * @param {boolean} options.isAsked Whether a typed message already asked
+ *                                  for it, so it needn't be said again.
+ */
+async function commit( pending, { isAsked = false } = {} ) {
 	const skill = SKILLS[ pending.skillId ];
+	const id = pending.messageId;
+	const picked = getChat().getMessage( id );
+	const start = Date.now();
+	let undo;
 
-	update( id, { retry: null, status: 'saving', text: __( 'Saving…' ) } );
+	update( id, { saveError: null, saveState: 'saving' } );
 
 	try {
-		let undo;
-
 		if ( skill.commit ) {
 			undo = await skill.commit( pending, picked );
 		} else {
 			await saveEntity( picked.entity );
 			undo = { entity: picked.entity, snapshot: picked.snapshot };
 		}
-
-		update( id, {
-			offersNext: true,
-			skillId: pending.skillId,
-			status: 'streaming',
-			text: skill.done( pending, picked ),
-			undo,
-		} );
 	} catch ( error ) {
+		await waitSince( start, SAVING_MIN_MS );
 		update( id, {
-			retry: { pending, pickedId: picked.id },
-			status: 'error',
-			text: sprintf(
+			saveError: sprintf(
 				/* translators: %s: error message. */
-				__( 'I couldn’t save that. %s' ),
+				__( 'Couldn’t save. %s' ),
 				getErrorText( error )
 			),
+			saveState: 'error',
+		} );
+		return;
+	}
+
+	await waitSince( start, SAVING_MIN_MS );
+	chatActions().setPending( null );
+	update( id, { saveState: 'saved' } );
+	await wait( SAVED_MS );
+	update( id, { saveState: 'closing' } );
+	await wait( CLOSING_MS );
+	update( id, {
+		saveState: null,
+		status: 'committed',
+		summary: skill.chip( pending ),
+	} );
+
+	if ( ! isAsked ) {
+		addMessage( {
+			chip: skill.chip( pending ),
+			role: 'user',
+			text: skill.request( pending ),
 		} );
 	}
+
+	addMessage( {
+		offersNext: true,
+		role: 'assistant',
+		skillId: pending.skillId,
+		status: 'streaming',
+		text: skill.done( pending, picked ),
+		undo,
+	} );
 }
 
 /**
- * Try a failed save again.
- *
- * @param {string} id The message saying it failed.
+ * Keep the change waiting in a reply's picker: what its button does.
  */
-export function retrySave( id ) {
-	const { retry } = getChat().getMessage( id ) || {};
+export async function commitPending() {
+	const pending = getChat().getPending();
 
-	if ( retry ) {
-		save( id, retry.pending, getChat().getMessage( retry.pickedId ) );
+	if ( pending && ! isBusy() ) {
+		await commit( pending );
 	}
 }
 
 /**
- * Send what is in the composer: the pick waiting there, a request, or both.
+ * Send what was typed.
+ *
+ * A change waiting in a picker is kept if the message only says so, like
+ * "yes" or "save it". Asking for something else puts it back, as moving on
+ * from it without keeping it.
  *
  * @param {string} text What was typed.
  */
 export async function sendMessage( text ) {
 	const typed = String( text || '' ).trim();
+
+	if ( isBusy() || ! typed ) {
+		return;
+	}
+
 	const pending = getChat().getPending();
 
-	if ( isBusy() || ( ! typed && ! pending ) ) {
+	if ( pending && isConfirmation( typed ) ) {
+		addMessage( {
+			chip: SKILLS[ pending.skillId ].chip( pending ),
+			role: 'user',
+			text: typed,
+		} );
+		await commit( pending, { isAsked: true } );
 		return;
 	}
 
 	if ( pending ) {
-		await commit( pending, typed );
-
-		// Anything asked for alongside the pick gets its own answer.
-		if ( ! typed || isConfirmation( typed ) || ! matchRequest( typed ) ) {
-			return;
-		}
-	} else {
-		addMessage( { role: 'user', text: typed } );
+		cancelPending();
+		update( pending.messageId, { isNotKept: true } );
 	}
 
+	addMessage( { role: 'user', text: typed } );
 	expireOpenPickers();
 	await respond( typed );
 }
@@ -317,6 +342,12 @@ export function cancelPending() {
  */
 export function dropStalePending() {
 	const pending = getChat().getPending();
+	const message = pending && getChat().getMessage( pending.messageId );
+
+	// Saving clears the record's changes too; that is the pick being kept.
+	if ( message?.saveState ) {
+		return;
+	}
 
 	if ( pending?.entity && ! hasEdits( pending.entity ) ) {
 		update( pending.messageId, { pickedLabel: null, pickedPayload: null } );
@@ -389,6 +420,19 @@ async function undoLatest( replyId ) {
 	}
 
 	await undoChange( latest.id, replyId );
+}
+
+/**
+ * Open the screen a picker comes from, and close the chat for it. A pick not
+ * yet kept stays on the site, so the screen carries on from it.
+ *
+ * @param {Object} screen        From the skill.
+ * @param {string} screen.path   Route path.
+ * @param {Object} screen.search Route search params.
+ */
+export function openScreen( { path, search } ) {
+	openRoute( path, search );
+	chatActions().setOpen( false );
 }
 
 /**

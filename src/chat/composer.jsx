@@ -1,5 +1,6 @@
 /**
- * Where a message is typed, with the pick waiting to be sent above it.
+ * Where a message is typed. Only for typing: a change picked in a reply is
+ * kept with the button under its picker.
  */
 
 /**
@@ -15,23 +16,12 @@ import {
 	useState,
 } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import {
-	arrowUp as arrowUpIcon,
-	closeSmall as closeIcon,
-} from '@wordpress/icons';
-import { Icon } from '@wordpress/ui';
+import { arrowUp as arrowUpIcon } from '@wordpress/icons';
 
 /**
  * Internal dependencies
  */
-import {
-	cancelPending,
-	dropStalePending,
-	isBusy,
-	sendMessage,
-} from './conversation';
-import { PickChip } from './message';
-import { SKILLS } from './skills';
+import { dropStalePending, isBusy, sendMessage } from './conversation';
 import { STORE_NAME } from './store';
 
 // The tallest the box grows before it scrolls.
@@ -66,7 +56,7 @@ export function Composer( { pending } ) {
 		( select ) => isBusy( select( STORE_NAME ).getMessages() ),
 		[]
 	);
-	const canSend = ! busy && ( !! text.trim() || !! pending );
+	const canSend = ! busy && !! text.trim();
 
 	useDropStalePending( pending );
 
@@ -101,27 +91,7 @@ export function Composer( { pending } ) {
 				send();
 			} }
 		>
-			<div
-				className={ `cnl-chat-composer__box${
-					pending ? ' has-pending' : ''
-				}` }
-			>
-				{ pending && (
-					<div className="cnl-chat-composer__pending">
-						<PickChip
-							label={ SKILLS[ pending.skillId ].chip( pending ) }
-						>
-							<button
-								aria-label={ __( 'Cancel this change' ) }
-								className="cnl-chat-chip__remove"
-								onClick={ cancelPending }
-								type="button"
-							>
-								<Icon icon={ closeIcon } size={ 16 } />
-							</button>
-						</PickChip>
-					</div>
-				) }
+			<div className="cnl-chat-composer__box">
 				<textarea
 					aria-label={ __( 'Message' ) }
 					className="cnl-chat-composer__input"
@@ -136,37 +106,19 @@ export function Composer( { pending } ) {
 							send();
 						}
 					} }
-					placeholder={
-						pending
-							? __( 'Or ask for something else…' )
-							: __( 'Ask for a change to your site…' )
-					}
+					placeholder={ __( 'Ask for a change to your site…' ) }
 					ref={ textareaRef }
 					rows={ 1 }
 					value={ text }
 				/>
-				{ pending ? (
-					// Named for what sending does, so it reads as the way on.
-					<Button
-						accessibleWhenDisabled
-						className="cnl-chat-composer__send is-labelled"
-						disabled={ ! canSend }
-						type="submit"
-						variant="primary"
-					>
-						{ SKILLS[ pending.skillId ].action || __( 'Save' ) }
-						<Icon icon={ arrowUpIcon } size={ 16 } />
-					</Button>
-				) : (
-					<Button
-						accessibleWhenDisabled
-						className="cnl-chat-composer__send"
-						disabled={ ! canSend }
-						icon={ arrowUpIcon }
-						label={ __( 'Send' ) }
-						type="submit"
-					/>
-				) }
+				<Button
+					accessibleWhenDisabled
+					className="cnl-chat-composer__send"
+					disabled={ ! canSend }
+					icon={ arrowUpIcon }
+					label={ __( 'Send' ) }
+					type="submit"
+				/>
 			</div>
 			<p className="cnl-chat-composer__hint">
 				{ __( 'Changes show on your site as you pick them.' ) }

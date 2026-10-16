@@ -131,7 +131,6 @@ function EmptyConversation() {
 function ChatPanel() {
 	const { isOpen, messages, pending, placement } = useChat();
 	const scrollRef = useRef();
-	const lastMessage = messages[ messages.length - 1 ];
 
 	useEffect( () => {
 		document.body.classList.toggle( OPEN_CLASS, isOpen );
@@ -141,36 +140,59 @@ function ChatPanel() {
 		);
 	}, [ isOpen, placement ] );
 
-	/*
-	 * Keep the newest message in view as it arrives and grows. A reply with a
-	 * picker is scrolled to its top instead, so its words are read first and
-	 * as much of the picker as fits shows under them.
-	 */
-	useLayoutEffect( () => {
+	const logRef = useRef();
+	// Whether the view follows the end of the conversation.
+	const isPinnedRef = useRef( true );
+	const hasMessages = messages.length > 0;
+
+	const scrollToEnd = () => {
 		const node = scrollRef.current;
 
-		if ( ! node ) {
-			return;
+		if ( node ) {
+			// At once, not smoothly, so a scroll never lags behind growth.
+			node.scrollTop = node.scrollHeight;
+		}
+	};
+
+	/*
+	 * Always show the latest: a new message brings the view to the end, and
+	 * while it is there it stays there as replies stream in and pickers load
+	 * their previews. Scrolling up to read leaves it be until the next
+	 * message.
+	 */
+	useLayoutEffect( () => {
+		isPinnedRef.current = true;
+		scrollToEnd();
+	}, [ isOpen, messages.length ] );
+
+	useEffect( () => {
+		const log = logRef.current;
+
+		if (
+			! isOpen ||
+			! log ||
+			typeof window.ResizeObserver === 'undefined'
+		) {
+			return undefined;
 		}
 
-		const reply =
-			lastMessage?.hasWidget &&
-			lastMessage.status === 'ready' &&
-			node.querySelector( `[data-message-id="${ lastMessage.id }"]` );
-		const top = reply
-			? node.scrollTop +
-				reply.getBoundingClientRect().top -
-				node.getBoundingClientRect().top -
-				16
-			: node.scrollHeight;
+		const observer = new window.ResizeObserver( () => {
+			if ( isPinnedRef.current ) {
+				scrollToEnd();
+			}
+		} );
 
-		node.scrollTo( { top, behavior: 'smooth' } );
-	}, [
-		messages.length,
-		lastMessage?.id,
-		lastMessage?.status,
-		lastMessage?.hasWidget,
-	] );
+		observer.observe( log );
+
+		return () => observer.disconnect();
+	}, [ isOpen, hasMessages ] );
+
+	const onScroll = () => {
+		const node = scrollRef.current;
+
+		isPinnedRef.current =
+			node.scrollHeight - node.scrollTop - node.clientHeight < 48;
+	};
 
 	if ( ! isOpen ) {
 		return null;
@@ -203,9 +225,17 @@ function ChatPanel() {
 						/>
 					</div>
 				</header>
-				<div className="cnl-chat__messages" ref={ scrollRef }>
+				<div
+					className="cnl-chat__messages"
+					onScroll={ onScroll }
+					ref={ scrollRef }
+				>
 					{ messages.length ? (
-						<div aria-live="polite" className="cnl-chat__log">
+						<div
+							aria-live="polite"
+							className="cnl-chat__log"
+							ref={ logRef }
+						>
 							{ messages.map( ( message, index ) => (
 								<Message
 									isLast={ index === messages.length - 1 }

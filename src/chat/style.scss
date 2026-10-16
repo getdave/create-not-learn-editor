@@ -12,6 +12,8 @@ $chat-width: 368px;
 $top-bar-height: 56px;
 $gap: 8px;
 $accent: var(--wp-admin-theme-color, #3858e9);
+// WordPress's success green, as core's notices use.
+$saved-green: #008a20;
 $assistant-gradient: linear-gradient(135deg, $accent 0%, #8a4fff 100%);
 $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-full-canvas"])';
 
@@ -335,6 +337,11 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	}
 }
 
+.cnl-chat-message__summary.is-not-kept {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-style: italic;
+}
+
 .cnl-chat-message__summary {
 	display: inline-flex;
 	align-items: center;
@@ -442,7 +449,7 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
  */
 .cnl-chat-widget {
 	min-width: 0;
-	padding: var(--wpds-dimension-padding-md);
+	overflow: hidden;
 	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
 	border-radius: 14px;
 	background: var(--wpds-color-background-surface-neutral-strong);
@@ -488,6 +495,106 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	}
 }
 
+.cnl-chat-widget__body {
+	padding: var(--wpds-dimension-padding-md);
+}
+
+/*
+ * Under a picker: what is picked, and the button that keeps it.
+ */
+.cnl-chat-widget__footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--wpds-dimension-gap-sm) var(--wpds-dimension-gap-md);
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+	border-block-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	background: var(--wpds-color-background-surface-neutral-weak);
+}
+
+// The way on to the screen the picker comes from, there for those who want it.
+.components-button.cnl-chat-widget__open {
+	gap: 4px;
+	font-size: var(--wpds-typography-font-size-sm);
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: underline;
+	}
+
+	svg {
+		fill: currentcolor;
+	}
+}
+
+.cnl-chat-widget__status:empty {
+	display: none;
+}
+
+.cnl-chat-widget__status {
+	flex: 1 1 140px;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+}
+
+// Saved, in green with a tick, before the picker folds away.
+.components-button.cnl-chat-widget__keep {
+	gap: 4px;
+
+	.cnl-chat-widget__footer.is-saved &,
+	.cnl-chat-widget__footer.is-closing & {
+		background: $saved-green;
+		color: #fff;
+		opacity: 1;
+
+		svg {
+			fill: currentcolor;
+		}
+	}
+
+	.cnl-chat-widget__footer.is-saving & {
+		background: $accent;
+		color: #fff;
+		opacity: 1;
+	}
+}
+
+.cnl-chat-widget__spinner {
+	width: 16px;
+	height: 16px;
+	margin: 0;
+}
+
+.cnl-chat-widget__footer.is-saved .cnl-chat-widget__status,
+.cnl-chat-widget__footer.is-closing .cnl-chat-widget__status {
+	color: var(--wpds-color-foreground-content-success-weak);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.cnl-chat-widget__footer.is-error .cnl-chat-widget__status {
+	color: var(--wpds-color-foreground-content-error);
+}
+
+// Folding away: its height goes to none, which `Widget` sets.
+.cnl-chat-widget.is-closing {
+	opacity: 0;
+	transition:
+		max-height 0.3s var(--wpds-motion-easing-balanced),
+		opacity 0.3s var(--wpds-motion-easing-balanced);
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+	}
+}
+
+.cnl-chat-widget__buttons {
+	display: flex;
+	flex: 0 0 auto;
+	gap: var(--wpds-dimension-gap-xs);
+	margin-inline-start: auto;
+}
+
 .cnl-chat-widget__loading {
 	display: flex;
 	justify-content: center;
@@ -526,10 +633,7 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	align-self: center;
 }
 
-.components-button.cnl-chat-widget__confirm {
-	justify-content: center;
-	width: 100%;
-}
+$ring-room: 6px;
 
 /*
  * A carousel of designs: one card at a time, with the next peeking in, so it
@@ -548,17 +652,26 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	overscroll-behavior-x: contain;
 	scroll-snap-type: x mandatory;
 	scrollbar-width: none;
-	// Room for focus and selection rings, which the scroller would clip.
-	margin: -4px;
-	padding: 4px;
+
+	/*
+	 * Room for focus and selection rings, which the scroller would clip.
+	 * Slides snap that far in from its edge too, or a picked slide's ring is
+	 * cut off on the side it snaps to.
+	 */
+	margin: -$ring-room;
+	padding: $ring-room;
+	scroll-padding-inline: $ring-room;
 
 	&::-webkit-scrollbar {
 		display: none;
 	}
 
+	// Slides of different heights, like header layouts, line up on their
+	// middles rather than hanging from the top.
 	> * {
 		display: flex;
 		flex-direction: row;
+		align-items: center;
 		gap: var(--wpds-dimension-gap-md);
 		margin: 0;
 		padding: 0;
@@ -660,11 +773,6 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	}
 }
 
-.cnl-chat-composer__pending {
-	display: flex;
-	padding: 10px 10px 0;
-}
-
 .cnl-chat-composer__input {
 	display: block;
 	box-sizing: border-box;
@@ -717,25 +825,6 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	}
 }
 
-// While a change waits, the button says what sending does.
-.components-button.cnl-chat-composer__send.is-labelled {
-	gap: 4px;
-	width: auto;
-	padding-inline: 12px 10px;
-	border-radius: 999px;
-	background: $accent;
-	font-weight: var(--wpds-typography-font-weight-emphasis);
-	white-space: nowrap;
-
-	svg {
-		fill: currentcolor;
-	}
-}
-
-.cnl-chat-composer__box.has-pending .cnl-chat-composer__input {
-	padding-inline-end: 140px;
-}
-
 .cnl-chat-composer__hint {
 	margin: var(--wpds-dimension-gap-sm) 0 0;
 	color: var(--wpds-color-foreground-content-neutral-weak);
@@ -781,21 +870,3 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	white-space: nowrap;
 }
 
-.cnl-chat-chip__remove {
-	display: inline-flex;
-	flex: 0 0 auto;
-	padding: 2px;
-	border: 0;
-	border-radius: 50%;
-	background: transparent;
-	color: inherit;
-	cursor: pointer;
-
-	&:hover {
-		background: color-mix(in srgb, #{$accent} 16%, transparent);
-	}
-
-	&:focus-visible {
-		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
-	}
-}

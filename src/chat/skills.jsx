@@ -15,8 +15,14 @@
  * - `keys` and `hasBlocks`: what about the record the picker changes.
  * - `needsRecord( params )`: whether the picker waits for its record to be
  *   noted before it shows, when that depends on the request.
- * - `chip`, `request` and `done`: how a pick reads in the composer, as the
- *   message sent, and once saved. `action` names the send button for it.
+ * - `action( pending )`: the button under the picker that keeps a pick,
+ *   named for what it does.
+ * - `screen( message )`: the screen with the same controls and more, as
+ *   `{ label, path, search }`, offered beside that button.
+ * - `chip`, `request` and `done`: how a pick reads, as the message that keeps
+ *   it, and once saved.
+ * - `hasFooter( params )`: whether the picker has that button, when that
+ *   depends on the request.
  * - `commit` and `undo`: for skills that don't edit a record in place.
  *
  * Imported package by package rather than through `src/wordpress-packages`,
@@ -32,10 +38,11 @@ import { store as coreDataStore } from '@wordpress/core-data';
 import {
 	dispatch,
 	resolveSelect,
+	select as selectFromRegistry,
 	useDispatch,
 	useSelect,
 } from '@wordpress/data';
-import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
+import { useEffect, useMemo, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { home as homeIcon, page as pageIcon } from '@wordpress/icons';
 import { Icon, InputControl, Spinner, Text } from '@wordpress/ui';
@@ -175,18 +182,15 @@ function FontsWidget( { onPick } ) {
 	return <FontPicker onPick={ onPick } />;
 }
 
-function IdentityWidget( { message, onPick } ) {
+function TitleWidget( { message, onPick } ) {
 	const { editEntityRecord } = useDispatch( coreDataStore );
-	const nameRef = useRef( message.pickedLabel );
-	const onEdit = ( edits ) => {
-		if ( edits.title !== undefined ) {
-			nameRef.current = edits.title;
-		}
-
-		onPick( nameRef.current || '', { title: nameRef.current } );
-	};
 	const name = message.params?.name;
 	const isReady = !! message.snapshot;
+	const onEdit = ( { title } ) => {
+		if ( title !== undefined ) {
+			onPick( title, { title } );
+		}
+	};
 
 	// A name given in the request goes straight in, once.
 	useEffect( () => {
@@ -197,7 +201,39 @@ function IdentityWidget( { message, onPick } ) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ isReady ] );
 
-	return <SiteIdentityFields hideDiscard onEdit={ onEdit } />;
+	return (
+		<SiteIdentityFields
+			fields={ [ 'title' ] }
+			hideDiscard
+			onEdit={ onEdit }
+		/>
+	);
+}
+
+function LogoWidget( { onPick } ) {
+	return (
+		<SiteIdentityFields
+			fields={ [ 'logo' ] }
+			hideDiscard
+			onEdit={ ( { site_logo: logoId } ) => {
+				if ( logoId !== undefined ) {
+					onPick( logoId ? __( 'New logo' ) : __( 'No logo' ), {
+						logoId,
+					} );
+				}
+			} }
+		/>
+	);
+}
+
+/**
+ * @return {boolean} Whether the site has a logo, as saved.
+ */
+function hasSavedLogo() {
+	return !! selectFromRegistry( coreDataStore ).getEntityRecord(
+		'root',
+		'site'
+	)?.site_logo;
 }
 
 function SitePartWidget( { entity, message, onPick } ) {
@@ -354,7 +390,7 @@ function PageNameStep( { onContinue, title, setTitle } ) {
 	);
 }
 
-function PageWidget( { message, onPick, onSend } ) {
+function PageWidget( { message, onPick } ) {
 	const Preview = useLazyPreview();
 	const { isResolving, patterns } = usePageLayoutPatterns();
 	const [ title, setTitle ] = useState( message.params?.title || '' );
@@ -425,20 +461,6 @@ function PageWidget( { message, onPick, onSend } ) {
 				isSelected={ choice === null }
 				onClick={ () => choose( null ) }
 			/>
-			{ choice !== undefined && (
-				<Button
-					__next40pxDefaultSize
-					className="cnl-chat-widget__confirm"
-					onClick={ onSend }
-					variant="primary"
-				>
-					{ sprintf(
-						/* translators: %s: page name. */
-						__( 'Create “%s”' ),
-						name
-					) }
-				</Button>
-			) }
 		</div>
 	);
 }
@@ -656,7 +678,12 @@ export const SUGGESTIONS = [
 	{ text: __( 'Change my colors' ), icon: 'color' },
 	{ text: __( 'Try a new look' ), icon: 'styles' },
 	{ text: __( 'Pick new fonts' ), icon: 'typography' },
-	{ text: __( 'Rename my site' ), icon: 'siteLogo' },
+	{ text: __( 'Change site title' ), icon: 'siteTitle' },
+	{
+		text: () =>
+			hasSavedLogo() ? __( 'Change site logo' ) : __( 'Add a logo' ),
+		icon: 'siteLogo',
+	},
 	{ text: __( 'Change my header' ), icon: 'header' },
 	{ text: __( 'Change my footer' ), icon: 'footer' },
 	{ text: __( 'Change my menu' ), icon: 'navigation' },
@@ -666,6 +693,8 @@ export const SUGGESTIONS = [
 
 export const SKILLS = {
 	look: {
+		screen: () => ( { label: __( 'Open in Design' ), path: '/design' } ),
+		action: () => __( 'Use this look' ),
 		...GLOBAL_STYLES,
 		reply: () => ( {
 			text: __(
@@ -684,6 +713,11 @@ export const SKILLS = {
 			sprintf( __( 'Done. Your site now has the “%s” look.' ), label ),
 	},
 	colors: {
+		screen: () => ( {
+			label: __( 'Open in Colors' ),
+			path: '/design/colors',
+		} ),
+		action: () => __( 'Use these colors' ),
 		...GLOBAL_STYLES,
 		reply: () => ( {
 			text: __(
@@ -702,6 +736,11 @@ export const SKILLS = {
 			sprintf( __( 'Done. Your site now uses the “%s” colors.' ), label ),
 	},
 	fonts: {
+		screen: () => ( {
+			label: __( 'Open in Fonts' ),
+			path: '/design/fonts',
+		} ),
+		action: () => __( 'Use these fonts' ),
 		...GLOBAL_STYLES,
 		reply: () => ( {
 			text: __(
@@ -719,43 +758,75 @@ export const SKILLS = {
 			/* translators: %s: font pairing name. */
 			sprintf( __( 'Done. Your site now uses the “%s” fonts.' ), label ),
 	},
-	identity: {
-		keys: [ 'title', 'description', 'site_logo', 'site_icon' ],
+	'site-title': {
+		action: () => __( 'Save site title' ),
+		keys: [ 'title' ],
 		useEntity: useSiteEntity,
+		screen: () => ( {
+			label: __( 'Open in Name & logo' ),
+			path: '/design/identity',
+		} ),
 		reply: ( { name } ) => ( {
 			text: name
 				? sprintf(
-						/* translators: %s: new site name. */
+						/* translators: %s: new site title. */
 						__(
-							'I’ve put in “%s” as your site’s name, so you can see it on your site now. Change anything else here, then press send to keep it.'
+							'I’ve put in “%s” as your site title, so you can see it on your site now.'
 						),
 						name
 					)
 				: __(
-						'Here’s how your site introduces itself. Change anything and you’ll see it on your site as you go.'
+						'What would you like your site to be called? Type it here and you’ll see it on your site as you go.'
 					),
 		} ),
-		Widget: IdentityWidget,
+		Widget: TitleWidget,
 		chip: ( { label } ) =>
-			label
-				? /* translators: %s: site name. */
-					sprintf( __( 'Name: %s' ), label )
-				: __( 'Name & logo' ),
+			/* translators: %s: site title. */
+			sprintf( __( 'Site title: %s' ), label ),
 		request: ( { label } ) =>
-			label
-				? /* translators: %s: site name. */
-					sprintf( __( 'Call my site “%s”' ), label )
-				: __( 'Keep my name & logo changes' ),
+			/* translators: %s: site title. */
+			sprintf( __( 'Call my site “%s”' ), label ),
 		done: ( { label } ) =>
-			label
-				? sprintf(
-						/* translators: %s: site name. */
-						__( 'Done. Your site is now called “%s”.' ),
-						label
+			sprintf(
+				/* translators: %s: site title. */
+				__( 'Done. Your site is now called “%s”.' ),
+				label
+			),
+	},
+	logo: {
+		action: () =>
+			hasSavedLogo() ? __( 'Save logo' ) : __( 'Use this logo' ),
+		keys: [ 'site_logo' ],
+		useEntity: useSiteEntity,
+		screen: () => ( {
+			label: __( 'Open in Name & logo' ),
+			path: '/design/identity',
+		} ),
+		reply: () => ( {
+			text: hasSavedLogo()
+				? __(
+						'Here’s your logo. Replace it with another image, or remove it, and you’ll see the change on your site.'
 					)
-				: __( 'Done. Your name and logo are saved.' ),
+				: __(
+						'Your site doesn’t have a logo yet. Upload one, or pick an image you already have.'
+					),
+		} ),
+		Widget: LogoWidget,
+		chip: ( { label } ) => label,
+		request: ( { payload } ) =>
+			payload.logoId ? __( 'Use this logo' ) : __( 'Remove my logo' ),
+		done: ( { payload } ) =>
+			payload.logoId
+				? __( 'Done. Your logo is on your site.' )
+				: __( 'Done. I’ve taken your logo off your site.' ),
 	},
 	header: {
+		screen: () => ( {
+			label: __( 'Open in Header' ),
+			path: '/design/header',
+			search: { view: 'layouts' },
+		} ),
+		action: () => __( 'Use this header' ),
 		keys: [ 'blocks', 'content' ],
 		hasBlocks: true,
 		useEntity: useSitePartEntity,
@@ -777,6 +848,12 @@ export const SKILLS = {
 			sprintf( __( 'Done. Your header now uses “%s”.' ), label ),
 	},
 	footer: {
+		screen: () => ( {
+			label: __( 'Open in Footer' ),
+			path: '/design/footer',
+			search: { view: 'layouts' },
+		} ),
+		action: () => __( 'Use this footer' ),
 		keys: [ 'blocks', 'content' ],
 		hasBlocks: true,
 		useEntity: useSitePartEntity,
@@ -798,13 +875,24 @@ export const SKILLS = {
 			sprintf( __( 'Done. Your footer now uses “%s”.' ), label ),
 	},
 	'add-page': {
-		action: __( 'Create page' ),
+		screen: () => ( {
+			label: __( 'Open in Pages' ),
+			path: '/types/page/list/all',
+		} ),
+		action: ( pending ) =>
+			pending
+				? sprintf(
+						/* translators: %s: page name. */
+						__( 'Create “%s”' ),
+						pending.label
+					)
+				: __( 'Create page' ),
 		reply: ( { title } ) => ( {
 			text: title
 				? sprintf(
 						/* translators: %s: page name. */
 						__(
-							'Let’s add a “%s” page. Here are the designs that suit it best. Pick one, or start blank, then create it.'
+							'Let’s add a “%s” page. Here are the designs that suit it best. Pick one, or start blank.'
 						),
 						title
 					)
@@ -867,12 +955,25 @@ export const SKILLS = {
 		undone: __( 'Done. I’ve moved the page to the bin.' ),
 	},
 	'add-section': {
+		screen: ( { params } ) =>
+			params?.pageId
+				? {
+						label: sprintf(
+							/* translators: %s: page name. */
+							__( 'Open “%s” in Pages' ),
+							params.pageTitle
+						),
+						path: '/types/page/list/all',
+						search: { previewId: params.pageId },
+					}
+				: null,
+		action: () => __( 'Add this section' ),
+		hasFooter: ( { choosePage } ) => ! choosePage,
 		keys: [ 'blocks', 'content' ],
 		hasBlocks: true,
 		useEntity: useTargetPageEntity,
 		// Asking which page comes before any page is changed.
 		needsRecord: ( { choosePage } ) => ! choosePage,
-		action: __( 'Add section' ),
 		async reply( { search }, text ) {
 			// A page named in the request wins, once the pages have loaded.
 			await Promise.all( [
@@ -924,6 +1025,11 @@ export const SKILLS = {
 			),
 	},
 	menu: {
+		screen: ( { entity } ) => ( {
+			label: __( 'Open in Menus' ),
+			path: entity ? `/navigation/edit/${ entity[ 2 ] }` : '/navigation',
+		} ),
+		action: () => __( 'Save menu' ),
 		keys: [ 'blocks', 'content' ],
 		hasBlocks: true,
 		reply: () => ( {

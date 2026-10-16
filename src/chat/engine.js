@@ -31,8 +31,12 @@ const RULES = [
 		test: /\b(add|create|make|new|start|build)\b.*\bpages?\b/i,
 	},
 	{
-		skill: 'identity',
-		test: /\b(rename|site'?s? name|name (of )?(my|the) (site|website)|name my|call (my|the) (site|website)|site title|tagline|logo|site icon|favicon|browser icon)\b/i,
+		skill: 'logo',
+		test: /\blogos?\b/i,
+	},
+	{
+		skill: 'site-title',
+		test: /\b(rename|site'?s? (name|title)|(name|title) (of )?(my|the) (site|website)|name my|call (my|the) (site|website)|site title)\b/i,
 	},
 	{
 		skill: 'colors',
@@ -144,7 +148,8 @@ export function getSiteNameFromText( text ) {
 		/\b(?:rename|call)\s+(?:my |the )?(?:site|website)\s+(?:to\s+|as\s+)?(.+)$/i,
 		/\bname (?:of (?:my |the )?(?:site|website) )?to\s+(.+)$/i,
 		/\bname (?:my |the )?(?:site|website)\s+(.+)$/i,
-		/\bsite'?s? name (?:to|as)\s+(.+)$/i,
+		/\bsite'?s? (?:name|title) (?:to|as)\s+(.+)$/i,
+		/\b(?:title|name) of (?:my |the )?(?:site|website) to\s+(.+)$/i,
 	] );
 }
 
@@ -222,7 +227,7 @@ export function matchRequest( text ) {
 	}
 
 	switch ( rule.skill ) {
-		case 'identity':
+		case 'site-title':
 			return {
 				skill: rule.skill,
 				params: { name: getSiteNameFromText( message ) },

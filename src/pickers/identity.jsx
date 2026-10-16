@@ -20,6 +20,7 @@ import { MediaUpload } from '@wordpress/media-utils';
 import { InputControl, Spinner, Stack, Text } from '@wordpress/ui';
 
 const EMPTY_OBJECT = {};
+const ALL_FIELDS = [ 'title', 'tagline', 'logo', 'icon' ];
 
 function getMediaUrl( media ) {
 	return (
@@ -175,13 +176,20 @@ export function SiteMediaSetting( {
  * and in the chat.
  *
  * @param {Object}   props             Component props.
+ * @param {string[]} props.fields      Which fields to show, of `title`,
+ *                                     `tagline`, `logo` and `icon`. All of
+ *                                     them unless given.
  * @param {boolean}  props.hideDiscard Whether to leave out the row offering to
  *                                     discard changes, for places that offer
  *                                     their own way back.
  * @param {Function} props.onEdit      Called with each edit once made.
  * @return {Element} The fields.
  */
-export function SiteIdentityFields( { hideDiscard = false, onEdit } = {} ) {
+export function SiteIdentityFields( {
+	fields = ALL_FIELDS,
+	hideDiscard = false,
+	onEdit,
+} = {} ) {
 	const {
 		discard,
 		hasEdits,
@@ -194,7 +202,7 @@ export function SiteIdentityFields( { hideDiscard = false, onEdit } = {} ) {
 		updateSite( edits );
 		onEdit?.( edits );
 	};
-	useSiteIdentity();
+	const shows = ( field ) => fields.includes( field );
 	const logoId = site.site_logo || 0;
 
 	if ( isLoading ) {
@@ -208,51 +216,62 @@ export function SiteIdentityFields( { hideDiscard = false, onEdit } = {} ) {
 	return (
 		<>
 			<div className="routes-styles__section">
-				<InputControl
-					description={ __(
-						'Usually your business or project name.'
-					) }
-					label={ __( 'Site name' ) }
-					onValueChange={ ( value ) => update( { title: value } ) }
-					value={ site.title || '' }
-				/>
-				<InputControl
-					description={ __(
-						'A few words about what you do, like “Pottery classes in Hackney”.'
-					) }
-					label={ __( 'Tagline' ) }
-					onValueChange={ ( value ) =>
-						update( { description: value } )
-					}
-					placeholder={ __( 'What does your site offer?' ) }
-					value={ site.description || '' }
-				/>
-				<SiteMediaSetting
-					description={ __(
-						'Shown in your header. Wide or square images both work.'
-					) }
-					label={ __( 'Logo' ) }
-					onChange={ ( id ) => update( { site_logo: id } ) }
-					value={ logoId }
-				/>
-				<SiteMediaSetting
-					description={ __(
-						'The small picture in browser tabs and bookmarks. Use a square image.'
-					) }
-					imageClassName="cnl-editor-identity-media__image--icon"
-					label={ __( 'Browser icon' ) }
-					onChange={ ( id ) => update( { site_icon: id } ) }
-					value={ site.site_icon || 0 }
-				/>
-				{ Boolean( logoId && site.site_icon !== logoId ) && (
-					<Button
-						className="cnl-editor-identity__use-logo"
-						onClick={ () => update( { site_icon: logoId } ) }
-						variant="link"
-					>
-						{ __( 'Use my logo as the browser icon' ) }
-					</Button>
+				{ shows( 'title' ) && (
+					<InputControl
+						description={ __(
+							'Usually your business or project name.'
+						) }
+						label={ __( 'Site name' ) }
+						onValueChange={ ( value ) =>
+							update( { title: value } )
+						}
+						value={ site.title || '' }
+					/>
 				) }
+				{ shows( 'tagline' ) && (
+					<InputControl
+						description={ __(
+							'A few words about what you do, like “Pottery classes in Hackney”.'
+						) }
+						label={ __( 'Tagline' ) }
+						onValueChange={ ( value ) =>
+							update( { description: value } )
+						}
+						placeholder={ __( 'What does your site offer?' ) }
+						value={ site.description || '' }
+					/>
+				) }
+				{ shows( 'logo' ) && (
+					<SiteMediaSetting
+						description={ __(
+							'Shown in your header. Wide or square images both work.'
+						) }
+						label={ __( 'Logo' ) }
+						onChange={ ( id ) => update( { site_logo: id } ) }
+						value={ logoId }
+					/>
+				) }
+				{ shows( 'icon' ) && (
+					<SiteMediaSetting
+						description={ __(
+							'The small picture in browser tabs and bookmarks. Use a square image.'
+						) }
+						imageClassName="cnl-editor-identity-media__image--icon"
+						label={ __( 'Browser icon' ) }
+						onChange={ ( id ) => update( { site_icon: id } ) }
+						value={ site.site_icon || 0 }
+					/>
+				) }
+				{ shows( 'icon' ) &&
+					Boolean( logoId && site.site_icon !== logoId ) && (
+						<Button
+							className="cnl-editor-identity__use-logo"
+							onClick={ () => update( { site_icon: logoId } ) }
+							variant="link"
+						>
+							{ __( 'Use my logo as the browser icon' ) }
+						</Button>
+					) }
 			</div>
 			{ hasEdits && ! hideDiscard && (
 				<div className="routes-styles__save">

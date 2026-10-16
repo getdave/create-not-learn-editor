@@ -6,9 +6,13 @@
  * WordPress dependencies
  */
 import { Button } from '@wordpress/components';
-import { useEffect } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { store as coreDataStore } from '@wordpress/core-data';
+import { useSelect } from '@wordpress/data';
+import { useEffect, useLayoutEffect, useRef } from '@wordpress/element';
+import { __, isRTL } from '@wordpress/i18n';
 import {
+	arrowLeft as arrowLeftIcon,
+	arrowRight as arrowRightIcon,
 	check as checkIcon,
 	color as colorIcon,
 	footer as footerIcon,
@@ -17,27 +21,31 @@ import {
 	page as pageIcon,
 	plus as plusIcon,
 	siteLogo as siteLogoIcon,
+	title as titleIcon,
 	styles as stylesIcon,
 	typography as typographyIcon,
 	undo as undoIcon,
 } from '@wordpress/icons';
-import { Icon } from '@wordpress/ui';
+import { Icon, Spinner } from '@wordpress/ui';
 
 /**
  * Internal dependencies
  */
 import {
+	cancelPending,
 	choosePage,
+	commitPending,
 	finishStreaming,
+	openScreen,
 	pick,
 	prepareWidget,
-	retrySave,
 	runAction,
 	sendMessage,
 	undoChange,
 } from './conversation';
 import { sparkleIcon } from './icons';
 import { SKILLS, SUGGESTIONS } from './skills';
+import { STORE_NAME } from './store';
 import { StreamingText } from './streaming-text';
 
 const SUGGESTION_ICONS = {
@@ -48,6 +56,7 @@ const SUGGESTION_ICONS = {
 	page: pageIcon,
 	section: plusIcon,
 	siteLogo: siteLogoIcon,
+	siteTitle: titleIcon,
 	styles: stylesIcon,
 	typography: typographyIcon,
 };
@@ -65,24 +74,39 @@ const ACTION_LABELS = {
  * @return {Element} The suggestions.
  */
 export function Suggestions( { isLarge = false } ) {
+	// Some suggestions depend on the site, like adding or changing a logo.
+	useSelect(
+		( select ) =>
+			select( coreDataStore ).getEntityRecord( 'root', 'site' )
+				?.site_logo,
+		[]
+	);
+
 	return (
 		<div
 			className={ `cnl-chat-suggestions${ isLarge ? ' is-large' : '' }` }
 		>
-			{ SUGGESTIONS.map( ( suggestion ) => (
-				<button
-					className="cnl-chat-suggestions__item"
-					key={ suggestion.text }
-					onClick={ () => sendMessage( suggestion.text ) }
-					type="button"
-				>
-					<Icon
-						icon={ SUGGESTION_ICONS[ suggestion.icon ] }
-						size={ 20 }
-					/>
-					{ suggestion.text }
-				</button>
-			) ) }
+			{ SUGGESTIONS.map( ( suggestion ) => {
+				const text =
+					typeof suggestion.text === 'function'
+						? suggestion.text()
+						: suggestion.text;
+
+				return (
+					<button
+						className="cnl-chat-suggestions__item"
+						key={ suggestion.icon }
+						onClick={ () => sendMessage( text ) }
+						type="button"
+					>
+						<Icon
+							icon={ SUGGESTION_ICONS[ suggestion.icon ] }
+							size={ 20 }
+						/>
+						{ text }
+					</button>
+				);
+			} ) }
 		</div>
 	);
 }
@@ -151,27 +175,144 @@ function Widget( { message, scrollRef } ) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ entity ] );
 
+	const widgetRef = useRef();
+
+	/*
+	 * Once saved, the picker folds away: from its height to none, which CSS
+	 * animates.
+	 */
+	useLayoutEffect( () => {
+		const node = widgetRef.current;
+
+		if ( node && message.saveState === 'closing' ) {
+			node.style.maxHeight = `${ node.offsetHeight }px`;
+			// Read layout so the change below animates from that height.
+			node.getBoundingClientRect();
+			node.style.maxHeight = '0px';
+		}
+	}, [ message.saveState ] );
+
 	return (
-		<div className="cnl-chat-widget">
-			{ isReady ? (
-				<skill.Widget
-					entity={ entity }
-					message={ message }
-					onChoosePage={ ( page ) => choosePage( message.id, page ) }
-					onEntity={ ( reported ) =>
-						prepareWidget( message.id, reported )
-					}
-					onPick={ ( label, payload ) =>
-						pick( message.id, label, payload )
-					}
-					onSend={ () => sendMessage( '' ) }
-					scrollRef={ scrollRef }
-				/>
-			) : (
-				<div className="cnl-chat-widget__loading">
-					<Thinking />
-				</div>
+		<div
+			className={ `cnl-chat-widget${
+				message.saveState === 'closing' ? ' is-closing' : ''
+			}` }
+			ref={ widgetRef }
+		>
+			<div className="cnl-chat-widget__body">
+				{ isReady ? (
+					<skill.Widget
+						entity={ entity }
+						message={ message }
+						onChoosePage={ ( page ) =>
+							choosePage( message.id, page )
+						}
+						onEntity={ ( reported ) =>
+							prepareWidget( message.id, reported )
+						}
+						onPick={ ( label, payload ) =>
+							pick( message.id, label, payload )
+						}
+						scrollRef={ scrollRef }
+					/>
+				) : (
+					<div className="cnl-chat-widget__loading">
+						<Thinking />
+					</div>
+				) }
+			</div>
+			{ isReady && ( skill.hasFooter?.( message.params ) ?? true ) && (
+				<WidgetFooter message={ message } skill={ skill } />
 			) }
+		</div>
+	);
+}
+
+/*
+ * Under a picker: the button that keeps a pick, and a way on to the screen
+ * with the same controls and more. The button shows from the start, waiting,
+ * so the way to keep a pick is clear before one is made. Keeping it, the
+ * button says it is saving, then saved, before the picker folds away.
+ */
+function WidgetFooter( { message, skill } ) {
+	const pending = useSelect(
+		( select ) => select( STORE_NAME ).getPending(),
+		[]
+	);
+	const { saveError, saveState } = message;
+	const isPicked = pending?.messageId === message.id;
+	const isSaving = saveState === 'saving';
+	const isSaved = saveState === 'saved' || saveState === 'closing';
+	const screen = skill.screen?.( message );
+	let status = null;
+	let label = isPicked ? skill.action( pending ) : skill.action();
+
+	if ( isSaving ) {
+		status = __( 'Saving your change…' );
+		label = (
+			<>
+				<Spinner className="cnl-chat-widget__spinner" />
+				{ __( 'Saving…' ) }
+			</>
+		);
+	} else if ( isSaved ) {
+		status = __( 'Saved to your site.' );
+		label = (
+			<>
+				<Icon icon={ checkIcon } size={ 20 } />
+				{ __( 'Saved' ) }
+			</>
+		);
+	} else if ( saveState === 'error' ) {
+		status = saveError;
+		label = __( 'Try again' );
+	}
+
+	return (
+		<div
+			className={ `cnl-chat-widget__footer${
+				saveState ? ` is-${ saveState }` : ''
+			}` }
+		>
+			<span className="cnl-chat-widget__status" role="status">
+				{ status }
+			</span>
+			{ ! status && screen && (
+				<Button
+					className="cnl-chat-widget__open"
+					onClick={ () => openScreen( screen ) }
+					variant="link"
+				>
+					{ screen.label }
+					<Icon
+						icon={ isRTL() ? arrowLeftIcon : arrowRightIcon }
+						size={ 16 }
+					/>
+				</Button>
+			) }
+			<div className="cnl-chat-widget__buttons">
+				{ isPicked && ! saveState && (
+					<Button
+						__next40pxDefaultSize
+						onClick={ cancelPending }
+						variant="tertiary"
+					>
+						{ __( 'Cancel' ) }
+					</Button>
+				) }
+				<Button
+					__next40pxDefaultSize
+					accessibleWhenDisabled
+					className="cnl-chat-widget__keep"
+					disabled={
+						( ! isPicked && ! saveState ) || isSaving || isSaved
+					}
+					onClick={ commitPending }
+					variant="primary"
+				>
+					{ label }
+				</Button>
+			</div>
 		</div>
 	);
 }
@@ -200,6 +341,11 @@ function AssistantMessage( { isLast, message, scrollRef } ) {
 							onDone={ () => finishStreaming( message.id ) }
 							text={ message.text }
 						/>
+					) }
+					{ message.isNotKept && (
+						<div className="cnl-chat-message__summary is-not-kept">
+							{ __( 'Not kept. Your site is back as it was.' ) }
+						</div>
 					) }
 					{ message.status === 'committed' && message.summary && (
 						<div className="cnl-chat-message__summary">
@@ -238,17 +384,6 @@ function AssistantMessage( { isLast, message, scrollRef } ) {
 									{ __( 'Undo' ) }
 								</Button>
 							) }
-						</div>
-					) }
-					{ message.status === 'error' && message.retry && (
-						<div className="cnl-chat-message__actions">
-							<Button
-								onClick={ () => retrySave( message.id ) }
-								size="compact"
-								variant="secondary"
-							>
-								{ __( 'Try again' ) }
-							</Button>
 						</div>
 					) }
 				</div>
