@@ -7,9 +7,11 @@ import { useNavigate, useParams, useSearch } from '@wordpress/route';
  * Internal dependencies
  */
 import { getTitleText } from '../../records';
+import { getEditablePostType } from '../../settings';
 import { getActiveTab, getTemplateTitle } from './helpers';
 import useContentRecords from './use-content-records';
 import PagesCanvas from './pages/canvas';
+import TemplateCanvas from './template-canvas';
 import { Button, Spinner, __, sprintf } from '../../wordpress-packages';
 
 function getCanvasLabel( {
@@ -92,8 +94,14 @@ export default function Canvas() {
 
 function ContentCanvas() {
 	const navigate = useNavigate();
-	const { activeTab, isLoading, selectedPost, selectedTemplate, type } =
-		useContentRecords();
+	const {
+		activeTab,
+		isLoading,
+		posts,
+		selectedPost,
+		selectedTemplate,
+		type,
+	} = useContentRecords();
 
 	if ( ! type ) {
 		return null;
@@ -108,6 +116,16 @@ function ContentCanvas() {
 					<Spinner />
 				</div>
 			</section>
+		);
+	}
+
+	if (
+		showTemplates &&
+		selectedTemplate &&
+		getEditablePostType( 'wp_template' )
+	) {
+		return (
+			<TemplateCanvas records={ posts } template={ selectedTemplate } />
 		);
 	}
 

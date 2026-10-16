@@ -26,7 +26,7 @@ const TEMPLATE_QUERY = {
 	context: 'edit',
 	per_page: 100,
 	_fields:
-		'id,slug,title,description,source,author,theme,type,status,content',
+		'id,slug,title,description,source,author,theme,type,status,content,is_custom',
 };
 
 function getPostQuery( search ) {

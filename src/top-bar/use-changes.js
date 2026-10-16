@@ -10,7 +10,7 @@
  * WordPress dependencies
  */
 import { store as coreStore } from '@wordpress/core-data';
-import { useDispatch, useSelect } from '@wordpress/data';
+import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
 import { useEntitiesSavedStatesIsDirty } from '@wordpress/editor';
 import { __, sprintf } from '@wordpress/i18n';
 
@@ -121,6 +121,73 @@ function getChangeId( { kind, name, key, property } ) {
 	return [ kind, name, key ?? '', property ?? '' ].join( '|' );
 }
 
+function getRecordId( { kind, name, key } ) {
+	return [ kind, name, key ?? '' ].join( '|' );
+}
+
+// Long enough for the editor to load a discarded layout's parts and menus.
+const DISCARD_SETTLE_MS = 1500;
+
+/**
+ * Put back what the editor changes by itself just after a discard.
+ *
+ * Discarding a layout's changes hands the editor its saved blocks again, and
+ * the site parts and menus inside it load afresh. Some write themselves back
+ * as they do, a menu tidying its links say, which core counts as a change
+ * nobody made. For a moment after a discard, a post that wasn't changed
+ * before it is put back as saved whenever the editor changes it. Its blocks
+ * are kept, so the editor doesn't load it, and change it, again.
+ *
+ * @param {Object}      registry Data registry.
+ * @param {Set<string>} kept     Records still changed after the discard, by
+ *                               `getRecordId`.
+ */
+function putBackWhileSettling( registry, kept ) {
+	let isPuttingBack = false;
+	const unsubscribe = registry.subscribe( () => {
+		if ( isPuttingBack ) {
+			return;
+		}
+
+		const store = registry.select( coreStore );
+
+		isPuttingBack = true;
+		store
+			.__experimentalGetDirtyEntityRecords()
+			.filter(
+				( record ) =>
+					record.kind === 'postType' &&
+					! kept.has( getRecordId( record ) )
+			)
+			.forEach( ( { kind, name, key } ) => {
+				const saved = store.getRawEntityRecord( kind, name, key ) || {};
+				const edits = store.getEntityRecordNonTransientEdits(
+					kind,
+					name,
+					key
+				);
+
+				registry
+					.dispatch( coreStore )
+					.editEntityRecord(
+						kind,
+						name,
+						key,
+						Object.fromEntries(
+							Object.keys( edits ).map( ( edit ) => [
+								edit,
+								saved[ edit ],
+							] )
+						),
+						{ undoIgnore: true }
+					);
+			} );
+		isPuttingBack = false;
+	}, coreStore );
+
+	window.setTimeout( unsubscribe, DISCARD_SETTLE_MS );
+}
+
 /**
  * @return {Object} `changes`, each with an `id`, a `label` and a `detail`,
  *                  whether they are saving, and `save`, `discard` and
@@ -157,6 +224,7 @@ export function useChanges() {
 				?.title ) ||
 		'';
 	const { saveDirtyEntities } = unlock( useDispatch( coreStore ) );
+	const registry = useRegistry();
 
 	const isHomepageSwitched = dirtyEntityRecords.some(
 		( { kind, name, property } ) =>
@@ -186,7 +254,7 @@ export function useChanges() {
 	 * edit at all, so the site's other settings keep their edits. Anything
 	 * else is one record, and loses all of its edits.
 	 */
-	const discard = ( { kind, name, key, property } ) => {
+	const discardOne = ( { kind, name, key, property } ) => {
 		if ( kind === 'root' && name === 'site' ) {
 			const properties =
 				property === 'show_on_front' ? HOMEPAGE_SETTINGS : [ property ];
@@ -207,7 +275,21 @@ export function useChanges() {
 		}
 	};
 
-	const discardAll = () => changes.forEach( discard );
+	const discardRecords = ( records ) => {
+		const discarded = new Set( records.map( getRecordId ) );
+		const kept = new Set(
+			dirtyEntityRecords
+				.map( getRecordId )
+				.filter( ( id ) => ! discarded.has( id ) )
+		);
+
+		records.forEach( discardOne );
+		putBackWhileSettling( registry, kept );
+	};
+
+	const discard = ( change ) => discardRecords( [ change ] );
+
+	const discardAll = () => discardRecords( changes );
 
 	// Core's own save, as its review uses: it saves site settings together
 	// and publishes menus, and reports success or failure in a snackbar.

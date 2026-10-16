@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { parse } from '@wordpress/blocks';
+import { parse, store as blocksStore } from '@wordpress/blocks';
 import { store as coreDataStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
 import {
@@ -75,6 +75,11 @@ function CompatibleEditor( { postId, postType, settings, ...props } ) {
 		},
 		[ postId, postType ]
 	);
+	// Parsing before the editor registers the block types loses every block.
+	const hasBlockTypes = useSelect(
+		( select ) => !! select( blocksStore ).getBlockType( 'core/group' ),
+		[]
+	);
 	const { editEntityRecord } = useDispatch( coreDataStore );
 	const compatibleSettings = useMemo( () => {
 		if ( ! settings || ! Object.hasOwn( settings, 'styles' ) ) {
@@ -132,6 +137,10 @@ function CompatibleEditor( { postId, postType, settings, ...props } ) {
 			return;
 		}
 
+		if ( ! hasBlockTypes ) {
+			return;
+		}
+
 		const timeout = window.setTimeout( () => {
 			initializedEntities.current.add( entityKey );
 			editEntityRecord(
@@ -147,6 +156,7 @@ function CompatibleEditor( { postId, postType, settings, ...props } ) {
 		editEntityRecord,
 		entityKey,
 		hasBlocks,
+		hasBlockTypes,
 		hasUndefinedContentEdit,
 		postId,
 		postType,

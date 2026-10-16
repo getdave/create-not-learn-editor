@@ -3,74 +3,8 @@ import { notFound } from '@wordpress/route';
 /**
  * Internal dependencies
  */
-import { getEditablePostType, getPostType } from '../../settings';
-import {
-	__,
-	coreDataStore,
-	layoutIcon,
-	postFeaturedImageIcon,
-	postListIcon,
-	resolveSelect,
-} from '../../wordpress-packages';
-
-function getSearchValue( value ) {
-	if ( Array.isArray( value ) ) {
-		return value[ 0 ];
-	}
-
-	return value;
-}
-
-function getPreviewStatusLabel( status ) {
-	switch ( status ) {
-		case 'publish':
-			return __( 'Published' );
-		case 'draft':
-		case 'auto-draft':
-			return __( 'Draft' );
-		case 'future':
-			return __( 'Scheduled' );
-		case 'pending':
-			return __( 'Pending review' );
-		case 'private':
-			return __( 'Private' );
-		default:
-			return __( 'Preview' );
-	}
-}
-
-function getPlainTitle( title, fallback ) {
-	const rendered =
-		typeof title === 'string' ? title : title?.rendered || title?.raw || '';
-	const text = document.createElement( 'textarea' );
-	text.innerHTML = rendered.replace( /<[^>]+>/g, '' ).trim();
-
-	return text.value || fallback;
-}
-
-function getTemplateTitle( template, fallback ) {
-	if ( template?.slug === 'home' ) {
-		return __( 'Posts Listing' );
-	}
-
-	if ( template?.slug === 'single' ) {
-		return __( 'Single Post' );
-	}
-
-	return getPlainTitle( template?.title, fallback );
-}
-
-function getTemplateIcon( template ) {
-	if ( template?.slug === 'home' ) {
-		return postListIcon;
-	}
-
-	if ( template?.slug === 'single' ) {
-		return postFeaturedImageIcon;
-	}
-
-	return layoutIcon;
-}
+import { getPostType } from '../../settings';
+import { __ } from '../../wordpress-packages';
 
 export const route = {
 	beforeLoad: ( { params } ) => {
@@ -83,39 +17,9 @@ export const route = {
 		return type?.menuName || type?.label || __( 'Content' );
 	},
 	async canvas( { params, search } ) {
+		// A Layouts tab shows the layout picked there in a site canvas.
 		if ( search.content === 'templates' ) {
-			const templateId = getSearchValue( search.postIds );
-			if ( ! templateId || ! getEditablePostType( 'wp_template' ) ) {
-				return null;
-			}
-
-			let template;
-			try {
-				template =
-					( await resolveSelect( coreDataStore ).getEntityRecord(
-						'postType',
-						'wp_template',
-						templateId,
-						{ context: 'edit' }
-					) ) || {};
-			} catch {
-				template = {};
-			}
-
-			return {
-				editLink: `/wp_template?postId=${ encodeURIComponent( templateId ) }`,
-				isPreview: true,
-				postId: templateId,
-				postType: 'wp_template',
-				previewCanEdit: true,
-				previewIcon: getTemplateIcon( template ),
-				previewLabel: getTemplateTitle( template, __( 'Pages' ) ),
-				previewStatus: template.status || 'publish',
-				previewStatusLabel: getPreviewStatusLabel(
-					template.status || 'publish'
-				),
-				previewTone: 'global',
-			};
+			return null;
 		}
 
 		// The table of all pages takes the whole width, like the lists under
