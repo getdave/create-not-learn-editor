@@ -73,6 +73,6 @@ Core's zoom-out is used for its zoom alone. Core can't scale the canvas without 
 | `use-block-rects.js` | Where those blocks are on screen, measured every frame, and scrolling the canvas to one. |
 | `section-styles.js` | The theme's section styles, as a section's colours. |
 
-A section's layouts come from `src/layouts/variants.js`: arrangements of the same content, for sections built from our layouts. Its colours are the theme's section styles. A header's or footer's designs are the theme's patterns for its area, applied as core's Design panel does.
+A section's layouts come from `src/layouts/variants/`: arrangements of the same content, worked out from the shape of the section's blocks, so they work for theme patterns as well as our layouts. Its colours are the theme's section styles. A header's or footer's designs are the theme's patterns for its area, applied as core's Design panel does.
 
 On the Pages screen, the sidebar's "On this page" list shows only in Compose, and points at and picks the same sections as the layer.
