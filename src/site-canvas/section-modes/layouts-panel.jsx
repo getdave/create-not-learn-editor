@@ -6,6 +6,11 @@
  *
  * Freeform hands the section to core's own block tools, Reset puts back how
  * the section was when the panel opened, and Done closes it.
+ *
+ * Dark and see-through, so it stands apart from the page under it: the
+ * design system's own dark theme, from a dark background seed, so its words,
+ * edges and buttons all follow. Its buttons are the design system's, which
+ * read the theme, where core's keep their light colours.
  */
 
 /**
@@ -37,6 +42,9 @@ import {
 	LegacyIcon,
 	serialize,
 	sprintf,
+	ThemeProvider,
+	UiButton,
+	UiIconButton,
 	useDispatch,
 	useSelect,
 } from '../../wordpress-packages';
@@ -44,6 +52,9 @@ import { usePartDesigns, useSectionVariations } from './use-variations';
 import { withSectionStyle } from '../compose/section-styles';
 
 const EMPTY_ARRAY = [];
+
+// The panel's dark theme seed, the editor's own dark grey.
+const PANEL_THEME = { color: { background: '#1e1e1e' } };
 
 // The most layouts a slide of the carousel holds.
 export const MAX_PER_SLIDE = 4;
@@ -179,28 +190,22 @@ function LayoutOptions( { current, onSelect, options } ) {
 		>
 			<div className="cnl-section-modes__carousel-row">
 				{ hasSlides && (
-					<button
-						aria-label={ __( 'Previous layouts' ) }
+					<UiIconButton
 						className="cnl-section-modes__carousel-arrow"
 						disabled={ shown === 0 }
+						icon={ isRTL() ? chevronRightIcon : chevronLeftIcon }
+						label={ __( 'Previous layouts' ) }
 						onClick={ () => setSlide( shown - 1 ) }
-						type="button"
-					>
-						<LegacyIcon
-							icon={
-								isRTL() ? chevronRightIcon : chevronLeftIcon
-							}
-							size={ 20 }
-						/>
-					</button>
+						size="compact"
+						tone="neutral"
+						variant="outline"
+					/>
 				) }
 				<div className="cnl-section-modes__carousel-viewport">
 					<div
 						className="cnl-section-modes__carousel-track"
 						style={ {
-							transform: `translateX(${
-								direction * shown * 100
-							}%)`,
+							transform: `translateX(${ direction * shown * 100 }%)`,
 						} }
 					>
 						{ slides.map( ( items, index ) => (
@@ -239,20 +244,16 @@ function LayoutOptions( { current, onSelect, options } ) {
 					</div>
 				</div>
 				{ hasSlides && (
-					<button
-						aria-label={ __( 'Next layouts' ) }
+					<UiIconButton
 						className="cnl-section-modes__carousel-arrow"
 						disabled={ shown === slides.length - 1 }
+						icon={ isRTL() ? chevronLeftIcon : chevronRightIcon }
+						label={ __( 'Next layouts' ) }
 						onClick={ () => setSlide( shown + 1 ) }
-						type="button"
-					>
-						<LegacyIcon
-							icon={
-								isRTL() ? chevronLeftIcon : chevronRightIcon
-							}
-							size={ 20 }
-						/>
-					</button>
+						size="compact"
+						tone="neutral"
+						variant="outline"
+					/>
 				) }
 			</div>
 			{ hasSlides && (
@@ -288,19 +289,19 @@ function LayoutOptions( { current, onSelect, options } ) {
  */
 function FreeformRow( { onFreeform } ) {
 	return (
-		<p className="cnl-section-modes__freeform">
+		<div className="cnl-section-modes__freeform">
 			{ __( 'Need more control?' ) }{ ' ' }
-			<button
+			<Button
 				className="cnl-section-modes__link"
-				onClick={ onFreeform }
-				title={ __(
+				description={ __(
 					'Move, resize and restyle the blocks in this section'
 				) }
-				type="button"
+				onClick={ onFreeform }
+				variant="link"
 			>
 				{ __( 'Edit freeform' ) }
-			</button>
-		</p>
+			</Button>
+		</div>
 	);
 }
 
@@ -462,7 +463,10 @@ function PartOptions( { onFreeform, part } ) {
 							'postType',
 							'wp_template_part',
 							part.id,
-							{ blocks, content: serialize( blocks ) }
+							{
+								blocks,
+								content: serialize( blocks ),
+							}
 						);
 					} }
 					options={ designs.options }
@@ -515,79 +519,85 @@ function LayoutsPanel(
 	ref
 ) {
 	return (
-		<div
-			aria-label={ sprintf(
-				/* translators: %s: section name. */
-				__( '%s design' ),
-				title
-			) }
-			className="cnl-section-modes__panel"
-			ref={ ref }
-			role="group"
-			style={ style }
-		>
-			<div className="cnl-section-modes__panel-head">
-				<span className="cnl-section-modes__panel-heading">
-					{ part ? __( 'Designs' ) : __( 'Layouts' ) }
-				</span>
-				<div className="cnl-section-modes__panel-actions">
-					{ removedCount > 0 && (
-						<button
-							className="cnl-section-modes__text-button is-accent"
-							onClick={ onRestore }
-							type="button"
-						>
-							{ sprintf(
-								/* translators: %d: number of items removed. */
-								__( 'Restore removed (%d)' ),
-								removedCount
-							) }
-						</button>
-					) }
-					<button
-						className="cnl-section-modes__text-button"
-						disabled={ ! canReset }
-						onClick={ onReset }
-						title={ __(
-							'Undo changes since you opened Edit design'
-						) }
-						type="button"
-					>
-						{ __( 'Reset' ) }
-					</button>
-					<button
-						className="cnl-section-modes__done"
-						onClick={ onDone }
-						type="button"
-					>
-						{ __( 'Done editing' ) }
-					</button>
-				</div>
-			</div>
-			{ part && (
-				<span className="cnl-section-modes__sitewide">
-					<LegacyIcon icon={ globeIcon } size={ 16 } />
-					{ sprintf(
-						/* translators: %s: header or footer, lowercase. */
-						__(
-							'You’re editing the %s on every page of your site'
-						),
-						title.toLowerCase()
-					) }
-				</span>
-			) }
-			<PerSlideContext.Provider value={ perSlide }>
-				{ part ? (
-					<PartOptions onFreeform={ onFreeform } part={ part } />
-				) : (
-					<SectionOptions
-						clientId={ clientId }
-						onFreeform={ onFreeform }
-						onReplace={ onReplace }
-					/>
+		<ThemeProvider { ...PANEL_THEME }>
+			<div
+				aria-label={ sprintf(
+					/* translators: %s: section name. */
+					__( '%s design' ),
+					title
 				) }
-			</PerSlideContext.Provider>
-		</div>
+				className="cnl-section-modes__panel"
+				ref={ ref }
+				role="group"
+				style={ style }
+			>
+				<div className="cnl-section-modes__panel-head">
+					<span className="cnl-section-modes__panel-heading">
+						{ part ? __( 'Designs' ) : __( 'Layouts' ) }
+					</span>
+					<div className="cnl-section-modes__panel-actions">
+						{ removedCount > 0 && (
+							<UiButton
+								className="cnl-section-modes__text-button"
+								onClick={ onRestore }
+								size="compact"
+								tone="neutral"
+								variant="outline"
+							>
+								{ sprintf(
+									/* translators: %d: number of items removed. */
+									__( 'Restore removed (%d)' ),
+									removedCount
+								) }
+							</UiButton>
+						) }
+						<UiButton
+							className="cnl-section-modes__text-button"
+							disabled={ ! canReset }
+							onClick={ onReset }
+							size="compact"
+							title={ __(
+								'Undo changes since you opened Edit design'
+							) }
+							tone="neutral"
+							variant="minimal"
+						>
+							{ __( 'Reset' ) }
+						</UiButton>
+						<UiButton
+							className="cnl-section-modes__done"
+							onClick={ onDone }
+							size="compact"
+						>
+							{ __( 'Done editing' ) }
+						</UiButton>
+					</div>
+				</div>
+				{ part && (
+					<span className="cnl-section-modes__sitewide">
+						<LegacyIcon icon={ globeIcon } size={ 16 } />
+						{ sprintf(
+							/* translators: %s: header or footer, lowercase. */
+							__(
+								'You’re editing the %s on every page of your site'
+							),
+							title.toLowerCase()
+						) }
+					</span>
+				) }
+				<PerSlideContext.Provider value={ perSlide }>
+					{ part ? (
+						<PartOptions onFreeform={ onFreeform } part={ part } />
+					) : (
+						<SectionOptions
+							clientId={ clientId }
+							onFreeform={ onFreeform }
+							onReplace={ onReplace }
+						/>
+					) }
+				</PerSlideContext.Provider>
+			</div>
+		</ThemeProvider>
 	);
 }
 
