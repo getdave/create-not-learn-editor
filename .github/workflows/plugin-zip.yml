@@ -3,9 +3,10 @@ name: Plugin zip
 # Builds an installable plugin zip on every push to trunk and attaches it to
 # the workflow run as an artifact.
 #
-# It also publishes the zip, the Mainstay theme and the demo site seed script
-# to the `playground-build` branch, which `demos/blueprint.json` installs
-# from. That is what keeps the README's Playground demo on the latest trunk.
+# It also publishes the zip, the Mainstay theme, the demo site seed script and
+# the Playground canvas fix to the `playground-build` branch, which
+# `demos/blueprint.json` installs from. That is what keeps the README's
+# Playground demo on the latest trunk.
 
 on:
   push:
@@ -86,7 +87,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir playground-build
-          cp "$ZIP_NAME" scripts/demo-site/seed.php playground-build/
+          cp "$ZIP_NAME" scripts/demo-site/seed.php demos/playground-canvas-fix.php playground-build/
           (cd themes && zip -qr ../playground-build/mainstay.zip mainstay)
           cat > playground-build/README.md <<EOF
           # Playground build
