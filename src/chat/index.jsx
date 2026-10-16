@@ -24,6 +24,7 @@ import {
 	useEffect,
 	useLayoutEffect,
 	useRef,
+	useState,
 } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import {
@@ -51,6 +52,9 @@ import {
 	savePlacement,
 	useChat,
 } from './store';
+
+// How long the prompt at the foot of a screen shows the chat starting up.
+const OPENING_MS = 650;
 
 // Set on the page while the chat is open, so the canvas makes room for it.
 const OPEN_CLASS = 'cnl-chat-is-open';
@@ -279,6 +283,70 @@ export function ChatToggle() {
 }
 
 /**
+ * A quiet way in to the chat at the foot of each screen, for those who
+ * haven't spotted the button in the top bar. Hidden while the chat is open.
+ *
+ * @return {?Element} The prompt.
+ */
+function StageHelp() {
+	const { isOpen } = useChat();
+	const [ isOpening, setIsOpening ] = useState( false );
+
+	// Ready to open again once the chat has been closed.
+	useEffect( () => {
+		if ( ! isOpen ) {
+			setIsOpening( false );
+		}
+	}, [ isOpen ] );
+
+	if ( isOpen ) {
+		return null;
+	}
+
+	/*
+	 * A moment of starting up before the chat opens, so the click reads as
+	 * the assistant getting ready rather than a panel swapping in.
+	 */
+	const open = () => {
+		if ( isOpening ) {
+			return;
+		}
+
+		setIsOpening( true );
+		window.setTimeout( () => chatActions().setOpen( true ), OPENING_MS );
+	};
+
+	return (
+		<ThemeProvider color={ getSurfaceColors() }>
+			<button
+				aria-busy={ isOpening || undefined }
+				className={ `cnl-stage-help${
+					isOpening ? ' is-opening' : ''
+				}` }
+				onClick={ open }
+				type="button"
+			>
+				<span aria-hidden className="cnl-stage-help__icon">
+					<Icon icon={ sparkleIcon } size={ 16 } />
+				</span>
+				<span className="cnl-stage-help__text" role="status">
+					{ isOpening ? (
+						__( 'Opening the assistant…' )
+					) : (
+						<>
+							<span className="cnl-stage-help__title">
+								{ __( 'Need help?' ) }
+							</span>{ ' ' }
+							{ __( 'Try the assistant for common tasks.' ) }
+						</>
+					) }
+				</span>
+			</button>
+		</ThemeProvider>
+	);
+}
+
+/**
  * Add the chat to boot's layout: into the stage, or beside the canvas.
  *
  * In the stage, the chat is added to boot's stage element, and the screen
@@ -293,13 +361,22 @@ export function mountChat() {
 	container.className = 'cnl-chat-host';
 	createRoot( container ).render( <ChatPanel /> );
 
+	const help = document.createElement( 'div' );
+	help.className = 'cnl-stage-help-host';
+	createRoot( help ).render( <StageHelp /> );
+
 	let isScheduled = false;
 	const place = () => {
 		isScheduled = false;
 
-		const stage =
-			getChat().getPlacement() === PLACEMENT_STAGE &&
-			document.querySelector( STAGE );
+		const anyStage = document.querySelector( STAGE );
+
+		// The way in to the chat, at the foot of every screen.
+		if ( anyStage && help.parentElement !== anyStage ) {
+			anyStage.append( help );
+		}
+
+		const stage = getChat().getPlacement() === PLACEMENT_STAGE && anyStage;
 
 		if ( stage ) {
 			if ( container.parentElement !== stage ) {

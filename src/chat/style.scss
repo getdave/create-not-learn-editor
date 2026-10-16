@@ -54,6 +54,121 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 }
 
 /*
+ * The way in to the chat at the foot of each screen, placed in boot's stage
+ * by `mountChat()`. The stage lays its screen and the prompt out in a
+ * column: a short screen stretches to push the prompt to the bottom, and a
+ * long one scrolls with the prompt after it. Screens built on admin-ui's
+ * `Page`, which fill the stage, size to their content instead, so the prompt
+ * follows them rather than hiding under them.
+ */
+.cnl-stage-help-host {
+	display: none;
+}
+
+@media (min-width: 782px) {
+
+	#{$layout} [class*="__stage"]:has(> .cnl-stage-help-host .cnl-stage-help) {
+		display: flex;
+		flex-direction: column;
+
+		> [class*="__wrapper"] > * {
+			flex: 1 0 auto;
+		}
+
+		> [class*="__wrapper"] > .admin-ui-navigable-region {
+			height: auto;
+		}
+
+		> .cnl-stage-help-host {
+			display: block;
+			flex: none;
+			padding: 0 var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-lg);
+		}
+	}
+}
+
+.cnl-stage-help {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-sm);
+	box-sizing: border-box;
+	width: 100%;
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-lg);
+	background: var(--wpds-color-background-surface-neutral-strong);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--wpds-typography-font-size-sm);
+	line-height: 1.4;
+	text-align: start;
+	transition: border-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+
+	&:hover {
+		border-color: $accent;
+		color: var(--wpds-color-foreground-content-neutral);
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: 1px;
+	}
+}
+
+.cnl-stage-help__icon {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: $assistant-gradient;
+	color: #fff;
+}
+
+// Starting up: the sparkle turns and glows while the chat opens.
+.cnl-stage-help.is-opening {
+	border-color: $accent;
+	color: var(--wpds-color-foreground-content-neutral);
+	cursor: progress;
+
+	.cnl-stage-help__icon {
+		animation: cnl-chat-starting 0.9s var(--wpds-motion-easing-balanced) infinite;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+
+		.cnl-stage-help__icon {
+			animation: none;
+		}
+	}
+}
+
+@keyframes cnl-chat-starting {
+
+	0% {
+		box-shadow: 0 0 0 0 color-mix(in srgb, #{$accent} 45%, transparent);
+		transform: rotate(0deg) scale(1);
+	}
+
+	50% {
+		transform: rotate(180deg) scale(1.15);
+	}
+
+	100% {
+		box-shadow: 0 0 0 8px color-mix(in srgb, #{$accent} 0%, transparent);
+		transform: rotate(360deg) scale(1);
+	}
+}
+
+.cnl-stage-help__title {
+	color: var(--wpds-color-foreground-content-neutral);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+/*
  * The button in the top bar, light on its dark frame.
  */
 .cnl-top-bar .components-button.cnl-chat-toggle {
@@ -154,6 +269,58 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	gap: var(--wpds-dimension-gap-md);
 	padding: 40px var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-lg);
 	text-align: center;
+}
+
+/*
+ * The greeting arrives in steps as the chat opens: the sparkle, then the
+ * words, then each suggestion.
+ */
+.cnl-chat-empty > *,
+.cnl-chat-suggestions.is-large > * {
+	animation: cnl-chat-arrive 0.35s var(--wpds-motion-easing-balanced) both;
+
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+
+.cnl-chat-empty > :nth-child(2) {
+	animation-delay: 0.08s;
+}
+
+.cnl-chat-empty > :nth-child(3) {
+	animation-delay: 0.14s;
+}
+
+.cnl-chat-empty > :nth-child(4) {
+	animation-delay: 0.2s;
+}
+
+@for $i from 1 through 10 {
+
+	.cnl-chat-suggestions.is-large > :nth-child(#{$i}) {
+		animation-delay: 0.2s + $i * 0.04s;
+	}
+}
+
+.cnl-chat-empty__icon {
+	animation-name: cnl-chat-arrive-icon;
+}
+
+@keyframes cnl-chat-arrive {
+
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+}
+
+@keyframes cnl-chat-arrive-icon {
+
+	from {
+		opacity: 0;
+		transform: scale(0.6) rotate(-30deg);
+	}
 }
 
 .cnl-chat-empty__icon {
@@ -780,14 +947,15 @@ $ring-room: 6px;
 	min-height: 48px;
 	max-height: 200px;
 	margin: 0;
-	padding: 12px 52px 12px 16px;
+	// With the line height, makes the box's 48px, so one line sits centred.
+	padding: 14px 52px 14px 16px;
 	border: 0;
 	border-radius: 20px;
 	background: transparent;
 	color: inherit;
 	font: inherit;
 	font-size: var(--wpds-typography-font-size-md);
-	line-height: 1.5;
+	line-height: 20px;
 	resize: none;
 
 	&:focus {
