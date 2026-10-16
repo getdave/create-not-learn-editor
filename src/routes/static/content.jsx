@@ -1,6 +1,7 @@
 /**
  * Internal dependencies
  */
+import { withCanvasRecovery } from '../../canvas-recovery';
 import { withUiTheme } from '../../theme';
 import { getCurrentEditorPath, getStaticScreen } from './screens';
 import { SiteIdentityCanvas, SiteIdentityStage } from './identity';
@@ -114,4 +115,4 @@ function Canvas() {
 }
 
 export const stage = withUiTheme( Stage );
-export const canvas = withUiTheme( Canvas );
+export const canvas = withCanvasRecovery( withUiTheme( Canvas ) );

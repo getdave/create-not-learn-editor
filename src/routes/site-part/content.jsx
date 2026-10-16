@@ -30,6 +30,7 @@ import {
 	useSiteCanvas,
 } from '../../site-canvas';
 import { LOCKED_PART_CONTENT_SETTING } from '../../site-canvas/constants';
+import { withCanvasRecovery } from '../../canvas-recovery';
 import { withUiTheme } from '../../theme';
 import { getPatternTitle } from '../content/page-layouts';
 import { useMenuItemsEditor } from '../navigation-edit/menu-items-editor';
@@ -731,6 +732,10 @@ function createCanvas( area ) {
 }
 
 export const headerStage = withUiTheme( createStage( 'header' ) );
-export const headerCanvas = withUiTheme( createCanvas( 'header' ) );
+export const headerCanvas = withCanvasRecovery(
+	withUiTheme( createCanvas( 'header' ) )
+);
 export const footerStage = withUiTheme( createStage( 'footer' ) );
-export const footerCanvas = withUiTheme( createCanvas( 'footer' ) );
+export const footerCanvas = withCanvasRecovery(
+	withUiTheme( createCanvas( 'footer' ) )
+);
