@@ -40,6 +40,14 @@ describe( 'matchRequest', () => {
 		[ 'hi, change my colours', 'colors' ],
 		[ 'thanks!', 'thanks' ],
 		[ 'undo that', 'undo' ],
+		[ 'exit', 'exit' ],
+		[ 'Close', 'exit' ],
+		[ 'close the assistant', 'exit' ],
+		[ 'quit please', 'exit' ],
+		[ "I'm done", 'exit' ],
+		[ "that's all, thanks", 'exit' ],
+		[ 'thanks!', 'thanks' ],
+		[ 'close my footer', 'footer' ],
 	] )( '"%s" asks for %s', ( text, skill ) => {
 		expect( matchRequest( text )?.skill ).toBe( skill );
 	} );

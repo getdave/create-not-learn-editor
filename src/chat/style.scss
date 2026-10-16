@@ -276,7 +276,9 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
  * words, then each suggestion.
  */
 .cnl-chat-empty > *,
-.cnl-chat-suggestions.is-large > * {
+.cnl-chat-suggestions.is-large .cnl-chat-suggestions__heading,
+.cnl-chat-suggestions.is-large .cnl-chat-suggestions__options,
+.cnl-chat-suggestions.is-large .cnl-chat-suggestions__group {
 	animation: cnl-chat-arrive 0.35s var(--wpds-motion-easing-balanced) both;
 
 	@media (prefers-reduced-motion: reduce) {
@@ -296,10 +298,10 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	animation-delay: 0.2s;
 }
 
-@for $i from 1 through 10 {
+@for $i from 1 through 6 {
 
-	.cnl-chat-suggestions.is-large > :nth-child(#{$i}) {
-		animation-delay: 0.2s + $i * 0.04s;
+	.cnl-chat-suggestions.is-large .cnl-chat-suggestions__group:nth-child(#{$i}) {
+		animation-delay: 0.2s + $i * 0.05s;
 	}
 }
 
@@ -347,18 +349,171 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 }
 
 /*
- * Things to ask for.
+ * Things to ask for: about the page being worked on, then across the site in
+ * groups by the kind of task. Picking a kind shows what is in it, in place
+ * of the rest.
  */
 .cnl-chat-suggestions {
 	display: flex;
+	flex-direction: column;
+	align-self: stretch;
+	gap: var(--wpds-dimension-gap-lg);
+	text-align: start;
+}
+
+.cnl-chat-suggestions__section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-sm);
+}
+
+.cnl-chat-suggestions__heading {
+	margin: 0;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-xs);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.cnl-chat-suggestions__groups {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-sm);
+}
+
+.cnl-chat-suggestions__group {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-md);
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: 12px;
+	background: var(--wpds-color-background-surface-neutral-strong);
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+	text-align: start;
+	transition: border-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+
+	&:hover {
+		border-color: $accent;
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: 1px;
+	}
+
+	.cnl-chat-suggestions:not(.is-large) & {
+		padding: 8px 10px;
+	}
+}
+
+.cnl-chat-suggestions__group-icon {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	background: color-mix(in srgb, #{$accent} 8%, var(--wpds-color-background-surface-neutral-strong));
+	color: $accent;
+
+	svg {
+		fill: currentcolor;
+	}
+
+	.cnl-chat-suggestions:not(.is-large) & {
+		width: 28px;
+		height: 28px;
+	}
+}
+
+.cnl-chat-suggestions__group-text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.cnl-chat-suggestions__group-label {
+	font-size: var(--wpds-typography-font-size-md);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.cnl-chat-suggestions__group-hint {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+}
+
+.cnl-chat-suggestions__group-chevron {
+	flex: 0 0 auto;
+	fill: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+// The way back from a kind of task to all of them.
+.cnl-chat-suggestions__back {
+	display: inline-flex;
+	align-items: center;
+	align-self: flex-start;
+	gap: 2px;
+	margin-inline-start: -6px;
+	padding: 4px 8px 4px 2px;
+	border: 0;
+	border-radius: var(--wpds-border-radius-md);
+	background: transparent;
+	color: var(--wpds-color-foreground-content-neutral);
+	cursor: pointer;
+	font: inherit;
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+
+	svg {
+		fill: currentcolor;
+	}
+
+	&:hover {
+		background: var(--wpds-color-background-surface-neutral-weak);
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+	}
+}
+
+.cnl-chat-suggestions__options {
+	display: flex;
 	flex-wrap: wrap;
 	gap: var(--wpds-dimension-gap-sm);
+}
 
-	&.is-large {
+// What is in a kind of task, as roomy rows, sliding in from the side.
+.cnl-chat-suggestions__section.is-open {
+	animation: cnl-chat-reveal 0.25s var(--wpds-motion-easing-balanced) both;
+
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+
+	.cnl-chat-suggestions__options {
 		flex-direction: column;
-		flex-wrap: nowrap;
-		align-self: stretch;
-		margin: 0;
+	}
+
+	.cnl-chat-suggestions__item {
+		padding: 10px 14px 10px 12px;
+		border-radius: 12px;
+		font-size: var(--wpds-typography-font-size-md);
+		text-align: start;
+	}
+}
+
+@keyframes cnl-chat-reveal {
+
+	from {
+		opacity: 0;
+		transform: translateX(12px);
 	}
 }
 
@@ -391,13 +546,6 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	&:focus-visible {
 		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
 		outline-offset: 1px;
-	}
-
-	.is-large & {
-		padding: 10px 14px 10px 12px;
-		border-radius: 12px;
-		font-size: var(--wpds-typography-font-size-md);
-		text-align: start;
 	}
 }
 
@@ -680,18 +828,14 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	background: var(--wpds-color-background-surface-neutral-weak);
 }
 
-// The way on to the screen the picker comes from, there for those who want it.
-.components-button.cnl-chat-widget__open {
-	gap: 4px;
-	font-size: var(--wpds-typography-font-size-sm);
-	text-decoration: none;
+// Under a picker, the screen it comes from, for those who want it.
+.cnl-chat-widget__elsewhere {
+	margin: calc(var(--wpds-dimension-gap-md) * -1 + 6px) 0 0;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-xs);
 
-	&:hover {
-		text-decoration: underline;
-	}
-
-	svg {
-		fill: currentcolor;
+	.components-button.is-link {
+		font-size: inherit;
 	}
 }
 

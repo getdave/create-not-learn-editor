@@ -13,8 +13,8 @@
  */
 import { store as coreDataStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
-import { useMemo } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { useMemo, useRef } from '@wordpress/element';
+import { __, sprintf } from '@wordpress/i18n';
 import {
 	check as checkIcon,
 	chevronLeft as chevronLeftIcon,
@@ -70,9 +70,9 @@ export function PageLayoutPreviewPlaceholder() {
 }
 
 /*
- * The preview scrolls independently, so the choose action is a button in the
- * card footer rather than the whole card. That keeps the scroll region and the
- * click target from competing.
+ * The whole card picks the design. The preview scrolls on its own, so the
+ * layer over it that takes the click hands the wheel on to it, and the
+ * preview still scrolls under the pointer.
  */
 export function PageLayoutCard( {
 	isSelected = false,
@@ -81,6 +81,7 @@ export function PageLayoutCard( {
 	pattern,
 	Preview,
 } ) {
+	const scrollerRef = useRef();
 	const previewContent = getPatternPreviewContent(
 		pattern,
 		pageTemplateContent
@@ -96,7 +97,10 @@ export function PageLayoutCard( {
 			title={ description || undefined }
 		>
 			<div className="cnl-design-picker__preview cnl-add-page-layout-card__preview">
-				<div className="cnl-add-page-layout-preview-page">
+				<div
+					className="cnl-add-page-layout-preview-page"
+					ref={ scrollerRef }
+				>
 					{ previewContent && Preview ? (
 						<Preview
 							content={ previewContent }
@@ -107,6 +111,24 @@ export function PageLayoutCard( {
 						<PageLayoutPreviewPlaceholder />
 					) }
 				</div>
+				<button
+					aria-label={ sprintf(
+						/* translators: %s: page design name. */
+						__( 'Use the “%s” design' ),
+						title
+					) }
+					aria-pressed={ isSelected || undefined }
+					className="cnl-add-page-layout-card__pick"
+					onClick={ () => onSelect( pattern ) }
+					onWheel={ ( event ) => {
+						scrollerRef.current?.scrollBy( {
+							left: event.deltaX,
+							top: event.deltaY,
+						} );
+					} }
+					tabIndex={ -1 }
+					type="button"
+				/>
 			</div>
 			<div className="cnl-design-picker__card-footer">
 				<span className="cnl-design-picker__name">{ title }</span>

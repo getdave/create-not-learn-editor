@@ -439,10 +439,31 @@ export function openScreen( { path, search } ) {
  * Run one of a reply's buttons.
  *
  * @param {string} action Action name.
+ * @param {string} id     The message the button is on.
  */
-export function runAction( action ) {
+export function runAction( action, id ) {
 	if ( action === 'open-pages' ) {
 		openRoute( '/types/page/list/all' );
+		return;
+	}
+
+	// Answered, so the buttons go.
+	update( id, { actions: null } );
+
+	if ( action === 'close-assistant' ) {
+		cancelPending();
+		openRoute( '/' );
+		chatActions().setOpen( false );
+		return;
+	}
+
+	if ( action === 'stay' ) {
+		addMessage( {
+			offersNext: true,
+			role: 'assistant',
+			status: 'streaming',
+			text: __( 'No problem, I’m still here.' ),
+		} );
 	}
 }
 

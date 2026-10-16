@@ -21,6 +21,10 @@ const RULES = [
 		skill: 'undo',
 		test: /^\s*(undo|undo (that|it)|put it back|change it back|revert( (that|it))?|go back)\b/i,
 	},
+	{
+		skill: 'exit',
+		test: /^\s*(?:please\s+)?(?:exit|close|quit|leave|stop|bye|goodbye|good bye|i'?m done|i am done|that'?s all|that is all|all done|finish|finished|end|(?:close|exit|quit|leave|hide|end)\s+(?:the\s+|this\s+)?(?:assistant|chat|ai))(?:[,\s]+(?:please|now|thanks|thank you))?[\s!.]*$/i,
+	},
 	{ skill: 'add-section', test: /\bsections?\b/i },
 	{
 		skill: 'menu',

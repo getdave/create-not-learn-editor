@@ -8,12 +8,17 @@
 import { Button } from '@wordpress/components';
 import { store as coreDataStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
-import { useEffect, useLayoutEffect, useRef } from '@wordpress/element';
+import {
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from '@wordpress/element';
 import { __, isRTL } from '@wordpress/i18n';
 import {
-	arrowLeft as arrowLeftIcon,
-	arrowRight as arrowRightIcon,
 	check as checkIcon,
+	chevronLeft as chevronLeftIcon,
+	chevronRight as chevronRightIcon,
 	color as colorIcon,
 	footer as footerIcon,
 	header as headerIcon,
@@ -44,7 +49,8 @@ import {
 	undoChange,
 } from './conversation';
 import { sparkleIcon } from './icons';
-import { SKILLS, SUGGESTIONS } from './skills';
+import { PAGE_SUGGESTIONS, SKILLS, SUGGESTION_GROUPS } from './skills';
+import { findTargetPage } from './target-page';
 import { STORE_NAME } from './store';
 import { StreamingText } from './streaming-text';
 
@@ -62,51 +68,161 @@ const SUGGESTION_ICONS = {
 };
 
 const ACTION_LABELS = {
+	'close-assistant': __( 'Close assistant' ),
 	'open-pages': __( 'Go to Pages' ),
+	stay: __( 'Stay here' ),
 };
 
+// The answer most asked for leads.
+const PRIMARY_ACTIONS = [ 'close-assistant' ];
+
+function getText( suggestion ) {
+	return typeof suggestion.text === 'function'
+		? suggestion.text()
+		: suggestion.text;
+}
+
+function SuggestionButton( { suggestion } ) {
+	const text = getText( suggestion );
+
+	return (
+		<button
+			className="cnl-chat-suggestions__item"
+			onClick={ () => sendMessage( text ) }
+			type="button"
+		>
+			<Icon icon={ SUGGESTION_ICONS[ suggestion.icon ] } size={ 20 } />
+			{ text }
+		</button>
+	);
+}
+
+/*
+ * A kind of task. Picking it shows what can be asked for in it, in place of
+ * the other kinds; a kind with one thing in it asks for it straight away.
+ */
+function SuggestionGroup( { group, onOpen } ) {
+	const isSingle = group.suggestions.length === 1;
+
+	return (
+		<button
+			className="cnl-chat-suggestions__group"
+			onClick={ () =>
+				isSingle
+					? sendMessage( getText( group.suggestions[ 0 ] ) )
+					: onOpen()
+			}
+			type="button"
+		>
+			<span aria-hidden className="cnl-chat-suggestions__group-icon">
+				<Icon icon={ SUGGESTION_ICONS[ group.icon ] } size={ 20 } />
+			</span>
+			<span className="cnl-chat-suggestions__group-text">
+				<span className="cnl-chat-suggestions__group-label">
+					{ group.label }
+				</span>
+				<span className="cnl-chat-suggestions__group-hint">
+					{ group.hint }
+				</span>
+			</span>
+			<Icon
+				className="cnl-chat-suggestions__group-chevron"
+				icon={ isRTL() ? chevronLeftIcon : chevronRightIcon }
+				size={ 20 }
+			/>
+		</button>
+	);
+}
+
 /**
- * Things to ask for, as buttons that ask.
+ * Things to ask for: about the page being worked on, if there is one, and
+ * across the site, grouped by the kind of task. Picking a kind shows what is
+ * in it, with a way back to the rest.
  *
  * @param {Object}  props         Component props.
- * @param {boolean} props.isLarge Whether to show them as a list, as the
- *                                empty conversation does.
+ * @param {boolean} props.isLarge Whether to show them roomily, as the empty
+ *                                conversation does.
  * @return {Element} The suggestions.
  */
 export function Suggestions( { isLarge = false } ) {
-	// Some suggestions depend on the site, like adding or changing a logo.
-	useSelect(
-		( select ) =>
-			select( coreDataStore ).getEntityRecord( 'root', 'site' )
-				?.site_logo,
-		[]
+	const [ openId, setOpenId ] = useState( null );
+	const pageId = useSelect( ( select ) => {
+		// Some suggestions depend on the site, like adding or changing a logo.
+		select( coreDataStore ).getEntityRecord( 'root', 'site' );
+
+		return findTargetPage( select )?.id;
+	}, [] );
+	const openGroup = SUGGESTION_GROUPS.find(
+		( group ) => group.id === openId
 	);
+	const className = `cnl-chat-suggestions${ isLarge ? ' is-large' : '' }`;
 
-	return (
-		<div
-			className={ `cnl-chat-suggestions${ isLarge ? ' is-large' : '' }` }
-		>
-			{ SUGGESTIONS.map( ( suggestion ) => {
-				const text =
-					typeof suggestion.text === 'function'
-						? suggestion.text()
-						: suggestion.text;
-
-				return (
+	if ( openGroup ) {
+		return (
+			<div className={ className }>
+				<section
+					className="cnl-chat-suggestions__section is-open"
+					key={ openGroup.id }
+				>
 					<button
-						className="cnl-chat-suggestions__item"
-						key={ suggestion.icon }
-						onClick={ () => sendMessage( text ) }
+						className="cnl-chat-suggestions__back"
+						onClick={ () => setOpenId( null ) }
 						type="button"
 					>
 						<Icon
-							icon={ SUGGESTION_ICONS[ suggestion.icon ] }
+							icon={
+								isRTL() ? chevronRightIcon : chevronLeftIcon
+							}
 							size={ 20 }
 						/>
-						{ text }
+						{ openGroup.label }
 					</button>
-				);
-			} ) }
+					<div className="cnl-chat-suggestions__options">
+						{ openGroup.suggestions.map( ( suggestion ) => (
+							<SuggestionButton
+								key={ suggestion.icon }
+								suggestion={ suggestion }
+							/>
+						) ) }
+					</div>
+				</section>
+			</div>
+		);
+	}
+
+	return (
+		<div className={ className }>
+			{ pageId && (
+				<section className="cnl-chat-suggestions__section">
+					<h3 className="cnl-chat-suggestions__heading">
+						{ __( 'On this page' ) }
+					</h3>
+					<div className="cnl-chat-suggestions__options">
+						{ PAGE_SUGGESTIONS.map( ( suggestion ) => (
+							<SuggestionButton
+								key={ suggestion.icon }
+								suggestion={ suggestion }
+							/>
+						) ) }
+					</div>
+				</section>
+			) }
+			<section className="cnl-chat-suggestions__section">
+				{ pageId && (
+					<h3 className="cnl-chat-suggestions__heading">
+						{ __( 'Across your site' ) }
+					</h3>
+				) }
+				<div className="cnl-chat-suggestions__groups">
+					{ SUGGESTION_GROUPS.map( ( group ) => (
+						<SuggestionGroup
+							group={ group }
+							key={ group.id }
+							onOpen={ () => setOpenId( group.id ) }
+						/>
+					) ) }
+				</div>
+			</section>
 		</div>
 	);
 }
@@ -176,6 +292,11 @@ function Widget( { message, scrollRef } ) {
 	}, [ entity ] );
 
 	const widgetRef = useRef();
+	/*
+	 * A picker that takes more than one step, like naming a page before
+	 * picking its design, sets the footer's button for the step it is on.
+	 */
+	const [ step, setStep ] = useState( null );
 
 	/*
 	 * Once saved, the picker folds away: from its height to none, which CSS
@@ -213,6 +334,7 @@ function Widget( { message, scrollRef } ) {
 						onPick={ ( label, payload ) =>
 							pick( message.id, label, payload )
 						}
+						onStep={ setStep }
 						scrollRef={ scrollRef }
 					/>
 				) : (
@@ -222,19 +344,43 @@ function Widget( { message, scrollRef } ) {
 				) }
 			</div>
 			{ isReady && ( skill.hasFooter?.( message.params ) ?? true ) && (
-				<WidgetFooter message={ message } skill={ skill } />
+				<WidgetFooter
+					message={ message }
+					skill={ skill }
+					step={ step }
+				/>
 			) }
 		</div>
 	);
 }
 
 /*
- * Under a picker: the button that keeps a pick, and a way on to the screen
- * with the same controls and more. The button shows from the start, waiting,
+ * Under a picker: the screen it comes from, for anyone who wants that
+ * screen's fuller controls. Following it closes the chat.
+ */
+function ScreenLink( { message, skill } ) {
+	const screen = skill.screen?.( message );
+
+	if ( ! screen || message.saveState ) {
+		return null;
+	}
+
+	return (
+		<p className="cnl-chat-widget__elsewhere">
+			{ __( 'Or do this in' ) }{ ' ' }
+			<Button onClick={ () => openScreen( screen ) } variant="link">
+				{ screen.name }
+			</Button>
+		</p>
+	);
+}
+
+/*
+ * Under a picker: the button that keeps a pick. The button shows from the start, waiting,
  * so the way to keep a pick is clear before one is made. Keeping it, the
  * button says it is saving, then saved, before the picker folds away.
  */
-function WidgetFooter( { message, skill } ) {
+function WidgetFooter( { message, skill, step } ) {
 	const pending = useSelect(
 		( select ) => select( STORE_NAME ).getPending(),
 		[]
@@ -243,7 +389,6 @@ function WidgetFooter( { message, skill } ) {
 	const isPicked = pending?.messageId === message.id;
 	const isSaving = saveState === 'saving';
 	const isSaved = saveState === 'saved' || saveState === 'closing';
-	const screen = skill.screen?.( message );
 	let status = null;
 	let label = isPicked ? skill.action( pending ) : skill.action();
 
@@ -277,19 +422,6 @@ function WidgetFooter( { message, skill } ) {
 			<span className="cnl-chat-widget__status" role="status">
 				{ status }
 			</span>
-			{ ! status && screen && (
-				<Button
-					className="cnl-chat-widget__open"
-					onClick={ () => openScreen( screen ) }
-					variant="link"
-				>
-					{ screen.label }
-					<Icon
-						icon={ isRTL() ? arrowLeftIcon : arrowRightIcon }
-						size={ 16 }
-					/>
-				</Button>
-			) }
 			<div className="cnl-chat-widget__buttons">
 				{ isPicked && ! saveState && (
 					<Button
@@ -300,18 +432,31 @@ function WidgetFooter( { message, skill } ) {
 						{ __( 'Cancel' ) }
 					</Button>
 				) }
-				<Button
-					__next40pxDefaultSize
-					accessibleWhenDisabled
-					className="cnl-chat-widget__keep"
-					disabled={
-						( ! isPicked && ! saveState ) || isSaving || isSaved
-					}
-					onClick={ commitPending }
-					variant="primary"
-				>
-					{ label }
-				</Button>
+				{ step && ! isPicked && ! saveState ? (
+					<Button
+						__next40pxDefaultSize
+						accessibleWhenDisabled
+						className="cnl-chat-widget__keep"
+						disabled={ step.disabled }
+						onClick={ step.onClick }
+						variant="primary"
+					>
+						{ step.label }
+					</Button>
+				) : (
+					<Button
+						__next40pxDefaultSize
+						accessibleWhenDisabled
+						className="cnl-chat-widget__keep"
+						disabled={
+							( ! isPicked && ! saveState ) || isSaving || isSaved
+						}
+						onClick={ commitPending }
+						variant="primary"
+					>
+						{ label }
+					</Button>
+				) }
 			</div>
 		</div>
 	);
@@ -358,9 +503,15 @@ function AssistantMessage( { isLast, message, scrollRef } ) {
 							{ message.actions.map( ( action ) => (
 								<Button
 									key={ action }
-									onClick={ () => runAction( action ) }
+									onClick={ () =>
+										runAction( action, message.id )
+									}
 									size="compact"
-									variant="secondary"
+									variant={
+										PRIMARY_ACTIONS.includes( action )
+											? 'primary'
+											: 'secondary'
+									}
 								>
 									{ ACTION_LABELS[ action ] }
 								</Button>
@@ -389,7 +540,13 @@ function AssistantMessage( { isLast, message, scrollRef } ) {
 				</div>
 			</div>
 			{ message.hasWidget && message.status === 'ready' && (
-				<Widget message={ message } scrollRef={ scrollRef } />
+				<>
+					<Widget message={ message } scrollRef={ scrollRef } />
+					<ScreenLink
+						message={ message }
+						skill={ SKILLS[ message.skillId ] }
+					/>
+				</>
 			) }
 			{ isSettled && message.suggestions && <Suggestions /> }
 			{ isSettled && isLast && message.offersNext && (

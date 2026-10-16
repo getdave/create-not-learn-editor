@@ -18,7 +18,7 @@
  * - `action( pending )`: the button under the picker that keeps a pick,
  *   named for what it does.
  * - `screen( message )`: the screen with the same controls and more, as
- *   `{ label, path, search }`, offered beside that button.
+ *   `{ name, path, search }`, offered under the picker.
  * - `chip`, `request` and `done`: how a pick reads, as the message that keeps
  *   it, and once saved.
  * - `hasFooter( params )`: whether the picker has that button, when that
@@ -356,16 +356,28 @@ function ShowAllDesigns( { more, onClick } ) {
 
 /*
  * Naming a page comes first, on its own, so the designs offered can suit it:
- * a "Contact" page leads with contact designs.
+ * a "Contact" page leads with contact designs. The picker's own button goes
+ * on to the designs, as `onStep` sets it.
  */
-function PageNameStep( { onContinue, title, setTitle } ) {
+function PageNameStep( { onContinue, onStep, title, setTitle } ) {
+	const canContinue = !! title.trim();
+
+	useEffect( () => {
+		onStep( {
+			disabled: ! canContinue,
+			label: __( 'Show designs' ),
+			onClick: onContinue,
+		} );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ canContinue, title ] );
+
 	return (
 		<form
 			className="cnl-chat-widget__stack"
 			onSubmit={ ( event ) => {
 				event.preventDefault();
 
-				if ( title.trim() ) {
+				if ( canContinue ) {
 					onContinue();
 				}
 			} }
@@ -377,20 +389,11 @@ function PageNameStep( { onContinue, title, setTitle } ) {
 				placeholder={ __( 'For example, Contact' ) }
 				value={ title }
 			/>
-			<Button
-				__next40pxDefaultSize
-				accessibleWhenDisabled
-				disabled={ ! title.trim() }
-				type="submit"
-				variant="primary"
-			>
-				{ __( 'Show designs' ) }
-			</Button>
 		</form>
 	);
 }
 
-function PageWidget( { message, onPick } ) {
+function PageWidget( { message, onPick, onStep } ) {
 	const Preview = useLazyPreview();
 	const { isResolving, patterns } = usePageLayoutPatterns();
 	const [ title, setTitle ] = useState( message.params?.title || '' );
@@ -411,7 +414,9 @@ function PageWidget( { message, onPick } ) {
 	if ( isNaming ) {
 		return (
 			<PageNameStep
+				onStep={ onStep }
 				onContinue={ () => {
+					onStep( null );
 					setIsNaming( false );
 					setRankedFor( name );
 
@@ -674,26 +679,66 @@ export function getSectionsReply( search, pageTitle ) {
 			);
 }
 
-export const SUGGESTIONS = [
-	{ text: __( 'Change my colors' ), icon: 'color' },
-	{ text: __( 'Try a new look' ), icon: 'styles' },
-	{ text: __( 'Pick new fonts' ), icon: 'typography' },
-	{ text: __( 'Change site title' ), icon: 'siteTitle' },
+/*
+ * What to ask for, in groups by the kind of task, so the first thing seen
+ * is a short list. A group with one thing in it is that thing.
+ */
+export const SUGGESTION_GROUPS = [
 	{
-		text: () =>
-			hasSavedLogo() ? __( 'Change site logo' ) : __( 'Add a logo' ),
-		icon: 'siteLogo',
+		id: 'style',
+		label: __( 'Colors & fonts' ),
+		hint: __( 'A new look, colors or fonts' ),
+		icon: 'styles',
+		suggestions: [
+			{ text: __( 'Try a new look' ), icon: 'styles' },
+			{ text: __( 'Change my colors' ), icon: 'color' },
+			{ text: __( 'Pick new fonts' ), icon: 'typography' },
+		],
 	},
-	{ text: __( 'Change my header' ), icon: 'header' },
-	{ text: __( 'Change my footer' ), icon: 'footer' },
-	{ text: __( 'Change my menu' ), icon: 'navigation' },
-	{ text: __( 'Add a page' ), icon: 'page' },
+	{
+		id: 'identity',
+		label: __( 'Name & logo' ),
+		hint: __( 'Your site title and logo' ),
+		icon: 'siteLogo',
+		suggestions: [
+			{ text: __( 'Change site title' ), icon: 'siteTitle' },
+			{
+				text: () =>
+					hasSavedLogo()
+						? __( 'Change site logo' )
+						: __( 'Add a logo' ),
+				icon: 'siteLogo',
+			},
+		],
+	},
+	{
+		id: 'parts',
+		label: __( 'Header, footer & menu' ),
+		hint: __( 'What shows on every page' ),
+		icon: 'header',
+		suggestions: [
+			{ text: __( 'Change my header' ), icon: 'header' },
+			{ text: __( 'Change my footer' ), icon: 'footer' },
+			{ text: __( 'Change my menu' ), icon: 'navigation' },
+		],
+	},
+	{
+		id: 'pages',
+		label: __( 'Add a page' ),
+		hint: __( 'Start a new page from a design' ),
+		icon: 'page',
+		suggestions: [ { text: __( 'Add a page' ), icon: 'page' } ],
+	},
+];
+
+// What to ask for about the page being worked on, when there is one.
+export const PAGE_SUGGESTIONS = [
 	{ text: __( 'Add a section' ), icon: 'section' },
 ];
 
 export const SKILLS = {
 	look: {
-		screen: () => ( { label: __( 'Open in Design' ), path: '/design' } ),
+		screen: () => ( { name: __( 'Design' ), path: '/design' } ),
 		action: () => __( 'Use this look' ),
 		...GLOBAL_STYLES,
 		reply: () => ( {
@@ -714,7 +759,7 @@ export const SKILLS = {
 	},
 	colors: {
 		screen: () => ( {
-			label: __( 'Open in Colors' ),
+			name: __( 'Colors' ),
 			path: '/design/colors',
 		} ),
 		action: () => __( 'Use these colors' ),
@@ -737,7 +782,7 @@ export const SKILLS = {
 	},
 	fonts: {
 		screen: () => ( {
-			label: __( 'Open in Fonts' ),
+			name: __( 'Fonts' ),
 			path: '/design/fonts',
 		} ),
 		action: () => __( 'Use these fonts' ),
@@ -763,7 +808,7 @@ export const SKILLS = {
 		keys: [ 'title' ],
 		useEntity: useSiteEntity,
 		screen: () => ( {
-			label: __( 'Open in Name & logo' ),
+			name: __( 'Name & logo' ),
 			path: '/design/identity',
 		} ),
 		reply: ( { name } ) => ( {
@@ -799,7 +844,7 @@ export const SKILLS = {
 		keys: [ 'site_logo' ],
 		useEntity: useSiteEntity,
 		screen: () => ( {
-			label: __( 'Open in Name & logo' ),
+			name: __( 'Name & logo' ),
 			path: '/design/identity',
 		} ),
 		reply: () => ( {
@@ -822,7 +867,7 @@ export const SKILLS = {
 	},
 	header: {
 		screen: () => ( {
-			label: __( 'Open in Header' ),
+			name: __( 'Header' ),
 			path: '/design/header',
 			search: { view: 'layouts' },
 		} ),
@@ -849,7 +894,7 @@ export const SKILLS = {
 	},
 	footer: {
 		screen: () => ( {
-			label: __( 'Open in Footer' ),
+			name: __( 'Footer' ),
 			path: '/design/footer',
 			search: { view: 'layouts' },
 		} ),
@@ -876,7 +921,7 @@ export const SKILLS = {
 	},
 	'add-page': {
 		screen: () => ( {
-			label: __( 'Open in Pages' ),
+			name: __( 'Pages' ),
 			path: '/types/page/list/all',
 		} ),
 		action: ( pending ) =>
@@ -958,11 +1003,7 @@ export const SKILLS = {
 		screen: ( { params } ) =>
 			params?.pageId
 				? {
-						label: sprintf(
-							/* translators: %s: page name. */
-							__( 'Open “%s” in Pages' ),
-							params.pageTitle
-						),
+						name: __( 'Pages' ),
 						path: '/types/page/list/all',
 						search: { previewId: params.pageId },
 					}
@@ -1026,7 +1067,7 @@ export const SKILLS = {
 	},
 	menu: {
 		screen: ( { entity } ) => ( {
-			label: __( 'Open in Menus' ),
+			name: __( 'Menus' ),
 			path: entity ? `/navigation/edit/${ entity[ 2 ] }` : '/navigation',
 		} ),
 		action: () => __( 'Save menu' ),
@@ -1043,6 +1084,14 @@ export const SKILLS = {
 			sprintf( __( 'Menu: %s' ), label ),
 		request: () => __( 'Keep my menu changes' ),
 		done: () => __( 'Done. Your menu is saved.' ),
+	},
+	exit: {
+		reply: () => ( {
+			actions: [ 'close-assistant', 'stay' ],
+			text: __(
+				'Close the assistant and go back to My site? Anything you haven’t kept will be put back.'
+			),
+		} ),
 	},
 	greeting: {
 		reply: () => ( {
