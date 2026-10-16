@@ -203,7 +203,7 @@ export function PageDetailStage( {
 			breadcrumbs={
 				<Breadcrumbs
 					items={ [
-						// Opened from the "Your site" checklist, a page leads
+						// Opened from the "Your site" screen, a page leads
 						// back to it.
 						...siteTrail,
 						{ label: __( 'Pages' ), to: LIST_PATH },

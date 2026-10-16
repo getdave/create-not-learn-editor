@@ -7,7 +7,8 @@ import { Breadcrumbs, Stack, Text, __ } from '../../wordpress-packages';
 /**
  * The title of a screen under Design. Screens linked from Design lead with a
  * breadcrumb back to it, as there is no sidebar item to return by. Opened
- * from the "Your site" checklist, they lead back there instead.
+ * from the "Your site" screen, they lead back there instead, and so does
+ * Design itself.
  *
  * @param {Object}  props             Component props.
  * @param {string}  props.description Sentence under the title.
@@ -20,11 +21,15 @@ export function DesignScreenHeading( { description, isTopLevel, title } ) {
 
 	return (
 		<Stack direction="column" gap="xs">
-			{ isTopLevel ? (
+			{ isTopLevel && ! trail.length && (
 				<Text render={ <h1 /> } variant="heading-lg">
 					{ title }
 				</Text>
-			) : (
+			) }
+			{ isTopLevel && !! trail.length && (
+				<Breadcrumbs items={ [ ...trail, { label: title } ] } />
+			) }
+			{ ! isTopLevel && (
 				<Breadcrumbs
 					items={ [
 						...( trail.length

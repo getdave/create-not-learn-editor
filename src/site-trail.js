@@ -1,8 +1,8 @@
 /**
- * Screens opened from the "Your site" checklist start their breadcrumbs with
- * "Your site", so every step has a way back to the list. The screens stay
- * where they live in the editor; only the trail changes, and only on visits
- * that began at the checklist.
+ * Screens opened from the "Your site" screen start their breadcrumbs with
+ * "Your site", so each one has a way back to where it was picked. The screens
+ * stay where they live in the editor; only the trail changes, and only on
+ * visits that began at "Your site".
  */
 
 /**
@@ -18,7 +18,7 @@ import { __, useMemo } from './wordpress-packages';
 const EMPTY_ARRAY = [];
 
 /**
- * Search params the checklist adds to the screens it opens.
+ * Search params "Your site" adds to the screens it opens.
  */
 export const FROM_SITE_SEARCH = { from: 'site' };
 
@@ -44,8 +44,8 @@ export function getSiteCrumb() {
 
 /**
  * The breadcrumbs leading back to where the visit began: "Your site". Visits
- * from the Menus screen lead back there instead, since it isn't part of that
- * checklist. Empty for visits that began anywhere else.
+ * from the Menus screen lead back there instead, since it isn't linked from
+ * "Your site". Empty for visits that began anywhere else.
  *
  * @return {Object[]} Breadcrumb items, to put before the screen's own.
  */

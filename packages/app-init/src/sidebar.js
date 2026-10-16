@@ -55,9 +55,9 @@ const EXPANDED_CLASS = 'cnl-sidebar-is-expanded';
 
 /*
  * Whether the sidebar is expanded rather than a strip of icons. Held as a
- * class on <body>, which the strip's rule keys off. It is expanded on first
- * landing in the editor, or when toggled open, until another screen is
- * picked.
+ * class on <body>, which the strip's rule keys off. It starts as a strip and
+ * only expands when toggled open, or to show a section of the menu, until
+ * another screen is picked.
  */
 const expansion = {
 	listeners: new Set(),
@@ -419,8 +419,9 @@ function createWorkspaceSwitcher() {
  *   which `src/style.scss` hides.
  * - A greeting above the main menu, hidden inside menu sections by CSS.
  * - A toggle in the greeting's row to expand the sidebar from its strip of
- *   icons and fold it back. It starts expanded on landing in the editor, and
- *   folds to the strip whenever another screen is picked.
+ *   icons and fold it back. It starts as a strip, so the first thing anyone
+ *   sees is the screen itself, and folds back whenever another screen is
+ *   picked.
  * - A workspace switcher in its own section below the menu, outside boot's
  *   navigation screens so it stays put when drilling in and out.
  * - A tooltip naming each icon while the sidebar is a strip of icons.
@@ -447,7 +448,6 @@ export function enhanceSidebar( { userName } = {} ) {
 	returnHomeWithSidebar();
 	expandOnStripDrilldown();
 	shareRoomWithChat();
-	expansion.set( true );
 
 	let routePath = getRoutePath();
 
