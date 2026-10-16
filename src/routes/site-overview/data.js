@@ -10,8 +10,9 @@ import { useNavigate, useSearch } from '@wordpress/route';
 /**
  * Internal dependencies
  */
-import { namespace } from '../../settings';
+import { getPostType, namespace } from '../../settings';
 import { cnlEditorStore } from '../../records';
+import { templateMatchesPostType } from '../content/helpers';
 import {
 	__,
 	homeIcon,
@@ -25,6 +26,8 @@ import {
 } from '../../wordpress-packages';
 
 export const SITE_OVERVIEW_PATH = '/site-overview';
+
+const PAGES_PATH = '/types/page/list/all';
 
 /**
  * The site overview, as it comes from the REST API.
@@ -151,4 +154,44 @@ export function getItemCountLabel( count, group ) {
  */
 export function hasNotableStatus( node ) {
 	return Boolean( node?.status && node.status !== 'publish' );
+}
+
+/**
+ * Where to edit a page in a site canvas, in place, rather than in the
+ * full-screen editor.
+ *
+ * Hand-made pages and the homepage open on the Pages screen, which stands
+ * for the homepage as `home` whatever it shows. Dynamic pages open their
+ * layout in their content type's Layouts tab, or, when the layout isn't
+ * among those, the page standing in for them, like the posts page.
+ *
+ * @param {Object} node Site Overview node.
+ * @return {Object|null} `{ search, to }`, or null when it can't be edited.
+ */
+export function getEditDestination( node ) {
+	if ( node?.kind === 'home' ) {
+		return node.canEdit
+			? { search: { postId: 'home', previewId: 'home' }, to: PAGES_PATH }
+			: null;
+	}
+
+	if (
+		node?.template &&
+		getPostType( node.group ) &&
+		templateMatchesPostType( node.template, node.group )
+	) {
+		return {
+			search: { content: 'templates', postIds: [ node.template.id ] },
+			to: `/types/${ node.group }/list/all`,
+		};
+	}
+
+	if ( node?.postId && node.canEdit ) {
+		return {
+			search: { postId: node.postId, previewId: node.postId },
+			to: PAGES_PATH,
+		};
+	}
+
+	return null;
 }

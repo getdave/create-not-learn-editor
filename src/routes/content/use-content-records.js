@@ -9,7 +9,11 @@ import { useParams, useSearch } from '@wordpress/route';
 import { getPostType } from '../../settings';
 import { getErrorMessage } from '../../records';
 import { EMPTY_ARRAY } from './page-layouts';
-import { DEFAULT_CONTENT_VIEW, getActiveTab } from './helpers';
+import {
+	DEFAULT_CONTENT_VIEW,
+	getActiveTab,
+	templateMatchesPostType,
+} from './helpers';
 import {
 	coreDataStore,
 	useEffect,
@@ -63,49 +67,6 @@ function getInitialContentView( searchParams, type ) {
 		search: searchParams.search || '',
 		type: getDefaultContentViewType( type ),
 	};
-}
-
-function normalizeTemplateText( value ) {
-	const rendered = value?.rendered || value?.raw || value || '';
-	const element = document.createElement( 'textarea' );
-	element.innerHTML = String( rendered )
-		.replace( /<[^>]+>/g, '' )
-		.trim();
-	return element.value;
-}
-
-function templateMatchesPostType( template, typeName ) {
-	if ( ! template || ! typeName ) {
-		return false;
-	}
-
-	const slug = template.slug || '';
-
-	if ( typeName === 'page' ) {
-		return (
-			slug === 'front-page' ||
-			slug === 'page' ||
-			slug.startsWith( 'page-' )
-		);
-	}
-
-	if ( typeName === 'post' ) {
-		return [ 'home', 'single', 'single-post' ].includes( slug );
-	}
-
-	const text = [
-		slug,
-		normalizeTemplateText( template.title ),
-		template.description,
-	]
-		.join( ' ' )
-		.toLowerCase();
-
-	return (
-		slug === `single-${ typeName }` ||
-		slug === `archive-${ typeName }` ||
-		text.includes( typeName.toLowerCase() )
-	);
 }
 
 export default function useContentRecords() {

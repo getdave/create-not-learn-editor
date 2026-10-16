@@ -7,21 +7,47 @@ import { describe, expect, test } from 'vitest';
  * Internal dependencies
  */
 import {
-	MAX_ZOOM,
-	MIN_ZOOM,
+	MAX_SCALE,
 	centerOn,
-	clampZoom,
+	constrainView,
 	fitView,
 	getNextZoomStep,
+	getPopoverPosition,
+	getScaleLimits,
+	getZoomLevel,
 	isRectInView,
 	zoomAt,
 } from '../viewport';
 
 describe( 'site overview viewport', () => {
-	test( 'keeps zoom within limits', () => {
-		expect( clampZoom( 0.01 ) ).toBe( MIN_ZOOM );
-		expect( clampZoom( 10 ) ).toBe( MAX_ZOOM );
-		expect( clampZoom( 0.5 ) ).toBe( 0.5 );
+	const bounds = { height: 1000, width: 2000, x: 0, y: 0 };
+	const size = { height: 600, width: 1000 };
+
+	test( 'zooms out no further than fitting the whole site', () => {
+		const fit = fitView( bounds, size );
+
+		expect( getScaleLimits( bounds, size ) ).toEqual( {
+			max: MAX_SCALE,
+			min: fit.k,
+		} );
+		expect( getZoomLevel( fit, bounds, size ) ).toBe( 1 );
+		expect(
+			constrainView( { k: 0.01, x: 0, y: 0 }, bounds, size )
+		).toEqual( fit );
+		expect( constrainView( { k: 10, x: 0, y: 0 }, bounds, size ).k ).toBe(
+			MAX_SCALE
+		);
+	} );
+
+	test( 'keeps the site from being moved off screen', () => {
+		// At 1:1 the site is bigger than the screen, so it can only be moved
+		// until its edges, plus the padding, reach the screen's.
+		expect(
+			constrainView( { k: 1, x: 500, y: 500 }, bounds, size )
+		).toEqual( { k: 1, x: 48, y: 48 } );
+		expect(
+			constrainView( { k: 1, x: -5000, y: -5000 }, bounds, size )
+		).toEqual( { k: 1, x: -1048, y: -448 } );
 	} );
 
 	test( 'zooms around a point, keeping it in place', () => {
@@ -35,27 +61,27 @@ describe( 'site overview viewport', () => {
 		expect( next.k ).toBe( 2 );
 	} );
 
-	test( 'steps through zoom levels', () => {
+	test( 'steps through zoom levels, counted from the fit', () => {
 		expect( getNextZoomStep( 1, 1 ) ).toBe( 1.5 );
-		expect( getNextZoomStep( 1, -1 ) ).toBe( 0.75 );
-		expect( getNextZoomStep( 0.6, 1 ) ).toBe( 0.75 );
-		expect( getNextZoomStep( 0.6, -1 ) ).toBe( 0.5 );
-		expect( getNextZoomStep( MAX_ZOOM, 1 ) ).toBe( MAX_ZOOM );
-		expect( getNextZoomStep( MIN_ZOOM, -1 ) ).toBe( MIN_ZOOM );
+		expect( getNextZoomStep( 1, -1 ) ).toBe( 1 );
+		expect( getNextZoomStep( 1.2, 1 ) ).toBe( 1.5 );
+		expect( getNextZoomStep( 1.2, -1 ) ).toBe( 1 );
+		expect( getNextZoomStep( 3, -1 ) ).toBe( 2 );
+		expect( getNextZoomStep( 100, 1 ) ).toBe( Infinity );
 	} );
 
 	test( 'fits a rectangle, centred, without zooming in past the limit', () => {
-		const size = { height: 600, width: 1000 };
-
-		expect(
-			fitView( { height: 1000, width: 2000, x: 0, y: 0 }, size, 0 )
-		).toEqual( { k: 0.5, x: 0, y: 50 } );
+		expect( fitView( bounds, size, 0 ) ).toEqual( {
+			k: 0.5,
+			x: 0,
+			y: 50,
+		} );
 		expect(
 			fitView( { height: 100, width: 100, x: 0, y: 0 }, size, 0 )
 		).toEqual( {
-			k: 1,
-			x: 450,
-			y: 250,
+			k: MAX_SCALE,
+			x: 400,
+			y: 200,
 		} );
 	} );
 
@@ -69,8 +95,34 @@ describe( 'site overview viewport', () => {
 		).toEqual( { k: 0.5, x: 250, y: 75 } );
 	} );
 
+	test( 'puts a popover beside its card, on the side with room', () => {
+		const popover = { height: 200, width: 280 };
+
+		expect(
+			getPopoverPosition(
+				{ bottom: 300, left: 100, right: 300, top: 100 },
+				popover,
+				size
+			)
+		).toEqual( { left: 312, top: 100 } );
+		expect(
+			getPopoverPosition(
+				{ bottom: 300, left: 700, right: 900, top: 100 },
+				popover,
+				size
+			)
+		).toEqual( { left: 408, top: 100 } );
+		// Kept on screen when the card runs off the bottom.
+		expect(
+			getPopoverPosition(
+				{ bottom: 700, left: 100, right: 300, top: 500 },
+				popover,
+				size
+			)
+		).toEqual( { left: 312, top: 388 } );
+	} );
+
 	test( 'knows when a rectangle is on screen', () => {
-		const size = { height: 600, width: 1000 };
 		const rect = { height: 100, width: 100, x: 0, y: 0 };
 
 		expect( isRectInView( { k: 1, x: 10, y: 10 }, rect, size ) ).toBe(

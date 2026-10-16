@@ -7,6 +7,7 @@
 /**
  * WordPress dependencies
  */
+import { Tooltip } from '@wordpress/components';
 import { forwardRef } from '@wordpress/element';
 import {
 	arrowDown as arrowDownIcon,
@@ -28,6 +29,7 @@ import {
  */
 import {
 	__,
+	Button,
 	Dropdown,
 	LegacyIcon,
 	MenuGroup,
@@ -118,18 +120,46 @@ export function SectionTab( { isInside, isPart, style, title } ) {
 	);
 }
 
+/**
+ * A button on the bar over a section: core's compact button, its name in a
+ * tooltip when it is only an icon, or what it does when it has words. The
+ * tooltip goes below, clear of "Add section" on the section's top edge.
+ *
+ * @param {Object}  props
+ * @param {string}  props.label     Its name, or what it does, with words.
+ * @param {?string} props.text      Its words, if it has any.
+ * @param {string}  props.className Extra classes.
+ * @param {Object}  props.icon      Its icon.
+ * @return {Element} The button.
+ */
 function BarButton( { className = '', icon, label, text, ...props } ) {
+	if ( ! text ) {
+		return (
+			<Button
+				accessibleWhenDisabled
+				className={ `cnl-section-modes__bar-button ${ className }` }
+				icon={ icon }
+				label={ label }
+				showTooltip
+				size="compact"
+				tooltipPosition="bottom"
+				{ ...props }
+			/>
+		);
+	}
+
 	return (
-		<button
-			aria-label={ text ? undefined : label }
-			className={ `cnl-section-modes__bar-button ${ className }` }
-			title={ label }
-			type="button"
-			{ ...props }
-		>
-			<LegacyIcon icon={ icon } size={ text ? 20 : 18 } />
-			{ text && <span>{ text }</span> }
-		</button>
+		<Tooltip placement="bottom" text={ label }>
+			<Button
+				className={ `cnl-section-modes__bar-button ${ className }` }
+				description={ label }
+				icon={ icon }
+				size="compact"
+				{ ...props }
+			>
+				{ text }
+			</Button>
+		</Tooltip>
 	);
 }
 
@@ -173,16 +203,19 @@ function AddMenu( { onAdd, onToggle, title } ) {
 				</MenuGroup>
 			) }
 			renderToggle={ ( { isOpen, onToggle: toggle } ) => (
-				<button
-					aria-expanded={ isOpen }
-					aria-haspopup="menu"
-					className="cnl-section-modes__add-toggle"
-					onClick={ toggle }
-					type="button"
-				>
-					<LegacyIcon icon={ plusIcon } size={ 18 } />
-					{ __( 'Add' ) }
-				</button>
+				<div className="cnl-section-modes__group">
+					<Button
+						aria-expanded={ isOpen }
+						aria-haspopup="menu"
+						className="cnl-section-modes__bar-button"
+						icon={ plusIcon }
+						isPressed={ isOpen }
+						onClick={ toggle }
+						size="compact"
+					>
+						{ __( 'Add' ) }
+					</Button>
+				</div>
 			) }
 		/>
 	);
@@ -285,7 +318,7 @@ export function HoverBar( {
 							onClick={ onDuplicate }
 						/>
 						<BarButton
-							className="is-destructive"
+							className="is-delete"
 							icon={ trashIcon }
 							label={ __( 'Delete section' ) }
 							onClick={ onDelete }
@@ -347,35 +380,38 @@ export const ModeBar = forwardRef( function ModeBar(
 				</span>
 			) }
 			{ removedCount > 0 && (
-				<button
+				<Button
 					className="cnl-section-modes__text-button"
+					description={ __( 'Bring back removed items' ) }
 					onClick={ onRestore }
-					title={ __( 'Bring back removed items' ) }
-					type="button"
+					size="compact"
+					variant="secondary"
 				>
 					{ sprintf(
 						/* translators: %d: number of items removed. */
 						__( 'Restore (%d)' ),
 						removedCount
 					) }
-				</button>
+				</Button>
 			) }
 			{ onBack && (
-				<button
+				<Button
 					className="cnl-section-modes__text-button"
 					onClick={ onBack }
-					type="button"
+					size="compact"
+					variant="secondary"
 				>
 					{ __( 'Back to Edit design' ) }
-				</button>
+				</Button>
 			) }
-			<button
+			<Button
 				className="cnl-section-modes__done"
 				onClick={ onDone }
-				type="button"
+				size="compact"
+				variant="primary"
 			>
 				{ __( 'Done editing' ) }
-			</button>
+			</Button>
 		</div>
 	);
 } );
