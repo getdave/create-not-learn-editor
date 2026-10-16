@@ -8,39 +8,59 @@ import {
 	hasNotableStatus,
 	isDynamicNode,
 } from './data';
+import { getPopoverPosition, getScreenRect } from './viewport';
+import { useElementSize } from './hooks';
 import {
 	Badge,
+	Button,
 	Icon,
 	Link,
 	Stack,
 	Text,
 	UiButton,
 	__,
+	closeSmallIcon,
 	sprintf,
+	useRef,
 } from '../../wordpress-packages';
 
 /**
- * What the selected page is, and ways to edit or visit it, floating over the
- * canvas.
+ * What the selected page is, and a way to edit it, in a card beside it on
+ * the canvas. It moves with the canvas, staying on screen.
  *
- * @param {Object}   props         Component props.
- * @param {Object}   props.group   Content type the page belongs to.
- * @param {Object}   props.node    Selected page.
- * @param {Function} props.onClose Clears the selection.
- * @param {Function} props.onOpen  Opens the page's editor.
- * @return {Element} Panel.
+ * @param {Object}   props             Component props.
+ * @param {Object}   props.group       Content type the page belongs to.
+ * @param {boolean}  props.isAnimating Whether the canvas is animating to a
+ *                                     new view, which the card follows.
+ * @param {Object}   props.node        Selected page.
+ * @param {Function} props.onClose     Clears the selection.
+ * @param {Function} props.onEdit      Opens the page in a site canvas, or
+ *                                     undefined when it can't be edited.
+ * @param {Object}   props.size        The canvas's size on screen.
+ * @param {Object}   props.view        The canvas's view.
+ * @return {Element} Popover.
  */
-export function SelectedPage( { group, node, onClose, onOpen } ) {
+export function SelectedPage( {
+	group,
+	isAnimating,
+	node,
+	onClose,
+	onEdit,
+	size,
+	view,
+} ) {
+	const ref = useRef();
+	const popoverSize = useElementSize( ref );
+	const card = getScreenRect( view, node );
+	const isOffScreen =
+		card.right < 0 ||
+		card.bottom < 0 ||
+		card.left > size.width ||
+		card.top > size.height;
+	const { left, top } = getPopoverPosition( card, popoverSize, size );
 	const isDynamic = isDynamicNode( node );
 	const details = [
 		node.description,
-		node.kind === 'single' && node.previewOf
-			? sprintf(
-					/* translators: %s: Title of the item shown in the preview. */
-					__( 'Previewed with “%s”, the latest one.' ),
-					node.previewOf
-				)
-			: '',
 		node.layout
 			? sprintf(
 					/* translators: %s: Layout (template) name. */
@@ -51,26 +71,43 @@ export function SelectedPage( { group, node, onClose, onOpen } ) {
 	].filter( Boolean );
 
 	return (
-		// eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape closes the panel from anywhere inside it.
+		// eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape closes the popover from anywhere inside it.
 		<aside
-			aria-label={ __( 'Selected page' ) }
-			className="cnl-site-overview__selected"
+			aria-label={ node.title }
+			className={ [
+				'cnl-site-overview__selected',
+				isAnimating && 'is-animating',
+				// Measured before it is placed, so it doesn't flash in the corner.
+				( ! popoverSize.width || isOffScreen ) && 'is-hidden',
+			]
+				.filter( Boolean )
+				.join( ' ' ) }
 			onKeyDown={ ( event ) => {
 				if ( event.key === 'Escape' ) {
 					event.stopPropagation();
 					onClose();
 				}
 			} }
+			ref={ ref }
+			style={ { left, top } }
 		>
-			<Stack align="center" gap="sm">
-				<Icon icon={ getNodeIcon( node ) } size={ 24 } />
-				<Text
-					className="cnl-site-overview__selected-title"
-					render={ <h2 /> }
-					variant="heading-md"
-				>
-					{ node.title }
-				</Text>
+			<Stack align="flex-start" gap="sm" justify="space-between">
+				<Stack align="center" gap="sm">
+					<Icon icon={ getNodeIcon( node ) } size={ 20 } />
+					<Text
+						className="cnl-site-overview__selected-title"
+						render={ <h2 /> }
+						variant="heading-md"
+					>
+						{ node.title }
+					</Text>
+				</Stack>
+				<Button
+					icon={ closeSmallIcon }
+					label={ __( 'Close' ) }
+					onClick={ onClose }
+					size="small"
+				/>
 			</Stack>
 			<Stack gap="xs" wrap="wrap">
 				<Badge intent={ isDynamic ? 'informational' : 'none' }>
@@ -98,21 +135,15 @@ export function SelectedPage( { group, node, onClose, onOpen } ) {
 					{ detail }
 				</Text>
 			) ) }
-			<Stack align="center" gap="sm" wrap="wrap">
-				<UiButton
-					disabled={ ! node.editLink }
-					onClick={ () => onOpen( node ) }
-				>
-					{ isDynamic ? __( 'Edit layout' ) : __( 'Edit page' ) }
+			<Stack align="center" gap="md" wrap="wrap">
+				<UiButton disabled={ ! onEdit } onClick={ onEdit }>
+					{ __( 'Edit' ) }
 				</UiButton>
 				{ node.url && (
 					<Link href={ node.url } openInNewTab>
 						{ __( 'View' ) }
 					</Link>
 				) }
-				<UiButton onClick={ onClose } variant="minimal">
-					{ __( 'Close' ) }
-				</UiButton>
 			</Stack>
 		</aside>
 	);

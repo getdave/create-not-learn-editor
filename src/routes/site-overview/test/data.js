@@ -23,10 +23,17 @@ vi.mock( '../../../wordpress-packages', async () => ( {
 	select: vi.fn(),
 } ) );
 
+vi.mock( '../../../settings', () => ( {
+	getPostType: ( name ) =>
+		[ 'page', 'post' ].includes( name ) ? { name } : undefined,
+	namespace: 'create-not-learn-editor/v1',
+} ) );
+
 /**
  * Internal dependencies
  */
 import {
+	getEditDestination,
 	getItemCountLabel,
 	getNodeIcon,
 	getNodeKindLabel,
@@ -85,5 +92,47 @@ describe( 'site overview data', () => {
 		expect( hasNotableStatus( { status: 'draft' } ) ).toBe( true );
 		expect( hasNotableStatus( { status: 'publish' } ) ).toBe( false );
 		expect( hasNotableStatus( {} ) ).toBe( false );
+	} );
+
+	test( 'opens pages and layouts in a site canvas', () => {
+		const pages = '/types/page/list/all';
+
+		expect( getEditDestination( { canEdit: true, kind: 'home' } ) ).toEqual(
+			{ search: { postId: 'home', previewId: 'home' }, to: pages }
+		);
+		expect( getEditDestination( { canEdit: false, kind: 'home' } ) ).toBe(
+			null
+		);
+		expect(
+			getEditDestination( { canEdit: true, kind: 'page', postId: 7 } )
+		).toEqual( { search: { postId: 7, previewId: 7 }, to: pages } );
+		expect(
+			getEditDestination( {
+				group: 'post',
+				kind: 'single',
+				template: { id: 'theme//single', slug: 'single' },
+			} )
+		).toEqual( {
+			search: { content: 'templates', postIds: [ 'theme//single' ] },
+			to: '/types/post/list/all',
+		} );
+		// A layout the posts' Layouts tab doesn't list falls back to the page
+		// standing in for the collection.
+		expect(
+			getEditDestination( {
+				canEdit: true,
+				group: 'post',
+				kind: 'collection',
+				postId: 9,
+				template: { id: 'theme//index', slug: 'index' },
+			} )
+		).toEqual( { search: { postId: 9, previewId: 9 }, to: pages } );
+		expect(
+			getEditDestination( {
+				group: 'post',
+				kind: 'collection',
+				template: { id: 'theme//index', slug: 'index' },
+			} )
+		).toBe( null );
 	} );
 } );

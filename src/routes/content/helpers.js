@@ -24,6 +24,56 @@ export const DEFAULT_CONTENT_VIEW = {
 	type: 'table',
 };
 
+function normalizeTemplateText( value ) {
+	const rendered = value?.rendered || value?.raw || value || '';
+	const element = document.createElement( 'textarea' );
+	element.innerHTML = String( rendered )
+		.replace( /<[^>]+>/g, '' )
+		.trim();
+	return element.value;
+}
+
+/**
+ * Whether a layout is among a content type's, in its Layouts tab.
+ *
+ * @param {Object} template Template record, or `{ slug, title, description }`.
+ * @param {string} typeName Post type name.
+ * @return {boolean} Whether the layout belongs to the type.
+ */
+export function templateMatchesPostType( template, typeName ) {
+	if ( ! template || ! typeName ) {
+		return false;
+	}
+
+	const slug = template.slug || '';
+
+	if ( typeName === 'page' ) {
+		return (
+			slug === 'front-page' ||
+			slug === 'page' ||
+			slug.startsWith( 'page-' )
+		);
+	}
+
+	if ( typeName === 'post' ) {
+		return [ 'home', 'single', 'single-post' ].includes( slug );
+	}
+
+	const text = [
+		slug,
+		normalizeTemplateText( template.title ),
+		template.description,
+	]
+		.join( ' ' )
+		.toLowerCase();
+
+	return (
+		slug === `single-${ typeName }` ||
+		slug === `archive-${ typeName }` ||
+		text.includes( typeName.toLowerCase() )
+	);
+}
+
 export function getActiveTab( searchParams ) {
 	return searchParams.content === 'templates' ? 'templates' : 'content';
 }
