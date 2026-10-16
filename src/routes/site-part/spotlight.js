@@ -31,7 +31,7 @@ const STYLE_ID = 'cnl-site-part-spotlight';
 /*
  * What each of the screen's views changes, as the blocks the editor has and
  * as they appear in the saved site. A menu is the part's first, the one the
- * screen edits; the name and logo are all there are.
+ * screen edits; the name and logo, and the social links, are all there are.
  */
 const FOCUS_TARGETS = {
 	identity: {
@@ -47,6 +47,11 @@ const FOCUS_TARGETS = {
 		blockNames: [ 'core/navigation' ],
 		isFirstOnly: true,
 		selector: '.wp-block-navigation',
+	},
+	// Every one, as the screen keeps them all the same.
+	social: {
+		blockNames: [ 'core/social-links' ],
+		selector: '.wp-block-social-links',
 	},
 };
 

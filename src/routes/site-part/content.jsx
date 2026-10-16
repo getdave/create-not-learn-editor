@@ -41,24 +41,48 @@ import {
 	useSitePartContents,
 	useSitePartLayouts,
 } from './data';
+import {
+	getAddableServices,
+	getService,
+	getSocialLinksDescription,
+	isPlaceholderUrl,
+	useSocialLinks,
+	withSocialLinks,
+} from './social-links';
 import { useSitePartSpotlight } from './spotlight';
 import {
+	BlockIcon,
 	Breadcrumbs,
+	Button,
+	Dropdown,
+	DropdownMenu,
 	Icon,
+	InputControl,
+	InputLayout,
+	MenuGroup,
+	MenuItem,
 	Spinner,
 	Stack,
 	Text,
 	__,
 	_n,
+	chevronDownIcon,
+	chevronUpIcon,
 	compassIcon,
 	coreDataStore,
 	footerIcon,
 	headerIcon,
 	layoutIcon,
+	moreVerticalIcon,
+	plusIcon,
+	shareIcon,
 	siteLogoIcon,
 	sprintf,
+	trashIcon,
+	useCallback,
 	useRef,
 	useSelect,
+	useState,
 } from '../../wordpress-packages';
 
 const LOCKED_PART_SETTINGS = { [ LOCKED_PART_CONTENT_SETTING ]: true };
@@ -67,6 +91,7 @@ const LOCKED_PART_SETTINGS = { [ LOCKED_PART_CONTENT_SETTING ]: true };
 const LAYOUTS_VIEW = 'layouts';
 const IDENTITY_VIEW = 'identity';
 const MENU_VIEW = 'menu';
+const SOCIAL_VIEW = 'social';
 
 // What each view is called, and the line under its heading.
 const VIEWS = {
@@ -89,6 +114,13 @@ const VIEWS = {
 			),
 		title: () => __( 'Menu' ),
 	},
+	[ SOCIAL_VIEW ]: {
+		description: () =>
+			__(
+				'Your social profiles. Change them here, and see them on the right. Save to keep them.'
+			),
+		title: () => __( 'Social links' ),
+	},
 };
 
 const SITE_PARTS = {
@@ -100,7 +132,7 @@ const SITE_PARTS = {
 		linksLabel: __( 'Footer options' ),
 		missing: __( 'Your homepage doesn’t have a footer.' ),
 		noOptions: __(
-			'Your footer has no name, logo or menu, and your theme offers no other layouts for it.'
+			'Your footer has no name, logo, menu or social links, and your theme offers no other layouts for it.'
 		),
 		title: __( 'Footer' ),
 	},
@@ -112,7 +144,7 @@ const SITE_PARTS = {
 		linksLabel: __( 'Header options' ),
 		missing: __( 'Your homepage doesn’t have a header.' ),
 		noOptions: __(
-			'Your header has no name, logo or menu, and your theme offers no other layouts for it.'
+			'Your header has no name, logo, menu or social links, and your theme offers no other layouts for it.'
 		),
 		title: __( 'Header' ),
 	},
@@ -203,8 +235,8 @@ function getIdentityLink( { hasLogo, hasSiteTitle }, site ) {
 
 /**
  * What can be changed about the part, each a row leading to its own view:
- * its layouts, then the site's name and logo and the menu, when it shows
- * them.
+ * its layouts, then the site's name and logo, the menu and the social links,
+ * when it shows them.
  *
  * @param {Object} props
  * @param {string} props.area     `header` or `footer`.
@@ -218,6 +250,7 @@ function SitePartLinks( { area, clientId, id } ) {
 	const layouts = useSitePartLayouts( area, id );
 	const identity = useSiteIdentity();
 	const menu = usePartMenu( contents.navigationRef );
+	const social = useSocialLinks( area );
 
 	if ( identity.isLoading ) {
 		return <Loading />;
@@ -258,6 +291,19 @@ function SitePartLinks( { area, clientId, id } ) {
 		} );
 	}
 
+	if ( contents.hasSocialLinks && social.links ) {
+		links.push( {
+			description: getSocialLinksDescription(
+				social.links,
+				social.services
+			),
+			icon: shareIcon,
+			search: { view: SOCIAL_VIEW },
+			title: __( 'Social links' ),
+			to: SITE_PART_PATHS[ area ],
+		} );
+	}
+
 	if ( ! links.length ) {
 		return <Note>{ part.noOptions }</Note>;
 	}
@@ -289,15 +335,272 @@ function PartMenu( { clientId } ) {
 	return <div className="cnl-site-part__menu">{ editor }</div>;
 }
 
+function SocialLinkOptions( { index, isLast, onMove, onRemove, title } ) {
+	return (
+		<DropdownMenu
+			icon={ moreVerticalIcon }
+			label={ sprintf(
+				/* translators: %s: Social service, like Instagram. */
+				__( '%s options' ),
+				title
+			) }
+			popoverProps={ { placement: 'bottom-end' } }
+		>
+			{ ( { onClose } ) => (
+				<MenuGroup>
+					<MenuItem
+						accessibleWhenDisabled
+						disabled={ index === 0 }
+						icon={ chevronUpIcon }
+						onClick={ () => {
+							onMove( index, index - 1 );
+							onClose();
+						} }
+					>
+						{ __( 'Move up' ) }
+					</MenuItem>
+					<MenuItem
+						accessibleWhenDisabled
+						disabled={ isLast }
+						icon={ chevronDownIcon }
+						onClick={ () => {
+							onMove( index, index + 1 );
+							onClose();
+						} }
+					>
+						{ __( 'Move down' ) }
+					</MenuItem>
+					<MenuItem
+						icon={ trashIcon }
+						onClick={ () => {
+							onRemove( index );
+							onClose();
+						} }
+					>
+						{ __( 'Remove' ) }
+					</MenuItem>
+				</MenuGroup>
+			) }
+		</DropdownMenu>
+	);
+}
+
+/**
+ * Core's services not in the list yet, to search and pick one from.
+ *
+ * @param {Object}   props
+ * @param {Object[]} props.services Core's Social Icon variations not used.
+ * @param {Function} props.onAdd    Called with the picked service's name.
+ * @return {Element} The button and its list.
+ */
+function AddSocialLink( { onAdd, services } ) {
+	const [ search, setSearch ] = useState( '' );
+	const term = search.trim().toLowerCase();
+	const matches = term
+		? services.filter( ( service ) =>
+				service.title.toLowerCase().includes( term )
+			)
+		: services;
+
+	if ( ! services.length ) {
+		return null;
+	}
+
+	return (
+		<Dropdown
+			contentClassName="cnl-site-part__add-social"
+			onClose={ () => setSearch( '' ) }
+			popoverProps={ { placement: 'bottom-start' } }
+			renderContent={ ( { onClose } ) => (
+				<div className="cnl-site-part__add-social-content">
+					<InputControl
+						hideLabelFromVision
+						label={ __( 'Search services' ) }
+						onValueChange={ setSearch }
+						placeholder={ __( 'Search' ) }
+						value={ search }
+					/>
+					<MenuGroup className="cnl-site-part__add-social-list">
+						{ matches.map( ( service ) => (
+							<MenuItem
+								icon={ <BlockIcon icon={ service.icon } /> }
+								iconPosition="left"
+								key={ service.name }
+								onClick={ () => {
+									onAdd( service.name );
+									onClose();
+								} }
+							>
+								{ service.title }
+							</MenuItem>
+						) ) }
+					</MenuGroup>
+					{ ! matches.length && (
+						<Note>{ __( 'No services match.' ) }</Note>
+					) }
+				</div>
+			) }
+			renderToggle={ ( { isOpen, onToggle } ) => (
+				<Button
+					__next40pxDefaultSize
+					aria-expanded={ isOpen }
+					icon={ plusIcon }
+					onClick={ onToggle }
+					variant="secondary"
+				>
+					{ __( 'Add social link' ) }
+				</Button>
+			) }
+		/>
+	);
+}
+
+// Keyed by service, so a row keeps its field as links move around it. A
+// service listed twice is told apart by which time it is.
+function getLinkKey( links, index ) {
+	const { service } = links[ index ];
+	const seen = links
+		.slice( 0, index )
+		.filter( ( link ) => link.service === service ).length;
+
+	return `${ service }-${ seen }`;
+}
+
+/**
+ * The site's social links, a row for each, with its address to fill in.
+ * Changes show on the canvas as they are made and wait for the save.
+ *
+ * @param {Object} props
+ * @param {string} props.area `header` or `footer`.
+ * @return {Element} The links.
+ */
+function SocialLinks( { area } ) {
+	const { links, services, setLinks, setUrl } = useSocialLinks( area );
+	// The service just added, whose address is focused once it shows.
+	const [ added, setAdded ] = useState( null );
+	const focusAdded = useCallback( ( node ) => {
+		if ( node ) {
+			node.focus();
+			setAdded( null );
+		}
+	}, [] );
+
+	if ( ! links ) {
+		return (
+			<Note>{ __( 'Your site doesn’t show social links here.' ) }</Note>
+		);
+	}
+
+	const move = ( from, to ) => {
+		const next = [ ...links ];
+		next.splice( to, 0, ...next.splice( from, 1 ) );
+		setLinks( next );
+	};
+	const remove = ( index ) =>
+		setLinks( links.filter( ( link, i ) => i !== index ) );
+	const add = ( name ) => {
+		setLinks( [ ...links, { service: name, url: '' } ] );
+		setAdded( name );
+	};
+
+	return (
+		<div className="routes-styles__section cnl-site-part__social">
+			{ ! links.length && <Note>{ __( 'No social links yet.' ) }</Note> }
+			{ links.length > 0 && (
+				<ul
+					aria-label={ __( 'Social links' ) }
+					className="cnl-site-part__social-links"
+				>
+					{ links.map( ( link, index ) => {
+						const service = getService( services, link.service );
+
+						return (
+							<li
+								className="cnl-site-part__social-link"
+								key={ getLinkKey( links, index ) }
+							>
+								<InputControl
+									label={ service.title }
+									onValueChange={ ( url ) =>
+										setUrl( index, url )
+									}
+									placeholder={ __( 'Add your address' ) }
+									prefix={
+										service.icon && (
+											<InputLayout.Slot padding="minimal">
+												<BlockIcon
+													icon={ service.icon }
+												/>
+											</InputLayout.Slot>
+										)
+									}
+									ref={
+										link.service === added
+											? focusAdded
+											: undefined
+									}
+									type="url"
+									value={
+										isPlaceholderUrl( link.url )
+											? ''
+											: link.url
+									}
+								/>
+								<SocialLinkOptions
+									index={ index }
+									isLast={ index === links.length - 1 }
+									onMove={ move }
+									onRemove={ remove }
+									title={ service.title }
+								/>
+							</li>
+						);
+					} ) }
+				</ul>
+			) }
+			<AddSocialLink
+				onAdd={ add }
+				services={ getAddableServices( services, links ) }
+			/>
+		</div>
+	);
+}
+
+/**
+ * The theme's layouts for the part, from the picker the chat shares. The
+ * site's social links go into any layout that has a place for them. They are
+ * remembered while the layouts are open, so passing through one without
+ * social links doesn't lose them.
+ *
+ * @param {Object} props
+ * @param {string} props.area `header` or `footer`.
+ * @param {string} props.id   The part's template part ID.
+ * @return {Element} The layouts.
+ */
+function Layouts( { area, id } ) {
+	const { links: socialLinks } = useSocialLinks( area );
+	const socialLinksRef = useRef();
+	if ( socialLinks?.length ) {
+		socialLinksRef.current = socialLinks;
+	}
+
+	return (
+		<SitePartLayouts
+			area={ area }
+			id={ id }
+			prepareBlocks={ ( blocks ) =>
+				socialLinksRef.current
+					? withSocialLinks( blocks, socialLinksRef.current )
+					: blocks
+			}
+			Preview={ LazyEditorPreview }
+		/>
+	);
+}
+
 function SitePartView( { area, clientId, id, view } ) {
 	if ( view === LAYOUTS_VIEW ) {
-		return (
-			<SitePartLayouts
-				area={ area }
-				id={ id }
-				Preview={ LazyEditorPreview }
-			/>
-		);
+		return <Layouts area={ area } id={ id } />;
 	}
 
 	if ( view === IDENTITY_VIEW ) {
@@ -306,6 +609,10 @@ function SitePartView( { area, clientId, id, view } ) {
 
 	if ( view === MENU_VIEW ) {
 		return <PartMenu clientId={ clientId } />;
+	}
+
+	if ( view === SOCIAL_VIEW ) {
+		return <SocialLinks area={ area } />;
 	}
 
 	return <SitePartLinks area={ area } clientId={ clientId } id={ id } />;
@@ -322,7 +629,7 @@ function createStage( area ) {
 			: null;
 
 		return (
-			<div className="cnl-editor-stage cnl-drilldown-stage routes-styles cnl-site-part">
+			<div className="cnl-editor-stage routes-styles cnl-site-part">
 				<Stack direction="column" gap="xs">
 					<Breadcrumbs
 						items={

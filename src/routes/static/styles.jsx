@@ -67,13 +67,7 @@ function StylesScreen( {
 	title,
 } ) {
 	return (
-		<div
-			// Choosing colors, fonts and so on is a task, so the sidebar
-			// steps back to an icon strip, as it does for a page or menu.
-			className={ `cnl-editor-stage routes-styles${
-				isTopLevel ? '' : ' cnl-drilldown-stage'
-			}` }
-		>
+		<div className="cnl-editor-stage routes-styles">
 			<DesignScreenHeading
 				description={ description }
 				isTopLevel={ isTopLevel }

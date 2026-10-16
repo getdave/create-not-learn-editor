@@ -78,15 +78,26 @@ function LayoutCard( { isCurrent, onSelect, pattern, Preview } ) {
 /**
  * The theme's layouts for the part.
  *
- * @param {Object}   props         Component props.
- * @param {string}   props.area    `header` or `footer`.
- * @param {string}   props.id      The part's template part ID.
- * @param {Function} props.onPick  Called with the layout's title once applied.
- * @param {Function} props.Preview Renders a layout's preview from
- *                                 `{ content, description }`.
+ * @param {Object}   props               Component props.
+ * @param {string}   props.area          `header` or `footer`.
+ * @param {string}   props.id            The part's template part ID.
+ * @param {Function} props.onPick        Called with the layout's title once
+ *                                       applied.
+ * @param {Function} props.Preview       Renders a layout's preview from
+ *                                       `{ content, description }`.
+ * @param {Function} props.prepareBlocks Fills in a layout's blocks before
+ *                                       they go in, like the Header and
+ *                                       Footer screens carrying the site's
+ *                                       social links over. Optional.
  * @return {Element} The layouts, or a note when the theme has none.
  */
-export function SitePartLayouts( { area, id, onPick, Preview } ) {
+export function SitePartLayouts( {
+	area,
+	id,
+	onPick,
+	Preview,
+	prepareBlocks,
+} ) {
 	const { editEntityRecord } = useDispatch( coreDataStore );
 	const { content, currentName, hasResolved, layouts } = useSitePartLayouts(
 		area,
@@ -123,11 +134,13 @@ export function SitePartLayouts( { area, id, onPick, Preview } ) {
 	}
 
 	const select = ( pattern ) => {
+		const blocks = parseBlocks( getPatternContent( pattern ) );
+
 		editEntityRecord( 'postType', 'wp_template_part', id, {
-			blocks: parseBlocks( getPatternContent( pattern ) ),
+			blocks: prepareBlocks ? prepareBlocks( blocks ) : blocks,
 			// A new function on every edit, as the editor does, so each
 			// change makes the part dirty and gets its own undo level.
-			content: ( { blocks = [] } ) => serialize( blocks ),
+			content: ( { blocks: edited = [] } ) => serialize( edited ),
 		} );
 		onPick?.( getPatternTitle( pattern ) );
 	};

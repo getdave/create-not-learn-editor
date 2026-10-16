@@ -44,7 +44,7 @@ export function pickSitePart( parts, area ) {
  * @param {string} theme Current theme's stylesheet.
  * @return {Object[]} `{ area, clientId, id }` items.
  */
-function getSiteParts( store, theme ) {
+export function getSiteParts( store, theme ) {
 	const parts = [];
 	const visit = ( rootClientId ) =>
 		store.getBlockOrder( rootClientId ).forEach( ( clientId ) => {
@@ -109,7 +109,8 @@ export function useSitePart( area ) {
  * What a site part holds that the screen offers controls for.
  *
  * @param {string[]} names Names of every block in the part.
- * @return {Object} `{ hasLogo, hasNavigation, hasSiteTitle }`.
+ * @return {Object} `{ hasLogo, hasNavigation, hasSiteTitle,
+ *                  hasSocialLinks }`.
  */
 export function getSitePartContents( names ) {
 	const has = ( name ) => ( names || EMPTY_ARRAY ).includes( name );
@@ -118,6 +119,7 @@ export function getSitePartContents( names ) {
 		hasLogo: has( 'core/site-logo' ),
 		hasNavigation: has( 'core/navigation' ),
 		hasSiteTitle: has( 'core/site-title' ),
+		hasSocialLinks: has( 'core/social-links' ),
 	};
 }
 
@@ -127,8 +129,8 @@ export function getSitePartContents( names ) {
  * menu, shows no menu: its links are changed where they are, on the canvas.
  *
  * @param {?string} clientId The part's client ID in the editor.
- * @return {Object} `{ hasLogo, hasNavigation, hasSiteTitle, navigationRef,
- *                  showsMenu }`.
+ * @return {Object} `{ hasLogo, hasNavigation, hasSiteTitle, hasSocialLinks,
+ *                  navigationRef, showsMenu }`.
  */
 export function useSitePartContents( clientId ) {
 	const { names, navigationRef, showsMenu } = useSelect(

@@ -7,6 +7,7 @@ import { useNavigate } from '@wordpress/route';
  * Internal dependencies
  */
 import { settings } from '../../settings';
+import { MODE_EDIT, setCanvasMode } from '../../site-canvas/mode';
 import { FROM_SITE_SEARCH } from '../../site-trail';
 import {
 	getCreationProgress,
@@ -74,6 +75,7 @@ function getCreationSteps() {
 			// The homepage opened up on the Pages screen, where what it shows,
 			// its sections and its layout all live. `home` stands for it there
 			// (`HOMEPAGE` in the Pages screen), whatever it shows.
+			mode: MODE_EDIT,
 			search: { postId: 'home', previewId: 'home' },
 			to: '/types/page/list/all',
 		},
@@ -254,15 +256,18 @@ export default function Stage() {
 								<CreationStep
 									isDone={ status[ id ] }
 									key={ id }
-									onSelect={ () =>
+									onSelect={ () => {
+										if ( steps[ id ].mode ) {
+											setCanvasMode( steps[ id ].mode );
+										}
 										navigate( {
 											search: {
 												...steps[ id ].search,
 												...FROM_SITE_SEARCH,
 											},
 											to: steps[ id ].to,
-										} )
-									}
+										} );
+									} }
 									step={ steps[ id ] }
 								/>
 							) ) }

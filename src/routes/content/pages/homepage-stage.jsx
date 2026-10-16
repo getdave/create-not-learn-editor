@@ -564,7 +564,7 @@ export default function HomepageStage( { onStartNewPage } ) {
 					] }
 				/>
 			}
-			className="cnl-editor-stage cnl-drilldown-stage cnl-pages-detail"
+			className="cnl-editor-stage cnl-pages-detail"
 			hasPadding={ false }
 			headingLevel={ 2 }
 		>
