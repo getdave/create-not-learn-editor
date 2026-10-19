@@ -19,6 +19,8 @@
  *   the preview shows them too.
  * - A layout the editor tidies as it opens it underneath Browse isn't
  *   changed: see `useIgnoreLayoutTidying`.
+ * - While browsing, the editor moves to the next page only once the preview
+ *   has loaded it, so the two don't race: see `useEditorEntity`.
  */
 
 /**
@@ -53,6 +55,13 @@ import { getEditRoute, getLiveUrl, isSameLocation } from './urls';
 import { usePreviewFrame } from './use-preview-frame';
 
 const EMPTY_OBJECT = {};
+
+// How long the editor waits for the browser to have a moment, after the
+// preview has loaded, before opening the next page anyway.
+const IDLE_TIMEOUT_MS = 1000;
+
+// Where the browser can't say when it has a moment.
+const IDLE_FALLBACK_MS = 200;
 
 const NOTHING_SHOWN = () => false;
 
@@ -104,6 +113,68 @@ function isSameEntity( a, b ) {
 		a?.postType === b?.postType &&
 		String( a?.postId ) === String( b?.postId )
 	);
+}
+
+/**
+ * The page the editor has open: the canvas's, except that while browsing it
+ * stays on the last one until the preview has loaded the next.
+ *
+ * Opening a page in the editor fetches it and draws it in an iframe of its
+ * own, which takes the same server and the same browser thread as the
+ * preview. Done at once, it slows down the page someone is waiting to see,
+ * for an editor out of sight. Put off, it opens once the preview has loaded,
+ * when the browser has a moment, so Edit is still ready by the time it is
+ * picked. Outside Browse, the editor always has the canvas's page.
+ *
+ * @param {?Object} entity       `{ postType, postId }` the canvas is on.
+ * @param {boolean} isPreviewing Whether the canvas is in Browse.
+ * @param {Object}  frame        Result of `usePreviewFrame`.
+ * @return {?Object} `{ postType, postId }` the editor has open.
+ */
+function useEditorEntity( entity, isPreviewing, frame ) {
+	const [ browsedEntity, setBrowsedEntity ] = useState( entity );
+	const { isLoading, isLoadingNow } = frame;
+	const isHeld =
+		isPreviewing &&
+		Boolean( browsedEntity ) &&
+		! isSameEntity( browsedEntity, entity );
+
+	useEffect( () => {
+		if ( ! isHeld ) {
+			if ( ! isSameEntity( browsedEntity, entity ) ) {
+				setBrowsedEntity( entity );
+			}
+
+			return undefined;
+		}
+
+		if ( isLoading ) {
+			return undefined;
+		}
+
+		const open = () => {
+			// Moved on again since, so that load is waited for instead.
+			if ( ! isLoadingNow() ) {
+				setBrowsedEntity( entity );
+			}
+		};
+
+		if ( ! window.requestIdleCallback ) {
+			const timer = window.setTimeout( open, IDLE_FALLBACK_MS );
+
+			return () => window.clearTimeout( timer );
+		}
+
+		const handle = window.requestIdleCallback( open, {
+			timeout: IDLE_TIMEOUT_MS,
+		} );
+
+		return () => window.cancelIdleCallback( handle );
+		// `isLoadingNow` reads a ref, so it never goes stale.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ browsedEntity, entity, isHeld, isLoading ] );
+
+	return isHeld ? browsedEntity : entity;
 }
 
 /**
@@ -274,7 +345,11 @@ export function useSiteCanvas( {
 		previewEntity,
 	] );
 
-	const editorEntity = pinnedEntity || followedEntity;
+	const canvasEntity = pinnedEntity || followedEntity;
+	const editorEntity = useEditorEntity( canvasEntity, isPreviewing, frame );
+	// Whether the editor has the page the preview shows open, so that a spot
+	// in the preview can be found in it.
+	const isEditorReady = isSameEntity( editorEntity, canvasEntity );
 
 	useIgnoreLayoutTidying( editorEntity, isPreviewing );
 	/*
@@ -284,7 +359,7 @@ export function useSiteCanvas( {
 	 */
 	const canEdit = pinnedEntity
 		? true
-		: ( ! isPreviewing && Boolean( editorEntity ) ) ||
+		: ( ! isPreviewing && Boolean( canvasEntity ) ) ||
 			( ! isLoadingContext &&
 				isSameEntity( previewEntity, followedEntity ) &&
 				Boolean( previewEntity ) );
@@ -422,7 +497,7 @@ export function useSiteCanvas( {
 	 */
 	const requestMode = ( next ) => {
 		if ( next !== MODE_BROWSE ) {
-			if ( editorEntity ) {
+			if ( canvasEntity ) {
 				showEditor( next );
 			}
 
@@ -473,7 +548,7 @@ export function useSiteCanvas( {
 		setCanvasMode( MODE_BROWSE );
 	};
 
-	const editRoute = canEdit ? getEditRoute( editorEntity ) : null;
+	const editRoute = canEdit ? getEditRoute( canvasEntity ) : null;
 
 	return {
 		canEdit,
@@ -487,6 +562,7 @@ export function useSiteCanvas( {
 		},
 		editorEntity,
 		editRoute,
+		isEditorReady,
 		frame,
 		editorDevice,
 		isAwaitingPreview,

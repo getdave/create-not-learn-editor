@@ -303,10 +303,12 @@ function EditNudge( { iframeRef, nudge, onClose, onEdit } ) {
  * @return {?Element} The hints, while browsing a page that can be edited.
  */
 export function BrowseHints( { canvas } ) {
-	const { canEdit, frame, isPreviewing, requestMode } = canvas;
+	const { canEdit, frame, isEditorReady, isPreviewing, requestMode } = canvas;
 	const { frameDocument } = frame;
 	const iframeRef = frame.frameProps.ref;
-	const isActive = isPreviewing && canEdit && Boolean( frameDocument );
+	// Sections are found in the editor, so only once it has the page open.
+	const isActive =
+		isPreviewing && canEdit && isEditorReady && Boolean( frameDocument );
 	const { parts, sectionIds } = useComposeStructure();
 	const partIds = useMemo(
 		() => new Set( parts.map( ( part ) => part.clientId ) ),
