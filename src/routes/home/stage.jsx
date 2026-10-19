@@ -3,6 +3,7 @@
  */
 import { settings } from '../../settings';
 import ScreenLinks from '../../screen-links';
+import { getStartPlaces } from '../../start-places';
 import { MODE_EDIT, setCanvasMode } from '../../site-canvas/mode';
 import { FROM_SITE_SEARCH } from '../../site-trail';
 import {
@@ -10,73 +11,38 @@ import {
 	Stack,
 	Text,
 	__,
-	brushIcon,
 	coreDataStore,
 	decodeEntities,
-	footerIcon,
-	headerIcon,
-	homeIcon,
-	pagesIcon,
-	siteLogoIcon,
 	useSelect,
 } from '../../wordpress-packages';
 
 /*
- * Places to start working on the site. People don't build a site in any set
- * order, so these are offered as equal choices rather than numbered steps,
- * and nothing is marked done. Each screen's breadcrumbs lead back here.
+ * Where each place to start opens. People don't build a site in any set
+ * order, so the places are offered as equal choices rather than numbered
+ * steps, and nothing is marked done. Each screen's breadcrumbs lead back here.
  */
+const START_ROUTES = {
+	home: {
+		// The homepage opened up on the Pages screen, where what it shows,
+		// its sections and its layout all live. `home` stands for it there
+		// (`HOMEPAGE` in the Pages screen), whatever it shows.
+		onSelect: () => setCanvasMode( MODE_EDIT ),
+		search: { postId: 'home', previewId: 'home', ...FROM_SITE_SEARCH },
+		to: '/types/page/list/all',
+	},
+	pages: { to: '/types/page/list/default' },
+	identity: { to: '/design/identity' },
+	style: { to: '/design' },
+	header: { to: '/design/header' },
+	footer: { to: '/design/footer' },
+};
+
 function getStartLinks() {
-	return [
-		{
-			description: __( 'Make the first page visitors see your own.' ),
-			icon: homeIcon,
-			// The homepage opened up on the Pages screen, where what it shows,
-			// its sections and its layout all live. `home` stands for it there
-			// (`HOMEPAGE` in the Pages screen), whatever it shows.
-			onSelect: () => setCanvasMode( MODE_EDIT ),
-			search: { postId: 'home', previewId: 'home', ...FROM_SITE_SEARCH },
-			title: __( 'Your homepage' ),
-			to: '/types/page/list/all',
-		},
-		{
-			description: __( 'Add pages like About and Contact.' ),
-			icon: pagesIcon,
-			search: FROM_SITE_SEARCH,
-			title: __( 'Pages & menu' ),
-			to: '/types/page/list/default',
-		},
-		{
-			description: __( 'Name your site and add a logo.' ),
-			icon: siteLogoIcon,
-			search: FROM_SITE_SEARCH,
-			title: __( 'Name & logo' ),
-			to: '/design/identity',
-		},
-		{
-			// Design leads with whole-site looks and links on to Colors and
-			// Fonts, so one row covers both without adding to the choices here.
-			description: __( 'Pick the look of your whole site.' ),
-			icon: brushIcon,
-			search: FROM_SITE_SEARCH,
-			title: __( 'Colors & fonts' ),
-			to: '/design',
-		},
-		{
-			description: __( 'Choose how the top of every page looks.' ),
-			icon: headerIcon,
-			search: FROM_SITE_SEARCH,
-			title: __( 'Header' ),
-			to: '/design/header',
-		},
-		{
-			description: __( 'Choose how the bottom of every page looks.' ),
-			icon: footerIcon,
-			search: FROM_SITE_SEARCH,
-			title: __( 'Footer' ),
-			to: '/design/footer',
-		},
-	];
+	return getStartPlaces().map( ( place ) => ( {
+		...place,
+		search: FROM_SITE_SEARCH,
+		...START_ROUTES[ place.id ],
+	} ) );
 }
 
 export default function Stage() {
