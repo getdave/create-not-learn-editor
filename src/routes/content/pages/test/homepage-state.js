@@ -1,6 +1,7 @@
-jest.mock( '@wordpress/blocks', () => ( {
-	createBlock: jest.fn(),
-} ) );
+/**
+ * External dependencies
+ */
+import { describe, expect, test, vi } from 'vitest';
 
 /**
  * Internal dependencies
@@ -14,6 +15,8 @@ import {
 	isHomeUrl,
 	replacePageLinksWithHomeLinks,
 } from '../homepage-state';
+
+vi.mock( '@wordpress/blocks', () => ( { createBlock: vi.fn() } ) );
 
 const HOME_URL = 'https://example.com/';
 const welcome = { id: 7, status: 'publish' };
