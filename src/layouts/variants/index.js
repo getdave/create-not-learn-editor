@@ -135,14 +135,18 @@ function arrange( family, state, candidate ) {
 
 	return {
 		current: family.getCurrent( state, options ),
-		options: options.map( ( option ) => ( {
-			name: option.name,
-			label: option.label,
-			block: wrap(
+		options: options.map( ( option ) => {
+			const block = wrap(
 				family.arrange( target, state, option ),
 				cloneAll( intro )
-			),
-		} ) ),
+			);
+
+			return {
+				name: option.name,
+				label: option.label,
+				block: family.fit ? family.fit( block, state, option ) : block,
+			};
+		} ),
 	};
 }
 
