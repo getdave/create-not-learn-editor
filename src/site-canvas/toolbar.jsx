@@ -36,7 +36,7 @@ import {
 	useDispatch,
 	useSelect,
 } from '../wordpress-packages';
-import { zoomOutIcon } from './icons';
+import { zoomInIcon, zoomOutIcon } from './icons';
 import { MODE_BROWSE, MODE_EDIT } from './mode';
 
 function getDeviceOptions() {
@@ -98,22 +98,29 @@ export function ModeToggle( { canEdit, mode, onChange } ) {
  * while editing. Named for what it does to the page, Compose being our word
  * for it, not one people would look for.
  *
+ * Shows the action the click will take, not the mode already on: "Zoom out"
+ * while editing the page, "Zoom in" once Compose has zoomed out.
+ *
  * @param {Object}   props
  * @param {boolean}  props.isComposing Whether Compose is on.
  * @param {Function} props.onToggle    Turns Compose on or off.
  * @return {Element} The button.
  */
 export function ComposeButton( { isComposing, onToggle } ) {
+	const label = isComposing
+		? __( 'Zoom in to edit the page' )
+		: __( 'Arrange sections' );
+
 	return (
-		<ComponentsTooltip placement="bottom" text={ __( 'Arrange sections' ) }>
+		<ComponentsTooltip placement="bottom" text={ label }>
 			<Button
 				__next40pxDefaultSize
 				className="cnl-site-canvas__compose-button"
-				icon={ zoomOutIcon }
+				icon={ isComposing ? zoomInIcon : zoomOutIcon }
 				isPressed={ isComposing }
 				onClick={ onToggle }
 			>
-				{ __( 'Zoom out' ) }
+				{ isComposing ? __( 'Zoom in' ) : __( 'Zoom out' ) }
 			</Button>
 		</ComponentsTooltip>
 	);
