@@ -30,13 +30,14 @@
  * WordPress dependencies
  */
 import { BlockPreview } from '@wordpress/block-editor';
-import { createPortal } from '@wordpress/element';
+import { createPortal, Fragment } from '@wordpress/element';
 import { plus as plusIcon, trash as trashIcon } from '@wordpress/icons';
 
 /**
  * Internal dependencies
  */
 import { observeHost } from '../../editor-layer/portal-host';
+import { GLOBAL_CANVAS_CSS, GlobalScope } from '../../global-scope';
 import { openSectionPicker } from '../../editor-layer/section-picker';
 import { unlock } from '../../lock-unlock';
 import { getSectionTitle } from '../../routes/content/pages/page-sections';
@@ -93,6 +94,7 @@ import { getOwnerBlock, useSectionItems } from './use-section-items';
 const CONTENT_REGION = '.interface-interface-skeleton__content';
 
 const STYLE_ID = 'cnl-section-modes';
+const GLOBAL_STYLE_ID = 'cnl-section-modes-global';
 
 // Sizes on screen, in pixels.
 const INSET = 12;
@@ -146,6 +148,68 @@ function local( rect, frame ) {
 		top: rect.top - frame.top,
 		width: rect.width,
 	};
+}
+
+/**
+ * Where a section's name goes, in a tab against its outline: over its top
+ * edge, or inside it while there is no room above it on the canvas. The
+ * section at the very top of the page, usually the header, has nothing above
+ * it to sit on, so its tab hangs under its bottom edge instead, clear of what
+ * is in it.
+ *
+ * @param {Object}  box          The section, on the canvas.
+ * @param {boolean} isPageTop    Whether it is at the very top of the page.
+ * @param {number}  canvasHeight The canvas's height.
+ * @return {Object} `{ isBelow, isInside, style }` for `SectionTab`.
+ */
+function placeTab( box, isPageTop, canvasHeight ) {
+	const bottom = box.top + box.height;
+	const isBelow = isPageTop && bottom + TAB_HEIGHT <= canvasHeight;
+	const isInside = ! isBelow && box.top < TAB_HEIGHT;
+	let top = box.top - TAB_HEIGHT;
+
+	if ( isBelow ) {
+		top = bottom;
+	} else if ( isInside ) {
+		top = box.top;
+	}
+
+	return {
+		isBelow,
+		isInside,
+		style: {
+			left: box.left,
+			maxWidth: box.width / 2 - ADD_SECTION_CLEARANCE,
+			top,
+		},
+	};
+}
+
+/**
+ * Whether a block starts or ends the page: first, or last, among its
+ * siblings, and its parents among theirs, all the way up.
+ *
+ * @param {Function} select   The data registry's `select`.
+ * @param {string}   clientId The block.
+ * @param {boolean}  isEnd    Whether to check for the end of the page.
+ * @return {boolean} Whether it does.
+ */
+function isAtPageEdge( select, clientId, isEnd ) {
+	const { getBlockOrder, getBlockRootClientId } = select( blockEditorStore );
+	let id = clientId;
+
+	while ( id ) {
+		const parentId = getBlockRootClientId( id );
+		const siblings = getBlockOrder( parentId || '' );
+
+		if ( siblings[ isEnd ? siblings.length - 1 : 0 ] !== id ) {
+			return false;
+		}
+
+		id = parentId;
+	}
+
+	return true;
 }
 
 /**
@@ -453,6 +517,14 @@ export function SectionModesLayer( {
 				parts.map( ( part ) => [ part.clientId, part ] )
 			),
 		[ parts ]
+	);
+	// The section at the very top of the page, whose name goes under it.
+	const pageTopId = useSelect(
+		( select ) =>
+			[ ...parts.map( ( part ) => part.clientId ), ...sectionIds ].find(
+				( clientId ) => isAtPageEdge( select, clientId, false )
+			) ?? null,
+		[ parts, sectionIds ]
 	);
 	const targets = useMemo(
 		() =>
@@ -953,6 +1025,14 @@ export function SectionModesLayer( {
 		)
 	);
 
+	// A header or footer's blocks are picked out in purple while it is open.
+	useCanvasStyles(
+		Boolean( activePart ),
+		editorRef,
+		GLOBAL_STYLE_ID,
+		GLOBAL_CANVAS_CSS
+	);
+
 	// Composing, Escape with nothing picked leaves for Edit, from wherever
 	// focus is, but not from a dialog or popover's own Escape.
 	useEffect( () => {
@@ -1281,103 +1361,106 @@ export function SectionModesLayer( {
 			onPointerLeave: release,
 		};
 
+		// Purple for a header or footer, which every page shares.
+		const Scope = isPart ? GlobalScope : Fragment;
+
 		// Remade for each section pointed at, so it fades in afresh.
 		return (
 			<div className="cnl-section-modes__hover" key={ shownHoverId }>
-				{ /* Tinted while pointed at; only outlined while just picked. */ }
-				<div
-					className={ `cnl-section-modes__tint${
-						shownHoverId === pickedId &&
-						hoveredId !== pickedId &&
-						menuOpenFor !== pickedId
-							? ' is-picked'
-							: ''
-					}` }
-					style={ box }
-				/>
-				<SectionTab
-					isInside={ box.top < TAB_HEIGHT }
-					isPart={ isPart }
-					style={ {
-						left: box.left,
-						maxWidth: box.width / 2 - ADD_SECTION_CLEARANCE,
-						top:
-							box.top < TAB_HEIGHT
-								? box.top
-								: box.top - TAB_HEIGHT,
-					} }
-					title={ title }
-				/>
-				<div { ...holdHover }>
-					{ ! isPart &&
-						! active &&
-						[
-							[ box.top, index ],
-							[ box.top + box.height, index + 1 ],
-						].map( ( [ top, at ] ) => (
-							<Button
-								className="cnl-section-modes__add-section"
-								icon={ plusIcon }
-								key={ at }
-								onClick={ () =>
-									openSectionPicker( {
-										index: at,
-										rootClientId: rootClientId || '',
-									} )
-								}
-								size="compact"
-								style={ {
-									left: box.left + box.width / 2,
-									top,
-								} }
-								variant="primary"
-							>
-								{ __( 'Add section' ) }
-							</Button>
-						) ) }
-					<HoverBar
-						canMoveDown={ index < sectionIds.length - 1 }
-						canMoveUp={ index > 0 }
-						isCompact={ isCompact }
-						isNarrow={ isNarrow && ! isCompact }
+				<Scope>
+					{ /* Tinted while pointed at; only outlined while just picked. */ }
+					<div
+						className={ `cnl-section-modes__tint${
+							shownHoverId === pickedId &&
+							hoveredId !== pickedId &&
+							menuOpenFor !== pickedId
+								? ' is-picked'
+								: ''
+						}` }
+						style={ box }
+					/>
+					<SectionTab
+						{ ...placeTab(
+							box,
+							shownHoverId === pageTopId,
+							frame.height
+						) }
 						isPart={ isPart }
-						onAdd={ ( type ) =>
-							type === 'image'
-								? requestMedia( {
-										ownerId: shownHoverId,
-										type: 'add',
-									} )
-								: leaveCompose( () =>
-										addItem( shownHoverId, type )
-									)
-						}
-						onDelete={ () => deleteSection( shownHoverId ) }
-						onDuplicate={ () =>
-							registry
-								.dispatch( blockEditorStore )
-								.duplicateBlocks( [ shownHoverId ], false )
-						}
-						onMenuToggle={ ( isMenuOpen ) =>
-							setMenuOpenFor( isMenuOpen ? shownHoverId : null )
-						}
-						onMode={ ( mode ) =>
-							mode === MODE_CONTENT
-								? leaveCompose( () =>
-										enterMode( shownHoverId, mode )
-									)
-								: enterMode( shownHoverId, mode )
-						}
-						onMove={ ( direction ) =>
-							moveSection( shownHoverId, direction )
-						}
-						style={ {
-							left: box.left + INSET,
-							top: barTop,
-							width: box.width - INSET * 2,
-						} }
 						title={ title }
 					/>
-				</div>
+					<div { ...holdHover }>
+						{ ! isPart &&
+							! active &&
+							[
+								[ box.top, index ],
+								[ box.top + box.height, index + 1 ],
+							].map( ( [ top, at ] ) => (
+								<Button
+									className="cnl-section-modes__add-section"
+									icon={ plusIcon }
+									key={ at }
+									onClick={ () =>
+										openSectionPicker( {
+											index: at,
+											rootClientId: rootClientId || '',
+										} )
+									}
+									size="compact"
+									style={ {
+										left: box.left + box.width / 2,
+										top,
+									} }
+									variant="primary"
+								>
+									{ __( 'Add section' ) }
+								</Button>
+							) ) }
+						<HoverBar
+							canMoveDown={ index < sectionIds.length - 1 }
+							canMoveUp={ index > 0 }
+							isCompact={ isCompact }
+							isNarrow={ isNarrow && ! isCompact }
+							isPart={ isPart }
+							onAdd={ ( type ) =>
+								type === 'image'
+									? requestMedia( {
+											ownerId: shownHoverId,
+											type: 'add',
+										} )
+									: leaveCompose( () =>
+											addItem( shownHoverId, type )
+										)
+							}
+							onDelete={ () => deleteSection( shownHoverId ) }
+							onDuplicate={ () =>
+								registry
+									.dispatch( blockEditorStore )
+									.duplicateBlocks( [ shownHoverId ], false )
+							}
+							onMenuToggle={ ( isMenuOpen ) =>
+								setMenuOpenFor(
+									isMenuOpen ? shownHoverId : null
+								)
+							}
+							onMode={ ( mode ) =>
+								mode === MODE_CONTENT
+									? leaveCompose( () =>
+											enterMode( shownHoverId, mode )
+										)
+									: enterMode( shownHoverId, mode )
+							}
+							onMove={ ( direction ) =>
+								moveSection( shownHoverId, direction )
+							}
+							style={ {
+								left: box.left + INSET,
+								top: barTop,
+								width: box.width - INSET * 2,
+							} }
+							title={ title }
+						/>
+					</div>
+				</Scope>
 			</div>
 		);
 	};
@@ -1396,24 +1479,18 @@ export function SectionModesLayer( {
 		}
 
 		const box = local( rect, frame );
+		const isPart = Boolean( partsById[ pickedId ] );
+		const Scope = isPart ? GlobalScope : Fragment;
 
 		return (
-			<>
+			<Scope>
 				<div className="cnl-section-modes__outline" style={ box } />
 				<SectionTab
-					isInside={ box.top < TAB_HEIGHT }
-					isPart={ Boolean( partsById[ pickedId ] ) }
-					style={ {
-						left: box.left,
-						maxWidth: box.width / 2 - ADD_SECTION_CLEARANCE,
-						top:
-							box.top < TAB_HEIGHT
-								? box.top
-								: box.top - TAB_HEIGHT,
-					} }
+					{ ...placeTab( box, pickedId === pageTopId, frame.height ) }
+					isPart={ isPart }
 					title={ getTitle( pickedId ) }
 				/>
-			</>
+			</Scope>
 		);
 	};
 
@@ -1480,6 +1557,12 @@ export function SectionModesLayer( {
 		const box = local( rect, frame );
 		const title = getTitle( active.id );
 		const isHeader = activePart?.area === 'header';
+		const Scope = activePart ? GlobalScope : Fragment;
+		const tab = placeTab( box, active.id === pageTopId, frame.height );
+		// What sits outside the section keeps clear of a tab under it.
+		const outerBox = tab.isBelow
+			? { ...box, height: box.height + TAB_HEIGHT }
+			: box;
 		const removedCount = items.removed.filter(
 			( entry ) => entry.ownerId === active.id
 		).length;
@@ -1501,7 +1584,7 @@ export function SectionModesLayer( {
 				box.width >= width + INSET * 2;
 			const top = fitsInside
 				? placeAtEdge( box, height, frame.height )
-				: placeOutside( box, height, frame.height, isHeader );
+				: placeOutside( outerBox, height, frame.height, isHeader );
 
 			obstacle = {
 				height,
@@ -1549,7 +1632,7 @@ export function SectionModesLayer( {
 			const isSmall =
 				box.height < MODE_BAR_ROOM_HEIGHT ||
 				box.width < MODE_BAR_ROOM_WIDTH;
-			const below = box.top + box.height + MODE_BAR_GAP;
+			const below = outerBox.top + outerBox.height + MODE_BAR_GAP;
 			const above = box.top - SMALL_MODE_BAR_HEIGHT - MODE_BAR_GAP;
 			let place = {
 				left: box.left + box.width / 2,
@@ -1606,19 +1689,11 @@ export function SectionModesLayer( {
 		}
 
 		return (
-			<>
+			<Scope>
 				<div className="cnl-section-modes__outline" style={ box } />
 				<SectionTab
-					isInside={ box.top < TAB_HEIGHT }
+					{ ...tab }
 					isPart={ Boolean( activePart ) }
-					style={ {
-						left: box.left,
-						maxWidth: box.width / 2 - ADD_SECTION_CLEARANCE,
-						top:
-							box.top < TAB_HEIGHT
-								? box.top
-								: box.top - TAB_HEIGHT,
-					} }
 					title={ title }
 				/>
 				{ activeItems.map( ( item ) => {
@@ -1685,7 +1760,7 @@ export function SectionModesLayer( {
 					);
 				} ) }
 				{ chrome }
-			</>
+			</Scope>
 		);
 	};
 

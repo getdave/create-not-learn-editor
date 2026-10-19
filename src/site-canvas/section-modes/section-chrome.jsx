@@ -27,6 +27,7 @@ import {
 /**
  * Internal dependencies
  */
+import { GlobalNote } from '../../global-scope';
 import {
 	__,
 	Button,
@@ -83,7 +84,7 @@ export function getModes() {
 export function getSitewideText( title ) {
 	return sprintf(
 		/* translators: %s: header or footer, lowercase. */
-		__( 'You’re editing the %s on every page of your site' ),
+		__( 'Changes to the %s show on every page of your site' ),
 		title.toLowerCase()
 	);
 }
@@ -96,17 +97,19 @@ export function getSitewideText( title ) {
  * @param {boolean} props.isPart   Whether it is the header or footer.
  * @param {boolean} props.isInside Whether the tab sits inside the top edge,
  *                                 when there is no room above it.
+ * @param {boolean} props.isBelow  Whether the tab hangs under the bottom
+ *                                 edge, for the section at the page's top.
  * @param {Object}  props.style    Where it sits.
  * @return {Element} The tab.
  */
-export function SectionTab( { isInside, isPart, style, title } ) {
+export function SectionTab( { isBelow, isInside, isPart, style, title } ) {
 	return (
 		<span
 			aria-hidden
 			title={ title }
 			className={ `cnl-section-modes__tab${
 				isInside ? ' is-inside' : ''
-			}` }
+			}${ isBelow ? ' is-below' : '' }` }
 			style={ style }
 		>
 			{ isPart && <LegacyIcon icon={ globeIcon } size={ 14 } /> }
@@ -374,10 +377,9 @@ export const ModeBar = forwardRef( function ModeBar(
 			style={ style }
 		>
 			{ sitewide && (
-				<span className="cnl-section-modes__sitewide">
-					<LegacyIcon icon={ globeIcon } size={ 16 } />
+				<GlobalNote className="cnl-section-modes__sitewide">
 					{ sitewide }
-				</span>
+				</GlobalNote>
 			) }
 			{ removedCount > 0 && (
 				<Button

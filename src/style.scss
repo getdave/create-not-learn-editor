@@ -1,5 +1,6 @@
 @use "@wordpress/dataviews/build-style/style.css" as dataviews;
 @use "./vendor/gutenberg/list-view/style" as list-view;
+@use "./colors" as *;
 @use "./theme/modern";
 @use "./routes/content/pages/style" as pages;
 @use "./site-canvas/style" as site-canvas;
@@ -8,6 +9,7 @@
 @use "./design-picker/style" as design-picker;
 @use "./section-picker/style" as section-picker;
 @use "./editor-extensions/style" as editor-extensions;
+@use "./global-scope/style" as global-scope;
 
 .cnl-editor-page {
 
@@ -1640,6 +1642,20 @@
 	color: #757575;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+// The header or footer's name and that every page has it, in the purple of
+// what every page shares. See `src/global-scope`.
+.cnl-editor-homepage-document.is-global {
+
+	.cnl-editor-homepage-document__icon {
+		fill: $cnl-global;
+	}
+
+	.cnl-editor-homepage-document__title,
+	.cnl-editor-homepage-document__meta {
+		color: $cnl-global;
+	}
 }
 
 .cnl-editor-homepage-options {
