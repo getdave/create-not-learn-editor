@@ -351,7 +351,10 @@ describe( 'getSectionArrangements', () => {
 		const result = apply( section, 'text-over-image' );
 		const [ cover ] = result.innerBlocks;
 
-		expect( result.attributes ).toEqual( section.attributes );
+		expect( result.name ).toBe( 'core/group' );
+		expect( result.attributes.metadata ).toEqual(
+			section.attributes.metadata
+		);
 		expect( cover.name ).toBe( 'core/cover' );
 		expect( cover.attributes ).toMatchObject( {
 			url: image.attributes.url,
@@ -365,13 +368,54 @@ describe( 'getSectionArrangements', () => {
 		] );
 	} );
 
+	it( 'fills the section with the image, the padding inside it', () => {
+		const section = theme( 'hero-split' );
+		const result = apply( section, 'text-over-image' );
+		const [ cover ] = result.innerBlocks;
+
+		expect( result.attributes.style ).toBeUndefined();
+		expect( result.attributes.align ).toBe( 'full' );
+		expect( cover.attributes.align ).toBe( 'full' );
+		expect( cover.attributes.style.spacing.padding ).toEqual(
+			section.attributes.style.spacing.padding
+		);
+	} );
+
+	it( 'gives the section its padding back out of the image', () => {
+		const section = theme( 'hero-split' );
+		const result = apply(
+			apply( section, 'text-over-image' ),
+			'image-right'
+		);
+		const [ columns ] = result.innerBlocks;
+
+		expect( result.attributes ).toEqual( section.attributes );
+		expect( columns.attributes.align ).toBe( 'wide' );
+	} );
+
+	it( 'leaves a cover below a heading in its section', () => {
+		const section = cloneBlock( theme( 'hero-split' ), {}, [
+			cloneBlock( {
+				name: 'core/heading',
+				attributes: { content: 'Words' },
+				innerBlocks: [],
+			} ),
+			...theme( 'hero-split' ).innerBlocks,
+		] );
+		const result = apply( section, 'text-over-image' );
+
+		expect( result.attributes ).toEqual( section.attributes );
+		expect( result.innerBlocks[ 1 ].attributes.align ).toBe( 'wide' );
+	} );
+
 	it( 'takes the picture out of a cover', () => {
 		const section = theme( 'hero-cover' );
 		const [ cover ] = section.innerBlocks;
 		const [ columns ] = apply( section, 'image-left' ).innerBlocks;
 		const [ mediaColumn, textColumn ] = columns.innerBlocks;
 
-		expect( columns.attributes.align ).toBe( cover.attributes.align );
+		expect( section.innerBlocks[ 0 ].attributes.align ).toBe( 'full' );
+		expect( columns.attributes.align ).toBe( 'wide' );
 		expect( mediaColumn.innerBlocks[ 0 ].name ).toBe( 'core/image' );
 		expect( mediaColumn.innerBlocks[ 0 ].attributes ).toMatchObject( {
 			url: cover.attributes.url,

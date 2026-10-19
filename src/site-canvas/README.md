@@ -2,7 +2,7 @@
 
 The canvas beside Home, Pages and Design. A Browse | Edit toggle at the left of its toolbar switches between looking at the site and changing it. While editing, a Compose button beside it steps back to work on the page's sections, and undo and redo follow it.
 
-- **Browse**, the default. The saved site in an iframe, as visitors see it. Links can be followed to other pages.
+- **Browse**, the default. The saved site in an iframe, as visitors see it. Links can be followed to other pages. Because it looks just like Edit, it hints at Edit where someone reaches for a change: the page's words have the arrow, not the text cursor, a section rested on for a moment is outlined faintly with an Edit tag (purple for the header and footer), a click on anything that isn't a link or button highlights its section the same way, and a second click on it asks "Want to change this?". Edit from the tag or the question, or a double click, opens Edit with that section picked. See "Browse's hints" below.
 - **Edit**. The page in core's editor, with our own layer over it. Pointing at a section picks how to edit it, and nothing on the page can be clicked until one way is chosen. See "Edit's section layer" below. Each section made of other blocks starts content-only. A layout, like Single Post, opens unlocked, as its sections are mostly a post's title, image and content. "Open in full editor", in the toolbar's More options menu, opens the full-screen editor for anything the canvas doesn't suit.
 - **Compose**. The same editor zoomed out, with the same section layer as Edit over it. Sections are dragged to reorder the page, a ghost of the section following the pointer, and a section's layout, colours and place on the page (move, duplicate, delete, add a section) change without leaving. Anything else, like Edit content, Add, a bin, Freeform or a double click, zooms back into Edit and does it there. It is editing from further away, so the toggle stays on Edit. The Compose button, or Escape with nothing picked, returns to Edit.
 
@@ -19,6 +19,8 @@ Moving to Browse with unsaved changes asks to save or discard them, because the 
 | `mode.js` | The shared mode: `useCanvasMode()`, `getCanvasMode()`, `setCanvasMode()`. |
 | `toolbar.js` | The Browse \| Edit toggle, the Compose button (labelled "Zoom out"), undo and redo, the preview's history and device, and the More options menu, with the way to the full-screen editor. |
 | `zoom-controls.jsx` | Compose from the canvas itself: a zoom in and zoom out pair in its corner, as on a map, and a pinch on a trackpad, or Ctrl or ⌘ with the scroll wheel. One gesture moves one step. |
+| `browse-hints.jsx` | Browse's hints that the page is changed in Edit, laid over the preview. |
+| `preview-blocks.js` | Finding, in the editor, the block a spot in the preview shows. |
 | `use-section-lock.js` | In Edit, every section of a page or post made of other blocks starts content-only, with core's own lock, kept in the editor's settings rather than the page. A layout's sections aren't locked: they are mostly a post's title, image and content, so there would be nothing left to change. |
 | `edit-section-controls.js` | Core's unlock button said as "Edit" and "Done", and core's "Shuffle styles" hidden, in Edit. |
 | `part-spotlight.js` | `useEditorSpotlight()`: a header or footer brought forward on the canvas, the rest of the page faded and dimmed. Shared by Edit's section layer and the Header and Footer screens. |
@@ -26,6 +28,12 @@ Moving to Browse with unsaved changes asks to save or discard them, because the 
 | `icons.js` | An icon for a page built from stacked sections, for the empty page in Compose, and a zoom-out magnifier for Compose's button. |
 | `section-modes/` | Edit's section layer. See below. |
 | `compose/` | Compose. See below. |
+
+## Browse's hints
+
+The preview is the front end, which doesn't know the editor's blocks. Previews name each block on its outermost element, as `data-cnl-block` (`cnl_editor_name_preview_block()` in `includes/preview-frame.php`). A spot on the page then has a path of named blocks above it, and following that path down the editor's tree, which has the same blocks in the same order, finds the section it is in. A synced pattern has no element of its own, so the editor's are looked through. Where the two part ways, like a list of posts repeating its blocks, the path stops at the last block both have.
+
+Edit, from the tag or the question, selects the section in core, and Edit's section layer picks the section of a block selected, as it does for one the section picker adds.
 
 ## Edit's section layer
 
