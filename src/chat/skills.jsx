@@ -1283,10 +1283,13 @@ const PLACE_SUGGESTIONS = {
  * offers, so the first thing seen is a short, familiar list. A group with
  * one thing in it is that thing.
  */
-export const SUGGESTION_GROUPS = getStartPlaces().map( ( place ) => ( {
-	...place,
-	suggestions: PLACE_SUGGESTIONS[ place.id ],
-} ) );
+export const SUGGESTION_GROUPS = getStartPlaces()
+	// The chat can't help with the shop yet.
+	.filter( ( place ) => PLACE_SUGGESTIONS[ place.id ] )
+	.map( ( place ) => ( {
+		...place,
+		suggestions: PLACE_SUGGESTIONS[ place.id ],
+	} ) );
 
 // What to ask for about the page being worked on, when there is one.
 export const PAGE_SUGGESTIONS = [

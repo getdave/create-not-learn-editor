@@ -1,0 +1,133 @@
+// The shop's screens.
+
+// Under the page header, padded as Pages' list is.
+.cnl-shop-page__body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-lg);
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-2xl);
+}
+
+// A list of products, or of the shop's pages, each a row to pick.
+.cnl-shop-products {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-xs);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.components-button.cnl-shop-products__item {
+	display: flex;
+	gap: var(--wpds-dimension-gap-md);
+	align-items: center;
+	width: 100%;
+	height: auto;
+	padding: var(--wpds-dimension-padding-sm);
+	border-radius: var(--wpds-border-radius-md);
+	color: var(--wpds-color-foreground-interactive-neutral);
+	text-align: start;
+
+	&:hover:not(:disabled),
+	&[aria-pressed="true"] {
+		background: var(--wpds-color-background-interactive-neutral-weak-active);
+	}
+}
+
+.cnl-shop-products__photo {
+	flex: 0 0 auto;
+	width: 48px;
+	height: 48px;
+	border-radius: var(--wpds-border-radius-sm);
+	object-fit: cover;
+
+	&.is-empty {
+		background: var(--wpds-color-background-surface-neutral-strong);
+	}
+}
+
+.cnl-shop-products__icon {
+	flex: 0 0 auto;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	fill: currentcolor;
+}
+
+.cnl-shop-products__text {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.cnl-shop-products__name {
+	font-size: var(--wpds-typography-font-size-md);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.cnl-shop-products__meta {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+	font-weight: var(--wpds-typography-font-weight-default);
+}
+
+.cnl-shop-product__photo-field {
+	display: flex;
+	gap: var(--wpds-dimension-gap-md);
+	align-items: center;
+}
+
+.cnl-shop-product__photo {
+	width: 96px;
+	height: 96px;
+	border-radius: var(--wpds-border-radius-md);
+	object-fit: cover;
+
+	&.is-empty {
+		background: var(--wpds-color-background-surface-neutral-strong);
+	}
+}
+
+// The table of every product.
+.cnl-shop-table__photo {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border-radius: var(--wpds-border-radius-sm);
+	object-fit: cover;
+
+	&.is-empty {
+		background: var(--wpds-color-background-surface-neutral-strong);
+	}
+}
+
+// The list of products in the panel: DataViews' list, with only a search
+// above it and paging below, at the panel's width.
+.cnl-shop-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-sm);
+
+	.dataviews-search {
+		width: 100%;
+	}
+
+	.dataviews-view-list {
+		margin-inline: calc(-1 * var(--wpds-dimension-padding-sm));
+	}
+
+	.dataviews-view-list__item-wrapper {
+		padding-block: var(--wpds-dimension-padding-sm);
+	}
+
+	// A product with nothing out of the ordinary has no badges, so no line
+	// for them.
+	.dataviews-view-list__fields:not(:has(.dataviews-view-list__field-value > *)) {
+		display: none;
+	}
+
+	.dataviews-pagination {
+		padding-inline: 0;
+	}
+}

@@ -1,7 +1,8 @@
 /**
  * Rows that lead on to related screens, each with an icon, a title and one
  * plain line about it, as on Design. They usually sit at the foot of a
- * screen; on "Your site" they are the screen.
+ * screen; on "Your site" they are the screen. A link with an `href` leaves
+ * the editor, to WP Admin, in a new tab.
  */
 
 /**
@@ -12,16 +13,24 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
-import { Button, chevronRightIcon, Icon } from './wordpress-packages';
+import {
+	Button,
+	chevronRightIcon,
+	externalIcon,
+	Icon,
+	__,
+} from './wordpress-packages';
 
 /**
  * Links on to related screens.
  *
  * @param {Object}   props       Component props.
  * @param {string}   props.label Accessible name for the group of links.
- * @param {Object[]} props.links `{ description, icon, onSelect, search, title,
- *                               to }` for each. `onSelect`, run just before the
- *                               screen opens, and `search` are optional.
+ * @param {Object[]} props.links `{ description, href, icon, onSelect, search,
+ *                               title, to }` for each. `onSelect`, run just
+ *                               before the screen opens, and `search` are
+ *                               optional. `href` opens a page outside the
+ *                               editor in a new tab, in place of `to`.
  * @return {Element} The links.
  */
 export default function ScreenLinks( { label, links } ) {
@@ -30,14 +39,30 @@ export default function ScreenLinks( { label, links } ) {
 	return (
 		<nav aria-label={ label } className="cnl-screen-links">
 			{ links.map(
-				( { description, icon, onSelect, search, title, to } ) => (
+				( {
+					description,
+					href,
+					icon,
+					onSelect,
+					search,
+					title,
+					to,
+				} ) => (
 					<Button
 						className="cnl-screen-links__link"
 						key={ title }
-						onClick={ () => {
-							onSelect?.();
-							navigate( { search, to } );
-						} }
+						{ ...( href
+							? {
+									href,
+									rel: 'noopener noreferrer',
+									target: '_blank',
+								}
+							: {
+									onClick: () => {
+										onSelect?.();
+										navigate( { search, to } );
+									},
+								} ) }
 					>
 						<Icon
 							className="cnl-screen-links__icon"
@@ -53,8 +78,13 @@ export default function ScreenLinks( { label, links } ) {
 						</span>
 						<Icon
 							className="cnl-screen-links__chevron"
-							icon={ chevronRightIcon }
+							icon={ href ? externalIcon : chevronRightIcon }
 						/>
+						{ href && (
+							<span className="screen-reader-text">
+								{ __( '(opens in a new tab)' ) }
+							</span>
+						) }
 					</Button>
 				)
 			) }

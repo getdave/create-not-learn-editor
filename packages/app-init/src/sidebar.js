@@ -39,8 +39,8 @@ import {
 	getChat,
 } from '../../../src/chat/store';
 import {
-	WORKSPACES,
 	getActiveWorkspace,
+	getAvailableWorkspaces,
 	resetRouteToHome,
 	setActiveWorkspace,
 } from '../../../src/workspaces';
@@ -310,7 +310,7 @@ function WorkspaceSwitcher() {
 			el(
 				MenuGroup,
 				{ label: __( 'Workspace' ) },
-				WORKSPACES.map( ( { id, label, icon } ) =>
+				getAvailableWorkspaces().map( ( { id, label, icon } ) =>
 					el(
 						MenuItem,
 						{

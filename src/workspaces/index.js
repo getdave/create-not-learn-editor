@@ -19,15 +19,21 @@
 import { store as bootStore } from '@wordpress/boot';
 import { dispatch, select, subscribe } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
-import { pencil, postList, tool } from '@wordpress/icons';
+import { pencil, postList, store, tool } from '@wordpress/icons';
 import { store as preferencesStore } from '@wordpress/preferences';
+
+/**
+ * Internal dependencies
+ */
+import { settings } from '../settings';
 
 export const PREFERENCES_SCOPE = 'create-not-learn-editor';
 export const PREFERENCE_NAME = 'workspace';
 
 /**
  * A parent no menu item has, so an item moved under it is never listed.
- * Boot has no way to remove a menu item once registered.
+ * Boot has no way to remove a menu item once registered. The shop's item is
+ * registered under it (`includes/shop.php`), for Selling to lift out.
  */
 const HIDDEN_PARENT = 'cnl-workspace-hidden';
 
@@ -39,6 +45,11 @@ const HIDDEN_PARENT = 'cnl-workspace-hidden';
  *
  * `pinLastMenuItem` pins the last top-level sidebar item to the bottom of the
  * panel, for workspaces that end on a gateway like Advanced.
+ *
+ * `leadStartPlace` names the place to start "Your site" puts first.
+ *
+ * `isAvailable` says whether the site can use the workspace at all. One it
+ * can't isn't offered, and is treated as the default if it was picked.
  */
 export const WORKSPACES = [
 	{
@@ -63,6 +74,19 @@ export const WORKSPACES = [
 		},
 	},
 	{
+		id: 'selling',
+		label: __( 'Selling' ),
+		icon: store,
+		isAvailable: () => !! settings.shop,
+		// The shop first: on "Your site" and at the top of the sidebar. The
+		// rest is as Default has it, so the site is still built the same way.
+		leadStartPlace: 'shop',
+		pinLastMenuItem: true,
+		menuItems: {
+			shop: { parent: undefined },
+		},
+	},
+	{
 		id: 'builder',
 		label: __( 'Builder' ),
 		icon: tool,
@@ -81,6 +105,17 @@ export const WORKSPACES = [
 export const DEFAULT_WORKSPACE = WORKSPACES[ 0 ];
 
 /**
+ * The workspaces this site can use.
+ *
+ * @return {Object[]} Workspace presets.
+ */
+export function getAvailableWorkspaces() {
+	return WORKSPACES.filter(
+		( { isAvailable } ) => ! isAvailable || isAvailable()
+	);
+}
+
+/**
  * Get a workspace by id, falling back to the default.
  *
  * @param {string} id Workspace id.
@@ -88,7 +123,7 @@ export const DEFAULT_WORKSPACE = WORKSPACES[ 0 ];
  */
 export function getWorkspace( id ) {
 	return (
-		WORKSPACES.find( ( workspace ) => workspace.id === id ) ||
+		getAvailableWorkspaces().find( ( workspace ) => workspace.id === id ) ||
 		DEFAULT_WORKSPACE
 	);
 }

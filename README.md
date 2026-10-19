@@ -134,6 +134,16 @@ npm run wp-env start
 npm run wp-env run cli wp plugin activate canvas
 ```
 
+### Shop
+
+With WooCommerce active, "Your site" offers the shop. Map WooCommerce in the same way, activate it, add its pages, then stock the shop with products that cover the awkward cases, like options, stock counts and drafts:
+
+```sh
+npm run wp-env run cli wp plugin activate woocommerce
+npm run wp-env run cli -- wp wc tool run install_pages --user=1
+npm run wp-env run cli -- --env-cwd=wp-content/plugins/<this folder> wp eval-file scripts/demo-site/seed-shop.php
+```
+
 ### Demo site
 
 The development site (not the tests site) is set up as a demo the first time `wp-env` starts. `scripts/setup-demo-site.mjs` runs after every start and calls `scripts/demo-site/seed.php`, which:

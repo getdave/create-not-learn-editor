@@ -15,18 +15,21 @@ import {
 	home as homeIcon,
 	pages as pagesIcon,
 	siteLogo as siteLogoIcon,
+	store as storeIcon,
 } from '@wordpress/icons';
 
 /**
  * Internal dependencies
  */
+import { settings } from './settings';
 import sitePartsIcon from './site-parts-icon';
 
 /**
+ * @param {?string} leadId A place to put first, as a workspace may ask.
  * @return {Object[]} `{ description, icon, id, title }` for each place.
  */
-export function getStartPlaces() {
-	return [
+export function getStartPlaces( leadId = null ) {
+	const places = [
 		{
 			description: __( 'Make the first page visitors see your own.' ),
 			icon: homeIcon,
@@ -61,5 +64,17 @@ export function getStartPlaces() {
 			id: 'siteParts',
 			title: __( 'Header & footer' ),
 		},
-	];
+		// Only a site with a shop has one to run.
+		settings.shop && {
+			description: __( 'Add what you sell and run your shop.' ),
+			icon: storeIcon,
+			id: 'shop',
+			title: __( 'Your shop' ),
+		},
+	].filter( Boolean );
+	const lead = places.find( ( { id } ) => id === leadId );
+
+	return lead
+		? [ lead, ...places.filter( ( place ) => place !== lead ) ]
+		: places;
 }

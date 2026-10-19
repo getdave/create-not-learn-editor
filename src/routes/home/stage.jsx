@@ -6,6 +6,7 @@ import ScreenLinks from '../../screen-links';
 import { getStartPlaces } from '../../start-places';
 import { MODE_EDIT, setCanvasMode } from '../../site-canvas/mode';
 import { FROM_SITE_SEARCH } from '../../site-trail';
+import { getActiveWorkspace } from '../../workspaces';
 import {
 	Link,
 	Stack,
@@ -34,10 +35,11 @@ const START_ROUTES = {
 	identity: { to: '/design/identity' },
 	style: { to: '/design' },
 	siteParts: { to: '/design/header-footer' },
+	shop: { to: '/shop' },
 };
 
-function getStartLinks() {
-	return getStartPlaces().map( ( place ) => ( {
+function getStartLinks( leadId ) {
+	return getStartPlaces( leadId ).map( ( place ) => ( {
 		...place,
 		search: FROM_SITE_SEARCH,
 		...START_ROUTES[ place.id ],
@@ -51,6 +53,10 @@ export default function Stage() {
 		[]
 	);
 	const siteName = decodeEntities( siteTitle || settings.siteName || '' );
+	const leadStartPlace = useSelect(
+		( select ) => getActiveWorkspace( select ).leadStartPlace,
+		[]
+	);
 
 	return (
 		<div className="cnl-editor-stage cnl-site-hub">
@@ -74,7 +80,7 @@ export default function Stage() {
 				</Text>
 				<ScreenLinks
 					label={ __( 'Start working on your site' ) }
-					links={ getStartLinks() }
+					links={ getStartLinks( leadStartPlace ) }
 				/>
 			</Stack>
 			<Text className="cnl-site-hub__hint" variant="body-sm">

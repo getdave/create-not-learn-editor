@@ -303,6 +303,20 @@ export function useSiteCanvas( {
 		initialUrl: url,
 	} );
 	const isPreviewStale = frame.loadedVersion !== savedVersion;
+
+	/*
+	 * A save while browsing, of changes the preview doesn't wait for, like a
+	 * shop's products, leaves it showing what was there before. Load it again.
+	 */
+	const { reload: reloadFrame } = frame;
+	useEffect( () => {
+		if ( isPreviewing && isPreviewStale && ! isSaving ) {
+			reloadFrame();
+		}
+		// Only a save finishing should reload, not moving into Browse, which
+		// waits for its own load.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ savedVersion ] );
 	const { isLoadingContext, previewContext, previewContextError } =
 		usePreviewContext( frame.location || url );
 	const previewEntity = getContextEntity( previewContext );
