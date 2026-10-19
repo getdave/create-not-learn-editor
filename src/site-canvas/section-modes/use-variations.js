@@ -1,23 +1,55 @@
 /**
  * What Edit design offers a section: its layouts and colours, or a header's
- * or footer's designs, each with the blocks to draw it with.
+ * or footer's designs and colours, each with the blocks to draw it with.
  */
 
 /**
  * Internal dependencies
  */
+import { getColorOffer, useColorOptions } from '../../pickers/section-design';
 import {
+	getCurrentPatternName,
+	getSitePartPatterns,
+} from '../../routes/site-part/layouts';
+import {
+	blockEditorStore,
 	coreDataStore,
 	parseBlocks,
 	serialize,
 	useMemo,
 	useSelect,
 } from '../../wordpress-packages';
-
-const EMPTY_ARRAY = [];
+import { withPartColor } from '../compose/section-colors';
+import { getPartColorBlocks } from '../compose/section-styles';
 
 // A section's layouts and colours, shared with the chat's picker.
 export { useSectionVariations } from '../../pickers/section-design';
+
+/**
+ * A header's or footer's colours, offered as a section's are and put on its
+ * outermost blocks, so they show on every page and stay put when its design
+ * changes.
+ *
+ * @param {Object} part `{ area, clientId, id }`.
+ * @return {Object} `{ blockName, choices, colors }`. `choices` is the
+ *                  result of `useColorOptions`; `colors` is `{ current,
+ *                  options }`, or null when there are none.
+ */
+export function usePartColors( part ) {
+	const partBlocks = useSelect(
+		( select ) => select( blockEditorStore ).getBlocks( part.clientId ),
+		[ part.clientId ]
+	);
+	const blockName = partBlocks[ 0 ]?.name;
+	const choices = useColorOptions( blockName );
+
+	const colors = useMemo(
+		() => getColorOffer( getPartColorBlocks( partBlocks ), choices ),
+		[ choices, partBlocks ]
+	);
+
+	return { blockName, choices, colors };
+}
 
 /**
  * The designs a header or footer can take, each as it would look.
@@ -28,10 +60,19 @@ export { useSectionVariations } from '../../pickers/section-design';
  * where the part is, and nothing can be inserted in the template around a
  * page.
  *
- * @param {Object} part `{ area, clientId, id }`.
+ * Each is shown, and goes in, with the part's colour as it is now, as a
+ * section's layouts keep its colour. A part with colours of its own, and a
+ * design with colours of its own, are left as they are. The one in use is
+ * found as the Header and Footer screens find it, whatever its colours.
+ *
+ * @param {Object}  part  `{ area, clientId, id }`.
+ * @param {?Object} color `{ blockName, name, choices }`: the block type that
+ *                        takes the part's colour, the colour, and the
+ *                        result of `useColorOptions`, or null when it takes
+ *                        none.
  * @return {Object} `{ current, options }`.
  */
-export function usePartDesigns( part ) {
+export function usePartDesigns( part, color ) {
 	const { patterns, partBlocks } = useSelect(
 		( select ) => ( {
 			partBlocks: select( coreDataStore ).getEditedEntityRecord(
@@ -43,27 +84,43 @@ export function usePartDesigns( part ) {
 		} ),
 		[ part.id ]
 	);
+	const colorBlockName = color?.blockName;
+	const colorName = color?.name;
+	const choices = color?.choices;
 
 	return useMemo( () => {
-		const blockType = `core/template-part/${ part.area }`;
-		const markup = partBlocks ? serialize( partBlocks ) : '';
-		const options = ( patterns || EMPTY_ARRAY )
-			.filter( ( pattern ) =>
-				( pattern.blockTypes || EMPTY_ARRAY ).includes( blockType )
-			)
-			.map( ( pattern ) => ( {
-				blocks: parseBlocks( pattern.content ),
+		const layouts = getSitePartPatterns( patterns, part.area );
+		const options = layouts.map( ( pattern ) => {
+			const blocks = parseBlocks( pattern.content );
+
+			return {
+				blocks: choices
+					? withPartColor(
+							blocks,
+							colorBlockName,
+							choices.options,
+							choices.colors,
+							colorName
+						)
+					: blocks,
 				label: pattern.title,
 				name: pattern.name,
-			} ) );
+			};
+		} );
 
 		return {
-			current:
-				options.find(
-					( option ) =>
-						markup && serialize( option.blocks ) === markup
-				)?.name ?? null,
+			current: getCurrentPatternName(
+				partBlocks ? serialize( partBlocks ) : '',
+				layouts
+			),
 			options,
 		};
-	}, [ part.area, partBlocks, patterns ] );
+	}, [
+		colorBlockName,
+		colorName,
+		choices,
+		part.area,
+		partBlocks,
+		patterns,
+	] );
 }

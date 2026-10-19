@@ -94,11 +94,64 @@ function withoutPlacementDetails( blocks ) {
 	} );
 }
 
+/*
+ * Without the colours on the part's outermost blocks, which Edit design
+ * changes apart from its layout: a style class, or core's colour settings.
+ */
+function withoutPartColors( blocks ) {
+	return blocks.map( ( block ) => {
+		const key = block.attributes ? 'attributes' : 'attrs';
+		const {
+			backgroundColor,
+			className,
+			gradient,
+			style,
+			textColor,
+			...attributes
+		} = block[ key ] || {};
+		const kept = String( className || '' )
+			.split( /\s+/ )
+			.filter(
+				( item ) =>
+					item &&
+					! /^is-style-/.test( item ) &&
+					! /^has-[a-z0-9-]*(?:color|background)$/.test( item )
+			)
+			.join( ' ' );
+		const { color, elements, ...otherStyle } = style || {};
+		const keptElements = Object.fromEntries(
+			Object.entries( elements || {} )
+				.map( ( [ name, { color: elementColor, ...rest } ] ) => [
+					name,
+					rest,
+				] )
+				.filter( ( [ , rest ] ) => Object.keys( rest ).length )
+		);
+		const keptStyle = Object.keys( keptElements ).length
+			? { ...otherStyle, elements: keptElements }
+			: otherStyle;
+
+		if ( kept ) {
+			attributes.className = kept;
+		}
+
+		if ( Object.keys( keptStyle ).length ) {
+			attributes.style = keptStyle;
+		}
+
+		return { ...block, [ key ]: attributes };
+	} );
+}
+
 function toComparable( content ) {
 	return normalize(
 		serialize(
-			withoutPlacementDetails(
-				parseBlocks( content, { __unstableSkipMigrationLogs: true } )
+			withoutPartColors(
+				withoutPlacementDetails(
+					parseBlocks( content, {
+						__unstableSkipMigrationLogs: true,
+					} )
+				)
 			)
 		)
 	);
@@ -109,7 +162,7 @@ function toComparable( content ) {
  *
  * A part that only places a pattern, as many themes' own parts do, uses that
  * pattern. Otherwise its blocks must match a layout's, give or take spacing,
- * what placing it adds and the social links filled in on it. A part that
+ * what placing it adds, the social links filled in on it and its colours. A part that
  * has been changed since matches none.
  *
  * @param {string}   content  The part's markup.

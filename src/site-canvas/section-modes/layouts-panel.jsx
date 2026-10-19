@@ -1,7 +1,7 @@
 /**
  * Edit design's panel: the section's layouts, each drawn with the section's
  * own content, and its colours below, as Design's colour palettes are
- * shown. A header or footer offers its designs instead. Picking one changes
+ * shown. A header or footer offers its designs instead, and its colours. Picking one changes
  * the section underneath at once.
  *
  * Freeform hands the section to core's own block tools, Reset puts back how
@@ -47,91 +47,22 @@ import {
 } from '../../wordpress-packages';
 import { GlobalNote } from '../../global-scope';
 import { getSitewideText } from './section-chrome';
-import { usePartDesigns, useSectionVariations } from './use-variations';
-import { withSectionStyle } from '../compose/section-styles';
-
-const EMPTY_ARRAY = [];
+import {
+	usePartColors,
+	usePartDesigns,
+	useSectionVariations,
+} from './use-variations';
+import {
+	getAttributeUpdate,
+	withSectionColor,
+} from '../compose/section-colors';
+import { getPartColorBlocks } from '../compose/section-styles';
 
 // The panel's dark theme seed, the editor's own dark grey.
 const PANEL_THEME = { color: { background: '#1e1e1e' } };
 
 // The most layouts the carousel shows at once.
 export const MAX_PER_SLIDE = 4;
-
-/**
- * A colour from a theme's styles, as CSS: a preset's slug resolved against
- * the palette, anything else as it is.
- *
- * @param {?string}  value   The colour, like `var:preset|color|accent`.
- * @param {Object[]} palette `{ slug, color }` for each colour of the theme.
- * @return {?string} The colour.
- */
-function resolveColor( value, palette ) {
-	if ( typeof value !== 'string' ) {
-		return null;
-	}
-
-	const slug =
-		value.match( /^var:preset\|color\|(.+)$/ )?.[ 1 ] ||
-		value.match( /^var\(--wp--preset--color--([^)]+)\)$/ )?.[ 1 ];
-
-	if ( slug ) {
-		return palette.find( ( item ) => item.slug === slug )?.color || null;
-	}
-
-	return value;
-}
-
-/**
- * A section style's background, words and accent, for its swatch.
- *
- * @param {?Object}  styles  The style's styles, from the theme.
- * @param {Object[]} palette The theme's colours.
- * @return {string[]} Up to three colours.
- */
-function getSwatch( styles, palette ) {
-	const elements = styles?.elements || {};
-
-	return [
-		styles?.color?.background || styles?.color?.gradient,
-		styles?.color?.text,
-		elements.button?.color?.background ||
-			elements.link?.color?.text ||
-			elements.heading?.color?.text,
-	]
-		.map( ( value ) => resolveColor( value, palette ) )
-		.filter( Boolean );
-}
-
-/**
- * The theme's colours, and its styles for each section style of a block.
- *
- * @param {?string} blockName The section's block type.
- * @return {Object} `{ palette, variations }`.
- */
-function useStyleColors( blockName ) {
-	return useSelect(
-		( select ) => {
-			const settings = select( blockEditorStore ).getSettings();
-			const features = settings.__experimentalFeatures?.color?.palette;
-
-			return {
-				palette: [
-					...( features?.theme || EMPTY_ARRAY ),
-					...( features?.default || EMPTY_ARRAY ),
-					...( settings.colors || EMPTY_ARRAY ),
-				],
-				variations: blockName
-					? select(
-							coreDataStore
-						).__experimentalGetCurrentThemeBaseGlobalStyles()
-							?.styles?.blocks?.[ blockName ]?.variations
-					: undefined,
-			};
-		},
-		[ blockName ]
-	);
-}
 
 function Preview( { blocks } ) {
 	return (
@@ -304,6 +235,91 @@ function OnlyLayout( { blocks, label } ) {
 }
 
 /**
+ * Puts a colour on blocks in the editor, or the theme's, in one change.
+ *
+ * @return {Function} Called with the blocks, the colour's name, or null for
+ *                    the theme's, and the colours there are.
+ */
+function useUpdateColors() {
+	const { updateBlockAttributes } = useDispatch( blockEditorStore );
+
+	return ( blocks, name, options ) => {
+		const changes = Object.fromEntries(
+			blocks.map( ( block ) => [
+				block.clientId,
+				getAttributeUpdate(
+					block.attributes,
+					withSectionColor( block.attributes, options, name )
+				),
+			] )
+		);
+
+		updateBlockAttributes( Object.keys( changes ), changes, {
+			uniqueByBlock: true,
+		} );
+	};
+}
+
+/**
+ * A section's colours, as Design's colour palettes are shown: the theme's,
+ * then the others it can take.
+ *
+ * @param {Object}   props
+ * @param {Object}   props.colors   `{ current, options }`.
+ * @param {Function} props.onSelect Called with the colour's name, or null.
+ * @return {Element} The swatches.
+ */
+function ColorOptions( { colors, onSelect } ) {
+	return (
+		<div className="cnl-section-modes__colors">
+			<span className="cnl-section-modes__panel-heading">
+				{ __( 'Colours' ) }
+			</span>
+			<div
+				aria-label={ __( 'Colours' ) }
+				className="cnl-section-modes__swatches"
+				role="group"
+			>
+				{ colors.options.map( ( option ) => (
+					<Button
+						aria-pressed={ option.name === colors.current }
+						className="cnl-section-modes__swatch"
+						key={ option.name ?? 'none' }
+						label={ option.label }
+						onClick={ () =>
+							option.name !== colors.current &&
+							onSelect( option.name )
+						}
+						showTooltip
+					>
+						{ option.swatch?.length ? (
+							<span
+								aria-hidden
+								className="cnl-section-modes__swatch-colors"
+							>
+								{ option.swatch.map( ( color, index ) => (
+									<ColorIndicator
+										colorValue={ color }
+										key={ index }
+									/>
+								) ) }
+							</span>
+						) : (
+							<span
+								aria-hidden
+								className="cnl-section-modes__swatch-default"
+							>
+								{ __( 'Theme' ) }
+							</span>
+						) }
+					</Button>
+				) ) }
+			</div>
+		</div>
+	);
+}
+
+/**
  * A section's arrangements and colours.
  *
  * @param {Object}   props
@@ -315,10 +331,9 @@ function OnlyLayout( { blocks, label } ) {
  * @return {Element} The panel's options.
  */
 function SectionOptions( { clientId, onFreeform, onReplace } ) {
-	const { replaceBlock, updateBlockAttributes } =
-		useDispatch( blockEditorStore );
+	const { replaceBlock } = useDispatch( blockEditorStore );
+	const updateColors = useUpdateColors();
 	const { block, colors, layouts } = useSectionVariations( clientId );
-	const { palette, variations } = useStyleColors( block?.name );
 
 	return (
 		<>
@@ -343,71 +358,12 @@ function SectionOptions( { clientId, onFreeform, onReplace } ) {
 			) }
 			<FreeformRow onFreeform={ onFreeform } />
 			{ colors && (
-				<div className="cnl-section-modes__colors">
-					<span className="cnl-section-modes__panel-heading">
-						{ __( 'Colours' ) }
-					</span>
-					<div
-						aria-label={ __( 'Colours' ) }
-						className="cnl-section-modes__swatches"
-						role="group"
-					>
-						{ colors.options.map( ( option ) => {
-							const swatch = option.name
-								? getSwatch(
-										variations?.[ option.name ],
-										palette
-									)
-								: EMPTY_ARRAY;
-
-							return (
-								<Button
-									aria-pressed={
-										option.name === colors.current
-									}
-									className="cnl-section-modes__swatch"
-									key={ option.name ?? 'none' }
-									label={
-										option.name
-											? option.label
-											: __( 'Theme' )
-									}
-									onClick={ () =>
-										option.name !== colors.current &&
-										updateBlockAttributes( clientId, {
-											className: withSectionStyle(
-												block.attributes.className,
-												option.name
-											),
-										} )
-									}
-									showTooltip
-								>
-									{ swatch.length ? (
-										<span
-											aria-hidden
-											className="cnl-section-modes__swatch-colors"
-										>
-											{ swatch.map( ( color, index ) => (
-												<ColorIndicator
-													colorValue={ color }
-													key={ index }
-												/>
-											) ) }
-										</span>
-									) : (
-										<span
-											aria-hidden
-											className="cnl-section-modes__swatch-default"
-										>
-											{ __( 'Theme' ) }
-										</span>
-									) }
-								</Button>
-							);
-						} ) }
-					</div>
-				</div>
+				<ColorOptions
+					colors={ colors }
+					onSelect={ ( name ) =>
+						updateColors( [ block ], name, colors.options )
+					}
+				/>
 			) }
 		</>
 	);
@@ -423,7 +379,16 @@ function SectionOptions( { clientId, onFreeform, onReplace } ) {
  */
 function PartOptions( { onFreeform, part } ) {
 	const { editEntityRecord } = useDispatch( coreDataStore );
-	const designs = usePartDesigns( part );
+	const updateColors = useUpdateColors();
+	const { blockName, choices, colors } = usePartColors( part );
+	const designs = usePartDesigns(
+		part,
+		colors && {
+			blockName,
+			choices,
+			name: colors.current,
+		}
+	);
 	const partBlocks = useSelect(
 		( select ) => select( blockEditorStore ).getBlocks( part.clientId ),
 		[ part.clientId ]
@@ -458,6 +423,18 @@ function PartOptions( { onFreeform, part } ) {
 				/>
 			) }
 			<FreeformRow onFreeform={ onFreeform } />
+			{ colors && (
+				<ColorOptions
+					colors={ colors }
+					onSelect={ ( name ) =>
+						updateColors(
+							getPartColorBlocks( partBlocks ),
+							name,
+							colors.options
+						)
+					}
+				/>
+			) }
 		</>
 	);
 }

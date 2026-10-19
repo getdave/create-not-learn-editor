@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
  */
 import {
 	getActiveSectionStyle,
+	getPartColorBlocks,
 	getSectionStyleColors,
 	getSectionStyles,
 	withSectionStyle,
@@ -83,6 +84,26 @@ describe( 'withSectionStyle', () => {
 		expect( withSectionStyle( undefined, 'section-dark' ) ).toBe(
 			'is-style-section-dark'
 		);
+	} );
+} );
+
+describe( 'getPartColorBlocks', () => {
+	it( 'takes the outermost blocks of the first one’s type', () => {
+		const blocks = [
+			{ name: 'core/group', attributes: {} },
+			{ name: 'core/separator', attributes: {} },
+			{ name: 'core/group', attributes: {} },
+		];
+
+		expect( getPartColorBlocks( blocks ) ).toEqual( [
+			blocks[ 0 ],
+			blocks[ 2 ],
+		] );
+	} );
+
+	it( 'finds none in an empty part', () => {
+		expect( getPartColorBlocks( [] ) ).toEqual( [] );
+		expect( getPartColorBlocks( undefined ) ).toEqual( [] );
 	} );
 } );
 

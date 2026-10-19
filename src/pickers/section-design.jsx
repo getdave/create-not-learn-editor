@@ -6,8 +6,9 @@
  *
  * - Its layouts are arrangements of the same content, for sections built from
  *   our layouts. See `src/layouts/variants.js`.
- * - Its colours are the theme's section styles. See
- *   `src/site-canvas/compose/section-styles.js`.
+ * - Its colours are the theme's section styles, or sets made from its palette
+ *   for a theme without any, offered only where they can show and be read.
+ *   See `src/site-canvas/compose/section-colors.js`.
  *
  * The toolbars show them in dropdowns. The chat shows the layouts as cards,
  * each a preview of the section laid out that way, and the colours as
@@ -21,7 +22,12 @@
  * WordPress dependencies
  */
 import { store as blockEditorStore } from '@wordpress/block-editor';
-import { cloneBlock, serialize, store as blocksStore } from '@wordpress/blocks';
+import {
+	cloneBlock,
+	getBlockType,
+	serialize,
+	store as blocksStore,
+} from '@wordpress/blocks';
 import { store as coreDataStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
 import { useMemo } from '@wordpress/element';
@@ -35,13 +41,15 @@ import { Icon } from '@wordpress/ui';
 import { getSectionArrangements } from '../layouts/variants';
 import { getVariationPalette } from '../routes/static/style-variations';
 import {
-	getActiveSectionStyle,
-	getSectionStyleColors,
-	getSectionStyles,
-	withSectionStyle,
-} from '../site-canvas/compose/section-styles';
+	getAttributeUpdate,
+	getColorOptions,
+	getReadableOptions,
+	getSectionColor,
+	withSectionColor,
+} from '../site-canvas/compose/section-colors';
 
 const EMPTY_ARRAY = [];
+const NO_COLORS = { colors: EMPTY_ARRAY, options: EMPTY_ARRAY };
 
 const NO_SITE_STYLES = { base: null, user: null };
 
@@ -79,6 +87,12 @@ function getSiteColors( site ) {
 		styles: {
 			color: { ...base?.styles?.color, ...user?.styles?.color },
 			elements: {
+				button: {
+					color: {
+						...base?.styles?.elements?.button?.color,
+						...user?.styles?.elements?.button?.color,
+					},
+				},
 				heading: {
 					color: {
 						...base?.styles?.elements?.heading?.color,
@@ -88,6 +102,143 @@ function getSiteColors( site ) {
 			},
 		},
 	};
+}
+
+/**
+ * The colours a type of block can take on this site.
+ *
+ * @param {Object} site      `{ base, blockStyles, user }`: the site's
+ *                           styles and the block type's block styles.
+ * @param {string} blockName The block type.
+ * @return {Object} `{ colors, options }`: the palette, and the result of
+ *                  `getColorOptions`.
+ */
+function buildColorChoices( site, blockName ) {
+	const { palette, styles } = getSiteColors( site );
+	const color = getBlockType( blockName )?.supports?.color;
+
+	return {
+		colors: palette,
+		options: getColorOptions( {
+			blockStyles: site.blockStyles,
+			colors: palette,
+			palette,
+			styles,
+			supports: {
+				background: !! color && color.background !== false,
+				button: !! color?.button,
+				heading: !! color?.heading,
+				link: !! color?.link,
+				text: !! color && color.text !== false,
+			},
+			variations: site.base?.styles?.blocks?.[ blockName ]?.variations,
+		} ),
+	};
+}
+
+/**
+ * The colours a type of block can take on this site, read now, for code
+ * outside a component.
+ *
+ * @param {Function} select    Registry `select`.
+ * @param {string}   blockName The block type.
+ * @return {Object} As `useColorOptions`.
+ */
+export function getColorChoices( select, blockName ) {
+	return buildColorChoices(
+		{
+			blockStyles: select( blocksStore ).getBlockStyles( blockName ),
+			...getSiteStyles( select ),
+		},
+		blockName
+	);
+}
+
+/**
+ * The colours a type of block can take on this site: the theme's section
+ * styles, or sets made from its palette.
+ *
+ * @param {?string} blockName The block type.
+ * @return {Object} `{ colors, options }`: the palette, and the result of
+ *                  `getColorOptions`.
+ */
+export function useColorOptions( blockName ) {
+	const { base, blockStyles, user } = useSelect(
+		( select ) =>
+			blockName
+				? {
+						blockStyles:
+							select( blocksStore ).getBlockStyles( blockName ),
+						// Flattened, so the result stays equal while nothing
+						// changes.
+						...getSiteStyles( select ),
+					}
+				: NO_SITE_STYLES,
+		[ blockName ]
+	);
+
+	return useMemo(
+		() =>
+			blockName
+				? buildColorChoices( { base, blockStyles, user }, blockName )
+				: NO_COLORS,
+		[ base, blockName, blockStyles, user ]
+	);
+}
+
+/**
+ * The colours to offer blocks that take a colour together, like a section,
+ * or a header's outermost blocks, or null when there are none to offer:
+ * colours set on the blocks themselves, which win over any picked, or no
+ * other colour their text can be read on.
+ *
+ * @param {Object[]} blocks  The blocks.
+ * @param {Object}   choices Result of `useColorOptions`.
+ * @return {?Object} `{ current, options }`.
+ */
+export function getColorOffer( blocks, choices ) {
+	const { colors, options } = choices;
+
+	if (
+		! blocks.length ||
+		! options.length ||
+		blocks.some(
+			( block ) => getSectionColor( block, options ) === undefined
+		)
+	) {
+		return null;
+	}
+
+	const readable = blocks.reduce( ( list, block ) => {
+		const names = getReadableOptions( block, options, colors ).map(
+			( option ) => option.name
+		);
+
+		return list.filter( ( option ) => names.includes( option.name ) );
+	}, options );
+
+	// Something to change to, besides the colour it has.
+	return readable.length > 1
+		? {
+				current: getSectionColor( blocks[ 0 ], options ),
+				options: readable,
+			}
+		: null;
+}
+
+/**
+ * What to give `updateBlockAttributes` to put a colour on a block.
+ *
+ * @param {Object}   block   The block.
+ * @param {Object[]} options The colours there are.
+ * @param {?string}  name    The colour, or null for the theme's.
+ * @return {Object} The attributes.
+ */
+export function getColorUpdate( block, options, name ) {
+	return getAttributeUpdate(
+		block.attributes,
+		withSectionColor( block.attributes, options, name )
+	);
 }
 
 /**
@@ -101,24 +252,12 @@ function getSiteColors( site ) {
  *                  rearranged `block`, and a colour's its swatch `colors`.
  */
 export function useSectionVariations( clientId ) {
-	const { base, block, blockStyles, user } = useSelect(
-		( select ) => {
-			const section = clientId
-				? select( blockEditorStore ).getBlock( clientId )
-				: null;
-
-			return {
-				block: section,
-				blockStyles: section
-					? select( blocksStore ).getBlockStyles( section.name )
-					: EMPTY_ARRAY,
-				// Flattened, so the result stays equal while nothing changes.
-				...( section ? getSiteStyles( select ) : NO_SITE_STYLES ),
-			};
-		},
+	const block = useSelect(
+		( select ) =>
+			clientId ? select( blockEditorStore ).getBlock( clientId ) : null,
 		[ clientId ]
 	);
-	const themeVariations = base?.styles?.blocks?.[ block?.name ]?.variations;
+	const choices = useColorOptions( block?.name );
 
 	const layouts = useMemo( () => {
 		const arrangements = block && getSectionArrangements( block );
@@ -137,40 +276,27 @@ export function useSectionVariations( clientId ) {
 	}, [ block ] );
 
 	const colors = useMemo( () => {
-		const styles = getSectionStyles( blockStyles, themeVariations );
+		const offer = block && getColorOffer( [ block ], choices );
 
-		if ( ! block || ! styles.length ) {
-			return null;
-		}
-
-		const site = getSiteColors( { base, user } );
-		const className = block.attributes.className;
-		const withStyle = ( name ) =>
-			cloneBlock( block, {
-				className: withSectionStyle( className, name ),
-			} );
-
-		return {
-			current: getActiveSectionStyle( className, styles ),
-			options: [
-				{
-					blocks: [ withStyle( null ) ],
-					colors: getSectionStyleColors( site.styles, site.palette ),
-					label: __( 'None' ),
-					name: null,
-				},
-				...styles.map( ( style ) => ( {
-					blocks: [ withStyle( style.name ) ],
-					colors: getSectionStyleColors(
-						themeVariations?.[ style.name ],
-						site.palette
-					),
-					label: style.label,
-					name: style.name,
+		return (
+			offer && {
+				...offer,
+				options: offer.options.map( ( option ) => ( {
+					...option,
+					blocks: [
+						cloneBlock( {
+							...block,
+							attributes: withSectionColor(
+								block.attributes,
+								choices.options,
+								option.name
+							),
+						} ),
+					],
 				} ) ),
-			],
-		};
-	}, [ base, block, blockStyles, themeVariations, user ] );
+			}
+		);
+	}, [ block, choices ] );
 
 	return { block, colors, layouts };
 }
