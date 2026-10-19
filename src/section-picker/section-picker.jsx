@@ -183,6 +183,46 @@ function useHasBeenNearView( ref, rootRef ) {
 }
 
 /**
+ * Whether a preview has drawn its design yet. The block editor's preview
+ * renders into a frame that only gets a height once the design inside it has
+ * been measured, so until then the card would be an empty box.
+ *
+ * @param {Object} ref Ref of the element the preview renders in.
+ * @return {boolean} Whether the preview has drawn.
+ */
+function useHasPreviewDrawn( ref ) {
+	const [ hasDrawn, setHasDrawn ] = useState( false );
+
+	useEffect( () => {
+		const node = ref.current;
+
+		if ( hasDrawn || ! node ) {
+			return;
+		}
+
+		const check = () => {
+			const frame = node.querySelector( 'iframe' );
+
+			if ( frame && parseFloat( frame.style.height ) > 0 ) {
+				setHasDrawn( true );
+			}
+		};
+		const observer = new window.MutationObserver( check );
+
+		observer.observe( node, {
+			attributeFilter: [ 'style' ],
+			childList: true,
+			subtree: true,
+		} );
+		check();
+
+		return () => observer.disconnect();
+	}, [ hasDrawn, ref ] );
+
+	return hasDrawn;
+}
+
+/**
  * A section design: its preview, and its name with "Add" underneath.
  *
  * Shared with the chat, which marks the design it has added.
@@ -204,7 +244,9 @@ export function SectionDesignCard( {
 	scrollRef,
 } ) {
 	const ref = useRef();
+	const previewRef = useRef();
 	const isNearView = useHasBeenNearView( ref, scrollRef );
+	const hasDrawn = useHasPreviewDrawn( previewRef );
 	const title = getPatternTitle( pattern );
 	const description = getPatternDescription( pattern );
 
@@ -224,12 +266,25 @@ export function SectionDesignCard( {
 				title={ description || undefined }
 				type="button"
 			>
-				<span className="cnl-design-picker__preview cnl-section-picker__preview">
+				<span
+					className="cnl-design-picker__preview cnl-section-picker__preview"
+					ref={ previewRef }
+				>
 					{ isNearView && (
 						<Preview
 							content={ getPatternContent( pattern ) }
 							description={ title }
 						/>
+					) }
+					{ ! hasDrawn && (
+						<span
+							aria-hidden
+							className="cnl-section-picker__preview-loading"
+						>
+							<Skeleton className="cnl-section-picker__preview-line is-heading" />
+							<Skeleton className="cnl-section-picker__preview-line" />
+							<Skeleton className="cnl-section-picker__preview-line is-short" />
+						</span>
 					) }
 				</span>
 				<span className="cnl-design-picker__card-footer">
