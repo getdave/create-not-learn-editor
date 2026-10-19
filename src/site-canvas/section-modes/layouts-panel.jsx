@@ -23,7 +23,6 @@ import {
 	useContext,
 	useState,
 } from '@wordpress/element';
-import { globe as globeIcon } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -38,7 +37,6 @@ import {
 	ColorIndicator,
 	coreDataStore,
 	isRTL,
-	LegacyIcon,
 	serialize,
 	sprintf,
 	ThemeProvider,
@@ -47,6 +45,8 @@ import {
 	useDispatch,
 	useSelect,
 } from '../../wordpress-packages';
+import { GlobalNote } from '../../global-scope';
+import { getSitewideText } from './section-chrome';
 import {
 	usePartColors,
 	usePartDesigns,
@@ -531,16 +531,9 @@ function LayoutsPanel(
 					</div>
 				</div>
 				{ part && (
-					<span className="cnl-section-modes__sitewide">
-						<LegacyIcon icon={ globeIcon } size={ 16 } />
-						{ sprintf(
-							/* translators: %s: header or footer, lowercase. */
-							__(
-								'You’re editing the %s on every page of your site'
-							),
-							title.toLowerCase()
-						) }
-					</span>
+					<GlobalNote className="cnl-section-modes__sitewide">
+						{ getSitewideText( title ) }
+					</GlobalNote>
 				) }
 				<PerSlideContext.Provider value={ perSlide }>
 					{ part ? (

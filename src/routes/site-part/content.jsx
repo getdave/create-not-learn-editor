@@ -31,6 +31,7 @@ import {
 } from '../../site-canvas';
 import { LOCKED_PART_CONTENT_SETTING } from '../../site-canvas/constants';
 import { withCanvasRecovery } from '../../canvas-recovery';
+import { GlobalScope } from '../../global-scope';
 import { withUiTheme } from '../../theme';
 import { getPatternTitle } from '../content/page-layouts';
 import { useMenuItemsEditor } from '../navigation-edit/menu-items-editor';
@@ -669,7 +670,7 @@ function PartDocument( { area } ) {
 	const part = SITE_PARTS[ area ];
 
 	return (
-		<div className="cnl-editor-homepage-document">
+		<div className="cnl-editor-homepage-document is-global">
 			<div className="cnl-editor-homepage-document__text">
 				<div className="cnl-editor-homepage-document__heading">
 					<Icon
@@ -733,11 +734,32 @@ function createCanvas( area ) {
 	};
 }
 
-export const headerStage = withUiTheme( createStage( 'header' ) );
-export const headerCanvas = withCanvasRecovery(
-	withUiTheme( createCanvas( 'header' ) )
+/**
+ * Everything on the screen edits a part every page shares, so all of it is
+ * in purple. See `src/global-scope`.
+ *
+ * @param {Function} Component The stage or canvas.
+ * @return {Function} The component, in purple.
+ */
+function withGlobalScope( Component ) {
+	return function GlobalSitePart( props ) {
+		return (
+			<GlobalScope>
+				<Component { ...props } />
+			</GlobalScope>
+		);
+	};
+}
+
+export const headerStage = withUiTheme(
+	withGlobalScope( createStage( 'header' ) )
 );
-export const footerStage = withUiTheme( createStage( 'footer' ) );
+export const headerCanvas = withCanvasRecovery(
+	withUiTheme( withGlobalScope( createCanvas( 'header' ) ) )
+);
+export const footerStage = withUiTheme(
+	withGlobalScope( createStage( 'footer' ) )
+);
 export const footerCanvas = withCanvasRecovery(
-	withUiTheme( createCanvas( 'footer' ) )
+	withUiTheme( withGlobalScope( createCanvas( 'footer' ) ) )
 );

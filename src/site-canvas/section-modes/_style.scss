@@ -25,7 +25,8 @@ $error-ink: var(--wpds-color-foreground-interactive-error);
 $error-stroke: var(--wpds-color-stroke-interactive-error);
 $error-wash: var(--wpds-color-background-interactive-error-weak-active);
 // The section outline and name, in the admin colour, as core's block
-// outlines are.
+// outlines are. Purple for a header or footer, as the layer puts them in
+// `GlobalScope`, which sets the admin colour.
 $theme: var(--wp-admin-theme-color);
 
 // A bar's room around its compact buttons.
@@ -148,7 +149,10 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	box-shadow: inset 0 0 0 2px $theme;
 }
 
-/* Its name, in a tab above its top edge, or inside it at the canvas's top. */
+/*
+ * Its name, in a tab above its top edge, inside it at the canvas's top, or
+ * under its bottom edge at the page's top.
+ */
 .cnl-section-modes__tab {
 	position: absolute;
 	display: inline-flex;
@@ -167,6 +171,10 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 
 	&.is-inside {
 		border-radius: 0 0 $button-radius 0;
+	}
+
+	&.is-below {
+		border-radius: 0 0 $button-radius $button-radius;
 	}
 }
 
@@ -289,13 +297,10 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	pointer-events: auto;
 }
 
-.cnl-section-modes__sitewide {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--wpds-dimension-gap-xs);
-	padding: 0 var(--wpds-dimension-padding-sm);
-	color: $ink;
-	font-size: var(--wpds-typography-font-size-md);
+// A header or footer's note that every page has it, on the bar or panel.
+.cnl-section-modes .cnl-section-modes__sitewide {
+	align-self: center;
+	white-space: nowrap;
 }
 
 /* Edit design's panel. */

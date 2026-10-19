@@ -11,12 +11,14 @@
  * reach. See `SectionModesLayer`.
  *
  * Within the part, what the screen's view changes, like its menu, is outlined
- * in the admin's accent colour, so it is clear what is being edited.
+ * in purple, the colour for what every page shares, so it is clear what is
+ * being edited. See `src/global-scope`.
  */
 
 /**
  * Internal dependencies
  */
+import { GLOBAL_COLOR } from '../../global-scope';
 import {
 	blockEditorStore,
 	useEffect,
@@ -62,8 +64,8 @@ const FOCUS_TARGETS = {
  * `:where()` keeps a theme's sticky or fixed header as it is.
  *
  * What is being edited in the part is outlined, a little outside itself so
- * the outline doesn't sit on its text. The accent colour is set on the root
- * when the styles are added, as the canvas has the theme's styles, not ours.
+ * the outline doesn't sit on its text. The colour is set on the root when
+ * the styles are added, as the canvas has the theme's styles, not ours.
  */
 const SPOTLIGHT_STYLES = `
 [${ FOCUS_ATTRIBUTE }] {
@@ -120,21 +122,12 @@ const PREVIEW_SELECTORS = {
 const NOT_FADED =
 	'style, script, link, meta, template, noscript, body > svg, .block-canvas-cover';
 
-function getAccentColor() {
-	return (
-		window
-			.getComputedStyle( document.body )
-			.getPropertyValue( '--wp-admin-theme-color' )
-			.trim() || '#3858e9'
-	);
-}
-
 function addStyles( canvasDocument, css ) {
 	canvasDocument.getElementById( STYLE_ID )?.remove();
 
 	const style = canvasDocument.createElement( 'style' );
 	style.id = STYLE_ID;
-	style.textContent = `:root { --cnl-spotlight-accent: ${ getAccentColor() }; }
+	style.textContent = `:root { --cnl-spotlight-accent: ${ GLOBAL_COLOR }; }
 ${ css }`;
 	canvasDocument.head.appendChild( style );
 

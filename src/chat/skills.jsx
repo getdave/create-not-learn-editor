@@ -1436,7 +1436,7 @@ export const SKILLS = {
 		reply: () => ( {
 			params: { area: 'header' },
 			text: __(
-				'Here are the header layouts your theme comes with. Your header shows on every page. Pick a layout to try it.'
+				'Here are the header layouts your theme comes with. Your header is on every page, so a new layout changes all of them. Pick one to try it.'
 			),
 		} ),
 		Widget: SitePartWidget,
@@ -1444,8 +1444,11 @@ export const SKILLS = {
 			/* translators: %s: layout name. */
 			sprintf( __( 'Header: %s' ), label ),
 		done: ( { label } ) =>
-			/* translators: %s: layout name. */
-			sprintf( __( 'Done. Your header now uses “%s”.' ), label ),
+			sprintf(
+				/* translators: %s: layout name. */
+				__( 'Done. Your header now uses “%s” on every page.' ),
+				label
+			),
 	},
 	footer: {
 		screen: () => ( {
@@ -1460,7 +1463,7 @@ export const SKILLS = {
 		reply: () => ( {
 			params: { area: 'footer' },
 			text: __(
-				'Here are the footer layouts your theme comes with. Your footer shows on every page. Pick a layout to try it.'
+				'Here are the footer layouts your theme comes with. Your footer is on every page, so a new layout changes all of them. Pick one to try it.'
 			),
 		} ),
 		Widget: SitePartWidget,
@@ -1468,8 +1471,11 @@ export const SKILLS = {
 			/* translators: %s: layout name. */
 			sprintf( __( 'Footer: %s' ), label ),
 		done: ( { label } ) =>
-			/* translators: %s: layout name. */
-			sprintf( __( 'Done. Your footer now uses “%s”.' ), label ),
+			sprintf(
+				/* translators: %s: layout name. */
+				__( 'Done. Your footer now uses “%s” on every page.' ),
+				label
+			),
 	},
 	'add-page': {
 		screen: () => ( {
