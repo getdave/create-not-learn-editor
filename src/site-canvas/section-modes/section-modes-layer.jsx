@@ -67,6 +67,7 @@ import {
 } from '../compose/use-block-rects';
 import { useComposeStructure } from '../compose/use-compose-structure';
 import { afterZoomIn } from '../compose/use-compose-zoom';
+import { setPickedSection as setSharedPickedSection } from '../mode';
 import { useCanvasDocument } from '../use-canvas-document';
 import { useCanvasStyles } from '../use-canvas-styles';
 import { createBlankSection } from '../../section-picker';
@@ -936,6 +937,17 @@ export function SectionModesLayer( {
 	const picked = pickedSection || focusId;
 	const pickedId =
 		! active && picked && targets.has( picked ) ? picked : null;
+	// The section picked or in a mode, for the chat to change. A header or
+	// footer isn't one.
+	const sharedSectionId = active?.id || pickedId;
+	const chatSectionId = sectionIds.includes( sharedSectionId )
+		? sharedSectionId
+		: null;
+	useEffect( () => {
+		setSharedPickedSection( chatSectionId );
+	}, [ chatSectionId ] );
+	useEffect( () => () => setSharedPickedSection( null ), [] );
+
 	const pointedId = hoveredId || sync?.hoveredId || null;
 	const shownHoverId =
 		menuOpenFor ||

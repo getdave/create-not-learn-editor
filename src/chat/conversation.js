@@ -29,7 +29,8 @@ import {
 	saveEntity,
 	takeSnapshot,
 } from './entity-changes';
-import { FALLBACK_REPLY, SKILLS, getSectionsReply, openRoute } from './skills';
+import { setCanvasMode } from '../site-canvas/mode';
+import { FALLBACK_REPLY, SKILLS, openRoute } from './skills';
 import { chatActions, createMessageId, getChat } from './store';
 
 // How long the chat seems to think before it answers.
@@ -287,14 +288,16 @@ export function prepareWidget( id, entity ) {
 }
 
 /**
- * A page was chosen for a section to go on: answer as if it had been asked
- * for, and show the page on the canvas.
+ * A page was chosen for a request about a section, like where to add one:
+ * answer as if it had been asked for on that page, and show the page on the
+ * canvas.
  *
  * @param {string} id   The reply that asked which page.
  * @param {Object} page `{ id, title }`.
  */
 export async function choosePage( id, page ) {
 	const asked = getChat().getMessage( id );
+	const skillId = asked?.skillId || 'add-section';
 
 	update( id, { status: 'committed', summary: page.title } );
 	addMessage( { role: 'user', text: page.title } );
@@ -304,16 +307,17 @@ export async function choosePage( id, page ) {
 
 	await wait( THINKING_MS );
 
+	const reply = await SKILLS[ skillId ].replyForPage(
+		asked?.params || {},
+		page
+	);
+
 	update( replyId, {
 		hasWidget: true,
-		params: {
-			search: asked?.params?.search || '',
-			pageId: page.id,
-			pageTitle: page.title,
-		},
-		skillId: 'add-section',
+		params: reply.params,
+		skillId,
 		status: 'streaming',
-		text: getSectionsReply( asked?.params?.search, page.title ),
+		text: reply.text,
 	} );
 }
 
@@ -548,12 +552,19 @@ async function undoLatest( replyId ) {
  * Open the screen a picker comes from, and close the chat for it. A pick not
  * yet kept stays on the site, so the screen carries on from it.
  *
- * @param {Object} screen        From the skill.
- * @param {string} screen.path   Route path.
- * @param {Object} screen.search Route search params.
+ * @param {Object}  screen            From the skill.
+ * @param {string}  screen.path       Route path.
+ * @param {Object}  screen.search     Route search params.
+ * @param {?string} screen.canvasMode The canvas mode it is in, if it is one,
+ *                                    like Compose.
  */
-export function openScreen( { path, search } ) {
+export function openScreen( { canvasMode, path, search } ) {
 	openRoute( path, search );
+
+	if ( canvasMode ) {
+		setCanvasMode( canvasMode );
+	}
+
 	chatActions().setOpen( false );
 }
 

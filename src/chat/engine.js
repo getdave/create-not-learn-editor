@@ -6,15 +6,75 @@
  * more particular request wins over a broader one, and small talk only
  * counts when nothing else does. "Add a section to my About page" is about
  * a section, not a page, "add the About page to my menu" is about the menu,
+ * "make this section darker" is about that section, not the site's colors,
  * and "make my header colors warmer" is about colors, not the header's
  * layout.
  *
  * Kept free of React and WordPress packages so it can be tested on its own.
  */
 
+// Words about a section's colours, and about how it is laid out.
+const SECTION_COLOR =
+	/\b(colou?rs?|palettes?|backgrounds?|darker|lighter|dark|light|brighter|warmer|cooler|bolder|muted|shades?)\b/i;
+const SECTION_LAYOUT =
+	/\b(layouts?|arrangements?|arrange|rearrange|re-arrange|lay (it |this |that )?out|laid out|alignment|align|flip|mirror|swap sides|other side|left|right|centre|center|centred|centered|above|below)\b/i;
+const ADDS_SECTION = /\b(add|insert|include)\b/i;
+const NEW_SECTION = /\b(new|another|extra)\s+(?:\S+\s+){0,2}sections?\b/i;
+const CHANGES_SECTION =
+	/\b(change|edit|restyle|redesign|update|tweak|style|make|switch|swap|turn)\b.*\bsections?\b|\b(this|that|selected|current)\s+sections?\b/i;
+
 /**
- * The requests, most particular first. Each `test` is matched against the
- * whole message.
+ * Whether a message asks to change a section already on the page, rather
+ * than to add one.
+ *
+ * @param {string} text Message.
+ * @return {boolean} Whether it does.
+ */
+function isSectionDesignRequest( text ) {
+	if ( ! /\bsections?\b/i.test( text ) || ADDS_SECTION.test( text ) ) {
+		return false;
+	}
+
+	const isAboutDesign =
+		SECTION_COLOR.test( text ) || SECTION_LAYOUT.test( text );
+
+	if ( NEW_SECTION.test( text ) && ! isAboutDesign ) {
+		return false;
+	}
+
+	return isAboutDesign || CHANGES_SECTION.test( text );
+}
+
+/**
+ * What about a section a message asks to change.
+ *
+ * @param {string} text Message.
+ * @return {string} `color`, `layout`, or `both` when it doesn't say.
+ */
+export function getSectionFocusFromText( text ) {
+	const isColor = SECTION_COLOR.test( text );
+	const isLayout = SECTION_LAYOUT.test( text );
+
+	if ( isColor === isLayout ) {
+		return 'both';
+	}
+
+	return isColor ? 'color' : 'layout';
+}
+
+/**
+ * Whether a message says anything about a section's layout.
+ *
+ * @param {string} text Message.
+ * @return {boolean} Whether it does.
+ */
+export function mentionsSectionLayout( text ) {
+	return SECTION_LAYOUT.test( text );
+}
+
+/**
+ * The requests, most particular first. Each `test` is a pattern, or a
+ * function, matched against the whole message.
  */
 const RULES = [
 	{
@@ -25,6 +85,7 @@ const RULES = [
 		skill: 'exit',
 		test: /^\s*(?:please\s+)?(?:exit|close|quit|leave|stop|bye|goodbye|good bye|i'?m done|i am done|that'?s all|that is all|all done|finish|finished|end|(?:close|exit|quit|leave|hide|end)\s+(?:the\s+|this\s+)?(?:assistant|chat|ai))(?:[,\s]+(?:please|now|thanks|thank you))?[\s!.]*$/i,
 	},
+	{ skill: 'section-design', test: isSectionDesignRequest },
 	{ skill: 'add-section', test: /\bsections?\b/i },
 	{
 		skill: 'menu',
@@ -224,7 +285,9 @@ export function matchRequest( text ) {
 		return null;
 	}
 
-	const rule = RULES.find( ( { test } ) => test.test( message ) );
+	const rule = RULES.find( ( { test } ) =>
+		typeof test === 'function' ? test( message ) : test.test( message )
+	);
 
 	if ( ! rule ) {
 		return null;
@@ -245,6 +308,11 @@ export function matchRequest( text ) {
 			return {
 				skill: rule.skill,
 				params: { search: getSectionSearchFromText( message ) },
+			};
+		case 'section-design':
+			return {
+				skill: rule.skill,
+				params: { focus: getSectionFocusFromText( message ) },
 			};
 	}
 
