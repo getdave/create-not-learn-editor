@@ -1,4 +1,6 @@
-// Marks content that comes from the template rather than the page itself,
-// like the header, footer, or a title or image the layout adds. Shared by
-// the Pages sidebar and the site canvas's Compose mode.
-$cnl-global: #7c3aed;
+// Marks what changes more than the page on show: content that comes from the
+// template rather than the page itself, like the header, footer, or a title
+// or image the layout adds. Core's own colour for synced blocks and template
+// parts, so ours matches the outlines core draws on them. `GLOBAL_COLOR` in
+// `src/global-scope` is the same colour for scripts.
+$cnl-global: var(--wp-block-synced-color, #7a00df);

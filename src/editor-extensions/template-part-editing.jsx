@@ -18,7 +18,8 @@ import { store as coreDataStore } from '@wordpress/core-data';
 import { useRegistry, useSelect } from '@wordpress/data';
 import { useEffect, useRef } from '@wordpress/element';
 import { addFilter } from '@wordpress/hooks';
-import { pencil as pencilIcon } from '@wordpress/icons';
+import { __ } from '@wordpress/i18n';
+import { globe as globeIcon } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -329,6 +330,8 @@ function useTemplatePartEditState( clientId, attributes ) {
  *
  * It replaces core's "Edit original", which the editor layer's stylesheet
  * hides whenever a template part is selected. See src/editor-layer/style.scss.
+ * A part shows on more than this page, so the button has the globe and the
+ * purple of everything else that does. See `src/global-scope`.
  *
  * @param {Object}  props            Component props.
  * @param {Object}  props.attributes Template part block attributes.
@@ -357,7 +360,11 @@ function TemplatePartEditButton( { attributes, clientId, isSelected } ) {
 		<BlockToolbarLastItem>
 			<ToolbarGroup>
 				<ToolbarButton
-					icon={ pencilIcon }
+					className="cnl-template-part-edit-button"
+					description={ __(
+						'Changes show on every page that uses it.'
+					) }
+					icon={ globeIcon }
 					label={ label }
 					onClick={ () =>
 						unlock(
