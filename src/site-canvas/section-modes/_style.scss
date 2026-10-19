@@ -577,6 +577,12 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	padding: 0 8px;
 }
 
+// A width: its icon and name in the same pill.
+.cnl-section-modes .components-button.cnl-section-modes__width {
+	gap: var(--wpds-dimension-gap-xs);
+	padding-inline: 8px 14px;
+}
+
 /* Each item, with its bin. */
 .cnl-section-modes__item {
 	position: absolute;

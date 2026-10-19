@@ -23,6 +23,11 @@ import {
 	useContext,
 	useState,
 } from '@wordpress/element';
+import {
+	alignNone as alignNoneIcon,
+	stretchFullWidth as stretchFullWidthIcon,
+	stretchWide as stretchWideIcon,
+} from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -57,6 +62,12 @@ import {
 	withSectionColor,
 } from '../compose/section-colors';
 import { getPartColorBlocks } from '../compose/section-styles';
+import {
+	useSectionWidth,
+	WIDTH_FULL,
+	WIDTH_NARROW,
+	WIDTH_WIDE,
+} from '../../pickers/section-width';
 
 // The panel's dark theme seed, the editor's own dark grey.
 const PANEL_THEME = { color: { background: '#1e1e1e' } };
@@ -217,6 +228,66 @@ function FreeformRow( { onFreeform } ) {
 }
 
 /**
+ * @param {string} width A width.
+ * @return {string} What it is called.
+ */
+function getWidthLabel( width ) {
+	return {
+		[ WIDTH_NARROW ]: __( 'Narrow' ),
+		[ WIDTH_WIDE ]: __( 'Wide' ),
+		[ WIDTH_FULL ]: __( 'Full width' ),
+	}[ width ];
+}
+
+const WIDTH_ICONS = {
+	[ WIDTH_NARROW ]: alignNoneIcon,
+	[ WIDTH_WIDE ]: stretchWideIcon,
+	[ WIDTH_FULL ]: stretchFullWidthIcon,
+};
+
+/**
+ * How wide the section's content runs, picked as its colours are.
+ *
+ * @param {Object} props
+ * @param {string} props.clientId The section, header or footer.
+ * @return {?Element} The row, if its width can change.
+ */
+function WidthRow( { clientId } ) {
+	const { setWidth, width } = useSectionWidth( clientId );
+
+	if ( ! width || width.options.length < 2 ) {
+		return null;
+	}
+
+	return (
+		<div className="cnl-section-modes__colors">
+			<span className="cnl-section-modes__panel-heading">
+				{ __( 'Width' ) }
+			</span>
+			<div
+				aria-label={ __( 'Width' ) }
+				className="cnl-section-modes__swatches"
+				role="group"
+			>
+				{ width.options.map( ( option ) => (
+					<Button
+						aria-pressed={ option === width.current }
+						className="cnl-section-modes__swatch cnl-section-modes__width"
+						icon={ WIDTH_ICONS[ option ] }
+						key={ option }
+						onClick={ () =>
+							option !== width.current && setWidth( option )
+						}
+					>
+						{ getWidthLabel( option ) }
+					</Button>
+				) ) }
+			</div>
+		</div>
+	);
+}
+
+/**
  * The only layout there is, as it is now, picked.
  *
  * @param {Object}   props
@@ -365,6 +436,7 @@ function SectionOptions( { clientId, onFreeform, onReplace } ) {
 					}
 				/>
 			) }
+			<WidthRow clientId={ clientId } />
 		</>
 	);
 }
@@ -435,6 +507,7 @@ function PartOptions( { onFreeform, part } ) {
 					}
 				/>
 			) }
+			<WidthRow clientId={ part.clientId } />
 		</>
 	);
 }
