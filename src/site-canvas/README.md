@@ -23,6 +23,7 @@ Moving to Browse with unsaved changes asks to save or discard them, because the 
 | `preview-blocks.js` | Finding, in the editor, the block a spot in the preview shows. |
 | `use-section-lock.js` | In Edit, every section of a page or post made of other blocks starts content-only, with core's own lock, kept in the editor's settings rather than the page. A layout's sections aren't locked: they are mostly a post's title, image and content, so there would be nothing left to change. |
 | `edit-section-controls.js` | Core's unlock button said as "Edit" and "Done", and core's "Shuffle styles" hidden, in Edit. |
+| `part-spotlight.js` | `useEditorSpotlight()`: a header or footer brought forward on the canvas, the rest of the page faded and dimmed. Shared by Edit's section layer and the Header and Footer screens. |
 | `use-canvas-styles.js` | `useCanvasStyles()`: styles kept in the editor's canvas while wanted, put back when the editor swaps its iframe. Used by Compose and Edit's section layer. |
 | `icons.js` | An icon for a page built from stacked sections, for the empty page in Compose, and a zoom-out magnifier for Compose's button. |
 | `section-modes/` | Edit's section layer. See below. |
@@ -38,12 +39,16 @@ Edit, from the tag or the question, selects the section in core, and Edit's sect
 
 Pointing at a section in Edit outlines it, names it in a tab, tints it and lays a bar over it. The header and footer are named "shown on every page", and stay where they are.
 
+A header or footer in a mode, Edit design, Edit content or Freeform, is put in the spotlight, the rest of the page faded and dimmed behind a dark backdrop, as on the Header and Footer screens (`part-spotlight.js`), so it looks the same however it is reached.
+
 A canvas about one part of the site, like the Header and Footer screens', passes it as `focusId`. The layer then offers only that part, picked from the start so its bar shows straight away, and the rest of the page can't be pointed at or clicked.
 
 - **Add**, at the bar's start: a heading, paragraph, button or image, put last in the section, inside the groups that only wrap its content, then straight into Edit content with the caret in it, or the picture selected. An image is chosen from the media library first. A section that is a single block gets it straight after, as a section of its own.
 - **Edit design**: a panel of the section's layouts, each drawn with its own content, as a carousel showing up to four at once and moving along one at a time, so none is left on its own, opening with the one in use in view (a section with only one shows it, picked), and its colours, shown as Design's colour palettes are. A header or footer offers its designs instead, and the same colours, put on its outermost block so they show on every page; its designs are drawn, and go in, with the colour it has. Colours set on a block win over a picked one and are never taken away, so a section with colours set on its own block is offered none (colours that only repeat the page's own count as Theme), and a section with text colours set inside is offered only the colours that text can still be read on. Every item gets a bin, and "Restore removed" puts back what was taken out. Reset puts back how the section was when the panel opened, even after Freeform. The panel sits inside the section, at the top of it that is in view, and follows it as it scrolls. A section too small to hold it has it outside, under it if it fits in view, else over it. A click anywhere else on the page closes it.
-  - **Freeform**, from "Need more control? Edit freeform" under the layouts: core's own unlock for the section, for core's full block tools. Back returns to the panel.
-- **Edit content**: clicks reach the section, so its words and pictures can be changed, with core's own tools, Replace for a picture among them, and Remove, added to the end of core's toolbar. Restore on the small bar puts back what was removed. Nothing is laid over the section: no bins, and the small bar naming the mode sits outside it. Core's toolbar never shows for the section's own block.
+  - **Freeform**, from "Need more control? Edit freeform" under the layouts: core's own unlock for the section, for core's full block tools, a header's or footer's too. Back returns to the panel.
+
+While core has a section open, in Freeform or a header's or footer's Edit content, it fades the rest of the page. It expects the section selected, and fades that too until something in it is, but the layer never selects a section's own block, so the layer keeps the section clear itself.
+- **Edit content**: clicks reach the section, so its words and pictures can be changed, with core's own tools, Replace for a picture among them, and Remove, added to the end of core's toolbar. Restore on the small bar puts back what was removed. Nothing is laid over the section: no bins, and the small bar naming the mode sits outside it. Core's toolbar never shows for the section's own block. A header or footer is opened with core's own unlock, its blocks locked to their content, the same on any page as on the Header and Footer screens.
 - **Move up, move down, duplicate and delete**, at the bar's end. Deleting offers Undo.
 - **Add section**, on the section's top and bottom edges, opens the section picker for that gap.
 
