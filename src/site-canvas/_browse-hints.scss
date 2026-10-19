@@ -1,0 +1,63 @@
+/*
+ * Browse's hints that the page is changed in Edit. See `browse-hints.jsx`.
+ *
+ * Laid over the preview's iframe, exactly as big, letting every pointer
+ * event through to the page but those on the tag. The outline is the admin
+ * colour, which `GlobalScope` turns purple for the header and footer.
+ */
+
+$theme: var(--wp-admin-theme-color);
+
+@keyframes cnl-browse-hints-fade {
+
+	from {
+		opacity: 0;
+	}
+}
+
+.cnl-browse-hints {
+	position: absolute;
+	z-index: 2;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+// Fainter than Edit's outline, which is 2px over a tint, so the two never
+// look alike. A section rested on fades in slowly, after the pause before it
+// shows at all (`HOVER_DELAY_MS`); one clicked shows at once.
+.cnl-browse-hints__outline {
+	position: absolute;
+	box-sizing: border-box;
+	box-shadow: inset 0 0 0 1px $theme;
+	animation: cnl-browse-hints-fade var(--wpds-motion-duration-lg) var(--wpds-motion-easing-subtle) both;
+}
+
+.cnl-browse-hints.is-picked .cnl-browse-hints__outline,
+.cnl-browse-hints.is-picked .cnl-browse-hints__tag.components-button {
+	animation-duration: var(--wpds-motion-duration-xs);
+}
+
+.cnl-browse-hints__tag.components-button {
+	position: absolute;
+	margin: var(--wpds-dimension-padding-sm);
+	border-radius: var(--wpds-border-radius-sm);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+	pointer-events: auto;
+	animation: cnl-browse-hints-fade var(--wpds-motion-duration-lg) var(--wpds-motion-easing-subtle) both;
+}
+
+.cnl-browse-hints__nudge-body {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-md);
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+	white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	.cnl-browse-hints__outline,
+	.cnl-browse-hints__tag.components-button {
+		animation: none;
+	}
+}

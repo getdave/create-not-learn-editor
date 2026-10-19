@@ -19,7 +19,6 @@ import { useSearch } from '@wordpress/route';
 /**
  * Internal dependencies
  */
-import { useForcedBlockEditorSettings } from '../../editor-layer/settings-guard';
 import { cnlEditorStore, getTitleText } from '../../records';
 import ScreenLinks from '../../screen-links';
 import { settings } from '../../settings';
@@ -29,7 +28,6 @@ import {
 	useCanvasDocument,
 	useSiteCanvas,
 } from '../../site-canvas';
-import { LOCKED_PART_CONTENT_SETTING } from '../../site-canvas/constants';
 import { withCanvasRecovery } from '../../canvas-recovery';
 import { GlobalScope } from '../../global-scope';
 import { withUiTheme } from '../../theme';
@@ -86,8 +84,6 @@ import {
 	useSelect,
 	useState,
 } from '../../wordpress-packages';
-
-const LOCKED_PART_SETTINGS = { [ LOCKED_PART_CONTENT_SETTING ]: true };
 
 // The search params that open a part's views, over the same canvas.
 const LAYOUTS_VIEW = 'layouts';
@@ -708,11 +704,6 @@ function createCanvas( area ) {
 			frame: canvas.frame,
 			isPreviewing: canvas.isPreviewing,
 		} );
-
-		// The part's blocks open for their words and images only.
-		useForcedBlockEditorSettings(
-			canvas.editorEntity ? LOCKED_PART_SETTINGS : null
-		);
 
 		// The full editor opens the part itself.
 		const editRoute = id

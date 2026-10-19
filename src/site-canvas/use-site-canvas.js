@@ -227,11 +227,9 @@ export function useSiteCanvas( {
 		wasSavingRef.current = isSaving;
 	}, [ isSaving ] );
 
-	// Double-clicking the preview turns it off, as if asking to change it.
 	const frame = usePreviewFrame( {
 		getVersion: () => savedVersionRef.current,
 		initialUrl: url,
-		onDoubleClick: () => requestMode( MODE_EDIT ),
 	} );
 	const isPreviewStale = frame.loadedVersion !== savedVersion;
 	const { isLoadingContext, previewContext, previewContextError } =

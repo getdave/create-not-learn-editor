@@ -3,6 +3,7 @@
 @use "../colors" as *;
 @use "../editor-layer/edit-original";
 @use "./section-modes/style" as section-modes;
+@use "./browse-hints";
 
 .cnl-site-canvas {
 	height: 100%;

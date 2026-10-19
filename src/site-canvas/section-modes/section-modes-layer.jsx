@@ -71,7 +71,13 @@ import {
 } from '../compose/use-block-rects';
 import { useComposeStructure } from '../compose/use-compose-structure';
 import { afterZoomIn } from '../compose/use-compose-zoom';
-import { setPickedSection as setSharedPickedSection } from '../mode';
+import {
+	PART_CONTENT,
+	PART_FREEFORM,
+	setOpenPart,
+	setPickedSection as setSharedPickedSection,
+} from '../mode';
+import { useEditorSpotlight } from '../part-spotlight';
 import { useCanvasDocument } from '../use-canvas-document';
 import { useCanvasStyles } from '../use-canvas-styles';
 import { createBlankSection, InlineSectionPicker } from '../../section-picker';
@@ -392,23 +398,45 @@ function getBlockAtPoint( doc, x, y ) {
 }
 
 /**
+ * The blocks beside a section, and beside each block around it: the rest of
+ * the page, without what holds the section.
+ *
+ * @param {Function} select   The data registry's `select`.
+ * @param {string}   clientId The section.
+ * @return {string[]} Their client IDs.
+ */
+function getBlocksBeside( select, clientId ) {
+	const { getBlockOrder, getBlockParents, getBlockRootClientId } =
+		select( blockEditorStore );
+
+	return [ ...getBlockParents( clientId ), clientId ].flatMap( ( id ) =>
+		getBlockOrder( getBlockRootClientId( id ) || '' ).filter(
+			( other ) => other !== id
+		)
+	);
+}
+
+/**
  * Styles the layer adds to the canvas: no text cursor, hover outline or
  * block name outside the section being edited in place, none of core's
  * outline around the page's content as a whole, room for the placeholder on
- * an empty page, and, composing, a hand to grab sections with.
+ * an empty page, the rest of the page faded around a section core has
+ * opened, and, composing, a hand to grab sections with.
  *
- * @param {?string} openId       The section whose blocks can be clicked.
- * @param {?string} rootClientId The sections' parent.
- * @param {boolean} isEmpty      Whether the page has nothing in it.
- * @param {?string} compose      While composing, `grab`, or `dragging` while a
- *                               section is dragged.
- * @param {?Object} gap          The gap opened for adding a section in place:
- *                               `{ clientId, isAfter, height }`, the section
- *                               it opens before, or after at the page's end,
- *                               and its height on screen.
+ * @param {?string}  openId       The section whose blocks can be clicked.
+ * @param {?string}  rootClientId The sections' parent.
+ * @param {boolean}  isEmpty      Whether the page has nothing in it.
+ * @param {?string}  compose      While composing, `grab`, or `dragging` while
+ *                                a section is dragged.
+ * @param {string[]} fadedIds     The blocks faded around a section core has
+ *                                opened.
+ * @param {?Object}  gap          The gap opened for adding a section in
+ *                                place: `{ clientId, isAfter, height }`, the
+ *                                section it opens before, or after at the
+ *                                page's end, and its height on screen.
  * @return {string} CSS.
  */
-function getCanvasCss( openId, rootClientId, isEmpty, compose, gap ) {
+function getCanvasCss( openId, rootClientId, isEmpty, compose, fadedIds, gap ) {
 	const outside = openId
 		? `:not(#block-${ openId }):not(#block-${ openId } *)`
 		: '';
@@ -429,6 +457,21 @@ function getCanvasCss( openId, rootClientId, isEmpty, compose, gap ) {
 			isEmpty &&
 			`#block-${ rootClientId } { min-height: ${ EMPTY_SPACE }px !important; }
 			#block-${ rootClientId } > * { visibility: hidden !important; }`,
+		/*
+		 * Core fades the page around a section it has opened, but expects
+		 * the section selected, and fades it too until something in it is.
+		 * The layer never selects a section's own block, so the fade is
+		 * drawn here instead, as core leaves it once something in the
+		 * section is selected: the section and what holds it clear, the rest
+		 * of the page faded. The selectors are kept light, so a canvas's own
+		 * spotlight, like the Header screen's, still fades the page its own
+		 * way.
+		 */
+		fadedIds.length > 0 &&
+			`:where(.is-focus-mode) .block-editor-block-list__block { opacity: 1 !important; }
+			.is-focus-mode :where(${ fadedIds
+				.map( ( id ) => `#block-${ id }` )
+				.join( ', ' ) }) { opacity: 0.2 !important; }`,
 		// Composing, sections are grabbed to move them, and none of core's
 		// zoomed-out separators and prompts show.
 		compose &&
@@ -618,8 +661,10 @@ export function SectionModesLayer( {
 			snapshot = getOwnerBlock( store, clientId );
 		}
 
-		// A header's or footer's blocks can't be changed until core opens it.
+		// A header's or footer's blocks can't be changed until core opens it,
+		// for their words and images only.
 		if ( part && mode === MODE_CONTENT ) {
+			setOpenPart( clientId, PART_CONTENT );
 			actions.editContentOnlySection( clientId );
 		}
 
@@ -655,7 +700,14 @@ export function SectionModesLayer( {
 			actions.clearSelectedBlock();
 
 			if ( isFreeform ) {
-				actions.editContentOnlySection( activeRef.current.id );
+				const { id } = activeRef.current;
+
+				// A header or footer opens completely, as a section does.
+				if ( partsById[ id ] ) {
+					setOpenPart( id, PART_FREEFORM );
+				}
+
+				actions.editContentOnlySection( id );
 			} else {
 				actions.stopEditingContentOnlySection();
 			}
@@ -666,8 +718,17 @@ export function SectionModesLayer( {
 				mode: isFreeform ? MODE_FREEFORM : MODE_DESIGN,
 			} ) );
 		},
-		[ registry ]
+		[ partsById, registry ]
 	);
+
+	// Escape leaves the mode, or steps back from Freeform to the panel.
+	const escapeMode = useCallback( () => {
+		if ( activeRef.current?.mode === MODE_FREEFORM ) {
+			setFreeform( false );
+		} else {
+			exitMode();
+		}
+	}, [ exitMode, setFreeform ] );
 
 	// Select a block, or the nearest one around it that can be, and put the
 	// caret in it if it has text.
@@ -829,11 +890,7 @@ export function SectionModesLayer( {
 			// Out of the text too, or core selects its block again.
 			event.target.ownerDocument.activeElement?.blur();
 
-			if ( current.mode === MODE_FREEFORM ) {
-				setFreeform( false );
-			} else {
-				exitMode();
-			}
+			escapeMode();
 		},
 	} );
 
@@ -869,6 +926,21 @@ export function SectionModesLayer( {
 		[ activeBlockOnly, activeInnerBlocks ]
 	);
 	const activePart = active ? partsById[ active.id ] : null;
+
+	/*
+	 * The header or footer open in Edit content or Freeform, for the editor
+	 * extension that opens its blocks. Noted just before core opens it, in
+	 * `enterMode` and `setFreeform`, and cleared here once it closes, however
+	 * it does, after core has closed it.
+	 */
+	const openPartId =
+		activePart && active.mode !== MODE_DESIGN ? active.id : null;
+	useEffect( () => {
+		if ( ! openPartId ) {
+			setOpenPart( null );
+		}
+	}, [ openPartId ] );
+	useEffect( () => () => setOpenPart( null ), [] );
 
 	// Compose works on layouts, colours and the page's order: Edit content
 	// and Freeform give way to it, the section staying picked.
@@ -1070,6 +1142,14 @@ export function SectionModesLayer( {
 	}, [ editorRef, syncedSelectedId ] );
 
 	const openId = active && active.mode !== MODE_DESIGN ? active.id : null;
+	// Joined, so the selector returns a value that only changes when they do.
+	const fadedIds = useSelect(
+		( select ) =>
+			openId && editedSection === openId
+				? getBlocksBeside( select, openId ).join()
+				: '',
+		[ editedSection, openId ]
+	);
 
 	// The section the gap for adding in place opens before, or after at the
 	// end of the page.
@@ -1097,6 +1177,7 @@ export function SectionModesLayer( {
 			rootClientId,
 			isEmpty,
 			isComposing && ( drag ? 'dragging' : 'grab' ),
+			fadedIds ? fadedIds.split( ',' ) : EMPTY_ARRAY,
 			inlineAddPlace && {
 				...inlineAddPlace,
 				height:
@@ -1105,6 +1186,18 @@ export function SectionModesLayer( {
 			}
 		)
 	);
+
+	/*
+	 * A header or footer in a mode is put in the spotlight, the rest of the
+	 * page faded and dimmed, as on the Header and Footer screens, so it looks
+	 * the same however it is reached. A canvas about one part, like those
+	 * screens', keeps it in the spotlight itself.
+	 */
+	useEditorSpotlight( {
+		area: activePart?.area,
+		canvasDocument,
+		clientId: activePart && ! focusId ? active.id : null,
+	} );
 
 	// Core's own inserter between blocks would offer a second way to add
 	// in the same gap, so it is hidden while the picker is open.
@@ -1160,6 +1253,39 @@ export function SectionModesLayer( {
 
 		return () => window.removeEventListener( 'keydown', onKeyDown );
 	}, [ active, isComposing, onExitCompose, pickedSection ] );
+
+	/*
+	 * Escape leaves Edit content or Edit design from wherever focus was left,
+	 * as when the button that opened the mode went and took focus with it,
+	 * the section staying picked. From Freeform it steps back to the panel.
+	 * Not from a dialog or popover's own Escape.
+	 */
+	const isInMode = Boolean( active );
+
+	useEffect( () => {
+		if ( ! isInMode ) {
+			return undefined;
+		}
+
+		const onKeyDown = ( event ) => {
+			if (
+				event.key !== 'Escape' ||
+				event.defaultPrevented ||
+				event.target.closest?.(
+					'.components-modal__frame, .components-popover, [role="dialog"]'
+				)
+			) {
+				return;
+			}
+
+			event.preventDefault();
+			escapeMode();
+		};
+
+		window.addEventListener( 'keydown', onKeyDown );
+
+		return () => window.removeEventListener( 'keydown', onKeyDown );
+	}, [ escapeMode, isInMode ] );
 
 	// Escape un-picks the section from wherever focus was left, as on the
 	// page after Done, but not from a dialog or popover's own Escape.
@@ -2026,7 +2152,7 @@ export function SectionModesLayer( {
 					setInlineAdd( null );
 				} else if ( event.key === 'Escape' && active ) {
 					event.stopPropagation();
-					exitMode();
+					escapeMode();
 				} else if ( event.key === 'Escape' && pickedSection ) {
 					event.stopPropagation();
 					setPickedSection( null );

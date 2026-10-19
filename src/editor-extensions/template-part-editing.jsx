@@ -25,7 +25,7 @@ import { globe as globeIcon } from '@wordpress/icons';
  * Internal dependencies
  */
 import { unlock } from '../lock-unlock';
-import { LOCKED_PART_CONTENT_SETTING } from '../site-canvas/constants';
+import { PART_CONTENT, useOpenPart } from '../site-canvas/mode';
 import {
 	getTemplatePartAreaLabel,
 	getTemplatePartEditLabel,
@@ -45,6 +45,29 @@ const NOT_EDITABLE = {
 };
 
 /**
+ * The editing mode each of a part's blocks is given while it is open.
+ *
+ * Opened with core's own tools, the part and its blocks open up completely.
+ * Opened by the site canvas's section layer, the part's own block stays
+ * content-only, as the editor left it. The layer never selects it, and an
+ * unlocked part that isn't selected gets core's block overlay, which keeps
+ * every click off its blocks. Its blocks open for their words and images
+ * only in Edit content, and completely in Freeform.
+ *
+ * @param {string}  partId   The part's client ID.
+ * @param {string}  clientId One of its blocks, or the part itself.
+ * @param {?string} openPart How the section layer opened the part, if it did.
+ * @return {string} The editing mode.
+ */
+function getOpenEditingMode( partId, clientId, openPart ) {
+	if ( openPart === PART_CONTENT || ( openPart && clientId === partId ) ) {
+		return 'contentOnly';
+	}
+
+	return 'default';
+}
+
+/**
  * Unlock a template part's blocks for as long as it is the edited section.
  *
  * `editContentOnlySection` disables everything outside the part, which is what
@@ -56,10 +79,9 @@ const NOT_EDITABLE = {
  * whenever a block is added to or removed from the part, which would otherwise
  * strand the author mid-edit.
  *
- * On the Header and Footer screens, every block in an entered part is locked
- * to its content instead, as those screens are for changing the part's words
- * and images, and an entered section otherwise opens its blocks up
- * completely.
+ * In Edit content on the site canvas, every block in the part is locked to
+ * its content instead, as Edit content is for changing the part's words and
+ * images, and an entered section otherwise opens its blocks up completely.
  *
  * @param {string}           clientId The template part's client ID.
  * @param {HTMLElement|null} element  The part's DOM element.
@@ -68,6 +90,8 @@ const NOT_EDITABLE = {
 function useUnlockedTemplatePart( clientId, element ) {
 	const registry = useRegistry();
 	const hasLiftedLocks = useRef( false );
+	const openPart = useOpenPart( clientId );
+	const isContentOnly = openPart === PART_CONTENT;
 
 	const isEditing = useSelect(
 		( select ) =>
@@ -76,15 +100,6 @@ function useUnlockedTemplatePart( clientId, element ) {
 			).getEditedContentOnlySection() === clientId,
 		[ clientId ]
 	);
-
-	const isContentOnly = useSelect(
-		( select ) =>
-			!! select( blockEditorStore ).getSettings()[
-				LOCKED_PART_CONTENT_SETTING
-			],
-		[]
-	);
-	const editingMode = isContentOnly ? 'contentOnly' : 'default';
 
 	const lockedModes = useSelect(
 		( select ) => {
@@ -114,8 +129,16 @@ function useUnlockedTemplatePart( clientId, element ) {
 		}
 
 		const locked = lockedModes
-			.filter( ( entry ) => ! entry.endsWith( `:${ editingMode }` ) )
-			.map( ( entry ) => entry.slice( 0, entry.lastIndexOf( ':' ) ) );
+			.map( ( entry ) => {
+				const at = entry.lastIndexOf( ':' );
+
+				return [ entry.slice( 0, at ), entry.slice( at + 1 ) ];
+			} )
+			.filter(
+				( [ id, mode ] ) =>
+					mode !== getOpenEditingMode( clientId, id, openPart )
+			)
+			.map( ( [ id ] ) => id );
 
 		if ( ! locked.length ) {
 			return;
@@ -129,10 +152,13 @@ function useUnlockedTemplatePart( clientId, element ) {
 		registry.batch( () => {
 			for ( const id of locked ) {
 				__unstableMarkNextChangeAsNotPersistent();
-				setBlockEditingMode( id, editingMode );
+				setBlockEditingMode(
+					id,
+					getOpenEditingMode( clientId, id, openPart )
+				);
 			}
 		} );
-	}, [ editingMode, isEditing, lockedModes, registry ] );
+	}, [ clientId, isEditing, lockedModes, openPart, registry ] );
 
 	useEffect( () => {
 		if ( ! isEditing ) {
@@ -164,7 +190,7 @@ function useUnlockedTemplatePart( clientId, element ) {
 					setBlockEditingMode( child, 'disabled' );
 				}
 
-				// Locks set further down, on the site canvas, are dropped.
+				// Locks set further down, in Edit content, are dropped.
 				if ( isContentOnly ) {
 					for ( const id of getClientIdsOfDescendants( clientId ) ) {
 						if ( ! children.includes( id ) ) {

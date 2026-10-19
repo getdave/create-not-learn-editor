@@ -27,6 +27,7 @@ function cnl_editor_register_preview_frame_hooks() {
 
 	add_filter( 'pre_option_show_on_front', 'cnl_editor_preview_show_on_front' );
 	add_filter( 'pre_option_page_on_front', 'cnl_editor_preview_page_on_front' );
+	add_filter( 'render_block', 'cnl_editor_name_preview_block', 10, 2 );
 }
 
 /**
@@ -195,6 +196,36 @@ function cnl_editor_preview_page_on_front( $value ) {
 	}
 
 	return $page_id;
+}
+
+/**
+ * Name each block on a preview's page, on its outermost element.
+ *
+ * Browse matches what is pointed at or clicked in the preview to the same
+ * block in the editor underneath, so the section can be picked in Edit. The
+ * front end doesn't say which block made what, so previews mark each block's
+ * outermost element with its name, as `data-cnl-block`. A block whose markup
+ * starts with one of its own blocks, like a synced pattern, has no element of
+ * its own, so the inner block keeps its name.
+ *
+ * @param string $block_content The block's markup.
+ * @param array  $block         The block, parsed.
+ * @return string The markup, with the block's name on its first element.
+ */
+function cnl_editor_name_preview_block( $block_content, $block ) {
+	if ( '' === $block_content || empty( $block['blockName'] ) || ! cnl_editor_is_preview_frame_request() ) {
+		return $block_content;
+	}
+
+	$processor = new WP_HTML_Tag_Processor( $block_content );
+
+	if ( ! $processor->next_tag() || null !== $processor->get_attribute( 'data-cnl-block' ) ) {
+		return $block_content;
+	}
+
+	$processor->set_attribute( 'data-cnl-block', $block['blockName'] );
+
+	return $processor->get_updated_html();
 }
 
 /**
