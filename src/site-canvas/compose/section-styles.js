@@ -8,6 +8,11 @@
  * without any, `palette-colors.js` makes some from its palette.
  */
 
+/**
+ * Internal dependencies
+ */
+import { resolveColor } from '../../pickers/resolve-color';
+
 const STYLE_CLASS = /^is-style-/;
 
 /**
@@ -99,4 +104,24 @@ export function getPartColorBlocks( blocks ) {
 	const name = blocks?.[ 0 ]?.name;
 
 	return name ? blocks.filter( ( block ) => block.name === name ) : [];
+}
+
+/**
+ * The colours a section style shows a section in, for a swatch.
+ *
+ * @param {?Object}  styles  The style's styles, from the theme.
+ * @param {Object[]} palette The site's palette, to look presets up in.
+ * @return {Object} `{ background, heading, text }`, each a CSS colour or
+ *                  undefined when the style leaves it to the page.
+ */
+export function getSectionStyleColors( styles, palette ) {
+	const text = resolveColor( styles?.color?.text, palette );
+
+	return {
+		background: resolveColor( styles?.color?.background, palette ),
+		heading:
+			resolveColor( styles?.elements?.heading?.color?.text, palette ) ||
+			text,
+		text,
+	};
 }

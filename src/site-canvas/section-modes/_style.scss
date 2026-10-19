@@ -375,8 +375,8 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 }
 
 /*
- * Layouts as a carousel: a slide of cards at a time, slid along, with
- * arrows beside and dots below once there is more than one slide.
+ * Layouts as a carousel: a full row of cards at a time, moved along a card
+ * at a time, with arrows beside and dots below once there are more.
  */
 .cnl-section-modes__carousel {
 	display: flex;
@@ -393,7 +393,7 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	max-width: 100%;
 }
 
-// Exactly a slide's cards wide, so the arrows sit beside them.
+// Exactly a row's cards wide, so the arrows sit beside them.
 .cnl-section-modes__carousel-viewport {
 	width: calc(var(--cnl-layouts-per-slide) * 136px + (var(--cnl-layouts-per-slide) - 1) * 8px);
 	min-width: 0;
@@ -401,17 +401,16 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	overflow: hidden;
 }
 
-.cnl-section-modes__carousel-track {
-	display: flex;
-	transition: transform $duration-md $easing-balanced;
-}
-
-// Each slide the viewport's width, its cards centred in it.
+// Every card in one strip, slid a card and its gap at a time.
 .cnl-section-modes__options {
 	display: flex;
-	flex: 0 0 100%;
-	justify-content: center;
 	gap: 8px;
+	transform: translateX(calc(var(--cnl-layouts-offset, 0) * (136px + 8px)));
+	transition: transform $duration-md $easing-balanced;
+
+	> .cnl-section-modes__option {
+		flex: none;
+	}
 }
 
 .cnl-section-modes .cnl-section-modes__carousel-arrow {

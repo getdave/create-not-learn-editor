@@ -28,15 +28,19 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
+import { resolveColor } from '../../pickers/resolve-color';
 import {
 	getContrast,
 	getPaletteColorSets,
 	getPresetSlug,
 	MIN_TEXT_CONTRAST,
 	parseColor,
-	resolveColor,
 } from './palette-colors';
-import { getSectionStyles, withSectionStyle } from './section-styles';
+import {
+	getSectionStyleColors,
+	getSectionStyles,
+	withSectionStyle,
+} from './section-styles';
 
 const STYLE_CLASS = /^is-style-/;
 
@@ -217,6 +221,7 @@ function makeStyleOption( style, styles, colors ) {
 				withSectionStyle( attributes.className, style.name )
 			),
 		background: resolveColor( styles?.color?.background, colors ),
+		colors: getSectionStyleColors( styles, colors ),
 		label: style.label,
 		matches: ( attributes ) =>
 			getClasses( attributes.className ).includes( className ),
@@ -283,9 +288,10 @@ function withoutElementColors( attributes, values ) {
  * @param {Object}   page   `{ background, text }`: the page's colours, by
  *                          slug.
  * @param {Object[]} colors The colours presets can name.
+ * @param {?Object}  styles The site's styles.
  * @return {Object} The option.
  */
-function makeThemeOption( page, colors ) {
+function makeThemeOption( page, colors, styles ) {
 	const remove = ( attributes ) => {
 		let next = attributes;
 
@@ -309,6 +315,7 @@ function makeThemeOption( page, colors ) {
 		background: page.background
 			? resolveColor( toPreset( page.background ), colors )
 			: null,
+		colors: getSectionStyleColors( styles, colors ),
 		label: __( 'Theme' ),
 		matches: ( attributes ) => remove( attributes ) !== attributes,
 		name: null,
@@ -355,6 +362,11 @@ function makePaletteOption( set, supports, page ) {
 			);
 		},
 		background: set.swatch[ 0 ],
+		colors: {
+			background: set.swatch[ 0 ],
+			heading: set.swatch[ 1 ],
+			text: set.swatch[ 1 ],
+		},
 		label: set.label,
 		// A block given only the set's background, keeping the page's text
 		// colour, has it too: themes' own patterns often do that.
@@ -391,9 +403,12 @@ function makePaletteOption( set, supports, page ) {
  * @param {Object}   options.supports    Which of `background`, `text`,
  *                                       `link`, `heading` and `button`
  *                                       colours the block type takes.
- * @return {Object[]} `{ name, label, swatch, matches, apply, remove }` for
- *                    each, the theme's first, with a null name; none when
- *                    there are no colours but the theme's.
+ * @return {Object[]} `{ name, label, swatch, colors, background, matches,
+ *                    apply, remove }` for each, the theme's first, with a
+ *                    null name; none when there are no colours but the
+ *                    theme's. `swatch` is up to three colours, for Edit
+ *                    design; `colors` is `{ background, heading, text }`,
+ *                    for the chat.
  */
 export function getColorOptions( {
 	blockStyles,
@@ -426,7 +441,7 @@ export function getColorOptions( {
 	}
 
 	return options.length
-		? [ makeThemeOption( page, colors ), ...options ]
+		? [ makeThemeOption( page, colors, styles ), ...options ]
 		: EMPTY_ARRAY;
 }
 

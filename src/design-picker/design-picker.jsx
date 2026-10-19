@@ -62,9 +62,7 @@ export function DesignPicker( {
 			size="fill"
 		>
 			<div
-				className={ `cnl-design-picker__layout${
-					nav ? '' : ' has-no-nav'
-				}` }
+				className={ `cnl-design-picker__layout${ nav ? '' : ' has-no-nav' }` }
 			>
 				<header className="cnl-design-picker__header">
 					<div className="cnl-design-picker__heading">
@@ -134,9 +132,7 @@ export function DesignPickerNav( {
 	return (
 		<nav
 			aria-label={ label }
-			className={ `cnl-design-picker__nav${
-				isDisabled ? ' is-disabled' : ''
-			}` }
+			className={ `cnl-design-picker__nav${ isDisabled ? ' is-disabled' : '' }` }
 		>
 			{ children || (
 				<ul className="cnl-design-picker__nav-list" role="list">
@@ -248,7 +244,8 @@ export function GroupHeading( { id, label, description, children } ) {
 /**
  * A grid shape drawn as an icon, for choosing how many designs show at once.
  * Drawn here rather than pulled from `@wordpress/icons` so every option shares
- * one stroke style and mirrors its own grid.
+ * one style and mirrors its own grid. The cells are solid: outlines this small
+ * blur into rings once there are three to a row.
  *
  * @param {Object} props         Component props.
  * @param {number} props.columns Columns drawn.
@@ -256,9 +253,10 @@ export function GroupHeading( { id, label, description, children } ) {
  * @return {Element} The icon.
  */
 export function GridShapeIcon( { columns, rows } ) {
-	const gap = 1.8;
-	const width = ( 14 - gap * ( columns - 1 ) ) / columns;
-	const height = ( 14 - gap * ( rows - 1 ) ) / rows;
+	const size = 14;
+	const gap = 2;
+	const width = ( size - gap * ( columns - 1 ) ) / columns;
+	const height = ( size - gap * ( rows - 1 ) ) / rows;
 	const cells = [];
 
 	for ( let row = 0; row < rows; row++ ) {
@@ -270,11 +268,9 @@ export function GridShapeIcon( { columns, rows } ) {
 	return (
 		<svg
 			aria-hidden
+			fill="currentColor"
 			focusable={ false }
 			height={ 24 }
-			stroke="currentColor"
-			strokeWidth={ 1.5 }
-			style={ { fill: 'none' } }
 			viewBox="0 0 24 24"
 			width={ 24 }
 			xmlns="http://www.w3.org/2000/svg"
@@ -283,7 +279,7 @@ export function GridShapeIcon( { columns, rows } ) {
 				<rect
 					height={ height }
 					key={ `${ row }-${ column }` }
-					rx={ Math.min( 1.5, width / 3, height / 3 ) }
+					rx={ 1 }
 					width={ width }
 					x={ 5 + column * ( width + gap ) }
 					y={ 5 + row * ( height + gap ) }

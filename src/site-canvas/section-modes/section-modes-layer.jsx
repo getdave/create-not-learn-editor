@@ -66,6 +66,7 @@ import {
 } from '../compose/use-block-rects';
 import { useComposeStructure } from '../compose/use-compose-structure';
 import { afterZoomIn } from '../compose/use-compose-zoom';
+import { setPickedSection as setSharedPickedSection } from '../mode';
 import { useCanvasDocument } from '../use-canvas-document';
 import { useCanvasStyles } from '../use-canvas-styles';
 import { createBlankSection } from '../../section-picker';
@@ -396,6 +397,12 @@ function useNoSync() {
 /**
  * @param {Object}   props
  * @param {Object}   props.editorRef     Ref to the editor's container.
+ * @param {?string}  props.focusId       The one section, header or footer a
+ *                                       canvas about it works on, like the
+ *                                       Header screen's. Only it can be
+ *                                       pointed at, picked and edited, and
+ *                                       it starts picked, so its bar shows
+ *                                       straight away.
  * @param {boolean}  props.isComposing   Whether the canvas is in Compose,
  *                                       zoomed out: the same controls, with
  *                                       sections dragged to move them, and
@@ -413,6 +420,7 @@ function useNoSync() {
  */
 export function SectionModesLayer( {
 	editorRef,
+	focusId = null,
 	isComposing = false,
 	onExitCompose,
 	useSync = useNoSync,
@@ -449,11 +457,15 @@ export function SectionModesLayer( {
 	);
 	const targets = useMemo(
 		() =>
-			new Set( [
-				...sectionIds,
-				...parts.map( ( part ) => part.clientId ),
-			] ),
-		[ parts, sectionIds ]
+			new Set(
+				focusId
+					? [ focusId ]
+					: [
+							...sectionIds,
+							...parts.map( ( part ) => part.clientId ),
+						]
+			),
+		[ focusId, parts, sectionIds ]
 	);
 	const findTarget = useCallback(
 		( clientId ) =>
@@ -849,17 +861,29 @@ export function SectionModesLayer( {
 		selectedId !== active.id &&
 		findTarget( selectedId ) === active.id;
 
+	// A canvas about one section keeps it picked while nothing else is.
+	const picked = pickedSection || focusId;
 	const pickedId =
-		! active && pickedSection && targets.has( pickedSection )
-			? pickedSection
-			: null;
+		! active && picked && targets.has( picked ) ? picked : null;
+	// The section picked or in a mode, for the chat to change. A header or
+	// footer isn't one.
+	const sharedSectionId = active?.id || pickedId;
+	const chatSectionId = sectionIds.includes( sharedSectionId )
+		? sharedSectionId
+		: null;
+	useEffect( () => {
+		setSharedPickedSection( chatSectionId );
+	}, [ chatSectionId ] );
+	useEffect( () => () => setSharedPickedSection( null ), [] );
+
 	const pointedId = hoveredId || sync?.hoveredId || null;
 	const shownHoverId =
 		menuOpenFor ||
 		( pointedId && pointedId !== active?.id ? pointedId : null ) ||
 		pickedId;
 
-	const isEmpty = Boolean( rootClientId ) && sectionIds.length === 0;
+	const isEmpty =
+		! focusId && Boolean( rootClientId ) && sectionIds.length === 0;
 
 	const measuredIds = useMemo(
 		() => [

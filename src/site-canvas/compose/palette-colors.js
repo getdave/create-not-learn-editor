@@ -51,28 +51,6 @@ export function getPresetSlug( value ) {
 }
 
 /**
- * A colour from a theme's styles, as CSS: a preset resolved against the
- * palette, anything else as it is.
- *
- * @param {?string}  value   The colour.
- * @param {Object[]} palette `{ slug, color }` for each colour.
- * @return {?string} The colour.
- */
-export function resolveColor( value, palette ) {
-	if ( typeof value !== 'string' ) {
-		return null;
-	}
-
-	const slug = getPresetSlug( value );
-
-	if ( slug ) {
-		return palette.find( ( item ) => item.slug === slug )?.color || null;
-	}
-
-	return value;
-}
-
-/**
  * A CSS colour's red, green and blue, for hex and `rgb()` colours.
  *
  * @param {?string} value The colour.

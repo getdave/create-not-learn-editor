@@ -22,6 +22,7 @@ import {
 	color as colorIcon,
 	footer as footerIcon,
 	header as headerIcon,
+	layout as layoutIcon,
 	navigation as navigationIcon,
 	page as pageIcon,
 	plus as plusIcon,
@@ -54,6 +55,7 @@ import {
 import { sparkleIcon } from './icons';
 import { PAGE_SUGGESTIONS, SKILLS, SUGGESTION_GROUPS } from './skills';
 import { findTargetPage } from './target-page';
+import { getSelectedSection } from './target-section';
 import { STORE_NAME } from './store';
 import { StreamingText } from './streaming-text';
 
@@ -61,6 +63,7 @@ const SUGGESTION_ICONS = {
 	color: colorIcon,
 	footer: footerIcon,
 	header: headerIcon,
+	layout: layoutIcon,
 	navigation: navigationIcon,
 	page: pageIcon,
 	section: plusIcon,
@@ -149,11 +152,17 @@ function SuggestionGroup( { group, onOpen } ) {
  */
 export function Suggestions( { isLarge = false } ) {
 	const [ openId, setOpenId ] = useState( null );
-	const pageId = useSelect( ( select ) => {
+	const { pageId } = useSelect( ( select ) => {
 		// Some suggestions depend on the site, like adding or changing a logo.
 		select( coreDataStore ).getEntityRecord( 'root', 'site' );
 
-		return findTargetPage( select )?.id;
+		const id = findTargetPage( select )?.id;
+
+		return {
+			// And on the page, like changing the section selected on it.
+			hasSection: !! getSelectedSection( select, id ),
+			pageId: id,
+		};
 	}, [] );
 	const openGroup = SUGGESTION_GROUPS.find(
 		( group ) => group.id === openId

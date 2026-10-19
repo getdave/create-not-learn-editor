@@ -11,8 +11,8 @@ import {
 	getPaletteColorSets,
 	getPresetSlug,
 	parseColor,
-	resolveColor,
 } from '../palette-colors';
+import { resolveColor } from '../../../pickers/resolve-color';
 
 function makePalette( colors ) {
 	return Object.entries( colors ).map( ( [ slug, color ] ) => ( {

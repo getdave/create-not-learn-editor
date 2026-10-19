@@ -21,7 +21,6 @@ import {
 	createContext,
 	forwardRef,
 	useContext,
-	useMemo,
 	useState,
 } from '@wordpress/element';
 import { globe as globeIcon } from '@wordpress/icons';
@@ -62,7 +61,7 @@ import { getPartColorBlocks } from '../compose/section-styles';
 // The panel's dark theme seed, the editor's own dark grey.
 const PANEL_THEME = { color: { background: '#1e1e1e' } };
 
-// The most layouts a slide of the carousel holds.
+// The most layouts the carousel shows at once.
 export const MAX_PER_SLIDE = 4;
 
 function Preview( { blocks } ) {
@@ -75,12 +74,13 @@ function Preview( { blocks } ) {
 	);
 }
 
-// How many layouts a slide of the carousel holds, set by the panel.
+// How many layouts the carousel shows at once, set by the panel.
 const PerSlideContext = createContext( MAX_PER_SLIDE );
 
 /**
- * Layouts as a carousel, a slide at a time, so the panel stays one row
- * tall however many there are. It opens on the slide with the one in use.
+ * Layouts as a carousel, so the panel stays one row tall however many there
+ * are. It shows a full row at a time and moves along one layout at a time,
+ * so no layout is ever left on its own. It opens with the one in use in view.
  *
  * @param {Object}   props
  * @param {?string}  props.current  The layout in use.
@@ -90,117 +90,97 @@ const PerSlideContext = createContext( MAX_PER_SLIDE );
  */
 function LayoutOptions( { current, onSelect, options } ) {
 	const perSlide = useContext( PerSlideContext );
-	const slides = useMemo( () => {
-		const list = [];
-
-		for ( let i = 0; i < options.length; i += perSlide ) {
-			list.push( options.slice( i, i + perSlide ) );
-		}
-
-		return list;
-	}, [ options, perSlide ] );
-	const currentSlide = Math.max(
+	const visible = Math.min( perSlide, options.length );
+	const lastStart = options.length - visible;
+	const currentIndex = Math.max(
 		0,
-		slides.findIndex( ( slide ) =>
-			slide.some( ( option ) => option.name === current )
-		)
+		options.findIndex( ( option ) => option.name === current )
 	);
-	const [ slide, setSlide ] = useState( currentSlide );
-	const shown = Math.min( slide, slides.length - 1 );
-	const hasSlides = slides.length > 1;
+	const [ start, setStart ] = useState( () =>
+		Math.min( currentIndex, lastStart )
+	);
+	const shown = Math.min( start, lastStart );
+	const hasMore = lastStart > 0;
 	const direction = isRTL() ? 1 : -1;
 
 	return (
 		<div
-			aria-roledescription={ hasSlides ? __( 'carousel' ) : undefined }
+			aria-roledescription={ hasMore ? __( 'carousel' ) : undefined }
 			className="cnl-section-modes__carousel"
 			role="group"
 			style={ {
-				'--cnl-layouts-per-slide': Math.min( perSlide, options.length ),
+				'--cnl-layouts-per-slide': visible,
+				'--cnl-layouts-offset': direction * shown,
 			} }
 		>
 			<div className="cnl-section-modes__carousel-row">
-				{ hasSlides && (
+				{ hasMore && (
 					<UiIconButton
 						className="cnl-section-modes__carousel-arrow"
 						disabled={ shown === 0 }
 						icon={ isRTL() ? chevronRightIcon : chevronLeftIcon }
-						label={ __( 'Previous layouts' ) }
-						onClick={ () => setSlide( shown - 1 ) }
+						label={ __( 'Previous layout' ) }
+						onClick={ () => setStart( shown - 1 ) }
 						size="compact"
 						tone="neutral"
 						variant="outline"
 					/>
 				) }
 				<div className="cnl-section-modes__carousel-viewport">
-					<div
-						className="cnl-section-modes__carousel-track"
-						style={ {
-							transform: `translateX(${ direction * shown * 100 }%)`,
-						} }
-					>
-						{ slides.map( ( items, index ) => (
-							<div
-								aria-hidden={ index !== shown }
-								aria-label={ sprintf(
-									/* translators: 1: slide number, 2: number of slides. */
-									__( '%1$d of %2$d' ),
-									index + 1,
-									slides.length
-								) }
-								aria-roledescription={ __( 'slide' ) }
-								className="cnl-section-modes__options"
-								inert={ index !== shown ? '' : undefined }
-								key={ index }
-								role="group"
-							>
-								{ items.map( ( option ) => (
-									<button
-										aria-pressed={ option.name === current }
-										className="cnl-section-modes__option"
-										key={ option.name ?? 'none' }
-										onClick={ () =>
-											option.name !== current &&
-											onSelect( option )
-										}
-										title={ option.label }
-										type="button"
-									>
-										<Preview blocks={ option.blocks } />
-										<span>{ option.label }</span>
-									</button>
-								) ) }
-							</div>
-						) ) }
+					<div className="cnl-section-modes__options">
+						{ options.map( ( option, index ) => {
+							const isHidden =
+								index < shown || index >= shown + visible;
+
+							return (
+								<button
+									aria-hidden={ isHidden || undefined }
+									aria-pressed={ option.name === current }
+									className="cnl-section-modes__option"
+									inert={ isHidden ? '' : undefined }
+									key={ option.name ?? 'none' }
+									onClick={ () =>
+										option.name !== current &&
+										onSelect( option )
+									}
+									title={ option.label }
+									type="button"
+								>
+									<Preview blocks={ option.blocks } />
+									<span>{ option.label }</span>
+								</button>
+							);
+						} ) }
 					</div>
 				</div>
-				{ hasSlides && (
+				{ hasMore && (
 					<UiIconButton
 						className="cnl-section-modes__carousel-arrow"
-						disabled={ shown === slides.length - 1 }
+						disabled={ shown === lastStart }
 						icon={ isRTL() ? chevronLeftIcon : chevronRightIcon }
-						label={ __( 'Next layouts' ) }
-						onClick={ () => setSlide( shown + 1 ) }
+						label={ __( 'Next layout' ) }
+						onClick={ () => setStart( shown + 1 ) }
 						size="compact"
 						tone="neutral"
 						variant="outline"
 					/>
 				) }
 			</div>
-			{ hasSlides && (
+			{ hasMore && (
 				<div className="cnl-section-modes__carousel-dots">
-					{ slides.map( ( items, index ) => (
+					{ Array.from( { length: lastStart + 1 }, ( _, index ) => (
 						<button
 							aria-current={ index === shown }
 							aria-label={ sprintf(
-								/* translators: 1: slide number, 2: number of slides. */
-								__( 'Show layouts %1$d of %2$d' ),
+								/* translators: 1: first layout shown, 2: last layout shown, 3: number of layouts. */
+								__( 'Show layouts %1$d to %2$d of %3$d' ),
 								index + 1,
-								slides.length
+								index + visible,
+								options.length
 							) }
 							className="cnl-section-modes__carousel-dot"
 							key={ index }
-							onClick={ () => setSlide( index ) }
+							onClick={ () => setStart( index ) }
 							type="button"
 						/>
 					) ) }

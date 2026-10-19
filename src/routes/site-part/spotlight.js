@@ -2,11 +2,13 @@
  * The spotlight on the Header and Footer canvases: the part the screen is
  * about, brought into view, with the rest of the page faded back and dimmed
  * behind a dark backdrop. In Browse this is laid over the saved site; in Edit
- * the part is editable too, and the rest of the page out of reach.
+ * over the editor, the part's blocks left as they are on any other page.
  *
- * In Edit the part is entered as a section, as core does when a pattern or
- * template part is edited in place. That makes everything outside it inert,
- * so all that is added here is keeping it entered and scrolled to.
+ * In Edit the part is changed through Edit's section layer, like any other
+ * header or footer: its bar offers Edit design and Edit content, and nothing
+ * in it can be clicked until one is picked. The canvas tells the layer the
+ * part is the only thing it works on, so the rest of the page stays out of
+ * reach. See `SectionModesLayer`.
  *
  * Within the part, what the screen's view changes, like its menu, is outlined
  * in the admin's accent colour, so it is clear what is being edited.
@@ -15,11 +17,9 @@
 /**
  * Internal dependencies
  */
-import { unlock } from '../../lock-unlock';
 import {
 	blockEditorStore,
 	useEffect,
-	useRegistry,
 	useSelect,
 } from '../../wordpress-packages';
 
@@ -368,12 +368,6 @@ export function useSitePartSpotlight( {
 } ) {
 	usePreviewSpotlight( { area, focus, frame, isPreviewing } );
 
-	const registry = useRegistry();
-	const editedSection = useSelect(
-		( select ) =>
-			unlock( select( blockEditorStore ) ).getEditedContentOnlySection(),
-		[]
-	);
 	// Joined, so the selector returns a value that only changes when they do.
 	const focusClientIds = useSelect(
 		( select ) =>
@@ -385,27 +379,6 @@ export function useSitePartSpotlight( {
 		[ clientId, focus ]
 	);
 	const isActive = Boolean( clientId && canvasDocument && ! isPreviewing );
-
-	/*
-	 * Enter the part, and again whenever it is left: Escape, or a click
-	 * outside it, would otherwise drop out of the spotlight.
-	 */
-	useEffect( () => {
-		if ( isActive && editedSection !== clientId ) {
-			unlock(
-				registry.dispatch( blockEditorStore )
-			).editContentOnlySection( clientId );
-		}
-	}, [ clientId, editedSection, isActive, registry ] );
-
-	// Leave it on the way out, so other canvases find the page unlocked.
-	useEffect(
-		() => () =>
-			unlock(
-				registry.dispatch( blockEditorStore )
-			).stopEditingContentOnlySection(),
-		[ registry ]
-	);
 
 	// Mark the part, and keep it marked as the editor re-renders it.
 	useEffect( () => {
