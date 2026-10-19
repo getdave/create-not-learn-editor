@@ -75,6 +75,7 @@ import {
 	getPatternContent,
 	getPatternTitle,
 } from '../routes/content/page-layouts';
+import { GlobalScope } from '../global-scope';
 import { getSectionArrangements } from '../layouts/variants';
 import { getSectionTitle } from '../routes/content/pages/page-sections';
 import { MODE_COMPOSE, setCanvasMode } from '../site-canvas/mode';
@@ -84,6 +85,7 @@ import {
 	searchSectionDesigns,
 	useSectionDesigns,
 } from '../section-picker';
+import { getStartPlaces } from '../start-places';
 import { Carousel } from './carousel';
 import { cancelPending } from './conversation';
 import { getBlocksEdit } from './entity-changes';
@@ -270,14 +272,16 @@ function SitePartWidget( { entity, message, onPick } ) {
 	}
 
 	return (
-		<Carousel label={ __( 'Layouts' ) }>
-			<SitePartLayouts
-				area={ message.params.area }
-				id={ entity[ 2 ] }
-				onPick={ onPick }
-				Preview={ Preview }
-			/>
-		</Carousel>
+		<GlobalScope>
+			<Carousel label={ __( 'Layouts' ) }>
+				<SitePartLayouts
+					area={ message.params.area }
+					id={ entity[ 2 ] }
+					onPick={ onPick }
+					Preview={ Preview }
+				/>
+			</Carousel>
+		</GlobalScope>
 	);
 }
 
@@ -1244,57 +1248,42 @@ async function findRequestedPage( text ) {
 	return named || current;
 }
 
+// What to ask for in each place to start.
+const PLACE_SUGGESTIONS = {
+	home: [
+		{ text: __( 'Add a section to my homepage' ), icon: 'section' },
+		{ text: __( 'Change a section on my homepage' ), icon: 'layout' },
+	],
+	pages: [
+		{ text: __( 'Add a page' ), icon: 'page' },
+		{ text: __( 'Change my menu' ), icon: 'navigation' },
+	],
+	identity: [
+		{ text: __( 'Change site title' ), icon: 'siteTitle' },
+		{
+			text: () =>
+				hasSavedLogo() ? __( 'Change site logo' ) : __( 'Add a logo' ),
+			icon: 'siteLogo',
+		},
+	],
+	style: [
+		{ text: __( 'Try a new look' ), icon: 'styles' },
+		{ text: __( 'Change my colors' ), icon: 'color' },
+		{ text: __( 'Pick new fonts' ), icon: 'typography' },
+	],
+	header: [ { text: __( 'Change my header' ), icon: 'header' } ],
+	footer: [ { text: __( 'Change my footer' ), icon: 'footer' } ],
+};
+
 /*
- * What to ask for, in groups by the kind of task, so the first thing seen
- * is a short list. A group with one thing in it is that thing.
+ * What to ask for, grouped into the same places to start as "Your site"
+ * offers, so the first thing seen is a short, familiar list. A group with
+ * one thing in it is that thing.
  */
-export const SUGGESTION_GROUPS = [
-	{
-		id: 'style',
-		label: __( 'Colors & fonts' ),
-		hint: __( 'A new look, colors or fonts' ),
-		icon: 'styles',
-		suggestions: [
-			{ text: __( 'Try a new look' ), icon: 'styles' },
-			{ text: __( 'Change my colors' ), icon: 'color' },
-			{ text: __( 'Pick new fonts' ), icon: 'typography' },
-		],
-	},
-	{
-		id: 'identity',
-		label: __( 'Name & logo' ),
-		hint: __( 'Your site title and logo' ),
-		icon: 'siteLogo',
-		suggestions: [
-			{ text: __( 'Change site title' ), icon: 'siteTitle' },
-			{
-				text: () =>
-					hasSavedLogo()
-						? __( 'Change site logo' )
-						: __( 'Add a logo' ),
-				icon: 'siteLogo',
-			},
-		],
-	},
-	{
-		id: 'parts',
-		label: __( 'Header, footer & menu' ),
-		hint: __( 'What shows on every page' ),
-		icon: 'header',
-		suggestions: [
-			{ text: __( 'Change my header' ), icon: 'header' },
-			{ text: __( 'Change my footer' ), icon: 'footer' },
-			{ text: __( 'Change my menu' ), icon: 'navigation' },
-		],
-	},
-	{
-		id: 'pages',
-		label: __( 'Add a page' ),
-		hint: __( 'Start a new page from a design' ),
-		icon: 'page',
-		suggestions: [ { text: __( 'Add a page' ), icon: 'page' } ],
-	},
-];
+export const SUGGESTION_GROUPS = getStartPlaces().map( ( place ) => ( {
+	...place,
+	suggestions: PLACE_SUGGESTIONS[ place.id ],
+} ) );
 
 // What to ask for about the page being worked on, when there is one.
 export const PAGE_SUGGESTIONS = [

@@ -6,8 +6,10 @@
  * straight away, and calls `onPick` with the layout's title.
  *
  * Each caller passes the preview component that works where it is, as with
- * the section picker. The layouts are in purple, as everything that changes
- * what every page shares is. See `src/global-scope`.
+ * the section picker. Callers put it in `GlobalScope`, so the layouts are in
+ * purple, as everything that changes what every page shares is. The picker
+ * doesn't, so its list stays the one element it renders, for the chat's
+ * carousel to take as its slides. See `src/global-scope`.
  *
  * Imported package by package rather than through `src/wordpress-packages`,
  * because the chat loads it from app init. See `src/editor-layer/index.jsx`.
@@ -27,7 +29,6 @@ import { Icon, Spinner, Text } from '@wordpress/ui';
 /**
  * Internal dependencies
  */
-import { GlobalScope } from '../global-scope';
 import {
 	getPatternContent,
 	getPatternTitle,
@@ -148,21 +149,16 @@ export function SitePartLayouts( {
 	};
 
 	return (
-		<GlobalScope>
-			<ul
-				aria-label={ __( 'Layouts' ) }
-				className="cnl-site-part__layouts"
-			>
-				{ orderedLayouts.map( ( pattern ) => (
-					<LayoutCard
-						isCurrent={ pattern.name === currentName }
-						key={ pattern.name }
-						onSelect={ select }
-						pattern={ pattern }
-						Preview={ Preview }
-					/>
-				) ) }
-			</ul>
-		</GlobalScope>
+		<ul aria-label={ __( 'Layouts' ) } className="cnl-site-part__layouts">
+			{ orderedLayouts.map( ( pattern ) => (
+				<LayoutCard
+					isCurrent={ pattern.name === currentName }
+					key={ pattern.name }
+					onSelect={ select }
+					pattern={ pattern }
+					Preview={ Preview }
+				/>
+			) ) }
+		</ul>
 	);
 }

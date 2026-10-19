@@ -121,14 +121,14 @@ function SuggestionGroup( { group, onOpen } ) {
 			type="button"
 		>
 			<span aria-hidden className="cnl-chat-suggestions__group-icon">
-				<Icon icon={ SUGGESTION_ICONS[ group.icon ] } size={ 20 } />
+				<Icon icon={ group.icon } size={ 20 } />
 			</span>
 			<span className="cnl-chat-suggestions__group-text">
 				<span className="cnl-chat-suggestions__group-label">
-					{ group.label }
+					{ group.title }
 				</span>
 				<span className="cnl-chat-suggestions__group-hint">
-					{ group.hint }
+					{ group.description }
 				</span>
 			</span>
 			<Icon
@@ -187,7 +187,7 @@ export function Suggestions( { isLarge = false } ) {
 							}
 							size={ 20 }
 						/>
-						{ openGroup.label }
+						{ openGroup.title }
 					</button>
 					<div className="cnl-chat-suggestions__options">
 						{ openGroup.suggestions.map( ( suggestion ) => (
