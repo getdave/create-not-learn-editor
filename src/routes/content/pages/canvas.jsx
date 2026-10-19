@@ -30,7 +30,12 @@ import {
 	useSiteCanvas,
 } from '../../../site-canvas';
 import { getErrorMessage } from '../../../records';
-import { getPageTitle, usePageSections, usePreviewStructure } from './data';
+import {
+	getPageTitle,
+	PAGES_QUERY,
+	usePageSections,
+	usePreviewStructure,
+} from './data';
 import { getHomepageSummary, parseTarget, useHomepageState } from './homepage';
 import { HOMEPAGE, isIndexTemplateId } from './homepage-state';
 import {
@@ -103,6 +108,24 @@ function getAccentColor() {
 			.getPropertyValue( '--wp-admin-theme-color' )
 			.trim() || '#3858e9'
 	);
+}
+
+/**
+ * A page as the sidebar's list has it, with its address, status and layout,
+ * if the list has loaded.
+ *
+ * @param {Function} select Registry `select`.
+ * @param {number}   pageId Page ID.
+ * @return {?Object} The page, or `null`.
+ */
+function getListedPage( select, pageId ) {
+	const pages = select( coreDataStore ).getEntityRecords(
+		'postType',
+		'page',
+		PAGES_QUERY
+	);
+
+	return pages?.find( ( listed ) => listed.id === pageId ) || null;
 }
 
 /**
@@ -717,6 +740,8 @@ function PagesCanvas() {
 	/*
 	 * Only what the canvas shows of the page. The edited record is new on
 	 * every keystroke, as the editor writes the page's blocks back to it.
+	 * Until the page's own record has loaded, the sidebar's list has what
+	 * the preview needs, so a page picked there starts loading at once.
 	 */
 	const { id, link, status, template, title } = useSelect(
 		( select ) => {
@@ -725,7 +750,7 @@ function PagesCanvas() {
 						'postType',
 						'page',
 						pageId
-					)
+					) || getListedPage( select, pageId )
 				: null;
 
 			return {
@@ -752,7 +777,7 @@ function PagesCanvas() {
 						'postType',
 						'page',
 						pageId
-					)
+					) || getListedPage( select, pageId )
 				: null;
 
 			return {
