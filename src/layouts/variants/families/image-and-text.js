@@ -16,6 +16,11 @@
  * the cover inside it. Columns keep their widths while the image only swaps
  * sides. Things only one shape has, like a cover's height or the columns'
  * widths, are left behind when the section changes shape.
+ *
+ * A cover that is all a group holds fills it: the picture runs to the
+ * section's edges and the section's padding moves inside the picture, so it
+ * doesn't sit in a band of background like a framed photo. Back out of the
+ * cover, the padding goes back to the section.
  */
 
 /**
@@ -27,7 +32,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import { cloneAll, isMediaBlock, isText, rebuild } from '../blocks';
+import { cloneAll, isMediaBlock, isText, rebuild, setIn } from '../blocks';
 
 // What a cover over a picture starts with: enough shade to read the words.
 const COVER_DIM_RATIO = 40;
@@ -63,6 +68,88 @@ function carry( attributes ) {
 			className: classes || undefined,
 		} ).filter( ( [ , value ] ) => value !== undefined )
 	);
+}
+
+function getPadding( block ) {
+	return block.attributes.style?.spacing?.padding;
+}
+
+/**
+ * Attributes with their padding set, or removed when `padding` is
+ * undefined.
+ *
+ * @param {Object}  attributes Attributes. Not changed.
+ * @param {?Object} padding    Padding, as `style.spacing.padding` holds it.
+ * @return {Object} The updated copy.
+ */
+function setPadding( attributes, padding ) {
+	const next = {
+		...attributes,
+		style: setIn( attributes.style, [ 'spacing', 'padding' ], padding ),
+	};
+
+	if ( ! next.style ) {
+		delete next.style;
+	}
+
+	return next;
+}
+
+/**
+ * A section's blocks from the outside in, through groups holding only one
+ * block: the groups around its layout, then the layout.
+ *
+ * @param {Object} section Section block.
+ * @return {Object[]} Blocks, the section first.
+ */
+function getNesting( section ) {
+	const nesting = [ section ];
+	let block = section;
+
+	while ( block.name === 'core/group' && block.innerBlocks.length === 1 ) {
+		block = block.innerBlocks[ 0 ];
+		nesting.push( block );
+	}
+
+	return nesting;
+}
+
+/**
+ * A section with its cover filling it: the groups around the cover lose
+ * their padding and run full width, and the cover runs full width with the
+ * section's padding inside it, unless it has its own.
+ *
+ * @param {Object}  block   Section, or a group in it, holding the cover.
+ * @param {?Object} padding The section's padding.
+ * @param {boolean} isOuter Whether `block` is the section.
+ * @return {Object} The updated copy.
+ */
+function fillWithCover( block, padding, isOuter = true ) {
+	if ( block.name === 'core/cover' ) {
+		const attributes = { ...block.attributes, align: 'full' };
+
+		return {
+			...block,
+			attributes:
+				padding && ! getPadding( block )
+					? setPadding( attributes, padding )
+					: attributes,
+		};
+	}
+
+	const attributes = setPadding( block.attributes, undefined );
+
+	if ( ! isOuter ) {
+		attributes.align = 'full';
+	}
+
+	return {
+		...block,
+		attributes,
+		innerBlocks: [
+			fillWithCover( block.innerBlocks[ 0 ], padding, false ),
+		],
+	};
 }
 
 function pick( attributes, keys ) {
@@ -193,6 +280,7 @@ function readCover( block ) {
 	return {
 		from: 'cover',
 		side: 'cover',
+		padding: getPadding( block ),
 		media: createBlock(
 			'core/image',
 			pick( attributes, [ 'url', 'id', 'alt', 'sizeSlug' ] )
@@ -359,5 +447,56 @@ export const IMAGE_AND_TEXT = {
 		}
 
 		return rebuild( block, block.attributes, inner );
+	},
+	// Run on the whole section once the arrangement is in it.
+	fit: ( section, state, { side } ) => {
+		const nesting = getNesting( section );
+		const layout = nesting[ nesting.length - 1 ];
+
+		// A section that is the layout itself keeps its own alignment, as
+		// set in Edit design.
+		if ( nesting.length < 2 ) {
+			return section;
+		}
+
+		if ( side === 'cover' ) {
+			return layout.name === 'core/cover'
+				? fillWithCover(
+						section,
+						nesting.map( getPadding ).find( Boolean )
+					)
+				: section;
+		}
+
+		if ( state.from !== 'cover' || layout.name !== 'core/columns' ) {
+			return section;
+		}
+
+		// Out of a cover, the section takes its padding back and the image
+		// and text sit at the wide size inside it.
+		const fitLayout = ( block ) =>
+			block === layout
+				? {
+						...block,
+						attributes: {
+							...block.attributes,
+							align:
+								block.attributes.align === 'full'
+									? 'wide'
+									: block.attributes.align,
+						},
+					}
+				: {
+						...block,
+						innerBlocks: [ fitLayout( block.innerBlocks[ 0 ] ) ],
+					};
+		const fitted = fitLayout( section );
+
+		return state.padding && ! getPadding( section )
+			? {
+					...fitted,
+					attributes: setPadding( fitted.attributes, state.padding ),
+				}
+			: fitted;
 	},
 };
