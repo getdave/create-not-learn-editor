@@ -39,3 +39,19 @@ export const zoomOutIcon = (
 		<path d="M10.5 11h5" vectorEffect="non-scaling-stroke" />
 	</svg>
 );
+
+// Zoom in: the same magnifier, with a plus in it instead of a minus.
+export const zoomInIcon = (
+	<svg
+		{ ...SVG_PROPS }
+		stroke="currentColor"
+		strokeWidth="1.5"
+		style={ { fill: 'none' } }
+	>
+		<path
+			d="M5 19L9.28769 14.7123M18.25 11C18.25 13.8995 15.8995 16.25 13 16.25C10.1005 16.25 7.75 13.8995 7.75 11C7.75 8.10051 10.1005 5.75 13 5.75C15.8995 5.75 18.25 8.10051 18.25 11Z"
+			vectorEffect="non-scaling-stroke"
+		/>
+		<path d="M10.5 11h5M13 8.5v5" vectorEffect="non-scaling-stroke" />
+	</svg>
+);
