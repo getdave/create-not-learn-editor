@@ -252,6 +252,20 @@
 }
 
 /*
+ * Edit. Pointing between two blocks brings up core's in-between inserter,
+ * its line and "Add block" button. Sections are added from the section
+ * layer's "Add section" instead, so the inserter is hidden. Only the one
+ * pointing brings up: the line core draws while a block is dragged has no
+ * inserter, and still shows.
+ */
+.cnl-site-canvas.is-edit .cnl-inline-editor {
+
+	.block-editor-block-list__insertion-point.is-with-inserter {
+		display: none;
+	}
+}
+
+/*
  * A desktop's width for the editor while core measures it, before zooming
  * out. See `use-compose-zoom.js`. Hidden meanwhile, so the page laid out
  * wider than the canvas never shows.
