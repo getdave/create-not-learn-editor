@@ -67,8 +67,19 @@ const MODE_PREFERENCE = 'sectionPickerMode';
 const DESIGNS_MODE = 'designs';
 const LAYOUTS_MODE = 'layouts';
 
-// How far ahead of the visible area a card starts rendering its preview.
-const PREVIEW_MARGIN = '400px 0px';
+// How far ahead of the visible area a card starts rendering its preview,
+// down a list or along a carousel.
+const PREVIEW_MARGIN = '400px';
+
+// How long scrolling has to stop before the cards near view render their
+// previews, so the cards a fast scroll passes over don't queue up ahead of
+// the ones it stops at. Previews render one at a time, in the order they are
+// asked for.
+const PREVIEW_SETTLE_MS = 150;
+
+// How much longer the cards only near view wait, so the ones in view are
+// rendered first.
+const PREVIEW_AHEAD_MS = 300;
 
 // How far below the top of the scroll area a group counts as the one in view.
 const ACTIVE_OFFSET = 48;
@@ -82,8 +93,9 @@ const SCROLL_BY_HAND_EVENTS = [
 ];
 
 /**
- * Whether an element has come near the visible part of a scroll area. Stays
- * true once it has, so a preview is not thrown away when scrolled past.
+ * Whether an element has been near the visible part of a scroll area while
+ * the scrolling stopped for a moment. Stays true once it has, so a preview is
+ * not thrown away when scrolled past.
  *
  * @param {Object} ref     Element ref.
  * @param {Object} rootRef Scroll area ref.
@@ -94,6 +106,7 @@ function useHasBeenNearView( ref, rootRef ) {
 
 	useEffect( () => {
 		const node = ref.current;
+		const root = rootRef.current;
 
 		if ( isNear || ! node ) {
 			return;
@@ -104,18 +117,66 @@ function useHasBeenNearView( ref, rootRef ) {
 			return;
 		}
 
+		let timer;
+		let isIntersecting = false;
+		// Whether the element is in view itself, not just near it.
+		const isInView = () => {
+			const rect = node.getBoundingClientRect();
+			const bounds = root
+				? root.getBoundingClientRect()
+				: {
+						bottom: window.innerHeight,
+						left: 0,
+						right: window.innerWidth,
+						top: 0,
+					};
+
+			return (
+				rect.right > bounds.left &&
+				rect.left < bounds.right &&
+				rect.bottom > bounds.top &&
+				rect.top < bounds.bottom
+			);
+		};
+		// Started again by every scroll, so it only runs out once the
+		// scrolling stops. What is in view goes first, and what is only near
+		// it a moment later, behind it in the queue.
+		const wait = () => {
+			window.clearTimeout( timer );
+
+			if ( ! isIntersecting ) {
+				return;
+			}
+
+			timer = window.setTimeout( () => {
+				if ( isInView() ) {
+					setIsNear( true );
+					return;
+				}
+
+				timer = window.setTimeout(
+					() => setIsNear( true ),
+					PREVIEW_AHEAD_MS
+				);
+			}, PREVIEW_SETTLE_MS );
+		};
 		const observer = new window.IntersectionObserver(
 			( entries ) => {
-				if ( entries.some( ( entry ) => entry.isIntersecting ) ) {
-					setIsNear( true );
-				}
+				isIntersecting = entries[ entries.length - 1 ].isIntersecting;
+				wait();
 			},
-			{ root: rootRef.current, rootMargin: PREVIEW_MARGIN }
+			{ root, rootMargin: PREVIEW_MARGIN }
 		);
+		const scroller = root || window;
 
 		observer.observe( node );
+		scroller.addEventListener( 'scroll', wait, { passive: true } );
 
-		return () => observer.disconnect();
+		return () => {
+			window.clearTimeout( timer );
+			observer.disconnect();
+			scroller.removeEventListener( 'scroll', wait );
+		};
 	}, [ isNear, ref, rootRef ] );
 
 	return isNear;
