@@ -1271,8 +1271,10 @@ const PLACE_SUGGESTIONS = {
 		{ text: __( 'Change my colors' ), icon: 'color' },
 		{ text: __( 'Pick new fonts' ), icon: 'typography' },
 	],
-	header: [ { text: __( 'Change my header' ), icon: 'header' } ],
-	footer: [ { text: __( 'Change my footer' ), icon: 'footer' } ],
+	siteParts: [
+		{ text: __( 'Change my header' ), icon: 'header' },
+		{ text: __( 'Change my footer' ), icon: 'footer' },
+	],
 };
 
 /*

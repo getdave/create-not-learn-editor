@@ -1,5 +1,6 @@
 /**
- * The Header and Footer screens, reached from the "Your site" screen.
+ * The Header and Footer screens, reached from the "Your site" screen through
+ * a screen that offers the two, "Header & footer".
  *
  * Like a page on the Pages screen: the stage holds what can be changed about
  * the part as a whole, and the canvas shows the homepage with the part in the
@@ -37,6 +38,7 @@ import { SiteIdentityFields, useSiteIdentity } from '../../pickers/identity';
 import { SitePartLayouts } from '../../pickers/site-part-layouts';
 import {
 	SITE_PART_PATHS,
+	SITE_PARTS_PATH,
 	useSitePart,
 	useSitePartContents,
 	useSitePartLayouts,
@@ -50,6 +52,7 @@ import {
 	withSocialLinks,
 } from './social-links';
 import { useSitePartSpotlight } from './spotlight';
+import sitePartsIcon from '../../site-parts-icon';
 import {
 	BlockIcon,
 	Breadcrumbs,
@@ -123,6 +126,7 @@ const VIEWS = {
 
 const SITE_PARTS = {
 	footer: {
+		choice: __( 'Choose how the bottom of every page looks.' ),
 		description: __(
 			'Shown at the bottom of every page. Pick Edit design or Edit content on it, on the right, to change it.'
 		),
@@ -135,6 +139,7 @@ const SITE_PARTS = {
 		title: __( 'Footer' ),
 	},
 	header: {
+		choice: __( 'Choose how the top of every page looks.' ),
 		description: __(
 			'Shown at the top of every page. Pick Edit design or Edit content on it, on the right, to change it.'
 		),
@@ -147,6 +152,13 @@ const SITE_PARTS = {
 		title: __( 'Header' ),
 	},
 };
+
+// The screen offering the two, and the first crumb back on each.
+const SITE_PARTS_TITLE = __( 'Header & footer' );
+
+function getSitePartsCrumb() {
+	return { label: SITE_PARTS_TITLE, to: SITE_PARTS_PATH };
+}
 
 function Note( { children } ) {
 	return (
@@ -634,13 +646,18 @@ function createStage( area ) {
 							view
 								? [
 										getSiteCrumb(),
+										getSitePartsCrumb(),
 										{
 											label: part.title,
 											to: SITE_PART_PATHS[ area ],
 										},
 										{ label: view.title() },
 									]
-								: [ getSiteCrumb(), { label: part.title } ]
+								: [
+										getSiteCrumb(),
+										getSitePartsCrumb(),
+										{ label: part.title },
+									]
 						}
 					/>
 					<Note>
@@ -662,19 +679,46 @@ function createStage( area ) {
 	};
 }
 
-function PartDocument( { area } ) {
-	const part = SITE_PARTS[ area ];
+/*
+ * The screen "Your site" opens for the header and footer: a row for each,
+ * leading on to its own screen.
+ */
+function SitePartsStage() {
+	const links = [ 'header', 'footer' ].map( ( area ) => ( {
+		description: SITE_PARTS[ area ].choice,
+		icon: SITE_PARTS[ area ].icon,
+		title: SITE_PARTS[ area ].title,
+		to: SITE_PART_PATHS[ area ],
+	} ) );
 
+	return (
+		<div className="cnl-editor-stage routes-styles cnl-site-part">
+			<Stack direction="column" gap="xs">
+				<Breadcrumbs
+					items={ [ getSiteCrumb(), { label: SITE_PARTS_TITLE } ] }
+				/>
+				<Note>
+					{ __(
+						'Every page shares the same header and footer. Pick one to change it.'
+					) }
+				</Note>
+			</Stack>
+			<ScreenLinks label={ SITE_PARTS_TITLE } links={ links } />
+		</div>
+	);
+}
+
+function PartDocument( { icon, title } ) {
 	return (
 		<div className="cnl-editor-homepage-document is-global">
 			<div className="cnl-editor-homepage-document__text">
 				<div className="cnl-editor-homepage-document__heading">
 					<Icon
 						className="cnl-editor-homepage-document__icon"
-						icon={ part.icon }
+						icon={ icon }
 					/>
 					<h1 className="cnl-editor-homepage-document__title">
-						{ part.title }
+						{ title }
 					</h1>
 				</div>
 				<p className="cnl-editor-homepage-document__meta">
@@ -716,13 +760,40 @@ function createCanvas( area ) {
 				canCompose={ false }
 				canvas={ { ...canvas, editRoute } }
 				className={ `cnl-site-part-canvas is-${ area }` }
-				document={ <PartDocument area={ area } /> }
+				document={
+					<PartDocument
+						icon={ SITE_PARTS[ area ].icon }
+						title={ SITE_PARTS[ area ].title }
+					/>
+				}
 				editorRef={ editorRef }
 				// The part is all Edit offers, the rest of the page dimmed.
 				focusId={ clientId }
 			/>
 		);
 	};
+}
+
+/*
+ * The homepage, with its header and footer, before either is picked. Edit
+ * offers both, and the page's sections, as on any page.
+ */
+function SitePartsCanvas() {
+	const canvas = useSiteCanvas( { url: settings.homeUrl } );
+
+	return (
+		<SiteCanvas
+			canCompose={ false }
+			canvas={ canvas }
+			className="cnl-site-part-canvas"
+			document={
+				<PartDocument
+					icon={ sitePartsIcon }
+					title={ SITE_PARTS_TITLE }
+				/>
+			}
+		/>
+	);
 }
 
 /**
@@ -742,6 +813,10 @@ function withGlobalScope( Component ) {
 	};
 }
 
+export const sitePartsStage = withUiTheme( withGlobalScope( SitePartsStage ) );
+export const sitePartsCanvas = withCanvasRecovery(
+	withUiTheme( withGlobalScope( SitePartsCanvas ) )
+);
 export const headerStage = withUiTheme(
 	withGlobalScope( createStage( 'header' ) )
 );

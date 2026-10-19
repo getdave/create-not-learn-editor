@@ -25,14 +25,13 @@ test.describe( 'Home view', () => {
 		const links = page.getByRole( 'navigation', {
 			name: 'Start working on your site',
 		} );
-		await expect( links.getByRole( 'button' ) ).toHaveCount( 6 );
+		await expect( links.getByRole( 'button' ) ).toHaveCount( 5 );
 		for ( const title of [
 			'Your homepage',
 			'Pages & menu',
 			'Name & logo',
 			'Colors & fonts',
-			'Header',
-			'Footer',
+			'Header & footer',
 		] ) {
 			await expect(
 				links.getByRole( 'button', {
