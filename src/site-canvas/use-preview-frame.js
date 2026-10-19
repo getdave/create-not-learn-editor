@@ -54,12 +54,19 @@ export function usePreviewFrame( { initialUrl, getVersion } ) {
 	const [ location, setLocation ] = useState( '' );
 	// The page on show, once it has loaded, for listening to it.
 	const [ frameDocument, setFrameDocument ] = useState( null );
-	const [ isLoading, setIsLoading ] = useState( Boolean( src ) );
+	const [ isLoading, setIsLoadingState ] = useState( Boolean( src ) );
+	// The same, as soon as it changes, for work put off until it has loaded.
+	const isLoadingRef = useRef( isLoading );
 	const [ loadedVersion, setLoadedVersion ] = useState( 0 );
 	const [ history, setHistory ] = useState( {
 		canGoBack: false,
 		canGoForward: false,
 	} );
+
+	const setIsLoading = useCallback( ( value ) => {
+		isLoadingRef.current = value;
+		setIsLoadingState( value );
+	}, [] );
 
 	useEffect(
 		() => () => {
@@ -140,23 +147,26 @@ export function usePreviewFrame( { initialUrl, getVersion } ) {
 	 * @param {string} url Page URL.
 	 * @return {boolean} Whether the preview can show it.
 	 */
-	const navigate = useCallback( ( url ) => {
-		const previewUrl = getPreviewFrameUrl( url );
+	const navigate = useCallback(
+		( url ) => {
+			const previewUrl = getPreviewFrameUrl( url );
 
-		if ( ! previewUrl ) {
-			return false;
-		}
+			if ( ! previewUrl ) {
+				return false;
+			}
 
-		setIsLoading( true );
+			setIsLoading( true );
 
-		if ( iframeRef.current ) {
-			iframeRef.current.src = previewUrl;
-		} else {
-			setSrc( previewUrl );
-		}
+			if ( iframeRef.current ) {
+				iframeRef.current.src = previewUrl;
+			} else {
+				setSrc( previewUrl );
+			}
 
-		return true;
-	}, [] );
+			return true;
+		},
+		[ setIsLoading ]
+	);
 
 	/**
 	 * Load the page on show again, to pick up what has been saved since.
@@ -181,7 +191,7 @@ export function usePreviewFrame( { initialUrl, getVersion } ) {
 		}
 
 		return true;
-	}, [] );
+	}, [ setIsLoading ] );
 
 	/**
 	 * Show a page, or reload the one on show, and wait for it.
@@ -242,6 +252,7 @@ export function usePreviewFrame( { initialUrl, getVersion } ) {
 		frameProps: { onLoad, ref: iframeRef, src: src || undefined },
 		history,
 		isLoading,
+		isLoadingNow: () => isLoadingRef.current,
 		loadedVersion,
 		location,
 		move,
