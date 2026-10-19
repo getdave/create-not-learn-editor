@@ -38,7 +38,11 @@ import { plus as plusIcon, trash as trashIcon } from '@wordpress/icons';
  */
 import { observeHost } from '../../editor-layer/portal-host';
 import { GLOBAL_CANVAS_CSS, GlobalScope } from '../../global-scope';
-import { openSectionPicker } from '../../editor-layer/section-picker';
+import {
+	addPatternSection,
+	EditorPreview,
+	openSectionPicker,
+} from '../../editor-layer/section-picker';
 import { unlock } from '../../lock-unlock';
 import { getSectionTitle } from '../../routes/content/pages/page-sections';
 import {
@@ -76,7 +80,7 @@ import {
 import { useEditorSpotlight } from '../part-spotlight';
 import { useCanvasDocument } from '../use-canvas-document';
 import { useCanvasStyles } from '../use-canvas-styles';
-import { createBlankSection } from '../../section-picker';
+import { createBlankSection, InlineSectionPicker } from '../../section-picker';
 import { EmptyPage } from './empty-page';
 import { RemoveControl } from './remove-control';
 import { getItems } from './items';
@@ -133,6 +137,14 @@ const LAYOUT_CARD_WIDTH = 144;
 const PANEL_CHROME_WIDTH = 132;
 // Room kept for the placeholder on an empty page.
 const EMPTY_SPACE = 320;
+// The gap opened for adding a section in place: room around its picker,
+// and the picker's height until it is measured.
+const INLINE_ADD_GAP = 16;
+const INLINE_ADD_HEIGHT = 520;
+// The picker's narrowest, wider than a zoomed-out section if need be.
+const INLINE_ADD_MIN_WIDTH = 560;
+// How long its gap takes to open, before it is scrolled into view.
+const INLINE_ADD_SETTLE_MS = 260;
 // How long a new block is kept focused while it settles, in frames.
 const FOCUS_FRAMES = 30;
 
@@ -418,9 +430,13 @@ function getBlocksBeside( select, clientId ) {
  *                                a section is dragged.
  * @param {string[]} fadedIds     The blocks faded around a section core has
  *                                opened.
+ * @param {?Object}  gap          The gap opened for adding a section in
+ *                                place: `{ clientId, isAfter, height }`, the
+ *                                section it opens before, or after at the
+ *                                page's end, and its height on screen.
  * @return {string} CSS.
  */
-function getCanvasCss( openId, rootClientId, isEmpty, compose, fadedIds ) {
+function getCanvasCss( openId, rootClientId, isEmpty, compose, fadedIds, gap ) {
 	const outside = openId
 		? `:not(#block-${ openId }):not(#block-${ openId } *)`
 		: '';
@@ -467,6 +483,22 @@ function getCanvasCss( openId, rootClientId, isEmpty, compose, fadedIds ) {
 			`${ sections }, ${ sections } * { cursor: ${
 				compose === 'dragging' ? 'grabbing' : 'grab'
 			} !important; }`,
+		// The gap for adding a section in place, opening as the sections
+		// move apart. Its height is on screen, so zoomed out it is scaled
+		// up by as much as core scales the page down.
+		gap &&
+			`#block-${ gap.clientId } {
+				margin-block-${ gap.isAfter ? 'end' : 'start' }: ${ gap.height }px !important;
+				transition: margin var(--wpds-motion-duration-md, 200ms) ease-out;
+			}
+			html.is-zoomed-out #block-${ gap.clientId } {
+				margin-block-${ gap.isAfter ? 'end' : 'start' }: calc(${
+					gap.height
+				}px / var(--wp-block-editor-iframe-zoom-out-scale, 1)) !important;
+			}
+			@media (prefers-reduced-motion: reduce) {
+				#block-${ gap.clientId } { transition: none; }
+			}`,
 	]
 		.filter( Boolean )
 		.join( '\n' );
@@ -551,6 +583,11 @@ export function SectionModesLayer( {
 	const [ freshId, setFreshId ] = useState( null );
 	const [ chromeNode, setChromeNode ] = useState( null );
 	const [ chromeSize, setChromeSize ] = useState( null );
+	// `{ index }` of the gap a section is being added to in place, among
+	// the sections.
+	const [ inlineAdd, setInlineAdd ] = useState( null );
+	const [ inlineAddNode, setInlineAddNode ] = useState( null );
+	const [ inlineAddHeight, setInlineAddHeight ] = useState( null );
 	const activeRef = useRef( active );
 
 	activeRef.current = active;
@@ -633,6 +670,7 @@ export function SectionModesLayer( {
 
 		setMenuOpenFor( null );
 		setDoomedId( null );
+		setInlineAdd( null );
 		setActive( {
 			id: clientId,
 			mode,
@@ -787,6 +825,8 @@ export function SectionModesLayer( {
 				exitMode();
 			}
 
+			setInlineAdd( null );
+
 			setPickedSection( target );
 		},
 		// A double click opens the section in Edit content, with the caret
@@ -826,6 +866,12 @@ export function SectionModesLayer( {
 		// picked, and steps back from Freeform to Edit design's panel.
 		onEscape: ( event ) => {
 			const current = activeRef.current;
+
+			if ( inlineAdd ) {
+				event.preventDefault();
+				setInlineAdd( null );
+				return;
+			}
 
 			if ( ! current ) {
 				if ( pickedSection ) {
@@ -1105,6 +1151,23 @@ export function SectionModesLayer( {
 		[ editedSection, openId ]
 	);
 
+	// The section the gap for adding in place opens before, or after at the
+	// end of the page.
+	const inlineAddPlace = useMemo( () => {
+		if ( ! inlineAdd || drag ) {
+			return null;
+		}
+
+		const next = sectionIds[ inlineAdd.index ];
+		const previous = sectionIds[ inlineAdd.index - 1 ];
+
+		if ( next ) {
+			return { clientId: next, isAfter: false };
+		}
+
+		return previous ? { clientId: previous, isAfter: true } : null;
+	}, [ drag, inlineAdd, sectionIds ] );
+
 	useCanvasStyles(
 		true,
 		editorRef,
@@ -1114,7 +1177,13 @@ export function SectionModesLayer( {
 			rootClientId,
 			isEmpty,
 			isComposing && ( drag ? 'dragging' : 'grab' ),
-			fadedIds ? fadedIds.split( ',' ) : EMPTY_ARRAY
+			fadedIds ? fadedIds.split( ',' ) : EMPTY_ARRAY,
+			inlineAddPlace && {
+				...inlineAddPlace,
+				height:
+					( inlineAddHeight ?? INLINE_ADD_HEIGHT ) +
+					INLINE_ADD_GAP * 2,
+			}
 		)
 	);
 
@@ -1129,6 +1198,27 @@ export function SectionModesLayer( {
 		canvasDocument,
 		clientId: activePart && ! focusId ? active.id : null,
 	} );
+
+	// Core's own inserter between blocks would offer a second way to add
+	// in the same gap, so it is hidden while the picker is open.
+	useEffect( () => {
+		const editor = editorRef.current;
+
+		if ( ! inlineAdd || ! editor ) {
+			return undefined;
+		}
+
+		editor.classList.add( 'is-adding-section-inline' );
+
+		return () => editor.classList.remove( 'is-adding-section-inline' );
+	}, [ editorRef, inlineAdd ] );
+
+	// Dragging a section, or the sections going, closes the gap.
+	useEffect( () => {
+		if ( inlineAdd && ( drag || ! sectionIds.length ) ) {
+			setInlineAdd( null );
+		}
+	}, [ drag, inlineAdd, sectionIds.length ] );
 
 	// A header or footer's blocks are picked out in purple while it is open.
 	useCanvasStyles(
@@ -1243,6 +1333,64 @@ export function SectionModesLayer( {
 
 		return () => observer.disconnect();
 	}, [ chromeNode ] );
+
+	// The height of the picker for adding a section in place, for the gap
+	// it sits in.
+	useEffect( () => {
+		if ( ! inlineAddNode ) {
+			setInlineAddHeight( null );
+			return undefined;
+		}
+
+		const observer = new window.ResizeObserver( () =>
+			setInlineAddHeight( inlineAddNode.offsetHeight )
+		);
+
+		observer.observe( inlineAddNode );
+
+		return () => observer.disconnect();
+	}, [ inlineAddNode ] );
+
+	// Once its gap has opened, the picker for adding a section in place is
+	// scrolled into view, if it isn't, keeping its top in view first.
+	useEffect( () => {
+		if ( ! inlineAddNode ) {
+			return undefined;
+		}
+
+		const timer = window.setTimeout( () => {
+			const iframe = getCanvasFrame( editorRef.current );
+
+			if ( ! iframe || ! inlineAddNode.isConnected ) {
+				return;
+			}
+
+			const box = inlineAddNode.getBoundingClientRect();
+			const view = iframe.getBoundingClientRect();
+			const above = box.top - view.top - INSET;
+			const below = box.bottom - view.bottom + INSET;
+			let delta = 0;
+
+			if ( above < 0 ) {
+				delta = above;
+			} else if ( below > 0 ) {
+				delta = Math.min( below, above );
+			}
+
+			if ( delta ) {
+				const reduceMotion = window.matchMedia(
+					'(prefers-reduced-motion: reduce)'
+				).matches;
+
+				iframe.contentWindow?.scrollBy( {
+					behavior: reduceMotion ? 'auto' : 'smooth',
+					top: delta,
+				} );
+			}
+		}, INLINE_ADD_SETTLE_MS );
+
+		return () => window.clearTimeout( timer );
+	}, [ editorRef, inlineAddNode ] );
 
 	// Scrolling over the layer scrolls the canvas under it.
 	useEffect( () => {
@@ -1376,12 +1524,12 @@ export function SectionModesLayer( {
 	};
 
 	// A blank section, opened in Edit content with the caret in its text.
-	const startBlank = () => {
+	const startBlank = ( index = 0 ) => {
 		const section = createBlankSection();
 
 		registry
 			.dispatch( blockEditorStore )
-			.insertBlocks( [ section ], 0, rootClientId, false );
+			.insertBlocks( [ section ], index, rootClientId, false );
 		enterMode( section.clientId, MODE_CONTENT );
 
 		const paragraphId = section.innerBlocks[ 0 ].clientId;
@@ -1461,6 +1609,101 @@ export function SectionModesLayer( {
 		setActive( ( current ) => ( { ...current, id: next.clientId } ) );
 	};
 
+	// Adding a section in place, in a gap opened where it goes, rather than
+	// in the modal, which "View all sections" opens for the same gap.
+	const openInlineAdd = ( index ) => {
+		setMenuOpenFor( null );
+		setInlineAdd( { index } );
+	};
+
+	const inlineAddActions = {
+		onClose: () => setInlineAdd( null ),
+		onPick: ( pattern ) => {
+			setInlineAdd( null );
+			addPatternSection( registry, pattern, {
+				index: inlineAdd.index,
+				rootClientId: rootClientId || '',
+			} );
+		},
+		// Typed into straight away, which is done in Edit.
+		onStartBlank: () => {
+			const { index } = inlineAdd;
+
+			setInlineAdd( null );
+			leaveCompose( () => startBlank( index ) );
+		},
+		onViewAll: () => {
+			setInlineAdd( null );
+			openSectionPicker( {
+				index: inlineAdd.index,
+				rootClientId: rootClientId || '',
+			} );
+		},
+	};
+
+	/*
+	 * The picker for adding a section in place, in its gap: under the
+	 * section before it, or over the one after it at the top of the page.
+	 * As wide as the sections, but never so narrow, zoomed out, that its
+	 * cards can't be made out. The gap itself is marked out behind it, edge
+	 * to edge and square, as the place the section will take.
+	 */
+	const renderInlineAdd = () => {
+		const neighbour = inlineAddPlace && rects[ inlineAddPlace.clientId ];
+
+		if ( ! neighbour || ! frame ) {
+			return null;
+		}
+
+		const previous = rects[ sectionIds[ inlineAdd.index - 1 ] ];
+		const box = local( neighbour, frame );
+		const height = inlineAddHeight ?? INLINE_ADD_HEIGHT;
+		const top = previous
+			? previous.top - frame.top + previous.height + INLINE_ADD_GAP
+			: box.top - INLINE_ADD_GAP - height;
+		const width = Math.min(
+			frame.width - INSET * 2,
+			Math.max( box.width - INSET * 2, INLINE_ADD_MIN_WIDTH )
+		);
+		const left = Math.max(
+			INSET,
+			Math.min(
+				box.left + ( box.width - width ) / 2,
+				frame.width - INSET - width
+			)
+		);
+
+		const slotLeft = Math.min( box.left, left - INSET );
+		const slotRight = Math.max(
+			box.left + box.width,
+			left + width + INSET
+		);
+
+		return (
+			<Fragment key={ inlineAdd.index }>
+				<div
+					className="cnl-section-modes__inline-add-slot"
+					style={ {
+						height: height + INLINE_ADD_GAP * 2,
+						left: slotLeft,
+						top: top - INLINE_ADD_GAP,
+						width: slotRight - slotLeft,
+					} }
+				/>
+				<div
+					className="cnl-section-modes__inline-add"
+					ref={ setInlineAddNode }
+					style={ { left, top, width } }
+				>
+					<InlineSectionPicker
+						{ ...inlineAddActions }
+						Preview={ EditorPreview }
+					/>
+				</div>
+			</Fragment>
+		);
+	};
+
 	if ( ! host ) {
 		return null;
 	}
@@ -1529,6 +1772,7 @@ export function SectionModesLayer( {
 					<div { ...holdHover }>
 						{ ! isPart &&
 							! active &&
+							! inlineAdd &&
 							[
 								[ box.top, index ],
 								[ box.top + box.height, index + 1 ],
@@ -1537,12 +1781,7 @@ export function SectionModesLayer( {
 									className="cnl-section-modes__add-section"
 									icon={ plusIcon }
 									key={ at }
-									onClick={ () =>
-										openSectionPicker( {
-											index: at,
-											rootClientId: rootClientId || '',
-										} )
-									}
+									onClick={ () => openInlineAdd( at ) }
 									size="compact"
 									style={ {
 										left: box.left + box.width / 2,
@@ -1908,7 +2147,10 @@ export function SectionModesLayer( {
 		<div
 			className="cnl-section-modes"
 			onKeyDown={ ( event ) => {
-				if ( event.key === 'Escape' && active ) {
+				if ( event.key === 'Escape' && inlineAdd ) {
+					event.stopPropagation();
+					setInlineAdd( null );
+				} else if ( event.key === 'Escape' && active ) {
 					event.stopPropagation();
 					escapeMode();
 				} else if ( event.key === 'Escape' && pickedSection ) {
@@ -1929,7 +2171,7 @@ export function SectionModesLayer( {
 									rootClientId,
 								} )
 							}
-							onStartBlank={ startBlank }
+							onStartBlank={ () => startBlank() }
 							style={ {
 								height: Math.max(
 									rects[ rootClientId ].height - INSET * 2,
@@ -1948,6 +2190,7 @@ export function SectionModesLayer( {
 					{ /* Under the section being edited, so another section
 					pointed at never covers its Done. */ }
 					{ renderHover() }
+					{ renderInlineAdd() }
 					{ renderActive() }
 					{ renderDrag() }
 					{ freshRect && (

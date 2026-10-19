@@ -168,3 +168,150 @@ $cnl-section-picker-accent: var(--wp-admin-theme-color, #3858e9);
 		opacity: 1;
 	}
 }
+
+
+// The picker that opens in place on the canvas: the designs and the
+// templates, each a row of the modal's cards that scrolls sideways, then a
+// blank section.
+.cnl-inline-section-picker {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-padding-lg);
+	max-width: 960px;
+	margin: 0 auto;
+	container-type: inline-size;
+
+	&:focus {
+		outline: none;
+	}
+
+	.cnl-design-picker__group-label {
+		font-size: var(--wpds-typography-font-size-lg);
+	}
+
+	.cnl-design-picker__group-description {
+		font-size: var(--wpds-typography-font-size-sm);
+	}
+
+	// The cards are narrow here, so their names get the whole footer. The
+	// card's hover outline says it can be picked.
+	.cnl-section-picker__add {
+		display: none;
+	}
+}
+
+.cnl-inline-section-picker__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--wpds-dimension-padding-md);
+}
+
+.cnl-inline-section-picker__title {
+	font-size: var(--wpds-typography-font-size-xl);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.cnl-inline-section-picker__actions,
+.cnl-inline-section-picker__arrows {
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-xs);
+}
+
+// Start blank: a line of text rather than a card, under the templates.
+.cnl-inline-section-picker__blank {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	align-self: flex-start;
+	gap: var(--wpds-dimension-gap-xs) var(--wpds-dimension-padding-sm);
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+	margin-inline-start: calc(-1 * var(--wpds-dimension-padding-md));
+	border: 0;
+	border-radius: var(--wpds-border-radius-md);
+	background: none;
+	color: var(--wpds-color-foreground-content-neutral);
+	cursor: var(--wpds-cursor-control);
+	font: inherit;
+	text-align: start;
+	transition: background-color var(--wpds-motion-duration-sm) var(--wpds-motion-easing-subtle);
+
+	svg {
+		fill: $cnl-section-picker-accent;
+	}
+
+	&:hover {
+		background: color-mix(in srgb, #{$cnl-section-picker-accent} 8%, transparent);
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: 0;
+	}
+}
+
+.cnl-inline-section-picker__blank-label {
+	color: $cnl-section-picker-accent;
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.cnl-inline-section-picker__blank-description {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: var(--wpds-typography-font-size-sm);
+}
+
+.cnl-inline-section-picker__row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-padding-md);
+	min-width: 0;
+
+	.cnl-design-picker__group-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--wpds-dimension-padding-md);
+	}
+}
+
+// Four cards to a row, fewer as the space narrows, the rest a scroll away.
+.cnl-inline-section-picker__track {
+	--cnl-inline-per-row: 4;
+	--cnl-inline-gap: var(--wpds-dimension-padding-lg);
+
+	display: grid;
+	grid-auto-columns: calc((100% - (var(--cnl-inline-per-row) - 1) * var(--cnl-inline-gap)) / var(--cnl-inline-per-row));
+	grid-auto-flow: column;
+	gap: var(--cnl-inline-gap);
+	margin: 0;
+	// Room for the cards' lift on hover, which the scroll would clip.
+	padding: 4px 0 8px;
+	overflow-x: auto;
+	list-style: none;
+	// Snapped only near a card's start, so a wheel can leave it anywhere.
+	scroll-snap-type: x proximity;
+	scrollbar-width: none;
+
+	&::-webkit-scrollbar {
+		display: none;
+	}
+
+	> * {
+		scroll-snap-align: start;
+	}
+}
+
+@container (max-width: 720px) {
+
+	.cnl-inline-section-picker__track {
+		--cnl-inline-per-row: 3;
+	}
+}
+
+@container (max-width: 480px) {
+
+	.cnl-inline-section-picker__track {
+		--cnl-inline-per-row: 2;
+	}
+}

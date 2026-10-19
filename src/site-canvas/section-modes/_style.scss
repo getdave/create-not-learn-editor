@@ -639,6 +639,32 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 }
 
 /*
+ * Adding a section in place: the gap the canvas opens where the section will
+ * go, marked out edge to edge and square, as a section is, with the picker
+ * in a dashed box inside it. Nothing lifts it off the page: it is a place in
+ * the page, not a panel over it.
+ */
+.cnl-section-modes__inline-add-slot {
+	position: absolute;
+	box-sizing: border-box;
+	border-block: var(--wpds-border-width-xs) solid $stroke-weak;
+	background: var(--wpds-color-background-surface-neutral-weak);
+	animation: cnl-section-modes-fade $duration-md $easing-subtle both;
+}
+
+.cnl-section-modes__inline-add {
+	position: absolute;
+	box-sizing: border-box;
+	padding: var(--wpds-dimension-padding-lg);
+	border: var(--wpds-border-width-sm) dashed $theme;
+	border-radius: var(--wpds-border-radius-lg);
+	background: $surface;
+	color: $ink;
+	pointer-events: auto;
+	animation: cnl-section-modes-rise $duration-md $easing-expressive both;
+}
+
+/*
  * A section dragged in Compose: its ghost under the pointer, held where it
  * was grabbed, and the line where it would drop.
  */
