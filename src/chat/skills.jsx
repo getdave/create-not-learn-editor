@@ -36,7 +36,7 @@
  */
 import apiFetch from '@wordpress/api-fetch';
 import { store as blockEditorStore } from '@wordpress/block-editor';
-import { cloneBlock, store as blocksStore } from '@wordpress/blocks';
+import { cloneBlock } from '@wordpress/blocks';
 import { Button } from '@wordpress/components';
 import { store as coreDataStore } from '@wordpress/core-data';
 import {
@@ -62,6 +62,9 @@ import { StartFromScratch } from '../design-picker';
 import { SiteIdentityFields } from '../pickers/identity';
 import { PageLayoutCard, usePageLayoutPatterns } from '../pickers/page-designs';
 import {
+	getColorChoices,
+	getColorOffer,
+	getColorUpdate,
 	SectionColorSwatches,
 	SectionLayouts,
 	useSectionVariations,
@@ -74,10 +77,6 @@ import {
 } from '../routes/content/page-layouts';
 import { getSectionArrangements } from '../layouts/variants';
 import { getSectionTitle } from '../routes/content/pages/page-sections';
-import {
-	getSectionStyles,
-	withSectionStyle,
-} from '../site-canvas/compose/section-styles';
 import { MODE_COMPOSE, setCanvasMode } from '../site-canvas/mode';
 import {
 	SectionDesignCard,
@@ -939,12 +938,10 @@ function SectionDesignPicker( { message, onPick } ) {
 	};
 
 	const pickColor = ( option ) => {
-		updateBlockAttributes( clientId, {
-			className: withSectionStyle(
-				block.attributes.className,
-				option.name
-			),
-		} );
+		updateBlockAttributes(
+			clientId,
+			getColorUpdate( block, colors.options, option.name )
+		);
 		pickSection( { color: { label: option.label, name: option.name } } );
 	};
 
@@ -1133,14 +1130,11 @@ function getSectionDesignReply( { focus = 'both' }, page, request ) {
 
 	const block = selectFromRegistry( blockEditorStore ).getBlock( sectionId );
 	const title = getSectionTitle( block );
-	const colorOptions = getSectionStyles(
-		selectFromRegistry( blocksStore ).getBlockStyles( block.name ),
-		selectFromRegistry(
-			coreDataStore
-		).__experimentalGetCurrentThemeBaseGlobalStyles()?.styles?.blocks?.[
-			block.name
-		]?.variations
-	);
+	const colorOptions =
+		getColorOffer(
+			[ block ],
+			getColorChoices( selectFromRegistry, block.name )
+		)?.options || [];
 	const offer = getSectionOffer(
 		base,
 		colorOptions,
@@ -1442,7 +1436,7 @@ export const SKILLS = {
 		reply: () => ( {
 			params: { area: 'header' },
 			text: __(
-				'Here are the header layouts your theme comes with. Your header shows on every page. Pick a layout to try it.'
+				'Here are the header layouts your theme comes with. Your header is on every page, so a new layout changes all of them. Pick one to try it.'
 			),
 		} ),
 		Widget: SitePartWidget,
@@ -1450,8 +1444,11 @@ export const SKILLS = {
 			/* translators: %s: layout name. */
 			sprintf( __( 'Header: %s' ), label ),
 		done: ( { label } ) =>
-			/* translators: %s: layout name. */
-			sprintf( __( 'Done. Your header now uses “%s”.' ), label ),
+			sprintf(
+				/* translators: %s: layout name. */
+				__( 'Done. Your header now uses “%s” on every page.' ),
+				label
+			),
 	},
 	footer: {
 		screen: () => ( {
@@ -1466,7 +1463,7 @@ export const SKILLS = {
 		reply: () => ( {
 			params: { area: 'footer' },
 			text: __(
-				'Here are the footer layouts your theme comes with. Your footer shows on every page. Pick a layout to try it.'
+				'Here are the footer layouts your theme comes with. Your footer is on every page, so a new layout changes all of them. Pick one to try it.'
 			),
 		} ),
 		Widget: SitePartWidget,
@@ -1474,8 +1471,11 @@ export const SKILLS = {
 			/* translators: %s: layout name. */
 			sprintf( __( 'Footer: %s' ), label ),
 		done: ( { label } ) =>
-			/* translators: %s: layout name. */
-			sprintf( __( 'Done. Your footer now uses “%s”.' ), label ),
+			sprintf(
+				/* translators: %s: layout name. */
+				__( 'Done. Your footer now uses “%s” on every page.' ),
+				label
+			),
 	},
 	'add-page': {
 		screen: () => ( {

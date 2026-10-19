@@ -1,0 +1,25 @@
+// Where a change will show, with a globe. See `index.jsx`. The tokens are
+// the design system's brand ones, which `GlobalNote` turns purple.
+.cnl-global-note {
+	display: inline-flex;
+	align-items: center;
+	align-self: flex-start;
+	gap: var(--wpds-dimension-gap-xs);
+	max-width: 100%;
+	box-sizing: border-box;
+	padding: 2px var(--wpds-dimension-padding-sm) 2px var(--wpds-dimension-padding-xs);
+	border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-brand);
+	border-radius: var(--wpds-border-radius-lg);
+	background: var(--wpds-color-background-surface-brand);
+	color: var(--wpds-color-foreground-content-neutral);
+	font-size: var(--wpds-typography-font-size-sm);
+	font-weight: var(--wpds-typography-font-weight-default);
+	line-height: var(--wpds-typography-line-height-sm);
+	white-space: normal;
+}
+
+.cnl-global-note__icon {
+	flex: none;
+	color: var(--wpds-color-foreground-interactive-brand);
+	fill: currentcolor;
+}

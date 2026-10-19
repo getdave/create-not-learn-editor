@@ -4,8 +4,8 @@
  * Section styles are block style variations a theme gives colours to, for
  * a whole section at once, such as a dark band or one in the accent colour.
  * They are applied the way every block style is, as an `is-style-*` class on
- * the section's block. Only the theme's own are offered: with none, there is
- * nothing to pick from.
+ * the section's block. Only the theme's own are offered here; for a theme
+ * without any, `palette-colors.js` makes some from its palette.
  */
 
 /**
@@ -90,6 +90,20 @@ export function withSectionStyle( className, name ) {
 	}
 
 	return classes.length ? classes.join( ' ' ) : undefined;
+}
+
+/**
+ * The blocks that carry a header's or footer's colours: its outermost
+ * blocks of the same type as the first. Most parts have just one, a group
+ * around the rest.
+ *
+ * @param {Object[]} blocks The part's blocks.
+ * @return {Object[]} The blocks.
+ */
+export function getPartColorBlocks( blocks ) {
+	const name = blocks?.[ 0 ]?.name;
+
+	return name ? blocks.filter( ( block ) => block.name === name ) : [];
 }
 
 /**
