@@ -75,6 +75,7 @@ import {
 	getPatternContent,
 	getPatternTitle,
 } from '../routes/content/page-layouts';
+import { GlobalScope } from '../global-scope';
 import { getSectionArrangements } from '../layouts/variants';
 import { getSectionTitle } from '../routes/content/pages/page-sections';
 import { MODE_COMPOSE, setCanvasMode } from '../site-canvas/mode';
@@ -271,14 +272,16 @@ function SitePartWidget( { entity, message, onPick } ) {
 	}
 
 	return (
-		<Carousel label={ __( 'Layouts' ) }>
-			<SitePartLayouts
-				area={ message.params.area }
-				id={ entity[ 2 ] }
-				onPick={ onPick }
-				Preview={ Preview }
-			/>
-		</Carousel>
+		<GlobalScope>
+			<Carousel label={ __( 'Layouts' ) }>
+				<SitePartLayouts
+					area={ message.params.area }
+					id={ entity[ 2 ] }
+					onPick={ onPick }
+					Preview={ Preview }
+				/>
+			</Carousel>
+		</GlobalScope>
 	);
 }
 
