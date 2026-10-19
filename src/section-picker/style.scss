@@ -144,12 +144,43 @@ $cnl-section-picker-accent: var(--wp-admin-theme-color, #3858e9);
 }
 
 .cnl-section-picker__preview {
+	position: relative;
 	aspect-ratio: 16 / 10;
 	pointer-events: none;
 
 	.lazy-editor-block-preview__container,
 	.block-editor-block-preview__container {
 		height: 100%;
+	}
+}
+
+// Over the preview until it has drawn, a few lines standing in for the
+// design, so the card reads as loading rather than empty.
+.cnl-section-picker__preview-loading {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--wpds-dimension-gap-sm);
+	background: var(--wpds-color-background-surface-neutral-weak);
+}
+
+.cnl-section-picker__preview-line {
+	width: 60%;
+	height: 6px;
+	border-radius: var(--wpds-border-radius-xs);
+	background: var(--wpds-color-background-track-neutral);
+
+	&.is-heading {
+		width: 40%;
+		height: 10px;
+		margin-block-end: var(--wpds-dimension-gap-xs);
+	}
+
+	&.is-short {
+		width: 45%;
 	}
 }
 
