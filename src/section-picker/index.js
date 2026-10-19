@@ -6,6 +6,7 @@
  * `src/editor-layer/index.js`.
  */
 
+export { InlineSectionPicker } from './inline-section-picker';
 export { getPlacementText } from './placement';
 export { SectionDesignCard, SectionPicker } from './section-picker';
 export {

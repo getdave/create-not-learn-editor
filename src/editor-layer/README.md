@@ -21,7 +21,7 @@ All of it is scoped to boot's full-screen edit canvas, so stage screens and prev
 | `portal-host.js` | `usePortalHost()` and `EDITOR_REGIONS`. |
 | `settings-guard.js` | `useForcedBlockEditorSettings()`. |
 | `section-wording.js` | `useSectionWording()`: core's pattern strings, said as sections while a page is open. |
-| `section-picker.js` | `openSectionPicker()` and `EditorSectionPicker`: the shared "Add a section" picker (`src/section-picker/`), opened from a section's options menu or from the site canvas's Compose mode. The request lives in a data store, so routes, built separately from app init, can open it. |
+| `section-picker.js` | `openSectionPicker()` and `EditorSectionPicker`: the shared "Add a section" picker (`src/section-picker/`), opened from a section's options menu, or from the site canvas's View all sections. `addPatternSection()` and `EditorPreview` are shared with the site canvas's in-place picker. The request lives in a data store, so routes, built separately from app init, can open it. |
 | `style.scss` | The layer's stylesheet, loaded with app init. |
 | `_edit-original.scss` | The rule hiding core's "Edit original", shared with the stage's inline editor (`src/site-canvas/`). |
 

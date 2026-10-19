@@ -1,6 +1,7 @@
 /**
  * The section picker in the editor, opened by "Add section" in a section's
- * options menu, or from Compose on the site canvas.
+ * options menu, or by "View all sections" in the site canvas's picker that
+ * opens in place.
  *
  * The menu item unmounts as soon as the selection changes, so it only asks
  * for the picker here, and the layer renders it. The request says where the
@@ -21,6 +22,7 @@ import {
 	register,
 	select,
 	useDispatch,
+	useRegistry,
 	useSelect,
 } from '@wordpress/data';
 import { useMemo } from '@wordpress/element';
@@ -95,7 +97,7 @@ export function closeSectionPicker() {
  * @param {string} props.content Pattern markup.
  * @return {Element} The preview.
  */
-function EditorPreview( { content } ) {
+export function EditorPreview( { content } ) {
 	const blocks = useMemo(
 		() => parse( content, { __unstableSkipMigrationLogs: true } ),
 		[ content ]
@@ -109,6 +111,41 @@ function EditorPreview( { content } ) {
 }
 
 /**
+ * Add a section from a pattern at a place in the editor, select it, and say
+ * so.
+ *
+ * @param {Object}  registry           The data registry.
+ * @param {Object}  pattern            Block pattern.
+ * @param {Object}  place              Where the section goes.
+ * @param {?string} place.rootClientId Parent block's client ID.
+ * @param {number}  place.index        Index among the parent's blocks.
+ */
+export function addPatternSection(
+	registry,
+	pattern,
+	{ rootClientId, index }
+) {
+	const blocks = getPatternSectionBlocks( pattern );
+
+	if ( ! blocks.length ) {
+		return;
+	}
+
+	const { insertBlocks, selectBlock } = registry.dispatch( blockEditorStore );
+
+	insertBlocks( blocks, index, rootClientId );
+	selectBlock( blocks[ 0 ].clientId );
+	registry.dispatch( noticesStore ).createSuccessNotice(
+		sprintf(
+			/* translators: %s: section design name. */
+			__( 'Added “%s”.' ),
+			getPatternTitle( pattern )
+		),
+		{ id: 'cnl-editor-section-added', type: 'snackbar' }
+	);
+}
+
+/**
  * The section picker, while a section menu has asked for it.
  *
  * @return {?Element} The picker.
@@ -118,8 +155,8 @@ export function EditorSectionPicker() {
 		( selectStore ) => selectStore( STORE_NAME ).getRequest(),
 		[]
 	);
+	const registry = useRegistry();
 	const { insertBlocks, selectBlock } = useDispatch( blockEditorStore );
-	const { createSuccessNotice } = useDispatch( noticesStore );
 	const placement = useSelect(
 		( selectStore ) => {
 			if ( ! place ) {
@@ -145,24 +182,8 @@ export function EditorSectionPicker() {
 	}
 
 	const pickPattern = ( pattern ) => {
-		const blocks = getPatternSectionBlocks( pattern );
-
 		closeSectionPicker();
-
-		if ( ! blocks.length ) {
-			return;
-		}
-
-		insertBlocks( blocks, place.index, place.rootClientId );
-		selectBlock( blocks[ 0 ].clientId );
-		createSuccessNotice(
-			sprintf(
-				/* translators: %s: section design name. */
-				__( 'Added “%s”.' ),
-				getPatternTitle( pattern )
-			),
-			{ id: 'cnl-editor-section-added', type: 'snackbar' }
-		);
+		addPatternSection( registry, pattern, place );
 	};
 	const startFromScratch = () => {
 		const section = createBlankSection();
