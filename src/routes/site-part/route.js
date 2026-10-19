@@ -13,5 +13,6 @@ function createRoute( title ) {
 	};
 }
 
+export const sitePartsRoute = createRoute( __( 'Header & footer' ) );
 export const headerRoute = createRoute( __( 'Header' ) );
 export const footerRoute = createRoute( __( 'Footer' ) );

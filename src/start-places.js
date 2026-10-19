@@ -12,12 +12,15 @@
 import { __ } from '@wordpress/i18n';
 import {
 	brush as brushIcon,
-	footer as footerIcon,
-	header as headerIcon,
 	home as homeIcon,
 	pages as pagesIcon,
 	siteLogo as siteLogoIcon,
 } from '@wordpress/icons';
+
+/**
+ * Internal dependencies
+ */
+import sitePartsIcon from './site-parts-icon';
 
 /**
  * @return {Object[]} `{ description, icon, id, title }` for each place.
@@ -51,16 +54,12 @@ export function getStartPlaces() {
 			title: __( 'Colors & fonts' ),
 		},
 		{
-			description: __( 'Choose how the top of every page looks.' ),
-			icon: headerIcon,
-			id: 'header',
-			title: __( 'Header' ),
-		},
-		{
-			description: __( 'Choose how the bottom of every page looks.' ),
-			icon: footerIcon,
-			id: 'footer',
-			title: __( 'Footer' ),
+			// One place for both, as they work the same way, and a screen
+			// beyond it to pick which.
+			description: __( 'Choose the top and bottom of every page.' ),
+			icon: sitePartsIcon,
+			id: 'siteParts',
+			title: __( 'Header & footer' ),
 		},
 	];
 }

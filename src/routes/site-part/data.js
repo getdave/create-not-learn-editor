@@ -16,6 +16,9 @@ import {
 
 const EMPTY_ARRAY = [];
 
+// The screen that leads to the Header and Footer screens.
+export const SITE_PARTS_PATH = '/design/header-footer';
+
 export const SITE_PART_PATHS = {
 	footer: '/design/footer',
 	header: '/design/header',

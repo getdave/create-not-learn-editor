@@ -33,8 +33,7 @@ const START_ROUTES = {
 	pages: { to: '/types/page/list/default' },
 	identity: { to: '/design/identity' },
 	style: { to: '/design' },
-	header: { to: '/design/header' },
-	footer: { to: '/design/footer' },
+	siteParts: { to: '/design/header-footer' },
 };
 
 function getStartLinks() {

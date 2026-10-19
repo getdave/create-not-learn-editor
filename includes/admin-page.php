@@ -825,6 +825,14 @@ function cnl_editor_get_module_map() {
 			'path' => 'routes/footer/content.min',
 		),
 		array(
+			'id'   => 'create-not-learn-editor/routes/header-footer/route',
+			'path' => 'routes/header-footer/route.min',
+		),
+		array(
+			'id'   => 'create-not-learn-editor/routes/header-footer/content',
+			'path' => 'routes/header-footer/content.min',
+		),
+		array(
 			'id'   => 'create-not-learn-editor/routes/identity/route',
 			'path' => 'routes/identity/route.min',
 		),
@@ -939,6 +947,11 @@ function cnl_editor_get_routes() {
 			'path'           => '/design/identity',
 			'route_module'   => 'create-not-learn-editor/routes/identity/route',
 			'content_module' => 'create-not-learn-editor/routes/identity/content',
+		),
+		array(
+			'path'           => '/design/header-footer',
+			'route_module'   => 'create-not-learn-editor/routes/header-footer/route',
+			'content_module' => 'create-not-learn-editor/routes/header-footer/content',
 		),
 		array(
 			'path'           => '/design/header',
