@@ -1,16 +1,14 @@
-jest.mock( '@wordpress/blocks', () => ( {
-	createBlock: jest.fn(),
-} ) );
-
 /**
  * External dependencies
  */
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 /**
  * Internal dependencies
  */
 import { getPagePreviewUrl } from '../preview-url';
+
+vi.mock( '@wordpress/blocks', () => ( { createBlock: vi.fn() } ) );
 
 const ORIGIN = window.location.origin;
 const HOME_URL = `${ ORIGIN }/`;

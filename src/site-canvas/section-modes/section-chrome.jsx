@@ -353,7 +353,7 @@ export function HoverBar( {
  * @param {Object}    ref                Takes the bar's node, to measure it.
  * @return {Element} The bar.
  */
-export const ModeBar = forwardRef( function ModeBar(
+export const ModeBar = forwardRef( function UnforwardedModeBar(
 	{
 		isSmall,
 		label,
