@@ -26,6 +26,7 @@ import {
 	useRef,
 	useSelect,
 } from '../wordpress-packages';
+import { BrowseHints } from './browse-hints';
 import { useComposeZoom } from './compose/use-compose-zoom';
 import { EDITOR_DEVICES } from './constants';
 import { useEditSectionControls } from './edit-section-controls';
@@ -261,6 +262,9 @@ export function SiteCanvas( {
 						/>
 					) : (
 						emptyPreview
+					) }
+					{ frame.frameProps.src && editorEntity && (
+						<BrowseHints canvas={ canvas } />
 					) }
 				</div>
 			</div>

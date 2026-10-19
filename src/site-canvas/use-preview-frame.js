@@ -36,18 +36,12 @@ function getFrameUrl( frameWindow ) {
 
 /**
  * @param {Object}   options
- * @param {string}   options.initialUrl    Page to show first.
- * @param {Function} options.getVersion    Returns the saved site's version.
- * @param {Function} options.onDoubleClick Called when the page is
- *                                         double-clicked.
+ * @param {string}   options.initialUrl Page to show first.
+ * @param {Function} options.getVersion Returns the saved site's version.
  * @return {Object} Props for the iframe, what it shows, and ways to move it.
  */
-export function usePreviewFrame( { initialUrl, getVersion, onDoubleClick } ) {
+export function usePreviewFrame( { initialUrl, getVersion } ) {
 	const iframeRef = useRef();
-	// Read when the page is double-clicked, so the listener added on load
-	// always calls the latest one.
-	const onDoubleClickRef = useRef( onDoubleClick );
-	onDoubleClickRef.current = onDoubleClick;
 	const historyRef = useRef( { ...INITIAL_HISTORY } );
 	const waitersRef = useRef( new Set() );
 	/*
@@ -58,6 +52,8 @@ export function usePreviewFrame( { initialUrl, getVersion, onDoubleClick } ) {
 	 */
 	const [ src, setSrc ] = useState( () => getPreviewFrameUrl( initialUrl ) );
 	const [ location, setLocation ] = useState( '' );
+	// The page on show, once it has loaded, for listening to it.
+	const [ frameDocument, setFrameDocument ] = useState( null );
 	const [ isLoading, setIsLoading ] = useState( Boolean( src ) );
 	const [ loadedVersion, setLoadedVersion ] = useState( 0 );
 	const [ history, setHistory ] = useState( {
@@ -120,16 +116,15 @@ export function usePreviewFrame( { initialUrl, getVersion, onDoubleClick } ) {
 		try {
 			// The window is replaced with each page, so this is re-attached
 			// on every load.
-			frameWindow.addEventListener( 'pagehide', () =>
-				setIsLoading( true )
-			);
-			frameWindow.document.addEventListener( 'dblclick', () => {
-				// Double-clicking a word selects it, which would be left
-				// highlighted when the preview comes back.
-				frameWindow.getSelection()?.removeAllRanges();
-				onDoubleClickRef.current?.();
+			frameWindow.addEventListener( 'pagehide', () => {
+				setIsLoading( true );
+				setFrameDocument( null );
 			} );
-		} catch {}
+			setFrameDocument( frameWindow.document );
+		} catch {
+			// Not the site's own page, so it can't be listened to.
+			setFrameDocument( null );
+		}
 
 		setIsLoading( false );
 		setLoadedVersion( getVersion() );
@@ -243,6 +238,7 @@ export function usePreviewFrame( { initialUrl, getVersion, onDoubleClick } ) {
 	};
 
 	return {
+		frameDocument,
 		frameProps: { onLoad, ref: iframeRef, src: src || undefined },
 		history,
 		isLoading,
