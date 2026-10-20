@@ -5,7 +5,8 @@
  * modal for searching and browsing them by kind.
  *
  * The designs and templates are shuffled each time it opens, so a few
- * openings show a few of what is on offer.
+ * openings show a few of what is on offer. The theme's own designs are
+ * shuffled among themselves and lead, so the first few match the site.
  *
  * It knows nothing about the canvas: the caller places it, closes it on
  * Escape, and passes the preview component that works where it is, as with
@@ -41,28 +42,47 @@ import { GroupHeading } from '../design-picker';
 import { useSectionDesigns } from './patterns';
 import { SectionDesignCard } from './section-picker';
 
+const EMPTY_ARRAY = [];
+
 // A line of a mouse wheel's scroll, in pixels.
 const WHEEL_LINE = 16;
 
 /**
- * Patterns in an order of their own each time the picker opens, kept while
- * it is open.
+ * Patterns in a random order.
  *
  * @param {Object[]} patterns Patterns.
  * @return {Object[]} The same patterns, shuffled.
  */
-function useShuffled( patterns ) {
-	return useMemo( () => {
-		const shuffled = [ ...patterns ];
+function shuffle( patterns ) {
+	const shuffled = [ ...patterns ];
 
-		for ( let i = shuffled.length - 1; i > 0; i-- ) {
-			const j = Math.floor( Math.random() * ( i + 1 ) );
+	for ( let i = shuffled.length - 1; i > 0; i-- ) {
+		const j = Math.floor( Math.random() * ( i + 1 ) );
 
-			[ shuffled[ i ], shuffled[ j ] ] = [ shuffled[ j ], shuffled[ i ] ];
-		}
+		[ shuffled[ i ], shuffled[ j ] ] = [ shuffled[ j ], shuffled[ i ] ];
+	}
 
-		return shuffled;
-	}, [ patterns ] );
+	return shuffled;
+}
+
+/**
+ * Patterns in an order of their own each time the picker opens, kept while
+ * it is open. Any put first stay first, shuffled among themselves.
+ *
+ * @param {Object[]} patterns Patterns.
+ * @param {Object[]} first    Those of them to put first.
+ * @return {Object[]} The same patterns, shuffled.
+ */
+function useShuffled( patterns, first = EMPTY_ARRAY ) {
+	return useMemo(
+		() => [
+			...shuffle( first ),
+			...shuffle(
+				patterns.filter( ( pattern ) => ! first.includes( pattern ) )
+			),
+		],
+		[ patterns, first ]
+	);
 }
 
 /**
@@ -270,8 +290,8 @@ export function InlineSectionPicker( {
 	onStartBlank,
 	onViewAll,
 } ) {
-	const { isLoading, layouts, patterns } = useSectionDesigns();
-	const designs = useShuffled( patterns );
+	const { isLoading, layouts, patterns, themePatterns } = useSectionDesigns();
+	const designs = useShuffled( patterns, themePatterns );
 	const templates = useShuffled( layouts );
 	const ref = useRef();
 	const isWaiting = isLoading && ! patterns.length && ! layouts.length;
