@@ -181,6 +181,35 @@ Playground can't install from the plugin source, which needs building first, or 
 
 Keep the Gutenberg version in the blueprint in step with `.wp-env.json`. Canvas is left out, as the plugin doesn't need it.
 
+#### Branch demos
+
+Every other branch gets a demo of its own too. Each push builds it to `refs/playground/<branch>`, with a `blueprint.json` that installs from there. That ref is neither a branch nor a tag, so the demos stay out of the branch and tag lists. The link for `getdave/my-change` is
+
+```text
+https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/my-change/blueprint.json
+```
+
+When a pull request opens, `.github/workflows/playground-links.yml` comments the link on it. The demo follows the branch, updating a few minutes after each push, and is deleted with it.
+
+#### Release demos
+
+The trunk demo changes with every push, which is no good for a user test. For a demo that stays put, tag a release and push the tag:
+
+```sh
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The workflow builds the tagged commit and publishes its files to a `playground-v0.2.0` tag, with a `blueprint.json` that installs from that tag. That blueprint also pins WordPress to the version in `scripts/wp-env.mjs`, where the trunk and branch demos take the latest. It then creates a GitHub release for `v0.2.0`, or updates one you made already, with the Playground link at the top of the notes and the plugin zip attached. The link is
+
+```text
+https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/tags/playground-v0.2.0/blueprint.json
+```
+
+Every release keeps its own link, so testers can stay on one while trunk moves on. Pushing the same tag to a new commit rebuilds that release in place.
+
+`scripts/playground-build.sh` puts the files for each kind of demo together.
+
 ### Plugin directory images
 
 `.wordpress-org/` holds the images for a WordPress.org plugin directory listing: the icon, the banner and screenshots, named the way the directory expects. They are not part of the plugin zip.
@@ -311,7 +340,7 @@ http://localhost:<dev-port>/wp-admin/admin.php?page=create-not-learn-editor
 - `@wordpress/build` creates the browser bundles and asset metadata under `build/`.
 - `.wp-env.json` defines the local WordPress and Gutenberg plugin environment.
 - `themes/mainstay/` is the demo block theme the development site uses. `scripts/demo-site/` seeds its content.
-- `demos/` holds the WordPress Playground blueprints for the demo link.
+- `demos/` holds the WordPress Playground blueprints for the demo link. Branch and release demos are generated from them.
 - `.wordpress-org/` holds the plugin directory icon, banner and screenshots.
 
 ## Current Design Constraints

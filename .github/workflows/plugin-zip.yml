@@ -1,31 +1,52 @@
 name: Plugin zip
 
-# Builds an installable plugin zip on every push to trunk and attaches it to
-# the workflow run as an artifact.
+# Builds an installable plugin zip on every push and attaches it to the
+# workflow run as an artifact.
 #
-# It also publishes the zip, the Mainstay theme, the demo site seed script and
-# the Playground canvas fix to the `playground-build` branch, which
-# `demos/blueprint.json` installs from. That is what keeps the README's
-# Playground demo on the latest trunk.
+# It also publishes a WordPress Playground demo of the push. The zip, the
+# Mainstay theme, the demo site seed script and the Playground canvas fix go on
+# a ref of their own, which the demo's blueprint installs from.
+#
+# - trunk goes to the `playground-build` branch, which `demos/blueprint.json`
+#   installs from. That keeps the README's demo on the latest trunk.
+# - Any other branch goes to `refs/playground/<branch>`, with a blueprint of
+#   its own, so work in progress can be tried before it merges. The ref is
+#   neither a branch nor a tag, so it stays out of both lists, but
+#   raw.githubusercontent.com serves from it all the same.
+#   `.github/workflows/playground-links.yml` links it from the branch's pull
+#   request and deletes it with the branch.
+# - A `v*` tag, such as `v0.2.0`, goes to a `playground-v0.2.0` tag, with a
+#   blueprint that also pins WordPress to the version wp-env runs. The demo
+#   stays the same while trunk moves on, for user tests. The GitHub release
+#   for the tag links to it.
+#
+# `scripts/playground-build.sh` puts the files together.
 
 on:
   push:
     branches:
-      - trunk
+      - '**'
+      - '!playground-build'
+    tags:
+      - 'v*'
   workflow_dispatch:
 
-# Only one build at a time. A newer push to trunk cancels the build in progress.
+# One build at a time for each ref. A newer push cancels the build in progress,
+# but a release always finishes.
 concurrency:
-  group: plugin-zip-trunk
-  cancel-in-progress: true
+  group: plugin-zip-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
-# Write access is only for pushing the `playground-build` branch.
+# Write access is only for publishing the Playground build and the release.
 permissions:
   contents: write
 
 env:
   ZIP_NAME: create-not-learn-editor.zip
-  PLAYGROUND_BRANCH: playground-build
+  # trunk, branch or release. Empty for any other tag, which isn't published.
+  PLAYGROUND_KIND: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || github.ref == 'refs/heads/trunk' && 'trunk' || startsWith(github.ref, 'refs/heads/') && 'branch' || '' }}
+  # The ref the Playground build is published to.
+  PLAYGROUND_REF: ${{ startsWith(github.ref, 'refs/tags/v') && format('refs/tags/playground-{0}', github.ref_name) || github.ref == 'refs/heads/trunk' && 'refs/heads/playground-build' || format('refs/playground/{0}', github.ref_name) }}
 
 jobs:
   build:
@@ -79,29 +100,56 @@ jobs:
       # Playground can't install from workflow artifacts or release assets,
       # which don't allow cross-origin downloads, but it can fetch from
       # raw.githubusercontent.com. So the files the blueprint needs go on a
-      # branch of their own. It holds a single commit, replaced on every
-      # build, so old zips don't pile up in the history.
+      # ref of their own, holding a single commit. A branch's ref is replaced
+      # on every push, so old zips don't pile up in the history. A release
+      # gets a tag that stays put.
       - name: Publish Playground build
-        if: github.ref == 'refs/heads/trunk'
+        if: env.PLAYGROUND_KIND != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir playground-build
-          cp "$ZIP_NAME" scripts/demo-site/seed.php demos/playground-canvas-fix.php playground-build/
-          (cd themes && zip -qr ../playground-build/mainstay.zip mainstay)
-          cat > playground-build/README.md <<EOF
-          # Playground build
-
-          Generated from [\`${GITHUB_SHA::7}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}) by \`.github/workflows/plugin-zip.yml\`. Do not edit or commit to this branch, it is replaced on every push to trunk.
-
-          These are the files [\`demos/blueprint.json\`](https://github.com/${GITHUB_REPOSITORY}/blob/trunk/demos/blueprint.json) installs.
-          EOF
+          scripts/playground-build.sh "$PLAYGROUND_KIND" "$GITHUB_REF_NAME" "$PLAYGROUND_REF" playground-build
           cd playground-build
-          git init -q -b "$PLAYGROUND_BRANCH"
+          git init -q -b playground-build
           git add .
           git -c user.name="github-actions[bot]" \
             -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit -q -m "Playground build of ${GITHUB_SHA::7}"
+            commit -q -m "Playground build of ${GITHUB_REF_NAME} (${GITHUB_SHA::7})"
+          # Forced so a re-run, or a release tag moved to a new commit,
+          # replaces the build rather than failing.
           git push --force -q \
             "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            "HEAD:refs/heads/$PLAYGROUND_BRANCH"
+            "HEAD:$PLAYGROUND_REF"
+
+          if [ "$PLAYGROUND_KIND" = trunk ]; then
+            blueprint_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/trunk/demos/blueprint.json"
+          else
+            blueprint_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${PLAYGROUND_REF}/blueprint.json"
+          fi
+          echo "PLAYGROUND_URL=https://playground.wordpress.net/?blueprint-url=${blueprint_url}" >> "$GITHUB_ENV"
+          echo "[Try this build in WordPress Playground](https://playground.wordpress.net/?blueprint-url=${blueprint_url})." >> "$GITHUB_STEP_SUMMARY"
+
+      # Leads the release notes with the Playground link and attaches the zip.
+      # Works whether the release was made here or by hand before the tag was
+      # pushed.
+      - name: Publish GitHub release
+        if: env.PLAYGROUND_KIND == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          link="[Try ${GITHUB_REF_NAME} in WordPress Playground](${PLAYGROUND_URL}). It stays on this release while trunk moves on."
+
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            body=$(gh release view "$GITHUB_REF_NAME" --json body --jq .body)
+            if ! grep -qF "$PLAYGROUND_URL" <<< "$body"; then
+              printf '%s\n\n%s\n' "$link" "$body" > release-notes.md
+              gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
+            fi
+            gh release upload "$GITHUB_REF_NAME" "$ZIP_NAME" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$ZIP_NAME" \
+              --verify-tag \
+              --title "$GITHUB_REF_NAME" \
+              --notes "$link" \
+              --generate-notes
+          fi

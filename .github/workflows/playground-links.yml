@@ -1,0 +1,53 @@
+name: Playground links
+
+# Looks after the branch demos `.github/workflows/plugin-zip.yml` publishes to
+# `refs/playground/<branch>`. It links a pull request to its branch's demo
+# when the pull request opens, and deletes the demo when the branch is deleted.
+
+on:
+  pull_request:
+    types:
+      - opened
+  delete:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  comment:
+    name: Link the Playground demo
+    # Forks can't publish a demo, as their builds can't write to this repo.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      # The link never changes, as the demo is rebuilt in place on every push,
+      # so the comment is posted once and left alone.
+      - name: Comment on the pull request
+        run: |
+          url="https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/refs/playground/${BRANCH}/blueprint.json"
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file - <<EOF
+          [Try this branch in WordPress Playground](${url}). It runs the latest build of \`${BRANCH}\` and updates with every push, a few minutes after the [Plugin zip](https://github.com/${GITHUB_REPOSITORY}/actions/workflows/plugin-zip.yml) build finishes.
+          EOF
+
+  cleanup:
+    name: Delete the Playground demo
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch' && github.event.ref != 'playground-build'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: ${{ github.event.ref }}
+    steps:
+      # A branch deleted before its first build finished has no demo to delete.
+      - name: Delete refs/playground/<branch>
+        run: |
+          if gh api --silent "repos/${GITHUB_REPOSITORY}/git/ref/playground/${BRANCH}" 2> /dev/null; then
+            gh api --silent -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/playground/${BRANCH}"
+            echo "Deleted refs/playground/${BRANCH}."
+          else
+            echo "No Playground demo for ${BRANCH}."
+          fi
