@@ -8,6 +8,7 @@
 /**
  * Internal dependencies
  */
+import { getEditedEntityRecords } from '../../edited-records';
 import { getErrorMessage } from '../../records';
 import {
 	Button,
@@ -80,7 +81,8 @@ export function useMenuItemsEditor( navigationId ) {
 				menu: rawMenu
 					? store.getEditedEntityRecord( ...menuArgs )
 					: rawMenu,
-				pages: store.getEntityRecords( ...pageArgs ) || EMPTY_ARRAY,
+				pages:
+					getEditedEntityRecords( store, ...pageArgs ) || EMPTY_ARRAY,
 			};
 		},
 		[ navigationId ]

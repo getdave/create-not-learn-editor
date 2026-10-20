@@ -1,6 +1,7 @@
 /**
  * Internal dependencies
  */
+import { getEditedEntityRecords } from '../../edited-records';
 import { cnlEditorStore } from '../../records';
 import {
 	buildNavigationLocationsMap,
@@ -209,12 +210,14 @@ export function useKeepPagesOutOfMenu() {
 		}
 
 		const leaveOut = new Set( pageIds.map( Number ) );
+		const pageArgs = [ 'postType', 'page', MENU_PAGES_QUERY ];
+
+		await resolveSelect( coreDataStore ).getEntityRecords( ...pageArgs );
+
+		// The links take the pages' titles as they are now, saved or not.
 		const pages = (
-			( await resolveSelect( coreDataStore ).getEntityRecords(
-				'postType',
-				'page',
-				MENU_PAGES_QUERY
-			) ) || EMPTY_ARRAY
+			getEditedEntityRecords( select( coreDataStore ), ...pageArgs ) ||
+			EMPTY_ARRAY
 		).filter( ( page ) => ! leaveOut.has( Number( page.id ) ) );
 
 		editEntityRecord( 'postType', 'wp_navigation', menuId, {
