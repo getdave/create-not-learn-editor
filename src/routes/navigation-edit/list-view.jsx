@@ -1,6 +1,7 @@
 /**
  * Internal dependencies
  */
+import { getEditedEntityRecords } from '../../edited-records';
 import { PrivateListView } from '../../list-view';
 import {
 	blockEditorStore,
@@ -539,7 +540,7 @@ function NavigationMenuEditor( {
 					'getEntityRecords',
 					args
 				),
-				pages: store.getEntityRecords( ...args ) || EMPTY_ARRAY,
+				pages: getEditedEntityRecords( store, ...args ) || EMPTY_ARRAY,
 			};
 		},
 		[ isAutomatic ]

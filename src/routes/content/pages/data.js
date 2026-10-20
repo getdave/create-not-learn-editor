@@ -5,6 +5,7 @@
 /**
  * Internal dependencies
  */
+import { getEditedEntityRecords } from '../../../edited-records';
 import { getTitleText } from '../../../records';
 import {
 	__,
@@ -44,7 +45,8 @@ export function getPageTitle( page ) {
 
 /**
  * Every page on the site, with the pages the site treats specially. Those
- * count unsaved changes to the homepage, as the rest of the screen does.
+ * count unsaved changes, like a rename or a new homepage, as the rest of the
+ * screen does.
  *
  * @return {Object} Pages, loading state, and the homepage and blog page IDs.
  */
@@ -61,7 +63,7 @@ export function usePages() {
 				'getEntityRecords',
 				args
 			),
-			pages: store.getEntityRecords( ...args ) || EMPTY_ARRAY,
+			pages: getEditedEntityRecords( store, ...args ) || EMPTY_ARRAY,
 			postsPageId: isStaticFront
 				? Number( site?.page_for_posts ) || 0
 				: 0,

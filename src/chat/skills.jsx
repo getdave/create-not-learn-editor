@@ -59,6 +59,7 @@ import { Icon, InputControl, Spinner, Text } from '@wordpress/ui';
  * Internal dependencies
  */
 import { StartFromScratch } from '../design-picker';
+import { getEditedEntityRecords } from '../edited-records';
 import { SiteIdentityFields } from '../pickers/identity';
 import { PageLayoutCard, usePageLayoutPatterns } from '../pickers/page-designs';
 import {
@@ -569,7 +570,7 @@ function PageChooser( { onChoose } ) {
 				'getEntityRecords',
 				args
 			),
-			records: store.getEntityRecords( ...args ),
+			records: getEditedEntityRecords( store, ...args ),
 		};
 	}, [] );
 	// The homepage first, as the Pages screen lists it.

@@ -10,6 +10,11 @@ import { store as coreDataStore } from '@wordpress/core-data';
 import { select as selectFromRegistry } from '@wordpress/data';
 import { decodeEntities } from '@wordpress/html-entities';
 
+/**
+ * Internal dependencies
+ */
+import { getEditedEntityRecords } from '../edited-records';
+
 // The pages the chat offers, in the order the Pages screen lists them.
 export const PAGES_QUERY = {
 	context: 'edit',
@@ -105,7 +110,8 @@ export function findTargetPage( select = selectFromRegistry ) {
  */
 export function getPages( select = selectFromRegistry ) {
 	return toPages(
-		select( coreDataStore ).getEntityRecords(
+		getEditedEntityRecords(
+			select( coreDataStore ),
 			'postType',
 			'page',
 			PAGES_QUERY
