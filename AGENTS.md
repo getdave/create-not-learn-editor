@@ -53,6 +53,7 @@ Always run wp-env through `npm run wp-env ...`, not the `wp-env` binary. `npm ru
 
 - The README's demo link opens WordPress Playground with `demos/blueprint.json`. Keep blueprints and other Playground demo files in `demos/`. The seed script stays in `scripts/demo-site/` because wp-env runs it too.
 - The blueprint installs from the `playground-build` branch, which `.github/workflows/plugin-zip.yml` replaces on every push to `trunk`. Never commit to that branch by hand.
+- Every other branch publishes a demo to the ref `refs/playground/<branch>`, which is neither a branch nor a tag, and a `v*` tag publishes a release demo to a `playground-v*` tag that also pins WordPress to the `scripts/wp-env.mjs` version. `scripts/playground-build.sh` generates their blueprints from `demos/blueprint.json`. Never create, push to or move `refs/playground/*` refs or `playground-v*` tags by hand. Keep the URLs in `demos/blueprint.json` pointing at `/playground-build/`, as that is what the script rewrites.
 - Keep the blueprint's Gutenberg version in step with `.wp-env.json`.
 - Anything the demo site needs at runtime must be in the plugin zip, the Mainstay theme, `scripts/demo-site/seed.php` or `demos/playground-canvas-fix.php`, as those are all the blueprint gets.
 - `demos/playground-canvas-fix.php` is a demo-only must-use plugin that stops the edit canvas staying blank in Playground. See its docblock. It never ships in the plugin.
