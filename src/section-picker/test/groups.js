@@ -17,7 +17,7 @@ import {
 	groupSectionDesigns,
 	searchSectionDesigns,
 } from '../groups';
-import { isLayoutPattern, isSectionPattern } from '../patterns';
+import { isLayoutPattern, isSectionPattern, isThemePattern } from '../patterns';
 import { getPlacementText } from '../placement';
 
 function pattern( name, categories, extra = {} ) {
@@ -190,6 +190,48 @@ describe( 'isLayoutPattern', () => {
 		expect( isSectionPattern( pattern( 'a', [ 'cnl-layouts' ] ) ) ).toBe(
 			true
 		);
+	} );
+} );
+
+describe( 'isThemePattern', () => {
+	const theme = { stylesheet: 'mainstay-child', template: 'mainstay' };
+
+	it( "tells the theme's designs, and its parent's, by their slug", () => {
+		expect(
+			isThemePattern( pattern( 'mainstay-child/hero', [] ), theme )
+		).toBe( true );
+		expect( isThemePattern( pattern( 'mainstay/hero', [] ), theme ) ).toBe(
+			true
+		);
+		expect( isThemePattern( pattern( 'mainstay-hero', [] ), theme ) ).toBe(
+			false
+		);
+	} );
+
+	it( 'leaves out core, directory and plugin designs', () => {
+		expect(
+			isThemePattern(
+				pattern( 'big-john-patton', [ 'banner' ], {
+					source: 'pattern-directory/core',
+				} ),
+				theme
+			)
+		).toBe( false );
+		expect(
+			isThemePattern( pattern( 'core/query-grid', [] ), theme )
+		).toBe( false );
+		expect( isThemePattern( pattern( 'woo/hero', [] ), theme ) ).toBe(
+			false
+		);
+	} );
+
+	it( "counts designs core says are the theme's", () => {
+		expect(
+			isThemePattern(
+				pattern( 'hero', [ 'banner' ], { source: 'theme' } ),
+				{}
+			)
+		).toBe( true );
 	} );
 } );
 
