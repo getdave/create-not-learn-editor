@@ -380,6 +380,11 @@ function cnl_editor_render_full_page() {
 	}
 
 	set_current_screen();
+
+	// Sync the user's settings cookie, as admin-header.php does, so the media
+	// modal opens on the tab it was last left on.
+	wp_user_settings();
+
 	remove_action( 'admin_head', 'wp_admin_bar_header' );
 
 	foreach ( wp_scripts()->queue as $script ) {

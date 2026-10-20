@@ -57,6 +57,9 @@ The fonts are the Latin subsets published by Fontsource (https://fontsource.org)
 All photos are from StockSnap and released under CC0 1.0 Universal (https://creativecommons.org/publicdomain/zero/1.0/).
 They were resized and converted to WebP for the theme.
 
+assets/images/logo.webp
+The Fernhouse logo for the demo site, drawn for the theme and released under the GPL like the rest of it.
+
 assets/images/greenhouse-interior.webp
 Source: https://stocksnap.io/photo/greenhouse-plants-C9C8A976A0 (photo by Thomas Verbruggen)
 
