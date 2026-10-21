@@ -51,3 +51,24 @@ add_action( 'init', 'mainstay_register_pattern_categories' );
 function mainstay_image( $name ) {
 	return get_theme_file_uri( 'assets/images/' . $name . '.webp' );
 }
+
+/**
+ * Get the URL of one of the site's pages, for buttons that lead to it.
+ *
+ * Patterns call this as they load, so links follow the site's own address and
+ * permalinks wherever it runs. A site without a published page of that slug
+ * gets `#` instead, as the button has nowhere to go.
+ *
+ * @param string $slug     Page slug.
+ * @param string $fragment Optional ID of a section on that page.
+ * @return string Page URL.
+ */
+function mainstay_page_url( $slug, $fragment = '' ) {
+	$page = get_page_by_path( $slug );
+
+	if ( ! $page || 'publish' !== $page->post_status ) {
+		return '#';
+	}
+
+	return get_permalink( $page ) . ( $fragment ? '#' . $fragment : '' );
+}

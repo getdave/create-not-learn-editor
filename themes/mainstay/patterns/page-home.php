@@ -7,7 +7,7 @@
  * Post Types: page
  * Block Types: core/post-content
  * Viewport width: 1400
- * Description: A full homepage: introduction, what you offer, your story, photos, a review, what's on, the latest posts and a call to action.
+ * Description: A full homepage: introduction, what you offer, photos, a review, the latest posts and where to find you.
  *
  * @package Mainstay
  */
@@ -17,13 +17,9 @@
 
 <!-- wp:pattern {"slug":"mainstay/services-cards"} /-->
 
-<!-- wp:pattern {"slug":"mainstay/about-story"} /-->
-
 <!-- wp:pattern {"slug":"mainstay/gallery-mosaic"} /-->
 
 <!-- wp:pattern {"slug":"mainstay/testimonial-large"} /-->
-
-<!-- wp:pattern {"slug":"mainstay/events-list"} /-->
 
 <!-- wp:pattern {"slug":"mainstay/posts-latest"} /-->
 
