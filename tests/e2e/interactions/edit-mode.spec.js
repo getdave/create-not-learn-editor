@@ -2,8 +2,9 @@
  * The site canvas's Edit mode: nothing on the page can be clicked until a
  * section's way of editing is picked from the bar over it, or the section
  * is double-clicked. Edit content
- * changes its words, and Edit design offers its layouts and colours, and
- * Freeform, which unlocks it with core's own unlock.
+ * changes its words, and Edit design drills into its layouts, colours and
+ * width in the bar over it, and More control, which unlocks it with core's
+ * own unlock.
  */
 const {
 	expect,
@@ -290,7 +291,7 @@ test.describe( 'Edit mode', () => {
 		await expect( page.locator( '.cnl-section-modes__bar' ) ).toBeVisible();
 	} );
 
-	test( 'Edit design offers layouts and bins, and Freeform', async ( {
+	test( 'Edit design drills into layouts, and More control', async ( {
 		page,
 		rest,
 	} ) => {
@@ -322,27 +323,46 @@ test.describe( 'Edit mode', () => {
 
 		await pickSectionMode( page, section, 'Edit design' );
 
-		const panel = page.locator( '.cnl-section-modes__panel' );
+		const designBar = page.locator( '.cnl-section-modes__design' );
+		const options = designBar.locator( '.cnl-section-modes__option' );
 
-		await expect( panel ).toBeVisible();
+		await expect( designBar ).toBeVisible();
+
+		// Layout opens the layouts in a tray, and a pick goes in at once.
+		await designBar
+			.getByRole( 'button', { name: 'Layout', exact: true } )
+			.click();
+		await expect( options.nth( 1 ) ).toBeVisible();
+
+		const other = designBar.locator(
+			'.cnl-section-modes__option[aria-pressed="false"]:not([inert])'
+		);
+		const otherName = await other.first().getAttribute( 'title' );
+
+		await other.first().click();
 		await expect(
-			panel.locator( '.cnl-section-modes__option' ).nth( 1 )
+			options.filter( { hasText: otherName } )
+		).toHaveAttribute( 'aria-pressed', 'true' );
+
+		// Escape steps back to the choices.
+		await page.keyboard.press( 'Escape' );
+		await expect( options ).toHaveCount( 0 );
+		await expect(
+			designBar.getByRole( 'button', { name: 'Layout', exact: true } )
 		).toBeVisible();
 
-		// An item taken out comes back with Restore removed.
-		const bins = page.locator( '.cnl-section-modes__bin' );
-		const count = await bins.count();
+		// A click off the bar leaves Edit design, the layout kept.
+		await page.locator( '.cnl-editor-homepage-toolbar' ).click( {
+			position: { x: 4, y: 4 },
+		} );
+		await expect( designBar ).toHaveCount( 0 );
 
-		expect( count ).toBeGreaterThan( 1 );
-		await bins.first().click();
-		await expect( bins ).toHaveCount( count - 1 );
-		await panel.getByRole( 'button', { name: /^Restore removed/ } ).click();
-		await expect( bins ).toHaveCount( count );
-
-		// Freeform, from the panel, is core's unlock, with none of its
-		// colour shuffle.
-		await panel.getByRole( 'button', { name: 'Edit freeform' } ).click();
-		await expect( panel ).toHaveCount( 0 );
+		// More control is core's unlock, with none of its colour shuffle.
+		await pickSectionMode( page, section, 'Edit design' );
+		await designBar
+			.getByRole( 'button', { name: 'More control', exact: true } )
+			.click();
+		await expect( designBar ).toHaveCount( 0 );
 		await expect( modeBar ).toHaveAttribute( 'aria-label', 'Freeform' );
 
 		// Its blocks take core's full tools, not only their words.
@@ -356,12 +376,13 @@ test.describe( 'Edit mode', () => {
 			} )
 		).toBeHidden();
 
-		// Back returns to the panel; Done leaves the mode.
-		await modeBar.getByRole( 'button', { name: 'Back' } ).click();
-		await expect( panel ).toBeVisible();
-		await panel.getByRole( 'button', { name: 'Done editing' } ).click();
-		await expect( panel ).toHaveCount( 0 );
+		// Done leaves it altogether: there is no way back to Edit design.
+		await expect(
+			modeBar.getByRole( 'button', { name: /^Back/ } )
+		).toHaveCount( 0 );
+		await modeBar.getByRole( 'button', { name: 'Done editing' } ).click();
 		await expect( modeBar ).toHaveCount( 0 );
+		await expect( designBar ).toHaveCount( 0 );
 	} );
 
 	test( 'an empty page offers a section or a blank start', async ( {

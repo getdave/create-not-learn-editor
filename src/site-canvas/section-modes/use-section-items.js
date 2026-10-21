@@ -45,7 +45,7 @@ export function getOwnerBlock( store, clientId ) {
 }
 
 /**
- * @return {Object} `{ removed, remove, restore, add, forget, rename }`.
+ * @return {Object} `{ removed, remove, restore, add, rename }`.
  *                  `removed` lists what was taken out, `{ ownerId, path,
  *                  index, block }`, oldest first.
  */
@@ -179,16 +179,6 @@ export function useSectionItems() {
 		[ registry ]
 	);
 
-	// Forget what was removed from a section since a point, as Reset puts
-	// the section back as it was then, with them in it.
-	const forget = useCallback( ( ownerId, since ) => {
-		setRemoved( ( list ) =>
-			list.filter(
-				( entry, index ) => entry.ownerId !== ownerId || index < since
-			)
-		);
-	}, [] );
-
 	// A section's client ID changes when its layout is swapped.
 	const rename = useCallback( ( fromId, toId ) => {
 		setRemoved( ( list ) =>
@@ -202,5 +192,5 @@ export function useSectionItems() {
 		);
 	}, [] );
 
-	return { add, forget, removed, remove, rename, restore };
+	return { add, removed, remove, rename, restore };
 }

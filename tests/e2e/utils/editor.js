@@ -297,6 +297,11 @@ async function pickSectionMode( page, target, mode ) {
 			await done.first().click();
 		}
 
+		// Edit design has no Done: Escape steps out, a level at a time.
+		while ( await page.locator( '.cnl-section-modes__design' ).count() ) {
+			await page.keyboard.press( 'Escape' );
+		}
+
 		await pointAtSection( page, target, { timeout: 1000 } );
 		await page
 			.locator( '.cnl-section-modes__bar' )
