@@ -4,6 +4,8 @@ import { useNavigate, useSearch } from '@wordpress/route';
  * Internal dependencies
  */
 import { withCanvasRecovery } from '../../canvas-recovery';
+import { withScreenKey } from '../../screen-key';
+import { getCurrentEditorPath } from '../static/screens';
 import { withUiTheme } from '../../theme';
 import { useSiteTrail } from '../../site-trail';
 import { getTemplateAuthorText } from '../../records';
@@ -26,11 +28,11 @@ import {
 import { getStatusLabel, getTemplateTitle } from './helpers';
 import PagesTable from './pages-table';
 import useContentRecords from './use-content-records';
+import { useDataViews } from '../../use-dataviews';
 import {
 	Breadcrumbs,
 	Button,
 	coreDataStore,
-	DataViews,
 	DropdownMenu,
 	EmptyState,
 	Icon,
@@ -185,6 +187,8 @@ function Stage() {
 		};
 	}, [] );
 	const isPages = type?.name === 'page';
+	// Pages lists its pages in menu groups; every other type in DataViews.
+	const dataViews = useDataViews( !! type && ! isPages );
 	const contentFields = useMemo(
 		() =>
 			getContentFields( {
@@ -455,35 +459,47 @@ function Stage() {
 		);
 	}
 
-	const contentList = isPages ? (
-		pagesList
-	) : (
-		<DataViews
-			actions={ contentActions }
-			data={ posts }
-			defaultLayouts={ DEFAULT_CONTENT_LAYOUTS }
-			empty={ contentEmpty }
-			fields={ contentFields }
-			getItemId={ ( item ) => String( item.id ) }
-			isLoading={ isLoading }
-			key={ `${ previewTemplatesKey }|${ frontPageId }|${ postsPageId }|${
-				mainMenu.menuPages ? 'menu' : 'no-menu'
-			}` }
-			onChangeSelection={ () => {} }
-			onChangeView={ onChangeContentView }
-			onClickItem={ ( item ) =>
-				type.blockEditor ? openEditor( item.id ) : selectPost( item.id )
-			}
-			paginationInfo={ {
-				totalItems: posts.length,
-				totalPages,
-			} }
-			selection={ EMPTY_ARRAY }
-			view={ contentView }
-		>
-			<PostListDataViewsLayout />
-		</DataViews>
-	);
+	let contentList = pagesList;
+
+	if ( ! isPages && ! dataViews ) {
+		contentList = (
+			<div className="cnl-editor-spinner">
+				<Spinner />
+			</div>
+		);
+	} else if ( ! isPages ) {
+		const { DataViews } = dataViews;
+
+		contentList = (
+			<DataViews
+				actions={ contentActions }
+				data={ posts }
+				defaultLayouts={ DEFAULT_CONTENT_LAYOUTS }
+				empty={ contentEmpty }
+				fields={ contentFields }
+				getItemId={ ( item ) => String( item.id ) }
+				isLoading={ isLoading }
+				key={ `${ previewTemplatesKey }|${ frontPageId }|${ postsPageId }|${
+					mainMenu.menuPages ? 'menu' : 'no-menu'
+				}` }
+				onChangeSelection={ () => {} }
+				onChangeView={ onChangeContentView }
+				onClickItem={ ( item ) =>
+					type.blockEditor
+						? openEditor( item.id )
+						: selectPost( item.id )
+				}
+				paginationInfo={ {
+					totalItems: posts.length,
+					totalPages,
+				} }
+				selection={ EMPTY_ARRAY }
+				view={ contentView }
+			>
+				<PostListDataViewsLayout />
+			</DataViews>
+		);
+	}
 
 	// Pages has no tabs: its layouts open from the options menu, as a step
 	// down from Pages with a way back.
@@ -671,4 +687,8 @@ function Stage() {
 }
 
 export const stage = withUiTheme( Stage );
-export const canvas = withCanvasRecovery( withUiTheme( Canvas ) );
+// A content type's own address and its lists had a module each.
+export const canvas = withScreenKey(
+	withCanvasRecovery( withUiTheme( Canvas ) ),
+	() => ( /\/list\//.test( getCurrentEditorPath() ) ? 'list' : 'type' )
+);

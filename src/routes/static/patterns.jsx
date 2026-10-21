@@ -8,9 +8,11 @@ import { useNavigate } from '@wordpress/route';
  * Internal dependencies
  */
 import { getStaticScreen } from './screens';
+import { useDataViews } from '../../use-dataviews';
 import {
 	DEFAULT_TEMPLATE_LAYOUTS,
 	EMPTY_ARRAY,
+	NO_LIST_DATA,
 	getSearchParams,
 } from './list-shared';
 import {
@@ -30,9 +32,7 @@ import { getErrorMessage } from '../../records';
 import {
 	Button,
 	coreDataStore,
-	DataViews,
 	EmptyState,
-	filterSortAndPaginate,
 	InputControl,
 	layoutIcon,
 	Modal,
@@ -303,6 +303,9 @@ function CreatePatternModal( { isSaving, onClose, onCreate, saveError } ) {
 }
 
 function PatternsDataViewsLayout() {
+	// Only rendered inside `DataViews`, so the module has loaded.
+	const { DataViews } = useDataViews();
+
 	return (
 		<div className="routes-pattern-list__dataviews">
 			<div className="routes-pattern-list__dataviews-toolbar">
@@ -400,6 +403,7 @@ function getSelectedPatternIdFromSearch() {
 
 export function PatternsStage() {
 	const navigate = useNavigate();
+	const dataViews = useDataViews();
 	const { invalidateResolution, saveEntityRecord } =
 		useDispatch( coreDataStore );
 	const { categoryMap, error, isLoading, patterns } = usePatternsData();
@@ -454,8 +458,15 @@ export function PatternsStage() {
 		[ navigate ]
 	);
 	const { data: shownPatterns, paginationInfo } = useMemo(
-		() => filterSortAndPaginate( visiblePatterns, view, fields ),
-		[ fields, view, visiblePatterns ]
+		() =>
+			dataViews
+				? dataViews.filterSortAndPaginate(
+						visiblePatterns,
+						view,
+						fields
+					)
+				: NO_LIST_DATA,
+		[ dataViews, fields, view, visiblePatterns ]
 	);
 	const selectedPattern =
 		visiblePatterns.find(
@@ -581,6 +592,8 @@ export function PatternsStage() {
 		</div>
 	);
 
+	const DataViews = dataViews?.DataViews;
+
 	return (
 		<Page
 			actions={ pageActions }
@@ -607,23 +620,31 @@ export function PatternsStage() {
 				value={ activeCategory }
 			/>
 			{ error && <div className="cnl-editor-empty">{ error }</div> }
-			<DataViews
-				actions={ actions }
-				data={ shownPatterns }
-				defaultLayouts={ DEFAULT_TEMPLATE_LAYOUTS }
-				empty={ empty }
-				fields={ fields }
-				getItemId={ ( item ) => item.id }
-				isLoading={ isLoading }
-				onChangeSelection={ ( items ) => selectPattern( items[ 0 ] ) }
-				onChangeView={ onChangeView }
-				onClickItem={ ( item ) => selectPattern( item.id ) }
-				paginationInfo={ paginationInfo }
-				selection={ selection }
-				view={ view }
-			>
-				<PatternsDataViewsLayout />
-			</DataViews>
+			{ DataViews ? (
+				<DataViews
+					actions={ actions }
+					data={ shownPatterns }
+					defaultLayouts={ DEFAULT_TEMPLATE_LAYOUTS }
+					empty={ empty }
+					fields={ fields }
+					getItemId={ ( item ) => item.id }
+					isLoading={ isLoading }
+					onChangeSelection={ ( items ) =>
+						selectPattern( items[ 0 ] )
+					}
+					onChangeView={ onChangeView }
+					onClickItem={ ( item ) => selectPattern( item.id ) }
+					paginationInfo={ paginationInfo }
+					selection={ selection }
+					view={ view }
+				>
+					<PatternsDataViewsLayout />
+				</DataViews>
+			) : (
+				<div className="cnl-editor-spinner">
+					<Spinner />
+				</div>
+			) }
 			{ isCreateModalOpen && (
 				<CreatePatternModal
 					isSaving={ isCreatingPattern }

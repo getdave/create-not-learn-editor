@@ -2,7 +2,10 @@
  * WordPress dependencies
  */
 import { useNavigate, useParams } from '@wordpress/route';
-import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
+import {
+	Preview as LazyEditorPreview,
+	useEditorAssets,
+} from '@wordpress/lazy-editor';
 
 /**
  * Internal dependencies
@@ -215,12 +218,41 @@ export default function NavigationEditCanvas() {
 
 		dispatch( 'core/editor' )?.setDeviceType?.( device );
 	}, [ device, isPreviewVisible ] );
+	/*
+	 * The menu's blocks, for the location previews: built only while those
+	 * are on show, and once the editor's assets have registered WordPress's
+	 * blocks, which building them needs.
+	 */
+	const { isReady: hasBlockTypes } = useEditorAssets();
+	const showsLocations = ! isPreviewVisible && hasBlockTypes;
 	const menuBlocks = useMemo(
 		() =>
-			createEditorBlocksFromNavigationBlocks(
-				getNavigationBlocksFromEditedRecord( menu )
+			showsLocations
+				? createEditorBlocksFromNavigationBlocks(
+						getNavigationBlocksFromEditedRecord( menu )
+					)
+				: EMPTY_ARRAY,
+		[ menu, showsLocations ]
+	);
+
+	// Each location's part, with this menu in it. Parsed only while the
+	// locations are on show, and kept from render to render so the previews
+	// aren't rebuilt each time.
+	const locationPreviewBlocks = useMemo(
+		() =>
+			new Map(
+				! showsLocations
+					? []
+					: locations.map( ( location ) => [
+							location.id,
+							getTemplatePartPreviewBlocks(
+								location.part,
+								navigationId,
+								menuBlocks
+							),
+						] )
 			),
-		[ menu ]
+		[ locations, menuBlocks, navigationId, showsLocations ]
 	);
 
 	const editTemplatePartContent = ( part, content ) =>
@@ -344,7 +376,7 @@ export default function NavigationEditCanvas() {
 		</DropdownMenu>
 	);
 
-	const locationsView = (
+	const locationsView = ! isPreviewVisible && (
 		<div className="routes-navigation-locations-canvas__content">
 			{ isResolvingTemplateParts && (
 				<div className="cnl-editor-spinner">
@@ -387,11 +419,11 @@ export default function NavigationEditCanvas() {
 							</div>
 							<div className="routes-navigation-locations-canvas__preview">
 								<LazyEditorPreview
-									blocks={ getTemplatePartPreviewBlocks(
-										location.part,
-										navigationId,
-										menuBlocks
-									) }
+									blocks={
+										locationPreviewBlocks.get(
+											location.id
+										) || EMPTY_ARRAY
+									}
 									description={ location.label }
 								/>
 							</div>

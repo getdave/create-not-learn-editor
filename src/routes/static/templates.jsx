@@ -8,9 +8,11 @@ import { useNavigate } from '@wordpress/route';
  * Internal dependencies
  */
 import { getStaticScreen } from './screens';
+import { useDataViews } from '../../use-dataviews';
 import {
 	DEFAULT_TEMPLATE_LAYOUTS,
 	EMPTY_ARRAY,
+	NO_LIST_DATA,
 	getSearchParams,
 	getSearchValue,
 } from './list-shared';
@@ -23,9 +25,7 @@ import {
 import {
 	Button,
 	coreDataStore,
-	DataViews,
 	EmptyState,
-	filterSortAndPaginate,
 	InputControl,
 	layoutIcon,
 	Modal,
@@ -380,6 +380,9 @@ function CreateTemplateModal( { isSaving, onClose, onCreate, saveError } ) {
 }
 
 function TemplatesDataViewsLayout() {
+	// Only rendered inside `DataViews`, so the module has loaded.
+	const { DataViews } = useDataViews();
+
 	return (
 		<div className="routes-template-list__dataviews">
 			<div className="routes-template-list__dataviews-toolbar">
@@ -432,6 +435,7 @@ function getSelectedTemplateIdFromSearch() {
 
 export function TemplatesStage() {
 	const navigate = useNavigate();
+	const dataViews = useDataViews();
 	const { invalidateResolution, saveEntityRecord } =
 		useDispatch( coreDataStore );
 	const { createErrorNotice, createSuccessNotice } =
@@ -521,8 +525,11 @@ export function TemplatesStage() {
 	 * DataViews the whole list renders every one of them at once.
 	 */
 	const { data: shownTemplates, paginationInfo } = useMemo(
-		() => filterSortAndPaginate( templates, view, fields ),
-		[ fields, templates, view ]
+		() =>
+			dataViews
+				? dataViews.filterSortAndPaginate( templates, view, fields )
+				: NO_LIST_DATA,
+		[ dataViews, fields, templates, view ]
 	);
 	const selectedTemplate =
 		templates.find(
@@ -630,6 +637,8 @@ export function TemplatesStage() {
 		</div>
 	);
 
+	const DataViews = dataViews?.DataViews;
+
 	return (
 		<Page
 			actions={ pageActions }
@@ -640,23 +649,31 @@ export function TemplatesStage() {
 			title={ getStaticScreen().title }
 		>
 			{ error && <div className="cnl-editor-empty">{ error }</div> }
-			<DataViews
-				actions={ actions }
-				data={ shownTemplates }
-				defaultLayouts={ DEFAULT_TEMPLATE_LAYOUTS }
-				empty={ empty }
-				fields={ fields }
-				getItemId={ ( item ) => String( item.id ) }
-				isLoading={ isLoading }
-				onChangeSelection={ ( items ) => selectTemplate( items[ 0 ] ) }
-				onChangeView={ onChangeView }
-				onClickItem={ ( item ) => selectTemplate( item.id ) }
-				paginationInfo={ paginationInfo }
-				selection={ selection }
-				view={ view }
-			>
-				<TemplatesDataViewsLayout />
-			</DataViews>
+			{ DataViews ? (
+				<DataViews
+					actions={ actions }
+					data={ shownTemplates }
+					defaultLayouts={ DEFAULT_TEMPLATE_LAYOUTS }
+					empty={ empty }
+					fields={ fields }
+					getItemId={ ( item ) => String( item.id ) }
+					isLoading={ isLoading }
+					onChangeSelection={ ( items ) =>
+						selectTemplate( items[ 0 ] )
+					}
+					onChangeView={ onChangeView }
+					onClickItem={ ( item ) => selectTemplate( item.id ) }
+					paginationInfo={ paginationInfo }
+					selection={ selection }
+					view={ view }
+				>
+					<TemplatesDataViewsLayout />
+				</DataViews>
+			) : (
+				<div className="cnl-editor-spinner">
+					<Spinner />
+				</div>
+			) }
 			{ isCreateModalOpen && (
 				<CreateTemplateModal
 					isSaving={ isCreatingTemplate }

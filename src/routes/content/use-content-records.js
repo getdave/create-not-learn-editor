@@ -23,8 +23,9 @@ import {
 	useState,
 } from '../../wordpress-packages';
 
+// No `content`: nothing shows it, and the server renders it for every record.
 const POST_QUERY_FIELDS =
-	'id,author,link,title,status,type,date,modified,date_gmt,modified_gmt,content,template,slug,parent,comment_count';
+	'id,author,link,title,status,type,date,modified,date_gmt,modified_gmt,template,slug,parent,comment_count';
 
 const TEMPLATE_QUERY = {
 	context: 'edit',
@@ -104,6 +105,9 @@ export default function useContentRecords() {
 		} ) );
 	}, [ type ] );
 
+	// Pages lists its pages from `usePages`. Its own records are only wanted
+	// for its Layouts, to show a layout on one of them.
+	const needsPosts = type?.name !== 'page' || activeTab === 'templates';
 	const { error, isLoading, posts, rawTemplates } = useSelect(
 		( select ) => {
 			if ( ! type ) {
@@ -119,29 +123,26 @@ export default function useContentRecords() {
 			const postArgs = [ 'postType', type.name, postQuery ];
 			const templateArgs = [ 'postType', 'wp_template', TEMPLATE_QUERY ];
 			const resolvedPosts =
-				store.getEntityRecords( ...postArgs ) || EMPTY_ARRAY;
+				( needsPosts && store.getEntityRecords( ...postArgs ) ) ||
+				EMPTY_ARRAY;
 			const resolvedTemplates =
 				store.getEntityRecords( ...templateArgs ) || EMPTY_ARRAY;
-			const postError = store.getResolutionError?.(
-				'getEntityRecords',
-				postArgs
-			);
+			const postError =
+				needsPosts &&
+				store.getResolutionError?.( 'getEntityRecords', postArgs );
 			const templateError = store.getResolutionError?.(
 				'getEntityRecords',
 				templateArgs
 			);
-			const isResolvingPosts = store.isResolving(
-				'getEntityRecords',
-				postArgs
-			);
+			const isResolvingPosts =
+				needsPosts && store.isResolving( 'getEntityRecords', postArgs );
 			const isResolvingTemplates = store.isResolving(
 				'getEntityRecords',
 				templateArgs
 			);
-			const hasResolvedPosts = store.hasFinishedResolution(
-				'getEntityRecords',
-				postArgs
-			);
+			const hasResolvedPosts =
+				! needsPosts ||
+				store.hasFinishedResolution( 'getEntityRecords', postArgs );
 			const hasResolvedTemplates = store.hasFinishedResolution(
 				'getEntityRecords',
 				templateArgs
@@ -162,7 +163,7 @@ export default function useContentRecords() {
 				rawTemplates: resolvedTemplates,
 			};
 		},
-		[ activeTab, postQuery, type ]
+		[ activeTab, needsPosts, postQuery, type ]
 	);
 	const templates = useMemo(
 		() =>

@@ -153,6 +153,22 @@ const FRESH_MS = 900;
 
 const EMPTY_ARRAY = [];
 
+/*
+ * Section titles, by block. Working one out walks the whole section, and the
+ * layer asks for several on every render. The editor's blocks are replaced,
+ * never changed, when they're edited, so a block's title stays right for as
+ * long as the block is around.
+ */
+const sectionTitles = new WeakMap();
+
+function getCachedSectionTitle( block ) {
+	if ( ! sectionTitles.has( block ) ) {
+		sectionTitles.set( block, getSectionTitle( block ) );
+	}
+
+	return sectionTitles.get( block );
+}
+
 /**
  * Position a box relative to the canvas it is clipped to.
  *
@@ -903,10 +919,15 @@ export function SectionModesLayer( {
 	} = useSelect(
 		( select ) => {
 			const store = unlock( select( blockEditorStore ) );
+			// Only Edit design reads the section's blocks. Selecting them in
+			// the other modes would re-render the layer on every keystroke.
+			const isDesign = active?.mode === MODE_DESIGN;
 
 			return {
-				activeBlockOnly: active ? store.getBlock( active.id ) : null,
-				activeInnerBlocks: active ? store.getBlocks( active.id ) : null,
+				activeBlockOnly: isDesign ? store.getBlock( active.id ) : null,
+				activeInnerBlocks: isDesign
+					? store.getBlocks( active.id )
+					: null,
 				editedSection: store.getEditedContentOnlySection(),
 				exists: active
 					? Boolean( store.getBlockName( active.id ) )
@@ -1026,22 +1047,28 @@ export function SectionModesLayer( {
 				: EMPTY_ARRAY,
 		[ active, activeBlock ]
 	);
-	const canReset = useMemo( () => {
+	// The snapshot never changes, so it is serialised once rather than on
+	// every change to the section.
+	const savedSnapshot = useMemo( () => {
 		if ( active?.mode !== MODE_DESIGN || ! active.snapshot ) {
-			return false;
-		}
-
-		if ( ! activeBlock ) {
-			return false;
+			return null;
 		}
 
 		// A header's or footer's block saves as a reference to its part, so
 		// its blocks are compared instead.
 		return activePart
-			? serialize( activeBlock.innerBlocks ) !==
-					serialize( active.snapshot.innerBlocks )
-			: serialize( activeBlock ) !== serialize( active.snapshot );
-	}, [ active, activeBlock, activePart ] );
+			? serialize( active.snapshot.innerBlocks )
+			: serialize( active.snapshot );
+	}, [ active, activePart ] );
+	const canReset = useMemo( () => {
+		if ( savedSnapshot === null || ! activeBlock ) {
+			return false;
+		}
+
+		return activePart
+			? serialize( activeBlock.innerBlocks ) !== savedSnapshot
+			: serialize( activeBlock ) !== savedSnapshot;
+	}, [ activeBlock, activePart, savedSnapshot ] );
 
 	// In Edit content, a block of the section selected can be removed from
 	// core's toolbar; Restore on the small bar puts it back.
@@ -1444,7 +1471,7 @@ export function SectionModesLayer( {
 
 		const block = registry.select( blockEditorStore ).getBlock( clientId );
 
-		return block ? getSectionTitle( block ) : __( 'Section' );
+		return block ? getCachedSectionTitle( block ) : __( 'Section' );
 	};
 
 	/*

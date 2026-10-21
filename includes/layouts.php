@@ -97,7 +97,9 @@ function cnl_editor_register_layout_patterns() {
 				'categories'    => array( CNL_EDITOR_LAYOUT_CATEGORY, CNL_EDITOR_LAYOUT_CATEGORY . '-' . $group ),
 				'keywords'      => array( 'layout', 'wireframe' ),
 				'viewportWidth' => 1200,
-				'content'       => file_get_contents( $file ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+				// Read when a pattern's content is first asked for, not on
+				// every request.
+				'filePath'      => $file,
 			)
 		);
 	}

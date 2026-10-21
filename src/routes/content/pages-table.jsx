@@ -14,14 +14,16 @@ import {
 	PostListDataViewsLayout,
 	getContentFields,
 } from './content-fields';
+import { useDataViews } from '../../use-dataviews';
 import {
-	DataViews,
-	filterSortAndPaginate,
+	Spinner,
 	__,
 	useCallback,
 	useMemo,
 	useState,
 } from '../../wordpress-packages';
+
+const NO_DATA = { data: EMPTY_ARRAY, paginationInfo: {} };
 
 const PAGES_TABLE_VIEW = {
 	...DEFAULT_CONTENT_VIEW,
@@ -42,6 +44,7 @@ const PAGES_TABLE_VIEW = {
  */
 export default function PagesTable( { mainMenu, listPath } ) {
 	const navigate = useNavigate();
+	const dataViews = useDataViews();
 	const { frontPageId, isLoading, pages, postsPageId } = usePages();
 	const [ view, setView ] = useState( PAGES_TABLE_VIEW );
 	const fields = useMemo(
@@ -94,9 +97,23 @@ export default function PagesTable( { mainMenu, listPath } ) {
 		[ openPage ]
 	);
 	const { data, paginationInfo } = useMemo(
-		() => filterSortAndPaginate( pages, view, fields ),
-		[ fields, pages, view ]
+		() =>
+			dataViews
+				? dataViews.filterSortAndPaginate( pages, view, fields )
+				: NO_DATA,
+		[ dataViews, fields, pages, view ]
 	);
+
+	if ( ! dataViews ) {
+		return (
+			<div className="cnl-editor-spinner">
+				<Spinner />
+			</div>
+		);
+	}
+
+	const { DataViews } = dataViews;
+
 	return (
 		<DataViews
 			actions={ actions }

@@ -8,9 +8,11 @@ import { useNavigate } from '@wordpress/route';
  * Internal dependencies
  */
 import { getStaticScreen } from './screens';
+import { useDataViews } from '../../use-dataviews';
 import {
 	DEFAULT_TEMPLATE_LAYOUTS,
 	EMPTY_ARRAY,
+	NO_LIST_DATA,
 	getSearchParams,
 	getSearchValue,
 } from './list-shared';
@@ -22,9 +24,7 @@ import {
 import {
 	Button,
 	coreDataStore,
-	DataViews,
 	EmptyState,
-	filterSortAndPaginate,
 	InputControl,
 	layoutIcon,
 	Modal,
@@ -350,6 +350,9 @@ function CreateTemplatePartModal( {
 }
 
 function TemplatePartsDataViewsLayout() {
+	// Only rendered inside `DataViews`, so the module has loaded.
+	const { DataViews } = useDataViews();
+
 	return (
 		<div className="routes-template-part-list__dataviews">
 			<div className="routes-template-part-list__dataviews-toolbar">
@@ -413,6 +416,7 @@ function getTemplatePartsForArea( templateParts, area ) {
 
 export function TemplatePartsStage() {
 	const navigate = useNavigate();
+	const dataViews = useDataViews();
 	const { invalidateResolution, saveEntityRecord } =
 		useDispatch( coreDataStore );
 	const { error, isLoading, templateParts } = useTemplatePartsData();
@@ -449,8 +453,15 @@ export function TemplatePartsStage() {
 		[ navigate ]
 	);
 	const { data: shownTemplateParts, paginationInfo } = useMemo(
-		() => filterSortAndPaginate( visibleTemplateParts, view, fields ),
-		[ fields, view, visibleTemplateParts ]
+		() =>
+			dataViews
+				? dataViews.filterSortAndPaginate(
+						visibleTemplateParts,
+						view,
+						fields
+					)
+				: NO_LIST_DATA,
+		[ dataViews, fields, view, visibleTemplateParts ]
 	);
 	const selectedTemplatePart =
 		visibleTemplateParts.find(
@@ -587,6 +598,8 @@ export function TemplatePartsStage() {
 		</div>
 	);
 
+	const DataViews = dataViews?.DataViews;
+
 	return (
 		<Page
 			actions={ pageActions }
@@ -608,25 +621,31 @@ export function TemplatePartsStage() {
 				</Tabs.Root>
 			</div>
 			{ error && <div className="cnl-editor-empty">{ error }</div> }
-			<DataViews
-				actions={ actions }
-				data={ shownTemplateParts }
-				defaultLayouts={ DEFAULT_TEMPLATE_LAYOUTS }
-				empty={ empty }
-				fields={ fields }
-				getItemId={ ( item ) => String( item.id ) }
-				isLoading={ isLoading }
-				onChangeSelection={ ( items ) =>
-					selectTemplatePart( items[ 0 ] )
-				}
-				onChangeView={ onChangeView }
-				onClickItem={ ( item ) => selectTemplatePart( item.id ) }
-				paginationInfo={ paginationInfo }
-				selection={ selection }
-				view={ view }
-			>
-				<TemplatePartsDataViewsLayout />
-			</DataViews>
+			{ DataViews ? (
+				<DataViews
+					actions={ actions }
+					data={ shownTemplateParts }
+					defaultLayouts={ DEFAULT_TEMPLATE_LAYOUTS }
+					empty={ empty }
+					fields={ fields }
+					getItemId={ ( item ) => String( item.id ) }
+					isLoading={ isLoading }
+					onChangeSelection={ ( items ) =>
+						selectTemplatePart( items[ 0 ] )
+					}
+					onChangeView={ onChangeView }
+					onClickItem={ ( item ) => selectTemplatePart( item.id ) }
+					paginationInfo={ paginationInfo }
+					selection={ selection }
+					view={ view }
+				>
+					<TemplatePartsDataViewsLayout />
+				</DataViews>
+			) : (
+				<div className="cnl-editor-spinner">
+					<Spinner />
+				</div>
+			) }
 			{ isCreateModalOpen && (
 				<CreateTemplatePartModal
 					defaultArea={

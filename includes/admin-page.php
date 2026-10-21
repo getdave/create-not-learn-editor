@@ -247,7 +247,16 @@ function cnl_editor_get_app_settings() {
  */
 function cnl_editor_preload_data() {
 	$preload_paths = array(
-		'/?_fields=description,gmt_offset,home,image_sizes,image_size_threshold,name,site_icon,site_icon_url,site_logo,timezone_string,url,page_for_posts,page_on_front,show_on_front',
+		/*
+		 * Boot reads the site's base record before anything renders. Its
+		 * fields must be the ones core-data asks for, in the same order, or
+		 * the preload is never used and the request is made again. See
+		 * `__unstableBase` in core-data's `entities.js`, which Gutenberg's
+		 * `gutenberg_block_editor_preload_paths_7_1()` mirrors.
+		 */
+		'/?_fields=description,gmt_offset,home,image_max_bit_depth,image_sizes,image_size_threshold,image_strip_meta,name,site_icon,site_icon_url,site_logo,timezone_string,url,page_for_posts,page_on_front,show_on_front',
+		// The top bar's save controls read the site's settings on every screen.
+		'/wp/v2/settings',
 		array( '/wp/v2/settings', 'OPTIONS' ),
 	);
 
@@ -548,22 +557,31 @@ function cnl_editor_register_boot_modules( $routes = null ) {
 			'id'     => '@create-not-learn-editor/chat-extras',
 			'import' => 'dynamic',
 		),
+		// DataViews, imported the first time a screen shows a list.
+		array(
+			'id'     => '@create-not-learn-editor/dataviews',
+			'import' => 'dynamic',
+		),
 	);
+
+	// Screens that share a module list it once.
+	$route_modules = array();
 
 	foreach ( $routes as $route ) {
 		if ( isset( $route['route_module'] ) ) {
-			$boot_dependencies[] = array(
-				'id'     => $route['route_module'],
-				'import' => 'static',
-			);
+			$route_modules[ $route['route_module'] ] = 'static';
 		}
 
-		if ( isset( $route['content_module'] ) ) {
-			$boot_dependencies[] = array(
-				'id'     => $route['content_module'],
-				'import' => 'dynamic',
-			);
+		if ( isset( $route['content_module'] ) && ! isset( $route_modules[ $route['content_module'] ] ) ) {
+			$route_modules[ $route['content_module'] ] = 'dynamic';
 		}
+	}
+
+	foreach ( $route_modules as $id => $import ) {
+		$boot_dependencies[] = array(
+			'id'     => $id,
+			'import' => $import,
+		);
 	}
 
 	/**
@@ -655,7 +673,9 @@ function cnl_editor_print_ui_theme_font_preload() {
  * Enqueue CSS emitted by the module build.
  */
 function cnl_editor_enqueue_built_styles() {
-	$build_path = CNL_EDITOR_PATH . 'build';
+	// Stylesheets are all written under `styles/`; scripts and modules inject
+	// their own CSS, so the rest of the build needn't be walked.
+	$build_path = CNL_EDITOR_PATH . 'build/styles';
 
 	if ( ! is_dir( $build_path ) ) {
 		return;
@@ -734,6 +754,10 @@ function cnl_editor_get_module_map() {
 			'path' => 'modules/chat-extras/index.min',
 		),
 		array(
+			'id'   => '@create-not-learn-editor/dataviews',
+			'path' => 'modules/dataviews/index.min',
+		),
+		array(
 			'id'   => 'create-not-learn-editor/routes/home/route',
 			'path' => 'routes/home/route.min',
 		),
@@ -748,14 +772,6 @@ function cnl_editor_get_module_map() {
 		array(
 			'id'   => 'create-not-learn-editor/routes/site-overview/content',
 			'path' => 'routes/site-overview/content.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/content-base/route',
-			'path' => 'routes/content-base/route.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/content-base/content',
-			'path' => 'routes/content-base/content.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/content/route',
@@ -790,84 +806,28 @@ function cnl_editor_get_module_map() {
 			'path' => 'routes/template-edit/route.min',
 		),
 		array(
-			'id'   => 'create-not-learn-editor/routes/design/route',
-			'path' => 'routes/design/route.min',
+			'id'   => 'create-not-learn-editor/routes/static/route',
+			'path' => 'routes/static/route.min',
 		),
 		array(
-			'id'   => 'create-not-learn-editor/routes/design/content',
-			'path' => 'routes/design/content.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/colors/route',
-			'path' => 'routes/colors/route.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/colors/content',
-			'path' => 'routes/colors/content.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/fonts/route',
-			'path' => 'routes/fonts/route.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/fonts/content',
-			'path' => 'routes/fonts/content.min',
+			'id'   => 'create-not-learn-editor/routes/static/content',
+			'path' => 'routes/static/content.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/header/route',
 			'path' => 'routes/header/route.min',
 		),
 		array(
-			'id'   => 'create-not-learn-editor/routes/header/content',
-			'path' => 'routes/header/content.min',
-		),
-		array(
 			'id'   => 'create-not-learn-editor/routes/footer/route',
 			'path' => 'routes/footer/route.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/footer/content',
-			'path' => 'routes/footer/content.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/header-footer/route',
 			'path' => 'routes/header-footer/route.min',
 		),
 		array(
-			'id'   => 'create-not-learn-editor/routes/header-footer/content',
-			'path' => 'routes/header-footer/content.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/identity/route',
-			'path' => 'routes/identity/route.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/identity/content',
-			'path' => 'routes/identity/content.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/patterns/route',
-			'path' => 'routes/patterns/route.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/patterns/content',
-			'path' => 'routes/patterns/content.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/template-parts/route',
-			'path' => 'routes/template-parts/route.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/template-parts/content',
-			'path' => 'routes/template-parts/content.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/templates/route',
-			'path' => 'routes/templates/route.min',
-		),
-		array(
-			'id'   => 'create-not-learn-editor/routes/templates/content',
-			'path' => 'routes/templates/content.min',
+			'id'   => 'create-not-learn-editor/routes/site-part/content',
+			'path' => 'routes/site-part/content.min',
 		),
 		array(
 			'id'   => 'create-not-learn-editor/routes/post-edit/route',
@@ -899,8 +859,8 @@ function cnl_editor_get_routes() {
 		),
 		array(
 			'path'           => '/types/$type',
-			'route_module'   => 'create-not-learn-editor/routes/content-base/route',
-			'content_module' => 'create-not-learn-editor/routes/content-base/content',
+			'route_module'   => 'create-not-learn-editor/routes/content/route',
+			'content_module' => 'create-not-learn-editor/routes/content/content',
 		),
 		array(
 			'path'           => '/types/$type/list/$view',
@@ -935,53 +895,53 @@ function cnl_editor_get_routes() {
 		),
 		array(
 			'path'           => '/design',
-			'route_module'   => 'create-not-learn-editor/routes/design/route',
-			'content_module' => 'create-not-learn-editor/routes/design/content',
+			'route_module'   => 'create-not-learn-editor/routes/static/route',
+			'content_module' => 'create-not-learn-editor/routes/static/content',
 		),
 		array(
 			'path'           => '/design/colors',
-			'route_module'   => 'create-not-learn-editor/routes/colors/route',
-			'content_module' => 'create-not-learn-editor/routes/colors/content',
+			'route_module'   => 'create-not-learn-editor/routes/static/route',
+			'content_module' => 'create-not-learn-editor/routes/static/content',
 		),
 		array(
 			'path'           => '/design/fonts',
-			'route_module'   => 'create-not-learn-editor/routes/fonts/route',
-			'content_module' => 'create-not-learn-editor/routes/fonts/content',
+			'route_module'   => 'create-not-learn-editor/routes/static/route',
+			'content_module' => 'create-not-learn-editor/routes/static/content',
 		),
 		array(
 			'path'           => '/design/identity',
-			'route_module'   => 'create-not-learn-editor/routes/identity/route',
-			'content_module' => 'create-not-learn-editor/routes/identity/content',
+			'route_module'   => 'create-not-learn-editor/routes/static/route',
+			'content_module' => 'create-not-learn-editor/routes/static/content',
 		),
 		array(
 			'path'           => '/design/header-footer',
 			'route_module'   => 'create-not-learn-editor/routes/header-footer/route',
-			'content_module' => 'create-not-learn-editor/routes/header-footer/content',
+			'content_module' => 'create-not-learn-editor/routes/site-part/content',
 		),
 		array(
 			'path'           => '/design/header',
 			'route_module'   => 'create-not-learn-editor/routes/header/route',
-			'content_module' => 'create-not-learn-editor/routes/header/content',
+			'content_module' => 'create-not-learn-editor/routes/site-part/content',
 		),
 		array(
 			'path'           => '/design/footer',
 			'route_module'   => 'create-not-learn-editor/routes/footer/route',
-			'content_module' => 'create-not-learn-editor/routes/footer/content',
+			'content_module' => 'create-not-learn-editor/routes/site-part/content',
 		),
 		array(
 			'path'           => '/patterns',
-			'route_module'   => 'create-not-learn-editor/routes/patterns/route',
-			'content_module' => 'create-not-learn-editor/routes/patterns/content',
+			'route_module'   => 'create-not-learn-editor/routes/static/route',
+			'content_module' => 'create-not-learn-editor/routes/static/content',
 		),
 		array(
 			'path'           => '/template-parts',
-			'route_module'   => 'create-not-learn-editor/routes/template-parts/route',
-			'content_module' => 'create-not-learn-editor/routes/template-parts/content',
+			'route_module'   => 'create-not-learn-editor/routes/static/route',
+			'content_module' => 'create-not-learn-editor/routes/static/content',
 		),
 		array(
 			'path'           => '/templates',
-			'route_module'   => 'create-not-learn-editor/routes/templates/route',
-			'content_module' => 'create-not-learn-editor/routes/templates/content',
+			'route_module'   => 'create-not-learn-editor/routes/static/route',
+			'content_module' => 'create-not-learn-editor/routes/static/content',
 		),
 	);
 }

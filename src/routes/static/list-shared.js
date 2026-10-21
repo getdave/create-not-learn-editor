@@ -38,3 +38,9 @@ export function getSearchValue( value ) {
 
 	return value;
 }
+
+// What a list shows until DataViews has loaded: nothing, on no pages.
+export const NO_LIST_DATA = {
+	data: EMPTY_ARRAY,
+	paginationInfo: { totalItems: 0, totalPages: 0 },
+};

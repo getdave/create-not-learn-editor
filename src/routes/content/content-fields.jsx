@@ -4,7 +4,8 @@
 import { getTitleText } from '../../records';
 import { isPageInMenu } from './menu-status';
 import { getStatusLabel } from './helpers';
-import { Badge, DataViews, Stack, __, sprintf } from '../../wordpress-packages';
+import { useDataViews } from '../../use-dataviews';
+import { Badge, Stack, __, sprintf } from '../../wordpress-packages';
 
 export const DEFAULT_CONTENT_LAYOUTS = {
 	list: true,
@@ -214,6 +215,9 @@ export function getContentActions( navigate, type ) {
 }
 
 export function PostListDataViewsLayout() {
+	// Only rendered inside `DataViews`, so the module has loaded.
+	const { DataViews } = useDataViews();
+
 	return (
 		<div className="routes-post-list__dataviews">
 			<div className="routes-post-list__dataviews-toolbar">

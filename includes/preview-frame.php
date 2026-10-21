@@ -40,11 +40,19 @@ function cnl_editor_is_preview_frame_request() {
 		return false;
 	}
 
-	return '1' === filter_input(
-		INPUT_GET,
-		'cnl-editor-preview',
-		FILTER_SANITIZE_FULL_SPECIAL_CHARS
-	);
+	// Asked for every block the front end renders, and the answer can't
+	// change during a request.
+	static $is_preview = null;
+
+	if ( null === $is_preview ) {
+		$is_preview = '1' === filter_input(
+			INPUT_GET,
+			'cnl-editor-preview',
+			FILTER_SANITIZE_FULL_SPECIAL_CHARS
+		);
+	}
+
+	return $is_preview;
 }
 
 /**

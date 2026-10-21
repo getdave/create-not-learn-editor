@@ -115,6 +115,12 @@ Write components in JSX, not `createElement` calls. `@wordpress/build` only pars
 
 Root `routes/*` files should stay thin re-export wrappers around the source route modules. Do not put substantive route implementation in the wrappers unless the build tool requires it.
 
+`@wordpress/build` bundles each route module separately, with its own copy of everything it imports. So screens that share source share one module: `routes/static` serves Design, Colors, Fonts, Name & logo and the Advanced lists, `routes/site-part` serves Header, Footer and Header & footer, and `routes/content` serves both content paths. `cnl_editor_get_routes()` maps each path to its module, and the screen is picked by path. Add a screen to one of these rather than giving it a wrapper of its own that bundles the same code again.
+
+DataViews is the biggest package the editor uses, so it lives in its own script module, `packages/dataviews`, which screens load with `useDataViews()` from `src/use-dataviews.js` the first time they show a list. Don't import `@wordpress/dataviews` anywhere else.
+
+Don't import `@wordpress/block-library` either: any import puts the whole library on every screen's page load. The editor's assets load and register WordPress's blocks; wait for `useEditorAssets()` before building blocks, as the Menus edit canvas does.
+
 ## Site Mutation Rules
 
 - Do not mutate site defaults when the editor loads.

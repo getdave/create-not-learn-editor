@@ -51,6 +51,7 @@ import {
 	getChat,
 	savePlacement,
 	useChat,
+	useIsChatOpen,
 } from './store';
 
 // How long the prompt at the foot of a screen shows the chat starting up.
@@ -265,7 +266,7 @@ function ChatPanel() {
  * @return {Element} The button.
  */
 export function ChatToggle() {
-	const { isOpen } = useChat();
+	const isOpen = useIsChatOpen();
 
 	return (
 		<Button
@@ -289,7 +290,7 @@ export function ChatToggle() {
  * @return {?Element} The prompt.
  */
 function StageHelp() {
-	const { isOpen } = useChat();
+	const isOpen = useIsChatOpen();
 	const [ isOpening, setIsOpening ] = useState( false );
 
 	// Ready to open again once the chat has been closed.

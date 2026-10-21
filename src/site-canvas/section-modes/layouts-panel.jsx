@@ -21,6 +21,7 @@ import {
 	createContext,
 	forwardRef,
 	useContext,
+	useMemo,
 	useState,
 } from '@wordpress/element';
 import {
@@ -405,6 +406,8 @@ function SectionOptions( { clientId, onFreeform, onReplace } ) {
 	const { replaceBlock } = useDispatch( blockEditorStore );
 	const updateColors = useUpdateColors();
 	const { block, colors, layouts } = useSectionVariations( clientId );
+	// Kept from render to render, so the preview isn't rebuilt each time.
+	const onlyBlocks = useMemo( () => [ block ], [ block ] );
 
 	return (
 		<>
@@ -422,7 +425,7 @@ function SectionOptions( { clientId, onFreeform, onReplace } ) {
 			) : (
 				block && (
 					<OnlyLayout
-						blocks={ [ block ] }
+						blocks={ onlyBlocks }
 						label={ __( 'Current layout' ) }
 					/>
 				)

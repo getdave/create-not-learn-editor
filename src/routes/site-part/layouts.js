@@ -9,9 +9,13 @@
 /**
  * WordPress dependencies
  */
-import { parse as parseBlocks, serialize } from '@wordpress/blocks';
+import {
+	parse as parseBlocks,
+	serialize,
+	store as blocksStore,
+} from '@wordpress/blocks';
 import { store as coreDataStore } from '@wordpress/core-data';
-import { useSelect } from '@wordpress/data';
+import { select as selectFrom, useSelect } from '@wordpress/data';
 import { useMemo } from '@wordpress/element';
 
 /**
@@ -143,6 +147,31 @@ function withoutPartColors( blocks ) {
 	} );
 }
 
+/*
+ * Each layout's markup as compared, by pattern. Working it out parses and
+ * serialises the layout, and the part is compared against every layout each
+ * time it changes. The patterns come from the store, which replaces rather
+ * than changes them. Parsing depends on the blocks registered, which the
+ * editor's assets add after the screen first asks, so an answer is only
+ * kept while they stay the same.
+ */
+const comparablePatterns = new WeakMap();
+
+function getComparablePattern( pattern ) {
+	const blockTypes = selectFrom( blocksStore ).getBlockTypes();
+	const cached = comparablePatterns.get( pattern );
+
+	if ( cached?.blockTypes === blockTypes ) {
+		return cached.value;
+	}
+
+	const value = toComparable( getRawContent( pattern.content ) );
+
+	comparablePatterns.set( pattern, { blockTypes, value } );
+
+	return value;
+}
+
 function toComparable( content ) {
 	return normalize(
 		serialize(
@@ -193,8 +222,7 @@ export function getCurrentPatternName( content, patterns ) {
 
 	return (
 		patterns.find(
-			( pattern ) =>
-				toComparable( getRawContent( pattern.content ) ) === comparable
+			( pattern ) => getComparablePattern( pattern ) === comparable
 		)?.name || null
 	);
 }
@@ -222,28 +250,35 @@ export function getSitePartContent( record ) {
  *                  `hasResolved` is whether the theme's patterns have loaded.
  */
 export function useSitePartLayouts( area, id ) {
-	const { content, hasResolved, patterns } = useSelect(
+	const { blocks, hasResolved, patterns, rawContent } = useSelect(
 		( select ) => {
 			const store = select( coreDataStore );
+			// Read by reference, and serialised below only when it changes,
+			// rather than on every change to any store.
+			const record = id
+				? store.getEditedEntityRecord(
+						'postType',
+						'wp_template_part',
+						id
+					)
+				: undefined;
 
 			return {
-				content: id
-					? getSitePartContent(
-							store.getEditedEntityRecord(
-								'postType',
-								'wp_template_part',
-								id
-							)
-						)
-					: '',
+				blocks: record?.blocks,
 				hasResolved: store.hasFinishedResolution(
 					'getBlockPatterns',
 					[]
 				),
 				patterns: store.getBlockPatterns?.() || EMPTY_ARRAY,
+				rawContent: record?.content,
 			};
 		},
 		[ id ]
+	);
+	const content = useMemo(
+		() =>
+			id ? getSitePartContent( { blocks, content: rawContent } ) : '',
+		[ blocks, id, rawContent ]
 	);
 	const layouts = useMemo(
 		() => getSitePartPatterns( patterns, area ),

@@ -65,9 +65,11 @@ export function parseTarget( value ) {
 export function useHomepageState() {
 	const {
 		canSwitch,
-		frontPage,
+		frontId,
+		frontState,
+		frontStatus,
+		frontTitle,
 		latestPostsTemplateId,
-		page,
 		saved,
 		showOnFront,
 		pageOnFront,
@@ -79,15 +81,23 @@ export function useHomepageState() {
 		const args = [ 'postType', 'page', id ];
 		// Asked for, so the edited record below is there to read.
 		const record = id ? store.getEntityRecord( ...args ) : undefined;
-		let front;
+		// Only the fields used are read: the page's edited record is new on
+		// every keystroke while the homepage is being edited.
+		let front = {};
 
 		if ( id && record ) {
-			front = store.getEditedEntityRecord( ...args );
+			const page = store.getEditedEntityRecord( ...args );
+
+			front = {
+				frontState: 'found',
+				frontStatus: page?.status,
+				frontTitle: page?.title,
+			};
 		} else if (
 			id &&
 			store.hasFinishedResolution( 'getEntityRecord', args )
 		) {
-			front = null;
+			front = { frontState: 'missing' };
 		}
 
 		return {
@@ -95,16 +105,26 @@ export function useHomepageState() {
 				kind: 'root',
 				name: 'site',
 			} ),
-			frontPage: front,
+			frontId: id,
 			latestPostsTemplateId: store.getDefaultTemplateId( {
 				slug: 'front-page',
 			} ),
-			page: front || null,
 			pageOnFront: edited?.page_on_front,
 			saved: savedSite,
 			showOnFront: edited?.show_on_front,
+			...front,
 		};
 	}, [] );
+	// The page's record, as far as the homepage reads it: null when it doesn't
+	// exist, undefined while loading.
+	const frontPage = useMemo( () => {
+		if ( frontState === 'found' ) {
+			return { id: frontId, status: frontStatus, title: frontTitle };
+		}
+
+		return frontState === 'missing' ? null : undefined;
+	}, [ frontId, frontState, frontStatus, frontTitle ] );
+	const page = frontPage || null;
 	const hasFrontPageTemplate = isFrontPageTemplateId( latestPostsTemplateId );
 
 	return useMemo(
