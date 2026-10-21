@@ -8,8 +8,7 @@
 
 // The bars are the design system's surfaces: white, edged and lifted, as the
 // editor's other floating panels are, with core's buttons, as the rest of the
-// editor has. Edit design's panel is the same surface in the design system's
-// dark theme, which `layouts-panel.jsx` sets, so these tokens turn dark in it.
+// editor has. Edit design's bar is the same surface.
 $surface: var(--wpds-color-background-surface-neutral);
 $ink: var(--wpds-color-foreground-content-neutral);
 $ink-weak: var(--wpds-color-foreground-content-neutral-weak);
@@ -94,11 +93,9 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 
 .cnl-section-modes__tint,
 .cnl-section-modes__outline,
-.cnl-section-modes__item,
-.cnl-section-modes__bin,
 .cnl-section-modes__tab,
 .cnl-section-modes__add-section,
-.cnl-section-modes__panel,
+.cnl-section-modes__design,
 .cnl-section-modes__mode-bar {
 	animation: cnl-section-modes-rise $duration-md $easing-expressive both;
 }
@@ -297,78 +294,62 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	pointer-events: auto;
 }
 
-// A header or footer's note that every page has it, on the bar or panel.
+// A header or footer's note that every page has it, on a bar.
 .cnl-section-modes .cnl-section-modes__sitewide {
 	align-self: center;
 	white-space: nowrap;
 }
 
-/* Edit design's panel. */
-.cnl-section-modes__panel {
+/*
+ * Edit design's bar, where the bar over the section was: a row of the
+ * design choices, or of the one drilled into, with its options, and the
+ * tray of layouts under it when Layout is.
+ */
+.cnl-section-modes__design {
 	position: absolute;
 	display: flex;
 	flex-direction: column;
-	align-items: center;
-	gap: var(--wpds-dimension-gap-md);
 	box-sizing: border-box;
-	max-width: min(calc(100% - 32px), 760px);
+	width: max-content;
 	overflow-y: auto;
-	padding: var(--wpds-dimension-padding-md);
+	padding: $bar-padding;
 	transform: translateX(-50%);
 	border: $edge;
-	// Rounded as the editor's popovers are, with room around its buttons.
-	border-radius: var(--wpds-border-radius-md);
-	// See-through, the page blurred behind it so its words stay clear.
-	background: color-mix(in srgb, #{$surface} 85%, transparent);
+	border-radius: $bar-radius;
+	background: $surface;
 	color: $ink;
 	box-shadow: $lift;
-	backdrop-filter: blur(16px) saturate(1.2);
 	pointer-events: auto;
 
-	// The design system's buttons, cornered as the bars' are.
-	.cnl-section-modes__text-button,
-	.cnl-section-modes__done,
-	.cnl-section-modes__carousel-arrow {
-		border-radius: $button-radius;
+	.cnl-section-modes__sitewide {
+		margin: var(--wpds-dimension-gap-xs) auto 0;
 	}
 }
 
-.cnl-section-modes__panel-head {
+.cnl-section-modes__design-row {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	justify-content: space-between;
-	gap: var(--wpds-dimension-gap-lg);
-	width: 100%;
-	box-sizing: border-box;
+	// Back always at the far left, whatever follows it.
+	justify-content: flex-start;
+	gap: var(--wpds-dimension-gap-xs);
+
+	// A choice's options, set apart from the way back.
+	> .cnl-section-modes__swatches {
+		gap: var(--wpds-dimension-gap-xs);
+		margin-inline-start: var(--wpds-dimension-gap-sm);
+	}
 }
 
-.cnl-section-modes__panel-actions {
+.cnl-section-modes__design-tray {
 	display: flex;
-	align-items: center;
-	gap: var(--wpds-dimension-gap-sm);
-}
+	justify-content: center;
+	margin-top: $bar-padding;
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-sm);
+	border-top: $edge;
 
-// Layouts and Colours, named alike, at the start of their rows.
-.cnl-section-modes__panel-heading {
-	align-self: flex-start;
-	color: $ink;
-	font-size: var(--wpds-typography-font-size-md);
-	font-weight: var(--wpds-typography-font-weight-emphasis);
-}
-
-// "Need more control? Edit freeform", under the layouts.
-.cnl-section-modes__freeform {
-	margin: 0;
-	color: $ink-weak;
-	font-size: var(--wpds-typography-font-size-sm);
-}
-
-.cnl-section-modes .cnl-section-modes__link {
-	color: var(--wpds-color-foreground-interactive-brand);
-	font-size: inherit;
-
-	&:hover:not(:disabled) {
-		color: var(--wpds-color-foreground-interactive-brand-active);
+	.cnl-section-modes__carousel-arrow {
+		border-radius: $button-radius;
 	}
 }
 
@@ -398,12 +379,18 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	max-width: 100%;
 }
 
-// Exactly a row's cards wide, so the arrows sit beside them.
+// Exactly a row's cards wide, so the arrows sit beside them, with room
+// round them for a card's ring, which sits just outside its edge. Less room
+// than the gap between cards, so none of the next card shows. Clipped
+// rather than hidden, so focus can never scroll it off a card's edge.
 .cnl-section-modes__carousel-viewport {
-	width: calc(var(--cnl-layouts-per-slide) * 136px + (var(--cnl-layouts-per-slide) - 1) * 8px);
+	width: calc(var(--cnl-layouts-per-slide) * 136px + (var(--cnl-layouts-per-slide) - 1) * 8px + 6px);
 	min-width: 0;
 	max-width: 100%;
-	overflow: hidden;
+	box-sizing: border-box;
+	margin: -3px;
+	padding: 3px;
+	overflow: clip;
 }
 
 // Every card in one strip, slid a card and its gap at a time.
@@ -452,14 +439,6 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 		outline: $focus-ring;
 		outline-offset: 2px;
 	}
-}
-
-.cnl-section-modes__colors {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: var(--wpds-dimension-gap-sm);
-	width: 100%;
 }
 
 /*
@@ -523,8 +502,8 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 .cnl-section-modes .components-button.cnl-section-modes__swatch {
 	justify-content: center;
 	height: auto;
-	min-height: 40px;
-	padding: 5px;
+	min-height: 32px;
+	padding: 3px;
 	border: $edge;
 	border-radius: 999px;
 	outline: 2px solid transparent;
@@ -559,10 +538,10 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	display: flex;
 
 	.component-color-indicator {
-		width: 28px;
-		height: 28px;
-		// Ringed in the panel's colour, so overlapping circles stay apart,
-		// and edged, so dark colours still show on the dark panel.
+		width: 24px;
+		height: 24px;
+		// Ringed in the bar's colour, so overlapping circles stay apart,
+		// and edged, so light colours still show on the white bar.
 		box-shadow:
 			0 0 0 1.5px $surface,
 			inset 0 0 0 1px $stroke-control;
@@ -577,46 +556,38 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	padding: 0 8px;
 }
 
+// The default: its colours, and its name in their place while pointed at
+// or focused, both in one spot, so the pill keeps its size. Its name alone
+// when the page has no colours to show.
+.cnl-section-modes .components-button.cnl-section-modes__swatch.is-default {
+	display: inline-grid;
+
+	> * {
+		grid-area: 1 / 1;
+		justify-self: center;
+	}
+
+	.cnl-section-modes__swatch-colors + .cnl-section-modes__swatch-default {
+		visibility: hidden;
+	}
+
+	&:hover,
+	&:focus-visible {
+
+		.cnl-section-modes__swatch-colors {
+			visibility: hidden;
+		}
+
+		.cnl-section-modes__swatch-default {
+			visibility: visible;
+		}
+	}
+}
+
 // A width: its icon and name in the same pill.
 .cnl-section-modes .components-button.cnl-section-modes__width {
 	gap: var(--wpds-dimension-gap-xs);
 	padding-inline: 8px 14px;
-}
-
-/* Each item, with its bin. */
-.cnl-section-modes__item {
-	position: absolute;
-	box-sizing: border-box;
-	border-radius: var(--wpds-border-radius-sm);
-	outline: 1.5px dashed color-mix(in srgb, #{$theme} 50%, transparent);
-	outline-offset: 4px;
-
-	&.is-doomed {
-		outline: var(--wpds-border-width-sm) solid $error-stroke;
-		background: $error-wash;
-	}
-}
-
-.cnl-section-modes .cnl-section-modes__bin {
-	position: absolute;
-	margin: -16px 0 0 -16px;
-	border: $edge;
-	background: $surface;
-	color: $ink;
-	box-shadow: $lift;
-
-	// A 44px target.
-	&::before {
-		content: "";
-		position: absolute;
-		inset: -6px;
-	}
-
-	&:hover:not(:disabled),
-	&:focus-visible {
-		border-color: $error-stroke;
-		color: $error-ink;
-	}
 }
 
 /*
