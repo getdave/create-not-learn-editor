@@ -5,7 +5,8 @@
  * It is a site canvas: Browse shows the saved page as visitors see it, Edit
  * changes it in place, and Compose works on its sections. Following a link in
  * the preview to another page opens that page in the sidebar, and picking a
- * page there moves the preview.
+ * page there moves the preview. The list of pages only ever browses: editing
+ * opens the page in the sidebar, and going back to the list browses again.
  *
  * In Edit, a section picked in the sidebar is marked on the page, and while a
  * section is being added or dragged, a marker shows where it will land. In
@@ -23,7 +24,12 @@ import { useNavigate, useSearch } from '@wordpress/route';
  * Internal dependencies
  */
 import { settings } from '../../../settings';
-import { MODE_BROWSE, useCanvasMode } from '../../../site-canvas/mode';
+import {
+	MODE_BROWSE,
+	MODE_COMPOSE,
+	MODE_EDIT,
+	useCanvasMode,
+} from '../../../site-canvas/mode';
 import {
 	SiteCanvas,
 	useCanvasDocument,
@@ -45,6 +51,7 @@ import {
 } from './page-sections';
 import { getPagePreviewUrl } from './preview-url';
 import { sectionBridge, useSectionBridge } from './section-bridge';
+import { SECTIONS_VIEW } from './sections-view';
 import {
 	__,
 	Button,
@@ -858,6 +865,66 @@ function PagesCanvas() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [ previewPageId ] );
 
+	// The sidebar follows the canvas's mode. Editing the page on show opens
+	// it in the sidebar, and going back to the list browses again, as does
+	// arriving at the list from another screen while editing.
+	const wasEditing = useRef( isEditing );
+	useEffect( () => {
+		if ( isEditing && ! drilled ) {
+			if ( wasEditing.current ) {
+				canvas.requestMode( MODE_BROWSE );
+			} else {
+				navigate( {
+					search: {
+						...searchParams,
+						postId: target,
+						previewId: target,
+					},
+					to: LIST_PATH,
+				} );
+			}
+		}
+
+		wasEditing.current = isEditing;
+		// Only a move between the list and a page, or between modes, should
+		// switch the other.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ drilled, isEditing ] );
+
+	// A page's sections are open in the sidebar while the canvas is zoomed
+	// out to them. Whichever of the two moves first, the other follows: the
+	// zoom changing opens or closes them, and the address changing, as the
+	// breadcrumbs do, zooms in or out.
+	const isComposing = canvas.isComposing;
+	const showsSections =
+		Boolean( drilled ) && searchParams.view === SECTIONS_VIEW;
+	const wasComposing = useRef( false );
+	const wasShowingSections = useRef( false );
+	useEffect( () => {
+		if ( drilled && isComposing !== wasComposing.current ) {
+			if ( isComposing !== showsSections ) {
+				navigate( {
+					search: {
+						...searchParams,
+						view: isComposing ? SECTIONS_VIEW : undefined,
+					},
+					to: LIST_PATH,
+				} );
+			}
+		} else if (
+			drilled &&
+			showsSections !== wasShowingSections.current &&
+			showsSections !== isComposing
+		) {
+			canvas.requestMode( showsSections ? MODE_COMPOSE : MODE_EDIT );
+		}
+
+		wasComposing.current = isComposing;
+		wasShowingSections.current = showsSections;
+		// Only the zoom or the address changing should move the other.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ drilled, isComposing, showsSections ] );
+
 	// A section picked, or about to be added, can only be marked in the
 	// editor, in Edit or Compose.
 	useEffect( () => {
@@ -892,15 +959,6 @@ function PagesCanvas() {
 						homepage={ isHomepage ? homepage : null }
 						page={ page }
 					/>
-				}
-				editorChildren={
-					! drilled && (
-						<p className="cnl-pages-canvas__hint">
-							{ __(
-								'Point at a section to choose how to edit it.'
-							) }
-						</p>
-					)
 				}
 				editorRef={ editorRef }
 			/>
