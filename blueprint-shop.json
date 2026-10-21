@@ -1,0 +1,118 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "Create Not Learn Editor (getdave/woo-shop-management) with a shop",
+		"author": "getdave",
+		"description": "Create Not Learn Editor from the getdave/woo-shop-management branch, with Gutenberg, the Mainstay theme and the Fernhouse demo site, plus WooCommerce and a demo shop."
+	},
+	"landingPage": "/wp-admin/admin.php?page=create-not-learn-editor&p=%2Fshop",
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	},
+	"features": {
+		"networking": true
+	},
+	"steps": [
+		{
+			"step": "login"
+		},
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/mu-plugins/cnl-playground-canvas-fix.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/woo-shop-management/playground-canvas-fix.php"
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://downloads.wordpress.org/plugin/gutenberg.24.0.0.zip"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing Gutenberg"
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/woo-shop-management/create-not-learn-editor.zip"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing Create Not Learn Editor"
+			}
+		},
+		{
+			"step": "installTheme",
+			"themeData": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/woo-shop-management/mainstay.zip"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing the Mainstay theme"
+			}
+		},
+		{
+			"step": "writeFile",
+			"path": "/tmp/cnl-demo-site-seed.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/woo-shop-management/seed.php"
+			}
+		},
+		{
+			"step": "wp-cli",
+			"command": "wp eval-file /tmp/cnl-demo-site-seed.php",
+			"progress": {
+				"caption": "Setting up the Fernhouse demo site"
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "wordpress.org/plugins",
+				"slug": "woocommerce"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing WooCommerce"
+			}
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php require_once '/wordpress/wp-load.php'; WC_Install::create_pages(); update_option( 'woocommerce_coming_soon', 'no' ); update_option( 'woocommerce_onboarding_profile', array( 'skipped' => true ) ); delete_transient( '_wc_activation_redirect' );",
+			"progress": {
+				"caption": "Adding the shop's pages"
+			}
+		},
+		{
+			"step": "writeFile",
+			"path": "/tmp/cnl-demo-shop-seed.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/woo-shop-management/seed-shop.php"
+			}
+		},
+		{
+			"step": "wp-cli",
+			"command": "wp eval-file /tmp/cnl-demo-shop-seed.php",
+			"progress": {
+				"caption": "Stocking the Fernhouse shop"
+			}
+		}
+	]
+}
