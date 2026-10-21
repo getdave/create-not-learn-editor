@@ -1545,7 +1545,10 @@ export const SKILLS = {
 				? {
 						name: __( 'Pages' ),
 						path: '/types/page/list/all',
-						search: { previewId: params.pageId },
+						search: {
+							postId: params.pageId,
+							previewId: params.pageId,
+						},
 					}
 				: null,
 		hasFooter: ( { choosePage } ) => ! choosePage,

@@ -5,14 +5,16 @@
 /**
  * WordPress dependencies
  */
-import { useNavigate } from '@wordpress/route';
+import { useNavigate, useSearch } from '@wordpress/route';
 import { Preview as LazyEditorPreview } from '@wordpress/lazy-editor';
 
 /**
  * Internal dependencies
  */
 import { useSiteTrail } from '../../../site-trail';
+import ScreenLinks from '../../../screen-links';
 import { MODE_COMPOSE, useCanvasMode } from '../../../site-canvas/mode';
+import { sectionsIcon } from '../../../site-canvas/icons';
 import { getPatternTitle } from '../page-layouts';
 import {
 	createBlankSection,
@@ -25,11 +27,13 @@ import { getPageAncestorTitles } from './page-tree';
 import { getSectionTitle, insertItems } from './page-sections';
 import { sectionBridge } from './section-bridge';
 import { LIST_PATH } from './page-tree-list';
+import { getPageSearchString, SECTIONS_VIEW } from './sections-view';
 import { PageOptions } from './page-options';
 import { MemoizedPageLayouts } from './page-layout-picker';
 import { SectionList } from './section-list';
 import {
 	__,
+	_n,
 	blockEditorStore,
 	Breadcrumbs,
 	Button,
@@ -85,6 +89,33 @@ function selectSectionWhenEditorLoads( index ) {
 	window.setTimeout( attempt, 300 );
 }
 
+/**
+ * What the Sections link says about the page's sections.
+ *
+ * @param {boolean} isReady Whether the page's sections have loaded.
+ * @param {number}  count   How many there are.
+ * @return {string} One short line.
+ */
+function getSectionsDescription( isReady, count ) {
+	if ( ! isReady ) {
+		return __( 'See every part of this page.' );
+	}
+
+	if ( ! count ) {
+		return __( 'None yet. Add the first one.' );
+	}
+
+	return sprintf(
+		/* translators: %d: number of sections. */
+		_n(
+			'%d section. Move it, or add more.',
+			'%d sections. Move them, or add more.',
+			count
+		),
+		count
+	);
+}
+
 /*
  * ---------------------------------------------------------------------------
  * A page, opened up.
@@ -94,9 +125,9 @@ function selectSectionWhenEditorLoads( index ) {
 /**
  * A page opened up: what it is, and the sections it is made of.
  *
- * The list of sections is shown only while the canvas is in Compose, which
- * works on the same sections on the page itself. It may not be needed there
- * at all.
+ * Its sections open from a link, which zooms the canvas out to them and lists
+ * them in place of the page's details. The list is shown only while the canvas
+ * is in Compose, which works on the same sections on the page itself.
  *
  * The homepage's page opens as the homepage, with what the homepage shows
  * above the page's own details.
@@ -113,6 +144,7 @@ export function PageDetailStage( {
 	pageId,
 } ) {
 	const navigate = useNavigate();
+	const searchParams = useSearch( { strict: false } );
 	const siteTrail = useSiteTrail();
 	const { pages } = usePages();
 	const { blocks, isReady, setBlocks } = usePageSections( pageId );
@@ -208,7 +240,18 @@ export function PageDetailStage( {
 						...siteTrail,
 						{ label: __( 'Pages' ), to: LIST_PATH },
 						...ancestors.map( ( label ) => ( { label } ) ),
-						{ label: title },
+						// The sections lead back to the page's details.
+						...( isComposing
+							? [
+									{
+										label: title,
+										to: `${ LIST_PATH }?${ getPageSearchString(
+											searchParams
+										) }`,
+									},
+									{ label: __( 'Sections' ) },
+								]
+							: [ { label: title } ] ),
 					] }
 				/>
 			}
@@ -217,14 +260,36 @@ export function PageDetailStage( {
 			headingLevel={ 2 }
 		>
 			<div className="cnl-pages-detail__body">
-				{ intro }
-				<MemoizedPageLayouts
-					isFrontPage={ isHomepage }
-					pageId={ pageId }
-					sectionCount={ blocks.length }
-					slug={ page?.slug }
-					template={ page?.template }
-				/>
+				{ ! isComposing && intro }
+				{ ! isComposing && (
+					<MemoizedPageLayouts
+						isFrontPage={ isHomepage }
+						pageId={ pageId }
+						sectionCount={ blocks.length }
+						slug={ page?.slug }
+						template={ page?.template }
+					/>
+				) }
+				{ ! isComposing && (
+					<ScreenLinks
+						label={ __( 'More about this page' ) }
+						links={ [
+							{
+								description: getSectionsDescription(
+									isReady,
+									blocks.length
+								),
+								icon: sectionsIcon,
+								search: {
+									...searchParams,
+									view: SECTIONS_VIEW,
+								},
+								title: __( 'Edit sections' ),
+								to: LIST_PATH,
+							},
+						] }
+					/>
+				) }
 				{ isComposing && (
 					<section
 						aria-label={ __( 'Sections' ) }
