@@ -13,11 +13,11 @@
 ?>
 <!-- wp:group {"metadata":{"name":"Newsletter"},"align":"full","className":"is-style-section-highlight","style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60"},"blockGap":"var:preset|spacing|30"}},"layout":{"type":"constrained"}} -->
 <div class="wp-block-group alignfull is-style-section-highlight" style="padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)"><!-- wp:heading {"style":{"typography":{"textAlign":"center"}}} -->
-<h2 class="wp-block-heading has-text-align-center">Plant notes, once a month</h2>
+<h2 class="wp-block-heading has-text-align-center">Hear about new workshops first</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph {"style":{"typography":{"textAlign":"center"}}} -->
-<p class="has-text-align-center">Seasonal care tips, new arrivals and first pick of workshop places, sent on the first Sunday of each month.</p>
+<p class="has-text-align-center">New dates go to the newsletter a week before anyone else, with a few seasonal plant tips. Sent on the first Sunday of each month.</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:buttons {"style":{"spacing":{"margin":{"top":"var:preset|spacing|40"}}},"layout":{"type":"flex","justifyContent":"center"}} -->
