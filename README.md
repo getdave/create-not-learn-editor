@@ -201,6 +201,16 @@ https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.co
 
 When a pull request opens, `.github/workflows/playground-links.yml` comments the link on it. The demo follows the branch, updating a few minutes after each push, and is deleted with it.
 
+#### Shop demos
+
+Every build, trunk's, a branch's or a release's, also has a shop demo: the same site with WooCommerce and the Fernhouse shop added, opening on the Shop screen. Swap `blueprint.json` for `blueprint-shop.json` in its link. Trunk's is
+
+```text
+https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/getdave/create-not-learn-editor/playground-build/blueprint-shop.json
+```
+
+`scripts/playground-build.sh` writes it from the build's blueprint and the steps in `demos/shop-steps.json`, so the two demos never drift apart.
+
 #### Release demos
 
 The trunk demo changes with every push, which is no good for a user test. For a demo that stays put, tag a release and push the tag:

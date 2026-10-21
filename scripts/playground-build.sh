@@ -17,6 +17,9 @@
 # blueprint.json of its own, rewritten from it to install from <ref>. A release
 # also pins WordPress to the version wp-env runs, so it stays the same while
 # WordPress moves on.
+#
+# Every kind also gets a blueprint-shop.json: the same demo with WooCommerce
+# and the Fernhouse shop added, from the steps in demos/shop-steps.json.
 
 set -euo pipefail
 
@@ -43,7 +46,7 @@ esac
 mkdir "$out"
 out=$(cd "$out" && pwd)
 cp "${ZIP_NAME:-create-not-learn-editor.zip}" "$out/create-not-learn-editor.zip"
-cp scripts/demo-site/seed.php demos/playground-canvas-fix.php "$out/"
+cp scripts/demo-site/seed.php scripts/demo-site/seed-shop.php demos/playground-canvas-fix.php "$out/"
 (cd themes && zip -qr "$out/mainstay.zip" mainstay)
 
 wp=''
@@ -90,10 +93,35 @@ if [ "$kind" != trunk ]; then
 	fi
 fi
 
+# The shop demo, from this build's blueprint. It isn't kept in the repo, so
+# trunk's is written here too, and it installs from the playground-build
+# branch as trunk's blueprint does.
+base=demos/blueprint.json
+if [ "$kind" != trunk ]; then
+	base="$out/blueprint.json"
+fi
+jq --tab \
+	--slurpfile shop demos/shop-steps.json \
+	--arg ref "$ref" \
+	--arg kind "$kind" '
+		.steps += $shop[0].steps
+		| .landingPage = $shop[0].landingPage
+		| .meta.title += " with a shop"
+		| .meta.description |= sub("\\.$"; ", plus WooCommerce and a demo shop.")
+		| if $kind != "trunk"
+			then walk(if type == "string" then sub("/playground-build/"; "/\($ref)/") else . end)
+			else . end
+	' "$base" > "$out/blueprint-shop.json"
+
+if [ "$kind" != trunk ] && grep -q "/playground-build/" "$out/blueprint-shop.json"; then
+	echo "The shop blueprint still installs from the playground-build branch." >&2
+	exit 1
+fi
+
 cat > "$out/README.md" <<EOF
 # Playground build
 
 Generated from [\`${sha:0:7}\`](https://github.com/$repo/commit/$sha) by \`.github/workflows/plugin-zip.yml\`. $about
 
-These are the files $files installs.
+These are the files $files installs. [\`blueprint-shop.json\`](blueprint-shop.json) installs them too, with WooCommerce and a demo shop added.
 EOF

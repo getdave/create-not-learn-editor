@@ -56,6 +56,7 @@ Always run wp-env through `npm run wp-env ...`, not the `wp-env` binary. `npm ru
 - Every other branch publishes a demo to the ref `refs/playground/<branch>`, which is neither a branch nor a tag, and a `v*` tag publishes a release demo to a `playground-v*` tag that also pins WordPress to the `scripts/wp-env.mjs` version. `scripts/playground-build.sh` generates their blueprints from `demos/blueprint.json`. Never create, push to or move `refs/playground/*` refs or `playground-v*` tags by hand. Keep the URLs in `demos/blueprint.json` pointing at `/playground-build/`, as that is what the script rewrites.
 - Keep the blueprint's Gutenberg version in step with `.wp-env.json`.
 - Anything the demo site needs at runtime must be in the plugin zip, the Mainstay theme, `scripts/demo-site/seed.php` or `demos/playground-canvas-fix.php`, as those are all the blueprint gets.
+- Every build also publishes `blueprint-shop.json`, the same demo with WooCommerce and a demo shop. `scripts/playground-build.sh` writes it from the build's blueprint plus the steps in `demos/shop-steps.json`, which run `scripts/demo-site/seed-shop.php`. Keep WooCommerce out of `demos/blueprint.json`, as the main demo should stay what the editor needs.
 - `demos/playground-canvas-fix.php` is a demo-only must-use plugin that stops the edit canvas staying blank in Playground. See its docblock. It never ships in the plugin.
 
 ## Development Commands
