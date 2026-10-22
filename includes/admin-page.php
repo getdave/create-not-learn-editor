@@ -308,9 +308,12 @@ function cnl_editor_enqueue_full_page_assets( $routes, $menu_items ) {
 		return false;
 	}
 
-	if ( function_exists( 'wp_enqueue_command_palette_assets' ) ) {
-		wp_enqueue_command_palette_assets();
-	}
+	/*
+	 * The command palette's styles only. App init mounts the palette with the
+	 * editor's own commands, so core's, which add every wp-admin menu item and
+	 * Site Editor screen, are left out.
+	 */
+	wp_enqueue_style( 'wp-commands' );
 
 	wp_enqueue_media();
 
