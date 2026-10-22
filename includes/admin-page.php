@@ -236,6 +236,7 @@ function cnl_editor_get_app_settings() {
 		'pageOnFront'        => (int) get_option( 'page_on_front' ),
 		'postTypes'          => cnl_editor_get_content_post_type_data(),
 		'editablePostTypes'  => cnl_editor_get_editable_post_type_data(),
+		'shop'               => cnl_editor_get_shop_settings(),
 		'navigationRestBase' => $navigation_post_type && $navigation_post_type->rest_base
 			? $navigation_post_type->rest_base
 			: 'navigation',
@@ -720,7 +721,7 @@ function cnl_editor_enqueue_built_styles() {
  * @return array[] Module definitions.
  */
 function cnl_editor_get_module_map() {
-	return array(
+	$modules = array(
 		array(
 			'id'   => '@create-not-learn-editor/app-init',
 			'path' => 'modules/app-init/index.min',
@@ -878,6 +879,17 @@ function cnl_editor_get_module_map() {
 			'path' => 'routes/post-new/route.min',
 		),
 	);
+
+	foreach ( array( 'shop', 'shop-products', 'shop-pages' ) as $shop_route ) {
+		foreach ( array( 'route', 'content' ) as $part ) {
+			$modules[] = array(
+				'id'   => "create-not-learn-editor/routes/{$shop_route}/{$part}",
+				'path' => "routes/{$shop_route}/{$part}.min",
+			);
+		}
+	}
+
+	return $modules;
 }
 
 /**
@@ -886,7 +898,7 @@ function cnl_editor_get_module_map() {
  * @return array[] Route definitions.
  */
 function cnl_editor_get_routes() {
-	return array(
+	$routes = array(
 		array(
 			'path'           => '/',
 			'route_module'   => 'create-not-learn-editor/routes/home/route',
@@ -984,6 +996,8 @@ function cnl_editor_get_routes() {
 			'content_module' => 'create-not-learn-editor/routes/templates/content',
 		),
 	);
+
+	return array_merge( $routes, cnl_editor_get_shop_routes() );
 }
 
 /**
@@ -1007,8 +1021,14 @@ function cnl_editor_get_menu_items() {
 			'to'    => '/site-overview',
 		),
 	);
+	$items = array_merge( $items, cnl_editor_get_shop_menu_items() );
 
 	foreach ( $post_types as $post_type ) {
+		// The shop has its own Products screen.
+		if ( 'product' === $post_type['name'] && cnl_editor_has_shop() ) {
+			continue;
+		}
+
 		$is_pages = 'page' === $post_type['name'];
 		$item     = array(
 			'id'    => $is_pages ? 'pages' : 'content-' . $post_type['name'],

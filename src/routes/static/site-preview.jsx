@@ -89,16 +89,30 @@ function EmptyPreview() {
  * The changes made here, to the site's look and identity, stay unsaved until
  * the user saves them, and only the editor shows those, not Browse.
  *
+ * @param {Object}   props                  Component props.
+ * @param {string}   props.url              Page to show, the front page unless
+ *                                          given.
+ * @param {?Object}  props.pinnedEntity     `{ postType, postId }` for Edit
+ *                                          to change, rather than what `url`
+ *                                          shows.
+ * @param {Function} props.isShownInPreview See `useSiteCanvas`.
+ * @param {boolean}  props.hasSections      See `SiteCanvas`.
  * @return {Element} The preview canvas.
  */
-export default function SitePreviewCanvas() {
-	const canvas = useSiteCanvas( { url: settings.homeUrl } );
+export default function SitePreviewCanvas( {
+	hasSections,
+	isShownInPreview,
+	pinnedEntity = null,
+	url = settings.homeUrl,
+} ) {
+	const canvas = useSiteCanvas( { isShownInPreview, pinnedEntity, url } );
 
 	return (
 		<SiteCanvas
 			canvas={ canvas }
 			document={ <PreviewDocument canvas={ canvas } /> }
 			emptyPreview={ <EmptyPreview /> }
+			hasSections={ hasSections }
 		/>
 	);
 }

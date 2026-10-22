@@ -17,3 +17,12 @@
 .cnl-template-part-edit-button.components-button {
 	color: $cnl-global;
 }
+
+// "Change price", from a product's price block. See `product-blocks.jsx`.
+.cnl-product-price-popover__fields {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-md);
+	width: 280px;
+	padding: var(--wpds-dimension-padding-md);
+}

@@ -29,9 +29,11 @@ jobs:
       # so the comment is posted once and left alone.
       - name: Comment on the pull request
         run: |
-          url="https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/refs/playground/${BRANCH}/blueprint.json"
+          build="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/refs/playground/${BRANCH}"
+          url="https://playground.wordpress.net/?blueprint-url=${build}/blueprint.json"
+          shop_url="https://playground.wordpress.net/?blueprint-url=${build}/blueprint-shop.json"
           gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file - <<EOF
-          [Try this branch in WordPress Playground](${url}). It runs the latest build of \`${BRANCH}\` and updates with every push, a few minutes after the [Plugin zip](https://github.com/${GITHUB_REPOSITORY}/actions/workflows/plugin-zip.yml) build finishes.
+          [Try this branch in WordPress Playground](${url}). It runs the latest build of \`${BRANCH}\` and updates with every push, a few minutes after the [Plugin zip](https://github.com/${GITHUB_REPOSITORY}/actions/workflows/plugin-zip.yml) build finishes. To try it with a WooCommerce shop, use [the shop demo](${shop_url}).
           EOF
 
   cleanup:

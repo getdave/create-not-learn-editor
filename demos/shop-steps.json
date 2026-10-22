@@ -1,0 +1,40 @@
+{
+	"landingPage": "/wp-admin/admin.php?page=create-not-learn-editor&p=%2Fshop",
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "wordpress.org/plugins",
+				"slug": "woocommerce"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing WooCommerce"
+			}
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php require_once '/wordpress/wp-load.php'; WC_Install::create_pages(); update_option( 'woocommerce_coming_soon', 'no' ); update_option( 'woocommerce_onboarding_profile', array( 'skipped' => true ) ); delete_transient( '_wc_activation_redirect' );",
+			"progress": {
+				"caption": "Adding the shop's pages"
+			}
+		},
+		{
+			"step": "writeFile",
+			"path": "/tmp/cnl-demo-shop-seed.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/playground-build/seed-shop.php"
+			}
+		},
+		{
+			"step": "wp-cli",
+			"command": "wp eval-file /tmp/cnl-demo-shop-seed.php",
+			"progress": {
+				"caption": "Stocking the Fernhouse shop"
+			}
+		}
+	]
+}

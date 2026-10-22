@@ -134,6 +134,16 @@ npm run wp-env start
 npm run wp-env run cli wp plugin activate canvas
 ```
 
+### Shop
+
+With WooCommerce active, "Your site" offers the shop. Map WooCommerce in the same way, activate it, add its pages, then stock the shop with products that cover the awkward cases, like options, stock counts and drafts:
+
+```sh
+npm run wp-env run cli wp plugin activate woocommerce
+npm run wp-env run cli -- wp wc tool run install_pages --user=1
+npm run wp-env run cli -- --env-cwd=wp-content/plugins/<this folder> wp eval-file scripts/demo-site/seed-shop.php
+```
+
 ### Demo site
 
 The development site (not the tests site) is set up as a demo the first time `wp-env` starts. `scripts/setup-demo-site.mjs` runs after every start and calls `scripts/demo-site/seed.php`, which:
@@ -190,6 +200,16 @@ https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.co
 ```
 
 When a pull request opens, `.github/workflows/playground-links.yml` comments the link on it. The demo follows the branch, updating a few minutes after each push, and is deleted with it.
+
+#### Shop demos
+
+Every build, trunk's, a branch's or a release's, also has a shop demo: the same site with WooCommerce and the Fernhouse shop added, opening on the Shop screen. Swap `blueprint.json` for `blueprint-shop.json` in its link. Trunk's is
+
+```text
+https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/getdave/create-not-learn-editor/playground-build/blueprint-shop.json
+```
+
+`scripts/playground-build.sh` writes it from the build's blueprint and the steps in `demos/shop-steps.json`, so the two demos never drift apart.
 
 #### Release demos
 

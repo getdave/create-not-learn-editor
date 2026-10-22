@@ -4,8 +4,9 @@ name: Plugin zip
 # workflow run as an artifact.
 #
 # It also publishes a WordPress Playground demo of the push. The zip, the
-# Mainstay theme, the demo site seed script and the Playground canvas fix go on
-# a ref of their own, which the demo's blueprint installs from.
+# Mainstay theme, the demo site seed scripts and the Playground canvas fix go
+# on a ref of their own, which the demo's blueprint installs from. Each build
+# also has a shop demo, `blueprint-shop.json`, which adds WooCommerce.
 #
 # - trunk goes to the `playground-build` branch, which `demos/blueprint.json`
 #   installs from. That keeps the README's demo on the latest trunk.
@@ -126,8 +127,10 @@ jobs:
           else
             blueprint_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${PLAYGROUND_REF}/blueprint.json"
           fi
+          # The shop demo is only ever on the published ref.
+          shop_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${PLAYGROUND_REF#refs/heads/}/blueprint-shop.json"
           echo "PLAYGROUND_URL=https://playground.wordpress.net/?blueprint-url=${blueprint_url}" >> "$GITHUB_ENV"
-          echo "[Try this build in WordPress Playground](https://playground.wordpress.net/?blueprint-url=${blueprint_url})." >> "$GITHUB_STEP_SUMMARY"
+          echo "[Try this build in WordPress Playground](https://playground.wordpress.net/?blueprint-url=${blueprint_url}), or [with a WooCommerce shop](https://playground.wordpress.net/?blueprint-url=${shop_url})." >> "$GITHUB_STEP_SUMMARY"
 
       # Leads the release notes with the Playground link and attaches the zip.
       # Works whether the release was made here or by hand before the tag was
