@@ -56,7 +56,7 @@ test.describe( 'Menus views', () => {
 			canvas.locator( '.routes-navigation-canvas-toolbar__meta' )
 		).toHaveText( /^Shown in \d+ locations?$/, { timeout: 15000 } );
 		await expect(
-			canvas.getByRole( 'checkbox', { name: 'Preview Site' } )
+			canvas.getByRole( 'checkbox', { name: 'Preview site' } )
 		).toBeChecked();
 		await expect(
 			canvas.getByRole( 'radio', { name: 'Desktop view' } )
@@ -118,7 +118,7 @@ test.describe( 'Menus views', () => {
 
 		// With the preview off, the canvas offers to place the menu.
 		await canvas
-			.getByRole( 'checkbox', { name: 'Preview Site' } )
+			.getByRole( 'checkbox', { name: 'Preview site' } )
 			.uncheck();
 
 		const emptyState = canvas.locator(
@@ -158,7 +158,7 @@ test.describe( 'Menus views', () => {
 
 		const canvas = page.locator( '.routes-navigation-canvas' );
 		await canvas
-			.getByRole( 'checkbox', { name: 'Preview Site' } )
+			.getByRole( 'checkbox', { name: 'Preview site' } )
 			.uncheck();
 
 		const card = canvas

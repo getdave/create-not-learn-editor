@@ -282,7 +282,7 @@ test.describe( 'Menus interactions', () => {
 			timeout: 15000,
 		} );
 		await canvas
-			.getByRole( 'checkbox', { name: 'Preview Site' } )
+			.getByRole( 'checkbox', { name: 'Preview site' } )
 			.uncheck();
 		await canvas.getByRole( 'button', { name: 'Choose location' } ).click();
 
@@ -344,7 +344,7 @@ test.describe( 'Menus interactions', () => {
 			).join( '\n' );
 
 		await canvas
-			.getByRole( 'checkbox', { name: 'Preview Site' } )
+			.getByRole( 'checkbox', { name: 'Preview site' } )
 			.uncheck();
 		await canvas.getByRole( 'button', { name: 'Choose location' } ).click();
 

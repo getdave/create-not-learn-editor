@@ -10,6 +10,7 @@ const {
 	expect,
 	getCanvasEditor,
 	pickSectionMode,
+	pickSectionTemplate,
 	setCanvasMode,
 	test,
 	visitEditor,
@@ -270,15 +271,7 @@ test.describe( 'Edit mode', () => {
 		} ).toPass( { timeout: 15000 } );
 		await addSection.last().click();
 
-		const picker = page.getByRole( 'dialog', { name: 'Add a section' } );
-
-		await picker.getByText( 'Layouts', { exact: true } ).click();
-		await picker
-			.getByRole( 'button', {
-				name: 'Add Image left, text right',
-				exact: true,
-			} )
-			.click();
+		await pickSectionTemplate( page, 'Image left, text right' );
 
 		// Picked: outlined, named and with its bar, the pointer elsewhere.
 		await page.mouse.move( 0, 0 );
@@ -304,15 +297,7 @@ test.describe( 'Edit mode', () => {
 			.getByRole( 'button', { name: 'Add a section' } )
 			.click( { timeout: 15000 } );
 
-		const picker = page.getByRole( 'dialog', { name: 'Add a section' } );
-
-		await picker.getByText( 'Layouts', { exact: true } ).click();
-		await picker
-			.getByRole( 'button', {
-				name: 'Add Image left, text right',
-				exact: true,
-			} )
-			.click();
+		await pickSectionTemplate( page, 'Image left, text right' );
 
 		const modeBar = page.locator( '.cnl-section-modes__mode-bar' );
 
