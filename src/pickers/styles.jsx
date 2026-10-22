@@ -321,12 +321,15 @@ function FontCard( {
 				>
 					{ headingFontName }
 				</span>
-				<span
-					className="routes-styles__font-body"
-					style={ { fontFamily: bodyFont } }
-				>
-					{ bodyFontName }
-				</span>
+				{ /* One font for both is named once. */ }
+				{ bodyFontName !== headingFontName && (
+					<span
+						className="routes-styles__font-body"
+						style={ { fontFamily: bodyFont } }
+					>
+						{ bodyFontName }
+					</span>
+				) }
 			</span>
 			{ isSelected && <SelectedCheck /> }
 		</Button>
