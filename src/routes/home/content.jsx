@@ -66,7 +66,7 @@ function PageOptionsDropdown( {
 					aria-expanded={ isOpen }
 					className="cnl-editor-homepage-options__toggle"
 					icon={ chevronDownIcon }
-					label={ __( 'Page Options' ) }
+					label={ __( 'Page options' ) }
 					onClick={ onToggle }
 					showTooltip
 					variant="tertiary"

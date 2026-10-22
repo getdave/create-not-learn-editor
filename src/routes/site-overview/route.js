@@ -4,5 +4,5 @@
 import { __ } from '../../wordpress-packages';
 
 export const route = {
-	title: () => __( 'Site Overview' ),
+	title: () => __( 'Site overview' ),
 };
