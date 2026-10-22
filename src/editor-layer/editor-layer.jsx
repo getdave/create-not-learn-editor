@@ -2,16 +2,22 @@
  * WordPress dependencies
  */
 import { store as blockEditorStore } from '@wordpress/block-editor';
-import { useSelect } from '@wordpress/data';
+import { dispatch, useSelect } from '@wordpress/data';
 import { useEffect } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
+import { store as noticesStore } from '@wordpress/notices';
 
 /**
  * Internal dependencies
  */
+import { useDeferred } from '../app-init-deferred';
 import { MODE_BROWSE, useCanvasMode } from '../site-canvas/mode';
 import { useIsEditCanvas } from './canvas-mode';
 import { useDistractionFreeEntry } from './distraction-free';
-import { closeSectionPicker, EditorSectionPicker } from './section-picker';
+import {
+	closeSectionPicker,
+	useSectionPickerRequest,
+} from './section-picker-request';
 import { useSectionWording } from './section-wording';
 import { EDITOR_STORE, useForcedBlockEditorSettings } from './settings-guard';
 
@@ -22,6 +28,38 @@ import { EDITOR_STORE, useForcedBlockEditorSettings } from './settings-guard';
 const FORCED_BLOCK_EDITOR_SETTINGS = {};
 
 const NOT_EDITING = {};
+
+/*
+ * The section picker comes from the app-init-deferred module, which has
+ * normally loaded by the time anyone asks for it. Should it not load, the
+ * request is dropped, so asking again tries again.
+ */
+function DeferredSectionPicker() {
+	const { deferred, error } = useDeferred();
+
+	useEffect( () => {
+		if ( error ) {
+			closeSectionPicker();
+			dispatch( noticesStore ).createErrorNotice(
+				__( 'The sections didn’t load. Try again.' ),
+				{ id: 'cnl-editor-section-picker-error', type: 'snackbar' }
+			);
+		}
+	}, [ error ] );
+
+	return deferred ? <deferred.EditorSectionPicker /> : null;
+}
+
+/**
+ * The section picker, while something has asked for it.
+ *
+ * @return {?Element} The picker.
+ */
+function SectionPickerWhenAsked() {
+	const isAsked = !! useSectionPickerRequest();
+
+	return isAsked ? <DeferredSectionPicker /> : null;
+}
 
 /**
  * The editor layer's composition root.
@@ -81,7 +119,7 @@ export function EditorLayer() {
 				data-post-type={ postType || undefined }
 				data-selected-block={ selectedBlockName || undefined }
 			/>
-			{ canPickSections && <EditorSectionPicker /> }
+			{ canPickSections && <SectionPickerWhenAsked /> }
 		</>
 	);
 }

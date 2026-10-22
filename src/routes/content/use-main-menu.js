@@ -123,7 +123,10 @@ export default function useMainMenu() {
 			otherMenuAreas: [ ...others ],
 		};
 	}, [ menuId, menus, templateParts ] );
-	const menuContent = useSelect(
+	// The edited menu's content and blocks, by reference. Its content can be a
+	// function that serialises its blocks, so it is worked out below only when
+	// they change, rather than on every change to any store.
+	const edited = useSelect(
 		( selectFromStore ) => {
 			if ( ! menuId ) {
 				return null;
@@ -134,19 +137,36 @@ export default function useMainMenu() {
 			if (
 				! store.getEntityRecord( 'postType', 'wp_navigation', menuId )
 			) {
-				return menu.content?.raw ?? menu.content ?? '';
+				return null;
 			}
 
-			return getNavigationContentFromEditedRecord(
-				store.getEditedEntityRecord(
-					'postType',
-					'wp_navigation',
-					menuId
-				)
+			const record = store.getEditedEntityRecord(
+				'postType',
+				'wp_navigation',
+				menuId
 			);
+
+			return { blocks: record?.blocks, content: record?.content };
 		},
-		[ menu, menuId ]
+		[ menuId ]
 	);
+	const editedBlocks = edited?.blocks;
+	const editedContent = edited?.content;
+	const hasEditedRecord = !! edited;
+	const menuContent = useMemo( () => {
+		if ( ! menuId ) {
+			return null;
+		}
+
+		if ( ! hasEditedRecord ) {
+			return menu.content?.raw ?? menu.content ?? '';
+		}
+
+		return getNavigationContentFromEditedRecord( {
+			blocks: editedBlocks,
+			content: editedContent,
+		} );
+	}, [ editedBlocks, editedContent, hasEditedRecord, menu, menuId ] );
 	const menuPages = useMemo(
 		() =>
 			typeof menuContent === 'string'

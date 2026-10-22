@@ -163,6 +163,19 @@ export function useChat() {
 	}, [] );
 }
 
+/**
+ * For what only needs to know whether the chat is open, so it isn't
+ * re-rendered with every message.
+ *
+ * @return {boolean} Whether the chat is open, kept up to date.
+ */
+export function useIsChatOpen() {
+	return useSelect(
+		( selectStore ) => selectStore( STORE_NAME ).isOpen(),
+		[]
+	);
+}
+
 let lastId = 0;
 
 /**

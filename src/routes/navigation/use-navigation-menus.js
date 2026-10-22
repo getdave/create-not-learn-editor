@@ -118,13 +118,18 @@ export function useNavigationMenus() {
 			),
 		[ menus, selectedId ]
 	);
+	// Finding it parses every template part.
+	const mainMenuId = useMemo(
+		() => getMainMenu( menus, templateParts )?.id,
+		[ menus, templateParts ]
+	);
 
 	return {
 		error: error ? getErrorMessage( error ) : null,
 		isLoading,
 		isResolvingLocations,
 		locationsError,
-		mainMenuId: getMainMenu( menus, templateParts )?.id,
+		mainMenuId,
 		locationsMap,
 		menus,
 		selectedId,

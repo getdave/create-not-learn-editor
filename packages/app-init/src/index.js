@@ -17,6 +17,7 @@ import {
 /**
  * Internal dependencies
  */
+import { preloadDeferredWhenIdle } from '../../../src/app-init-deferred';
 import { mountChat } from '../../../src/chat';
 import { mountCommands } from '../../../src/commands';
 import { registerFontSizeToolbar } from '../../../src/editor-extensions/font-size-toolbar';
@@ -57,4 +58,7 @@ export async function init() {
 	mountCommands();
 	mountChat();
 	enhanceSidebar( { userName: window.createNotLearnEditor?.userName } );
+
+	// The chat's panel and the section picker, ready before they're opened.
+	preloadDeferredWhenIdle();
 }

@@ -436,16 +436,27 @@ function InMenuGroup( {
 		[ pages ]
 	);
 	const { previewPage } = pageActions;
-	const isAutomatic = useSelect(
-		( selectFromStore ) =>
-			getNavigationContentFromEditedRecord(
-				selectFromStore( coreDataStore ).getEditedEntityRecord(
-					'postType',
-					'wp_navigation',
-					menuId
-				)
-			).includes( '<!-- wp:page-list' ),
+	// Read by reference, and serialised only when the menu changes.
+	const { editedMenuBlocks, editedMenuContent } = useSelect(
+		( selectFromStore ) => {
+			const record = selectFromStore(
+				coreDataStore
+			).getEditedEntityRecord( 'postType', 'wp_navigation', menuId );
+
+			return {
+				editedMenuBlocks: record?.blocks,
+				editedMenuContent: record?.content,
+			};
+		},
 		[ menuId ]
+	);
+	const isAutomatic = useMemo(
+		() =>
+			getNavigationContentFromEditedRecord( {
+				blocks: editedMenuBlocks,
+				content: editedMenuContent,
+			} ).includes( '<!-- wp:page-list' ),
+		[ editedMenuBlocks, editedMenuContent ]
 	);
 	const homeContext = useMemo(
 		() => getHomeLinkContext( homepage ),

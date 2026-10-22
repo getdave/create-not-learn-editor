@@ -152,6 +152,22 @@ const FRESH_MS = 900;
 
 const EMPTY_ARRAY = [];
 
+/*
+ * Section titles, by block. Working one out walks the whole section, and the
+ * layer asks for several on every render. The editor's blocks are replaced,
+ * never changed, when they're edited, so a block's title stays right for as
+ * long as the block is around.
+ */
+const sectionTitles = new WeakMap();
+
+function getCachedSectionTitle( block ) {
+	if ( ! sectionTitles.has( block ) ) {
+		sectionTitles.set( block, getSectionTitle( block ) );
+	}
+
+	return sectionTitles.get( block );
+}
+
 /**
  * Position a box relative to the canvas it is clipped to.
  *
@@ -1377,7 +1393,7 @@ export function SectionModesLayer( {
 
 		const block = registry.select( blockEditorStore ).getBlock( clientId );
 
-		return block ? getSectionTitle( block ) : __( 'Section' );
+		return block ? getCachedSectionTitle( block ) : __( 'Section' );
 	};
 
 	/*

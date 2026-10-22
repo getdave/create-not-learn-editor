@@ -3,7 +3,6 @@
  */
 import apiFetch from '@wordpress/api-fetch';
 import { Breadcrumbs, Page } from '@wordpress/admin-ui';
-import { registerCoreBlocks } from '@wordpress/block-library';
 import {
 	cloneBlock,
 	createBlock,
@@ -67,11 +66,6 @@ import {
 	useRegistry,
 	useSelect,
 } from '@wordpress/data';
-import {
-	DataViews,
-	DataViewsPicker,
-	filterSortAndPaginate,
-} from '@wordpress/dataviews';
 import {
 	Component,
 	flushSync,
@@ -213,8 +207,6 @@ export {
 	coreDataStore,
 	createBlock,
 	createReduxStore,
-	DataViews,
-	DataViewsPicker,
 	decodeEntities,
 	dispatch,
 	displayShortcut,
@@ -227,7 +219,6 @@ export {
 	escapeHTML,
 	external as externalIcon,
 	file as fileIcon,
-	filterSortAndPaginate,
 	fetchLinkSuggestions,
 	flushSync,
 	footer as footerIcon,
@@ -277,7 +268,6 @@ export {
 	postList as postListIcon,
 	ProgressBar,
 	register,
-	registerCoreBlocks,
 	reset as minusIcon,
 	resolveSelect,
 	safeDecodeURI,

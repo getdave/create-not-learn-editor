@@ -15,7 +15,6 @@ import {
 	Button,
 	coreDataStore,
 	DropdownMenu,
-	getBlockType as getRegisteredBlockType,
 	InputControl,
 	MenuGroup,
 	MenuItem,
@@ -31,27 +30,10 @@ import {
 	useDispatch,
 	useState,
 	__,
-	registerCoreBlocks,
 } from '../../wordpress-packages';
 import { useMenuItemsEditor } from './menu-items-editor';
 import NavigationEditCanvas from './navigation-edit-canvas';
 import { NAVIGATION_POST_TYPE } from './shared';
-
-let didRegisterCoreBlocks = false;
-
-function ensureCoreBlocksRegistered() {
-	if ( didRegisterCoreBlocks || typeof window === 'undefined' ) {
-		return;
-	}
-
-	if ( ! getRegisteredBlockType( 'core/paragraph' ) ) {
-		registerCoreBlocks();
-	}
-
-	didRegisterCoreBlocks = true;
-}
-
-ensureCoreBlocksRegistered();
 
 function NavigationEditStage() {
 	const navigate = useNavigate();

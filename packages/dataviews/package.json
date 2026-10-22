@@ -1,0 +1,9 @@
+{
+	"name": "@create-not-learn-editor/dataviews",
+	"version": "0.1.0",
+	"private": true,
+	"dependencies": {
+		"@wordpress/dataviews": "^20.0.0"
+	},
+	"wpScriptModuleExports": "./src/index.js"
+}

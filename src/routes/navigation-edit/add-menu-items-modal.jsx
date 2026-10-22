@@ -10,11 +10,9 @@ import {
 	chevronDownIcon,
 	coreDataStore,
 	customLinkIcon,
-	DataViewsPicker,
 	decodeEntities,
 	Icon,
 	fileIcon,
-	filterSortAndPaginate,
 	imageIcon,
 	InputControl,
 	LegacyIcon,
@@ -22,6 +20,7 @@ import {
 	Notice,
 	pageIcon,
 	postListIcon,
+	Spinner,
 	Tabs,
 	useMemo,
 	useSelect,
@@ -33,6 +32,7 @@ import {
 	getParsedBlocks,
 } from './navigation-blocks';
 import { EMPTY_ARRAY, getPageTitle } from './shared';
+import { useDataViews } from '../../use-dataviews';
 
 const MENU_ITEM_GROUPS = [
 	{
@@ -232,13 +232,16 @@ export default function AddMenuItemsModal( {
 	const [ error, setError ] = useState( '' );
 	const [ selection, setSelection ] = useState( [] );
 	const [ view, setView ] = useState( () => createPickerView( 'pages' ) );
+	const dataViews = useDataViews();
+	const DataViewsPicker = dataViews?.DataViewsPicker;
 	const {
+		categories,
 		isResolvingContent,
 		isResolvingMedia,
 		isResolvingTerms,
 		media,
 		posts,
-		terms,
+		tags,
 	} = useSelect( ( select ) => {
 		const store = select( coreDataStore );
 		const postArgs = [
@@ -302,29 +305,42 @@ export default function AddMenuItemsModal( {
 				store.isResolving( 'getEntityRecords', tagArgs ),
 			media: store.getEntityRecords( ...mediaArgs ) || EMPTY_ARRAY,
 			posts: store.getEntityRecords( ...postArgs ) || EMPTY_ARRAY,
-			terms: [
-				...(
-					store.getEntityRecords( ...categoryArgs ) || EMPTY_ARRAY
-				).map( ( term ) => ( {
-					...term,
-					taxonomy: 'category',
-				} ) ),
-				...( store.getEntityRecords( ...tagArgs ) || EMPTY_ARRAY ).map(
-					( term ) => ( {
-						...term,
-						taxonomy: 'post_tag',
-					} )
-				),
-			],
+			categories:
+				store.getEntityRecords( ...categoryArgs ) || EMPTY_ARRAY,
+			tags: store.getEntityRecords( ...tagArgs ) || EMPTY_ARRAY,
 		};
 	}, [] );
-	const blockItems = useSelect( ( select ) => {
-		const { getBlockType } = select( blocksStore );
-		const navigationBlock = getBlockType( 'core/navigation' );
+	// Built here rather than in the selectors, which would hand back new
+	// arrays, and re-render the modal, on every change to any store.
+	const terms = useMemo(
+		() => [
+			...categories.map( ( term ) => ( {
+				...term,
+				taxonomy: 'category',
+			} ) ),
+			...tags.map( ( term ) => ( {
+				...term,
+				taxonomy: 'post_tag',
+			} ) ),
+		],
+		[ categories, tags ]
+	);
+	const { allowedBlocks, blockTypeList } = useSelect( ( select ) => {
+		const { getBlockType, getBlockTypes } = select( blocksStore );
 
-		return ( navigationBlock?.allowedBlocks || [] )
+		return {
+			allowedBlocks: getBlockType( 'core/navigation' )?.allowedBlocks,
+			blockTypeList: getBlockTypes(),
+		};
+	}, [] );
+	const blockItems = useMemo( () => {
+		const blockTypesByName = new Map(
+			blockTypeList.map( ( blockType ) => [ blockType.name, blockType ] )
+		);
+
+		return ( allowedBlocks || [] )
 			.filter( ( name ) => ! EXCLUDED_BLOCK_INSERTIONS.has( name ) )
-			.map( ( name ) => getBlockType( name ) )
+			.map( ( name ) => blockTypesByName.get( name ) )
 			.filter( Boolean )
 			.map( ( blockType ) => ( {
 				blockIcon: blockType.icon?.src,
@@ -339,7 +355,7 @@ export default function AddMenuItemsModal( {
 				title: blockType.title || blockType.name,
 				typeLabel: __( 'Block' ),
 			} ) );
-	}, [] );
+	}, [ allowedBlocks, blockTypeList ] );
 	const linkedState = useMemo(
 		() => getLinkedNavigationStateFromContent( content ),
 		[ content ]
@@ -418,10 +434,20 @@ export default function AddMenuItemsModal( {
 		} ) );
 	}, [ blockItems, linkedState, media, pages, posts, terms ] );
 	const group = MENU_ITEM_GROUPS_BY_ID[ activeGroup ];
-	const activeItems = items.filter( ( item ) => item.group === activeGroup );
+	const activeItems = useMemo(
+		() => items.filter( ( item ) => item.group === activeGroup ),
+		[ activeGroup, items ]
+	);
 	const { data: shownData, paginationInfo } = useMemo(
-		() => filterSortAndPaginate( activeItems, view, pickerFields ),
-		[ activeItems, view ]
+		() =>
+			dataViews
+				? dataViews.filterSortAndPaginate(
+						activeItems,
+						view,
+						pickerFields
+					)
+				: { data: EMPTY_ARRAY, paginationInfo: {} },
+		[ activeItems, dataViews, view ]
 	);
 	const selectedItems = activeItems.filter( ( item ) =>
 		selection.includes( item.id )
@@ -526,7 +552,7 @@ export default function AddMenuItemsModal( {
 								<p>{ group.description }</p>
 							</div>
 						</div>
-						{ activeGroup === 'custom' ? (
+						{ activeGroup === 'custom' && (
 							<div className="navigation-add-items-custom-link">
 								{ !! error && (
 									<Notice status="error">{ error }</Notice>
@@ -565,7 +591,13 @@ export default function AddMenuItemsModal( {
 									</Button>
 								</div>
 							</div>
-						) : (
+						) }
+						{ activeGroup !== 'custom' && ! DataViewsPicker && (
+							<div className="cnl-editor-spinner">
+								<Spinner />
+							</div>
+						) }
+						{ activeGroup !== 'custom' && DataViewsPicker && (
 							<DataViewsPicker
 								actions={ [
 									{

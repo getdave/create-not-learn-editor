@@ -4,8 +4,11 @@
  * opens in place.
  *
  * The menu item unmounts as soon as the selection changes, so it only asks
- * for the picker here, and the layer renders it. The request says where the
- * new section goes: the section's parent and the index straight after it.
+ * for the picker, and the layer renders it. The request says where the new
+ * section goes: the section's parent and the index straight after it. It is
+ * kept in `section-picker-request.js`, so app init can take requests without
+ * loading this module, which comes from the app-init-deferred module. Routes
+ * import this one as they are.
  */
 
 /**
@@ -16,15 +19,7 @@ import {
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
 import { parse } from '@wordpress/blocks';
-import {
-	createReduxStore,
-	dispatch,
-	register,
-	select,
-	useDispatch,
-	useRegistry,
-	useSelect,
-} from '@wordpress/data';
+import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
 import { useMemo } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import { store as noticesStore } from '@wordpress/notices';
@@ -40,54 +35,15 @@ import {
 	getPlacementText,
 	SectionPicker,
 } from '../section-picker';
+import {
+	closeSectionPicker,
+	useSectionPickerRequest,
+} from './section-picker-request';
 
-/*
- * Where the picker was asked to add a section, if it was. Kept in a data
- * store, registered once by name, so a request from a route, built separately
- * from app init, reaches the picker the layer renders.
- */
-const STORE_NAME = 'create-not-learn-editor/section-picker';
-
-if ( ! select( STORE_NAME ) ) {
-	register(
-		createReduxStore( STORE_NAME, {
-			reducer( state = null, action ) {
-				return action.type === 'SET_SECTION_PICKER_REQUEST'
-					? action.request
-					: state;
-			},
-			actions: {
-				setRequest: ( request ) => ( {
-					request,
-					type: 'SET_SECTION_PICKER_REQUEST',
-				} ),
-			},
-			selectors: {
-				getRequest: ( state ) => state,
-			},
-		} )
-	);
-}
-
-/**
- * Open the section picker to add a section at a place in the editor.
- *
- * @param {Object}  place              Where the section goes.
- * @param {?string} place.rootClientId Parent block's client ID.
- * @param {number}  place.index        Index among the parent's blocks.
- */
-export function openSectionPicker( { rootClientId, index } ) {
-	dispatch( STORE_NAME ).setRequest( { index, rootClientId } );
-}
-
-/**
- * Close the section picker, if it is open.
- */
-export function closeSectionPicker() {
-	if ( select( STORE_NAME ).getRequest() ) {
-		dispatch( STORE_NAME ).setRequest( null );
-	}
-}
+export {
+	closeSectionPicker,
+	openSectionPicker,
+} from './section-picker-request';
 
 /**
  * A design's preview, rendered by the block editor already on screen, which
@@ -151,10 +107,7 @@ export function addPatternSection(
  * @return {?Element} The picker.
  */
 export function EditorSectionPicker() {
-	const place = useSelect(
-		( selectStore ) => selectStore( STORE_NAME ).getRequest(),
-		[]
-	);
+	const place = useSectionPickerRequest();
 	const registry = useRegistry();
 	const { insertBlocks, selectBlock } = useDispatch( blockEditorStore );
 	const placement = useSelect(
