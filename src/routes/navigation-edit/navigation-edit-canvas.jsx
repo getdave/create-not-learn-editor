@@ -178,7 +178,7 @@ function NavigationCanvasHeader( {
 					__nextHasNoMarginBottom
 					checked={ isPreviewVisible }
 					className="routes-navigation-canvas-toolbar__preview-toggle"
-					label={ __( 'Preview Site' ) }
+					label={ __( 'Preview site' ) }
 					onChange={ onTogglePreview }
 				/>
 			</div>

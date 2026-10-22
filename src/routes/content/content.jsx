@@ -313,7 +313,7 @@ function Stage() {
 	const addLabel = sprintf(
 		/* translators: %s: post type singular label. */
 		__( 'Add %s' ),
-		type.singular || type.name
+		( type.singular || type.name ).toLowerCase()
 	);
 	const openCreateFlow = ( menuPlacement ) => {
 		if ( type.name === 'page' ) {
@@ -352,7 +352,7 @@ function Stage() {
 				<DropdownMenu
 					className="routes-post-list__more-options"
 					icon={ moreVerticalIcon }
-					label={ __( 'Page Options' ) }
+					label={ __( 'Page options' ) }
 					popoverProps={ { placement: 'bottom-end' } }
 					toggleProps={ {
 						__next40pxDefaultSize: true,
@@ -401,7 +401,7 @@ function Stage() {
 					{ sprintf(
 						/* translators: %s: post type plural label. */
 						__( 'No %s yet' ),
-						type.label || type.name
+						( type.label || type.name ).toLowerCase()
 					) }
 				</EmptyState.Title>
 				<EmptyState.Description>
@@ -410,7 +410,7 @@ function Stage() {
 						__(
 							'Create your first %s to start adding content here.'
 						),
-						type.singular || type.name
+						( type.singular || type.name ).toLowerCase()
 					) }
 				</EmptyState.Description>
 				{ type.canCreate && (

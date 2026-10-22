@@ -79,6 +79,7 @@ import {
 import { GlobalScope } from '../global-scope';
 import { getSectionArrangements } from '../layouts/variants';
 import { getSectionTitle } from '../routes/content/pages/page-sections';
+import { openRoute } from '../open-route';
 import { MODE_COMPOSE, setCanvasMode } from '../site-canvas/mode';
 import {
 	SectionDesignCard,
@@ -170,27 +171,6 @@ const SITE_ENTITY = [ 'root', 'site', undefined ];
 
 function useSiteEntity() {
 	return SITE_ENTITY;
-}
-
-/**
- * Open a screen from outside boot's router, the way the workspace switcher
- * does: boot's router follows `pushState`. The route's search params go
- * inside `p`, after its path, as boot's own links put them.
- *
- * @param {string} path   Route path.
- * @param {Object} search Route search params.
- */
-export function openRoute( path, search = {} ) {
-	const url = new URL( window.location.href );
-	const query = new URLSearchParams(
-		Object.entries( search ).map( ( [ key, value ] ) => [
-			key,
-			String( value ),
-		] )
-	).toString();
-
-	url.searchParams.set( 'p', query ? `${ path }?${ query }` : path );
-	window.history.pushState( null, '', url );
 }
 
 /*
@@ -1545,7 +1525,10 @@ export const SKILLS = {
 				? {
 						name: __( 'Pages' ),
 						path: '/types/page/list/all',
-						search: { previewId: params.pageId },
+						search: {
+							postId: params.pageId,
+							previewId: params.pageId,
+						},
 					}
 				: null,
 		hasFooter: ( { choosePage } ) => ! choosePage,

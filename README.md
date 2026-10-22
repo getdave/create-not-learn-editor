@@ -142,7 +142,7 @@ The development site (not the tests site) is set up as a demo the first time `wp
 - names the site Fernhouse and fills Home, About, Workshops, Café and Visit pages with the theme's sections;
 - adds three journal posts with photos and a menu.
 
-It records that it has run in the `cnl_demo_site_version` option and leaves the site alone after that, so later edits survive restarts. It never overwrites a page that already has content. To run it again, delete the option and restart:
+It records that it has run in the `cnl_demo_site_version` option and leaves the site alone after that, so later edits survive restarts. It never overwrites a page someone has changed. When a new version of the demo changes a page's sections, only pages still exactly as the seed left them are updated. To run it again, delete the option and restart:
 
 ```sh
 npm run wp-env run cli wp option delete cnl_demo_site_version

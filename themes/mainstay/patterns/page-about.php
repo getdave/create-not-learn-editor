@@ -7,13 +7,15 @@
  * Post Types: page
  * Block Types: core/post-content
  * Viewport width: 1400
- * Description: Your story, what you care about, a few numbers, the team and what people say.
+ * Description: Who you are, your story, what you care about, a few numbers and the team.
  *
  * @package Mainstay
  */
 
 ?>
 <!-- wp:pattern {"slug":"mainstay/hero-centred"} /-->
+
+<!-- wp:pattern {"slug":"mainstay/about-story"} /-->
 
 <!-- wp:pattern {"slug":"mainstay/text-statement"} /-->
 
@@ -22,5 +24,3 @@
 <!-- wp:pattern {"slug":"mainstay/about-stats"} /-->
 
 <!-- wp:pattern {"slug":"mainstay/team-grid"} /-->
-
-<!-- wp:pattern {"slug":"mainstay/testimonials-grid"} /-->

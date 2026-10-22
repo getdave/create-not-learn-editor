@@ -260,8 +260,13 @@ test.describe( 'Compose', () => {
 			.getByRole( 'button', { name: 'Edit design' } )
 			.click();
 
-		const panel = page.locator( '.cnl-section-modes__panel' );
-		const option = panel
+		const designBar = page.locator( '.cnl-section-modes__design' );
+
+		await designBar
+			.getByRole( 'button', { name: 'Layout', exact: true } )
+			.click();
+
+		const option = designBar
 			.locator( '.cnl-section-modes__option' )
 			.filter( { hasText: 'Image on the right' } );
 

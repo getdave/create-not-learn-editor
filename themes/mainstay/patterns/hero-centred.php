@@ -13,20 +13,20 @@
 ?>
 <!-- wp:group {"metadata":{"name":"Centred hero"},"align":"full","style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60"}}},"layout":{"type":"constrained"}} -->
 <div class="wp-block-group alignfull" style="padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)"><!-- wp:heading {"level":1,"align":"wide","style":{"typography":{"textAlign":"center"}},"fontSize":"huge"} -->
-<h1 class="wp-block-heading has-text-align-center alignwide has-huge-font-size">Come in for coffee. Leave with a plant.</h1>
+<h1 class="wp-block-heading has-text-align-center alignwide has-huge-font-size">A plant shop that started on a windowsill.</h1>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph {"style":{"typography":{"textAlign":"center"}},"fontSize":"large"} -->
-<p class="has-text-align-center has-large-font-size">A small plant shop and café in Hebden Bridge, run by people who are happy to talk about ferns all day.</p>
+<p class="has-text-align-center has-large-font-size">Fernhouse began with a flat so full of plants there was nowhere left to sit. Now it's a shop and café on Mill Lane, run by four people who are happy to talk about ferns all day.</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center"}} -->
 <div class="wp-block-buttons"><!-- wp:button -->
-<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="#">Visit the shop</a></div>
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="#our-story">Read our story</a></div>
 <!-- /wp:button -->
 
 <!-- wp:button {"className":"is-style-outline"} -->
-<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="#">Book a workshop</a></div>
+<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="#team">Meet the team</a></div>
 <!-- /wp:button --></div>
 <!-- /wp:buttons -->
 

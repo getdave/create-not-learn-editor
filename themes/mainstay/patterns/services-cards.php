@@ -37,7 +37,7 @@
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
-<p><a href="#">See what's in the shop</a></p>
+<p><a href="<?php echo esc_url( mainstay_page_url( 'visit' ) ); ?>">Come and have a look</a></p>
 <!-- /wp:paragraph --></div>
 <!-- /wp:column -->
 
@@ -55,7 +55,7 @@
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
-<p><a href="#">Look at the café menu</a></p>
+<p><a href="<?php echo esc_url( mainstay_page_url( 'cafe', 'menu' ) ); ?>">Look at the café menu</a></p>
 <!-- /wp:paragraph --></div>
 <!-- /wp:column -->
 
@@ -73,7 +73,7 @@
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
-<p><a href="#">See upcoming workshops</a></p>
+<p><a href="<?php echo esc_url( mainstay_page_url( 'workshops', 'dates' ) ); ?>">See upcoming workshops</a></p>
 <!-- /wp:paragraph --></div>
 <!-- /wp:column --></div>
 <!-- /wp:columns --></div>

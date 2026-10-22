@@ -8,16 +8,16 @@
  * what is new, and leave anything changed on the site since alone. Delete the
  * `cnl_demo_site_version` option to run it all again.
  *
- * Everything it adds is additive. It never overwrites a page that already
- * has content, and only takes over the front page when the site still shows
- * its latest posts there, or a blank Home page from the editor's setup step.
+ * Everything it adds is additive. It never overwrites a page someone has
+ * changed, and only takes over the front page when the site still shows its
+ * latest posts there, or a blank Home page from the editor's setup step.
  *
  * @package CreateNotLearnEditor
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const CNL_DEMO_SITE_VERSION = 2;
+const CNL_DEMO_SITE_VERSION = 3;
 
 $cnl_demo_installed_version = (int) get_option( 'cnl_demo_site_version' );
 
@@ -48,6 +48,44 @@ function cnl_demo_patterns( $slugs ) {
 			},
 			$slugs
 		)
+	);
+}
+
+/**
+ * The demo pages, each a stack of theme sections about what its title says.
+ *
+ * The homepage is the exception. It says where you are and what Fernhouse is,
+ * then points to the other pages.
+ *
+ * @return array[] Slug, title and pattern slugs of each page, in menu order.
+ */
+function cnl_demo_pages() {
+	return array(
+		array(
+			'slug'     => 'home',
+			'title'    => 'Home',
+			'patterns' => array( 'hero-split', 'services-cards', 'gallery-mosaic', 'testimonial-large', 'posts-latest', 'cta-banner' ),
+		),
+		array(
+			'slug'     => 'about',
+			'title'    => 'About',
+			'patterns' => array( 'hero-centred', 'about-story', 'text-statement', 'about-values', 'about-stats', 'team-grid' ),
+		),
+		array(
+			'slug'     => 'workshops',
+			'title'    => 'Workshops',
+			'patterns' => array( 'hero-cover', 'events-list', 'pricing-tiers', 'newsletter' ),
+		),
+		array(
+			'slug'     => 'cafe',
+			'title'    => 'Café',
+			'patterns' => array( 'hero-collage', 'menu-list', 'gallery-grid', 'cta-image' ),
+		),
+		array(
+			'slug'     => 'visit',
+			'title'    => 'Visit',
+			'patterns' => array( 'contact-split', 'contact-details', 'text-faq' ),
+		),
 	);
 }
 
@@ -229,36 +267,15 @@ function cnl_demo_content() {
 	update_option( 'blogdescription', 'Plants, coffee and potting workshops on Mill Lane' );
 
 	// The pages, as stacks of theme sections.
-	$home_id = cnl_demo_page(
-		'home',
-		'Home',
-		cnl_demo_patterns( array( 'hero-split', 'services-cards', 'about-story', 'gallery-mosaic', 'testimonial-large', 'events-list', 'posts-latest', 'cta-banner' ) ),
-		0
-	);
-	cnl_demo_page(
-		'about',
-		'About',
-		cnl_demo_patterns( array( 'hero-centred', 'text-statement', 'about-values', 'about-stats', 'team-grid', 'testimonials-grid' ) ),
-		1
-	);
-	cnl_demo_page(
-		'workshops',
-		'Workshops',
-		cnl_demo_patterns( array( 'hero-cover', 'events-list', 'pricing-tiers', 'text-faq', 'newsletter' ) ),
-		2
-	);
-	cnl_demo_page(
-		'cafe',
-		'Café',
-		cnl_demo_patterns( array( 'hero-collage', 'menu-list', 'gallery-grid', 'cta-image' ) ),
-		3
-	);
-	cnl_demo_page(
-		'visit',
-		'Visit',
-		cnl_demo_patterns( array( 'contact-split', 'contact-details', 'services-list', 'text-faq' ) ),
-		4
-	);
+	$home_id = 0;
+
+	foreach ( cnl_demo_pages() as $menu_order => $page ) {
+		$page_id = cnl_demo_page( $page['slug'], $page['title'], cnl_demo_patterns( $page['patterns'] ), $menu_order );
+
+		if ( 'home' === $page['slug'] ) {
+			$home_id = $page_id;
+		}
+	}
 
 	// Only take over the front page if nobody has chosen one yet.
 	$show_on_front = get_option( 'show_on_front' );
@@ -441,12 +458,48 @@ function cnl_demo_media_library() {
 	}
 }
 
+/**
+ * Version 3: keep each page to what its title says. Version 1 gave some pages
+ * sections about other things, such as a plant subscription on Workshops, so
+ * pages still exactly as it left them get their new sections. Pages changed
+ * since are left alone.
+ */
+function cnl_demo_page_sections() {
+	$version_1_patterns = array(
+		'home'      => array( 'hero-split', 'services-cards', 'about-story', 'gallery-mosaic', 'testimonial-large', 'events-list', 'posts-latest', 'cta-banner' ),
+		'about'     => array( 'hero-centred', 'text-statement', 'about-values', 'about-stats', 'team-grid', 'testimonials-grid' ),
+		'workshops' => array( 'hero-cover', 'events-list', 'pricing-tiers', 'text-faq', 'newsletter' ),
+		'visit'     => array( 'contact-split', 'contact-details', 'services-list', 'text-faq' ),
+	);
+
+	foreach ( cnl_demo_pages() as $page ) {
+		if ( ! isset( $version_1_patterns[ $page['slug'] ] ) ) {
+			continue;
+		}
+
+		$existing = get_page_by_path( $page['slug'], OBJECT, 'page' );
+
+		if ( $existing && cnl_demo_patterns( $version_1_patterns[ $page['slug'] ] ) === $existing->post_content ) {
+			wp_update_post(
+				array(
+					'ID'           => $existing->ID,
+					'post_content' => cnl_demo_patterns( $page['patterns'] ),
+				)
+			);
+		}
+	}
+}
+
 if ( $cnl_demo_installed_version < 1 ) {
 	cnl_demo_content();
 }
 
 if ( $cnl_demo_installed_version < 2 ) {
 	cnl_demo_media_library();
+}
+
+if ( $cnl_demo_installed_version < 3 ) {
+	cnl_demo_page_sections();
 }
 
 update_option( 'cnl_demo_site_version', CNL_DEMO_SITE_VERSION );
