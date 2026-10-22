@@ -192,7 +192,7 @@ function getScreenCommands() {
 		},
 		{
 			name: 'create-not-learn-editor/screen-site-overview',
-			label: __( 'Site Overview' ),
+			label: __( 'Site overview' ),
 			icon: tableOfContentsIcon,
 			to: '/site-overview',
 			keywords: [ __( 'sitemap' ), __( 'structure' ), __( 'map' ) ],
