@@ -33,7 +33,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import { openSectionPicker } from '../editor-layer/section-picker';
+import { openSectionPicker } from '../editor-layer/section-picker-request';
 import { unlock } from '../lock-unlock';
 
 /*

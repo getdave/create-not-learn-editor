@@ -552,6 +552,12 @@ function cnl_editor_register_boot_modules( $routes = null ) {
 			'id'     => '@create-not-learn-editor/app-init',
 			'import' => 'static',
 		),
+		// The chat panel's body and the section picker, imported once the
+		// page has settled.
+		array(
+			'id'     => '@create-not-learn-editor/app-init-deferred',
+			'import' => 'dynamic',
+		),
 		// The chat's bigger pickers, imported the first time one is shown.
 		array(
 			'id'     => '@create-not-learn-editor/chat-extras',
@@ -748,6 +754,10 @@ function cnl_editor_get_module_map() {
 		array(
 			'id'   => '@wordpress/lazy-editor',
 			'path' => 'modules/lazy-editor-compat/index.min',
+		),
+		array(
+			'id'   => '@create-not-learn-editor/app-init-deferred',
+			'path' => 'modules/app-init-deferred/index.min',
 		),
 		array(
 			'id'   => '@create-not-learn-editor/chat-extras',
