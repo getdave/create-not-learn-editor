@@ -59,9 +59,7 @@ const ADD_ICONS = {
 export function getModes() {
 	return [
 		{
-			description: __(
-				'Pick a layout and colours, remove items, or move things freely'
-			),
+			description: __( 'Change the layout, colour and width' ),
 			icon: designIcon,
 			label: __( 'Edit design' ),
 			mode: MODE_DESIGN,
@@ -334,36 +332,24 @@ export function HoverBar( {
 }
 
 /**
- * The bar on a section in Edit content or Freeform: Done, and Restore and
- * Back when there is something to restore or go back to. The mode is its
- * name for assistive technology only; the section's outline and name say
- * enough on screen. The size of the bar over a section pointed at, or
+ * The bar on a section in Edit content or Freeform: Done, and Restore when
+ * there is something to restore. The mode is its name for assistive
+ * technology only; the section's outline and name say enough on screen. The size of the bar over a section pointed at, or
  * smaller, for a small section, where it sits outside it.
  *
- * @param {Object}    props
- * @param {boolean}   props.isSmall      Whether it is the smaller bar.
- * @param {string}    props.label        The mode's name.
- * @param {?Function} props.onBack       Goes back to Edit design's panel,
- *                                       from Freeform.
- * @param {?string}   props.sitewide     Words for a header or footer.
- * @param {number}    props.removedCount How many items were taken out.
- * @param {Object}    props.style        Where it sits.
- * @param {Function}  props.onRestore    Puts back what was taken out.
- * @param {Function}  props.onDone       Leaves the mode.
- * @param {Object}    ref                Takes the bar's node, to measure it.
+ * @param {Object}   props
+ * @param {boolean}  props.isSmall      Whether it is the smaller bar.
+ * @param {string}   props.label        The mode's name.
+ * @param {?string}  props.sitewide     Words for a header or footer.
+ * @param {number}   props.removedCount How many items were taken out.
+ * @param {Object}   props.style        Where it sits.
+ * @param {Function} props.onRestore    Puts back what was taken out.
+ * @param {Function} props.onDone       Leaves the mode.
+ * @param {Object}   ref                Takes the bar's node, to measure it.
  * @return {Element} The bar.
  */
 export const ModeBar = forwardRef( function UnforwardedModeBar(
-	{
-		isSmall,
-		label,
-		onBack,
-		onDone,
-		onRestore,
-		removedCount,
-		sitewide,
-		style,
-	},
+	{ isSmall, label, onDone, onRestore, removedCount, sitewide, style },
 	ref
 ) {
 	return (
@@ -394,16 +380,6 @@ export const ModeBar = forwardRef( function UnforwardedModeBar(
 						__( 'Restore (%d)' ),
 						removedCount
 					) }
-				</Button>
-			) }
-			{ onBack && (
-				<Button
-					className="cnl-section-modes__text-button"
-					onClick={ onBack }
-					size="compact"
-					variant="secondary"
-				>
-					{ __( 'Back to Edit design' ) }
 				</Button>
 			) }
 			<Button

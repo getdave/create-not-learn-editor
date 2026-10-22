@@ -11,7 +11,7 @@ export const route = {
 			throw notFound();
 		}
 	},
-	title: () => __( 'Edit Navigation Menu' ),
+	title: () => __( 'Edit navigation menu' ),
 	async canvas() {
 		return null;
 	},

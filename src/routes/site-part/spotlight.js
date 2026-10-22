@@ -62,6 +62,15 @@ const FOCUS_TARGETS = {
 	},
 };
 
+/*
+ * How long a part is followed while the page around it settles. Long enough
+ * for images that are slow to load, or slow to fail.
+ */
+const FOLLOW_TIMEOUT_MS = 30000;
+
+// Anything the person does on the canvas, after which its scroll is theirs.
+const TAKEOVER_EVENTS = [ 'keydown', 'pointerdown', 'touchstart', 'wheel' ];
+
 // In the saved site, the first header on the page or the last footer.
 const PREVIEW_SELECTORS = {
 	footer: 'footer.wp-block-template-part',
@@ -136,6 +145,56 @@ function scrollToPart( node, area ) {
 }
 
 /**
+ * Bring the part into view, and keep it there while the page settles.
+ * Images that finish loading, or fail to, after the part is first in view
+ * change the height of the page above it, which would leave a footer out of
+ * sight. It is followed until the person scrolls, clicks or types on the
+ * canvas themselves, or for a while.
+ *
+ * @param {Document}           frameDocument The canvas's document.
+ * @param {() => ?HTMLElement} getNode       Returns the part's node, or
+ *                                           nothing while it hasn't
+ *                                           rendered yet.
+ * @param {string}             area          `header` or `footer`.
+ * @return {() => void} Stops following the part.
+ */
+function followPart( frameDocument, getNode, area ) {
+	const view = frameDocument.defaultView;
+	let request;
+
+	const update = () => {
+		view.cancelAnimationFrame( request );
+		request = view.requestAnimationFrame( () => {
+			const node = getNode();
+
+			if ( node ) {
+				scrollToPart( node, area );
+			}
+		} );
+	};
+
+	// Called once straight away, and again whenever the page changes size.
+	const observer = new view.ResizeObserver( update );
+	observer.observe( frameDocument.body, { box: 'border-box' } );
+
+	const stop = () => {
+		observer.disconnect();
+		view.cancelAnimationFrame( request );
+		view.clearTimeout( timeout );
+		TAKEOVER_EVENTS.forEach( ( type ) =>
+			view.removeEventListener( type, stop, true )
+		);
+	};
+	const timeout = view.setTimeout( stop, FOLLOW_TIMEOUT_MS );
+
+	TAKEOVER_EVENTS.forEach( ( type ) =>
+		view.addEventListener( type, stop, { capture: true, passive: true } )
+	);
+
+	return stop;
+}
+
+/**
  * Keep the part in the spotlight in the saved site that Browse shows. The
  * page is a new document with each load, so it is marked again every time.
  *
@@ -177,11 +236,12 @@ function usePreviewSpotlight( { area, focus, frame, isPreviewing } ) {
 		markSpotlight( node, area );
 		markFocus( previewDocument, getPreviewFocusNodes( node, focus ) );
 
-		if ( isPreviewing ) {
-			scrollToPart( node, area );
-		}
+		const stopFollowing = isPreviewing
+			? followPart( previewDocument, () => node, area )
+			: undefined;
 
 		return () => {
+			stopFollowing?.();
 			style.remove();
 			clearSpotlight( previewDocument );
 		};
@@ -227,26 +287,17 @@ export function useSitePartSpotlight( {
 
 	/*
 	 * Bring it into view whenever it comes on show. Its blocks render a moment
-	 * after it does, and a footer moves down as the page above it fills in, so
-	 * this tries again for a little while.
+	 * after it does, so it is looked up each time the page changes size.
 	 */
 	useEffect( () => {
 		if ( ! isActive ) {
 			return undefined;
 		}
 
-		const timeouts = [ 0, 300, 900 ].map( ( delay ) =>
-			window.setTimeout( () => {
-				const node = canvasDocument.getElementById(
-					`block-${ clientId }`
-				);
-
-				if ( node ) {
-					scrollToPart( node, area );
-				}
-			}, delay )
+		return followPart(
+			canvasDocument,
+			() => canvasDocument.getElementById( `block-${ clientId }` ),
+			area
 		);
-
-		return () => timeouts.forEach( window.clearTimeout );
 	}, [ area, canvasDocument, clientId, isActive ] );
 }

@@ -316,11 +316,11 @@ function makeThemeOption( page, colors, styles ) {
 			? resolveColor( toPreset( page.background ), colors )
 			: null,
 		colors: getSectionStyleColors( styles, colors ),
-		label: __( 'Theme' ),
+		label: __( 'Default' ),
 		matches: ( attributes ) => remove( attributes ) !== attributes,
 		name: null,
 		remove,
-		swatch: EMPTY_ARRAY,
+		swatch: getStyleSwatch( styles, colors ),
 	};
 }
 
