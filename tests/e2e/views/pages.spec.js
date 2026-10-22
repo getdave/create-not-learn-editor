@@ -119,7 +119,7 @@ test.describe( 'Pages view', () => {
 
 		await visitEditor( page, '/types/page' );
 		await stage
-			.getByRole( 'button', { name: 'Page Options', exact: true } )
+			.getByRole( 'button', { name: 'Page options', exact: true } )
 			.click();
 		await page.getByRole( 'menuitem', { name: 'Manage pages' } ).click();
 
@@ -157,7 +157,7 @@ test.describe( 'Pages view', () => {
 		).toHaveCount( 1, { timeout: 15000 } );
 
 		await stage
-			.getByRole( 'button', { name: 'Page Options', exact: true } )
+			.getByRole( 'button', { name: 'Page options', exact: true } )
 			.click();
 		await page.getByRole( 'menuitem', { name: 'Manage homepage' } ).click();
 

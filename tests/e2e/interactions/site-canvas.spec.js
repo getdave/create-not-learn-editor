@@ -194,7 +194,7 @@ test.describe( 'Site canvas interactions', () => {
 	test( 'offers homepage options for the homepage', async ( { page } ) => {
 		await visitEditor( page );
 
-		await page.getByRole( 'button', { name: 'Page Options' } ).click();
+		await page.getByRole( 'button', { name: 'Page options' } ).click();
 		await expect(
 			page.getByRole( 'menuitem', { name: 'Manage homepage' } )
 		).toBeVisible();

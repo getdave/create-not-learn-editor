@@ -9,6 +9,7 @@ const {
 	getCanvasEditor,
 	expectCanvasMode,
 	getStage,
+	pickSectionTemplate,
 	pointAtSection,
 	setCanvasMode,
 	test,
@@ -82,23 +83,6 @@ async function getSettledBox( locator ) {
 	return previous;
 }
 
-/**
- * Add one of the plugin's layouts from the section picker, already open.
- *
- * @param {import('@playwright/test').Page} page
- * @param {string}                          name The layout's title.
- */
-async function pickLayout( page, name ) {
-	const picker = page.getByRole( 'dialog', { name: 'Add a section' } );
-
-	await expect( picker ).toBeVisible();
-	await picker.getByText( 'Layouts', { exact: true } ).click();
-	await picker
-		.getByRole( 'button', { name: `Add ${ name }`, exact: true } )
-		.click();
-	await expect( picker ).toBeHidden();
-}
-
 async function openPage( page, rest, options = {} ) {
 	const testPage = await rest.createPage( options );
 
@@ -158,14 +142,26 @@ test.describe( 'Compose', () => {
 		await placeholder
 			.getByRole( 'button', { name: 'Add a section' } )
 			.click();
-		await pickLayout( page, 'Hero' );
+		await pickSectionTemplate( page, 'Hero' );
 		await expect( placeholder ).toHaveCount( 0 );
 
-		// Still composing, the new section picked, with "Add section" on its
-		// bottom edge.
+		// Still composing, with "Add section" on the new section's bottom
+		// edge while it is pointed at.
 		await expectCanvasMode( page, 'Compose' );
+		const sectionId = await page.evaluate( () => {
+			const store = window.wp.data.select( 'core/block-editor' );
+			const [ root ] = store.getBlocksByName( 'core/post-content' );
+
+			return store.getBlockOrder( root )[ 0 ];
+		} );
+		await pointAtSection(
+			page,
+			getCanvasEditor( page )
+				.contentFrame()
+				.locator( `#block-${ sectionId }` )
+		);
 		await page.locator( '.cnl-section-modes__add-section' ).last().click();
-		await pickLayout( page, 'Image left, text right' );
+		await pickSectionTemplate( page, 'Image left, text right' );
 
 		await expect
 			.poll( () =>
@@ -253,7 +249,7 @@ test.describe( 'Compose', () => {
 			.locator( '.cnl-section-modes__empty' )
 			.getByRole( 'button', { name: 'Add a section' } )
 			.click();
-		await pickLayout( page, 'Image left, text right' );
+		await pickSectionTemplate( page, 'Image left, text right' );
 
 		await page
 			.locator( '.cnl-section-modes__bar' )
