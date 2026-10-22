@@ -18,6 +18,7 @@ import {
  * Internal dependencies
  */
 import { mountChat } from '../../../src/chat';
+import { mountCommands } from '../../../src/commands';
 import { registerFontSizeToolbar } from '../../../src/editor-extensions/font-size-toolbar';
 import { registerSectionMenu } from '../../../src/editor-extensions/section-menu';
 import { registerSectionPatterns } from '../../../src/editor-extensions/section-patterns';
@@ -53,6 +54,7 @@ export async function init() {
 
 	mountWorkspaces();
 	mountTopBar();
+	mountCommands();
 	mountChat();
 	enhanceSidebar( { userName: window.createNotLearnEditor?.userName } );
 }
