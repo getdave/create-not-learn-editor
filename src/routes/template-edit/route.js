@@ -12,7 +12,7 @@ export const route = {
 			throw notFound();
 		}
 	},
-	title: () => __( 'Edit Template' ),
+	title: () => __( 'Edit template' ),
 	async canvas( { search } ) {
 		return {
 			postId: search.postId,

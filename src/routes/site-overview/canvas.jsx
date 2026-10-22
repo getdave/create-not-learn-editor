@@ -491,7 +491,7 @@ export default function Canvas() {
 			<header className="cnl-editor-canvas__toolbar cnl-site-overview__toolbar">
 				<div className="cnl-site-overview__heading">
 					<h1 className="cnl-site-overview__title">
-						{ __( 'Site Overview' ) }
+						{ __( 'Site overview' ) }
 					</h1>
 					{ layout && (
 						<p className="cnl-site-overview__summary">
@@ -511,7 +511,7 @@ export default function Canvas() {
 				{ /* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- The canvas pans and zooms from the pointer and keyboard. */ }
 				<div
 					aria-describedby="cnl-site-overview-help"
-					aria-label={ __( 'Site Overview canvas' ) }
+					aria-label={ __( 'Site overview canvas' ) }
 					className={ `cnl-site-overview__viewport${
 						isPanning ? ' is-panning' : ''
 					}` }
