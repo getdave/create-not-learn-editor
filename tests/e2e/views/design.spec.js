@@ -74,6 +74,47 @@ test.describe( 'Design views', () => {
 		await expect(
 			stage.getByRole( 'button', { name: 'Theme colors' } )
 		).toBeHidden();
+
+		const previews = stage.locator( '.routes-styles__font-preview' );
+
+		// Each pairing is shown in its own fonts, so the theme's font files
+		// have to be on the page, not just in the canvas. System fonts have
+		// no files.
+		const missingFonts = await previews.evaluateAll( async ( nodes ) => {
+			const missing = [];
+			for ( const name of nodes.flatMap( ( node ) => [
+				...node.children,
+			] ) ) {
+				const family = window
+					.getComputedStyle( name )
+					.fontFamily.split( ',' )[ 0 ]
+					.trim();
+				if (
+					family.startsWith( '-' ) ||
+					/^(system-ui|ui-[a-z-]+|serif|sans-serif|monospace)$/.test(
+						family
+					)
+				) {
+					continue;
+				}
+				const faces = await document.fonts.load( `16px ${ family }` );
+				if ( ! faces.length ) {
+					missing.push( family );
+				}
+			}
+			return missing;
+		} );
+		expect( missingFonts ).toEqual( [] );
+
+		// A pairing that uses one font for both names it once.
+		const names = await previews.evaluateAll( ( nodes ) =>
+			nodes.map( ( node ) =>
+				[ ...node.children ].map( ( name ) => name.textContent )
+			)
+		);
+		for ( const pairing of names ) {
+			expect( new Set( pairing ).size ).toBe( pairing.length );
+		}
 	} );
 
 	test( 'Name & logo shows the site identity fields', async ( { page } ) => {

@@ -438,6 +438,10 @@ function cnl_editor_render_full_page() {
 
 	cnl_editor_print_ui_theme_font_preload();
 	print_admin_styles();
+	// Core prints these on `admin_print_styles`, which this page doesn't fire.
+	// The font pickers show the theme's fonts, so they need them loaded.
+	wp_print_font_faces();
+	wp_print_font_faces_from_style_variations();
 	print_head_scripts();
 
 	/** This action is documented in wp-admin/admin-header.php */
