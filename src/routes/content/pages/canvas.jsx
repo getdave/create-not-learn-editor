@@ -526,6 +526,23 @@ function isPassedToPreview( change, select ) {
 	);
 }
 
+/**
+ * The page open in the sidebar according to the browser's address, rather
+ * than the router. Opening a page from `/types/page` moves to the list's own
+ * route, and the old route's canvas stays on show for a moment with the old
+ * address, which has no page open. Switching to Edit in that moment would
+ * otherwise open the homepage over the page just opened.
+ *
+ * @return {string|number} `HOMEPAGE`, a page ID, or 0.
+ */
+function getOpenedInAddress() {
+	const route =
+		new URL( window.location.href ).searchParams.get( 'p' ) || '/';
+	const query = route.split( '?' )[ 1 ] || '';
+
+	return parseTarget( new URLSearchParams( query ).get( 'postId' ) );
+}
+
 function PageDocument( { homepage, page } ) {
 	const isPublished = page?.status === 'publish';
 	let link = page?.link;
@@ -867,13 +884,15 @@ function PagesCanvas() {
 
 	// The sidebar follows the canvas's mode. Editing the page on show opens
 	// it in the sidebar, and going back to the list browses again, as does
-	// arriving at the list from another screen while editing.
+	// arriving at the list from another screen while editing. A change made
+	// in the list, to the menu say, shows in the editor without taking the
+	// list away.
 	const wasEditing = useRef( isEditing );
 	useEffect( () => {
-		if ( isEditing && ! drilled ) {
+		if ( isEditing && ! drilled && ! getOpenedInAddress() ) {
 			if ( wasEditing.current ) {
 				canvas.requestMode( MODE_BROWSE );
-			} else {
+			} else if ( ! canvas.isShowingChange() ) {
 				navigate( {
 					search: {
 						...searchParams,
