@@ -309,9 +309,9 @@ $group-gap: 6px;
 
 	/*
 	 * The toolbar stays lined up with the block, whatever it sits in, and the
-	 * parent selector hangs outside it to the left, naming the parent, with
-	 * the chevron for blocks further up beside it. Core's own, icon-only
-	 * parent selector and its "+" give way to it.
+	 * parent selector hangs outside it to the left, in a box of its own: "···"
+	 * for blocks further up, then the select-parent button. Core's own parent
+	 * selector and its "+" give way to it.
 	 */
 	.block-editor-block-parent-selector {
 		display: none;
@@ -328,6 +328,7 @@ $group-gap: 6px;
 		bottom: -1px;
 		right: calc(100% + #{$parent-gap});
 		margin: 0;
+		padding: 0;
 		background: #fff;
 
 		@include box;
@@ -345,31 +346,8 @@ $group-gap: 6px;
 		display: none;
 	}
 
-	.cnl-block-parent__button.components-button {
-		gap: 4px;
+	:is(.cnl-block-parent__button, .cnl-block-parent__lineage).components-button {
 		height: 100%;
-		padding-inline: 8px 12px;
-		font-weight: 500;
-		white-space: nowrap;
-	}
-
-	.cnl-block-parent__label {
-		max-width: 160px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.cnl-block-parent__lineage.components-button {
-		position: relative;
-		height: 100%;
-		min-width: 32px;
-		padding: 0 4px;
-		border-radius: 0;
-
-		&::after {
-
-			@include divider;
-		}
 	}
 
 	// The Layout menu's button, labelled, with a chevron like the name's.
@@ -480,5 +458,11 @@ $group-gap: 6px;
 	display: inline-flex;
 	gap: 8px;
 	align-items: center;
-	margin-inline-start: calc(var(--cnl-lineage-depth, 0) * 16px);
+}
+
+// How deep a block is, as a rule before its name, as the proposal draws it.
+.cnl-block-lineage__rule {
+	width: calc(var(--cnl-lineage-depth) * 16px);
+	margin-inline-end: -6px;
+	border-top: 1px solid currentcolor;
 }

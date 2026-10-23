@@ -1,13 +1,13 @@
 /**
  * The parent selector, outside the toolbar to its left, standing in for
- * core's icon-only one.
+ * core's, as the proposal draws it: a box of its own holding "···", which
+ * lists every block the selected one sits in, and the select-parent button.
  *
- * It names the block it selects, "↖ Grid", so it can't be taken for one of
- * the selected block's own tools, and lights that block up while pointed at
- * or focused, as core's does. From two levels deep, a chevron beside it
- * lists every block the selected one sits in, from the outermost down, each
- * with its name, a custom one where set, and its type, so a block further up
- * is one pick away rather than a click per level.
+ * The list runs from the outermost block down, each with its name, a custom
+ * one where set, and its type, so a block further up is one pick away rather
+ * than a click per level. The select-parent button names the parent in its
+ * tooltip. Both light the block they stand for up while pointed at or
+ * focused, as core's parent selector does.
  *
  * Core decides whether a block gets a parent selector at all; the stylesheet
  * shows this one only where core would show its own.
@@ -27,13 +27,33 @@ import {
 import { ToolbarButton } from '@wordpress/components';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { __, sprintf } from '@wordpress/i18n';
-import { arrowUpLeft, chevronDown } from '@wordpress/icons';
+import { moreHorizontal } from '@wordpress/icons';
 import { Menu } from '@wordpress/ui';
 
 /**
  * Internal dependencies
  */
 import { ToolbarMenu } from './toolbar-menu';
+
+/**
+ * The proposal's select-parent icon: a block in front of the one it sits in.
+ */
+const selectParent = (
+	<svg
+		xmlns="http://www.w3.org/2000/svg"
+		viewBox="0 0 24 24"
+		width="24"
+		height="24"
+		style={ { fill: 'none' } }
+		stroke="currentColor"
+		strokeWidth="1.5"
+		aria-hidden="true"
+		focusable="false"
+	>
+		<path d="M8.75 8.75V6c0-.69.56-1.25 1.25-1.25h8c.69 0 1.25.56 1.25 1.25v8c0 .69-.56 1.25-1.25 1.25h-2.75" />
+		<rect x="4.75" y="8.75" width="10.5" height="10.5" rx="1.25" />
+	</svg>
+);
 
 /**
  * The selected block's ancestors, outermost first, skipping any the editor
@@ -123,10 +143,8 @@ function useHighlight( clientId ) {
 }
 
 /**
- * One ancestor in the list: its icon and name, indented together by its
- * depth, then its type. The icon is part of the label rather than the
- * menu's icon column, which lines every item's icon up and so can't show
- * nesting.
+ * One ancestor in the list: the outermost with its icon, the rest led by a
+ * rule as long as they are deep, then its name and its type.
  *
  * @param {Object} props
  * @param {string} props.clientId Ancestor's client ID.
@@ -145,11 +163,16 @@ function LineageItem( { clientId, depth } ) {
 			suffix={ label !== type ? type : undefined }
 		>
 			<Menu.ItemLabel>
-				<span
-					className="cnl-block-lineage__label"
-					style={ { '--cnl-lineage-depth': depth } }
-				>
-					<BlockIcon icon={ icon } />
+				<span className="cnl-block-lineage__label">
+					{ depth ? (
+						<span
+							className="cnl-block-lineage__rule"
+							style={ { '--cnl-lineage-depth': depth } }
+							aria-hidden="true"
+						/>
+					) : (
+						<BlockIcon icon={ icon } />
+					) }
 					{ label }
 				</span>
 			</Menu.ItemLabel>
@@ -177,28 +200,15 @@ export function ParentSelector( { clientId } ) {
 
 	return (
 		<>
-			<ToolbarButton
-				className="cnl-block-parent__button"
-				icon={ arrowUpLeft }
-				label={ sprintf(
-					/* translators: %s: the parent block's name, like Group. */
-					__( 'Select parent block: %s' ),
-					label
-				) }
-				showTooltip
-				onClick={ () => selectBlock( parentId ) }
-				{ ...highlight }
-			>
-				<span className="cnl-block-parent__label">{ label }</span>
-			</ToolbarButton>
 			{ ancestorIds.length > 1 && (
 				<ToolbarMenu
 					buttonProps={ {
 						className: 'cnl-block-parent__lineage',
-						icon: chevronDown,
+						icon: moreHorizontal,
 						label: __( 'Select a block further up' ),
 					} }
 					popupClassName="cnl-block-lineage"
+					side="top"
 				>
 					{ ancestorIds.map( ( id, depth ) => (
 						<LineageItem
@@ -209,6 +219,17 @@ export function ParentSelector( { clientId } ) {
 					) ) }
 				</ToolbarMenu>
 			) }
+			<ToolbarButton
+				className="cnl-block-parent__button cnl-block-toolbar__keep"
+				icon={ selectParent }
+				label={ sprintf(
+					/* translators: %s: the parent block's name, like Group. */
+					__( 'Select parent block: %s' ),
+					label
+				) }
+				onClick={ () => selectBlock( parentId ) }
+				{ ...highlight }
+			/>
 		</>
 	);
 }

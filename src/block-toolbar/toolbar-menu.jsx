@@ -58,12 +58,13 @@ function mergeRefs( ...refs ) {
  * @param {Object}   props.buttonProps      Props for the toolbar button: `icon`, `label`, `className`, `children`.
  * @param {string}   [props.popupClassName] Class for the menu.
  * @param {Function} [props.onOpen]         Called as the menu opens.
+ * @param {string}   [props.side]           Which side of the button the menu opens on, `bottom` unless set.
  * @param {Element}  props.children         The menu's items.
  * @param {Object}   ref                    Ref for the button.
  * @return {Element} The button and its menu.
  */
 function UnforwardedToolbarMenu(
-	{ buttonProps, popupClassName, onOpen, children },
+	{ buttonProps, popupClassName, onOpen, side = 'bottom', children },
 	ref
 ) {
 	const [ isOpen, setIsOpen ] = useState( false );
@@ -118,7 +119,7 @@ function UnforwardedToolbarMenu(
 						positioner={
 							<Menu.Positioner
 								anchor={ buttonRef }
-								side="bottom"
+								side={ side }
 								align="start"
 								sideOffset={ 8 }
 							/>
