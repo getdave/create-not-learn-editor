@@ -7,7 +7,7 @@ import { Breadcrumbs, Page, __ } from '../../wordpress-packages';
 /**
  * A screen under Design. Screens linked from Design lead with a breadcrumb
  * back to it, as there is no sidebar item to return by. Opened from the
- * "Your site" screen, they lead back there instead, and so does Design
+ * "My site" screen, they lead back there instead, and so does Design
  * itself.
  *
  * @param {Object}  props             Component props.

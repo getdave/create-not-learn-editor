@@ -1,7 +1,7 @@
 /**
  * Rows that lead on to related screens, each with an icon, a title and one
  * plain line about it, as on Design. They usually sit at the foot of a
- * screen; on "Your site" they are the screen.
+ * screen; on "My site" they are the screen.
  */
 
 /**

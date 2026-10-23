@@ -1,7 +1,7 @@
 /**
- * The places to start working on the site, as "Your site" and the chat both
+ * The places to start working on the site, as "My site" and the chat both
  * offer them, so the two name, order and describe them the same way. Each
- * says what it leads to: "Your site" opens a screen, the chat asks for it.
+ * says what it leads to: "My site" opens a screen, the chat asks for it.
  *
  * Imported package by package, as the chat is mounted from app init.
  */
