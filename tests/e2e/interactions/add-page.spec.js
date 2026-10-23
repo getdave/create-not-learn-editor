@@ -57,7 +57,7 @@ test.describe( 'Add a page interactions', () => {
 	} );
 
 	test( 'preview size changes how many designs fit across', async () => {
-		await expect.poll( () => getGridColumnCount( picker ) ).toBe( 2 );
+		await expect.poll( () => getGridColumnCount( picker ) ).toBe( 3 );
 
 		await picker.getByRole( 'radio', { name: 'Large previews' } ).click();
 		await expect.poll( () => getGridColumnCount( picker ) ).toBe( 1 );
@@ -65,11 +65,11 @@ test.describe( 'Add a page interactions', () => {
 			picker.locator( '.cnl-add-page-layout-card' )
 		).toHaveCount( 1 );
 
-		await picker.getByRole( 'radio', { name: 'Small previews' } ).click();
-		await expect.poll( () => getGridColumnCount( picker ) ).toBe( 3 );
-
 		await picker.getByRole( 'radio', { name: 'Medium previews' } ).click();
 		await expect.poll( () => getGridColumnCount( picker ) ).toBe( 2 );
+
+		await picker.getByRole( 'radio', { name: 'Small previews' } ).click();
+		await expect.poll( () => getGridColumnCount( picker ) ).toBe( 3 );
 	} );
 
 	test( 'scrolls a design preview without scrolling the rest', async () => {
@@ -156,5 +156,35 @@ test.describe( 'Add a page interactions', () => {
 		await expect(
 			page.locator( '.cnl-editor-homepage-document__title' )
 		).toHaveText( title, { timeout: 15000 } );
+	} );
+
+	test( "a text page keeps the theme's standard layout, with text to write in", async ( {
+		page,
+		rest,
+	} ) => {
+		await picker.getByRole( 'button', { name: /Text page/ } ).click();
+
+		const form = page.getByRole( 'dialog', { name: 'Name your page' } );
+		const title = `Text page ${ Date.now() }`;
+
+		await form.getByLabel( 'Page title' ).fill( title );
+		await form.getByRole( 'button', { name: 'Create page' } ).click();
+
+		await expect( page ).toHaveURL( /previewId%3D\d+/, {
+			timeout: 15000,
+		} );
+		const pageId = decodeURIComponent( page.url() ).match(
+			/previewId=(\d+)/
+		)[ 1 ];
+		rest.deleteLater( `/wp/v2/pages/${ pageId }` );
+
+		const saved = await rest.fetch(
+			`/wp/v2/pages/${ pageId }?context=edit`
+		);
+
+		// No template is the theme's standard one, with the title in it.
+		expect( saved.template ).toBe( '' );
+		expect( saved.content.raw ).toContain( '"placeholder"' );
+		expect( saved.content.raw ).not.toContain( 'wp:post-title' );
 	} );
 } );

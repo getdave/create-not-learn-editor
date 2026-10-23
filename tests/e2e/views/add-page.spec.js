@@ -31,7 +31,7 @@ test.describe( 'Add a page view', () => {
 				.first()
 		).toHaveAttribute( 'aria-current', 'true' );
 		await expect(
-			picker.getByRole( 'radio', { name: 'Medium previews' } )
+			picker.getByRole( 'radio', { name: 'Small previews' } )
 		).toBeChecked();
 		await expect(
 			picker.getByText( /No page designs are available/ )

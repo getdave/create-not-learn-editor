@@ -147,6 +147,13 @@ $cnl-picker-accent: var(--wp-admin-theme-color, #3858e9);
 	padding: 4px 4px var(--wpds-dimension-padding-2xl);
 }
 
+.cnl-design-picker__starts {
+	display: grid;
+	flex: 0 0 auto;
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	gap: var(--wpds-dimension-padding-lg);
+}
+
 .cnl-design-picker__scratch {
 	display: flex;
 	flex: 0 0 auto;

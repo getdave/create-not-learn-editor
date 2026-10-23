@@ -47,6 +47,7 @@ import {
 	getSectionColor,
 	withSectionColor,
 } from '../site-canvas/compose/section-colors';
+import { usePreviewBlocks } from './preview-blocks';
 
 const EMPTY_ARRAY = [];
 const NO_COLORS = { colors: EMPTY_ARRAY, options: EMPTY_ARRAY };
@@ -302,10 +303,12 @@ export function useSectionVariations( clientId ) {
 }
 
 function LayoutCard( { isCurrent, onSelect, option, Preview } ) {
+	// Serialized and parsed again, so the preview's blocks are its own.
 	const content = useMemo(
 		() => serialize( option.blocks ),
 		[ option.blocks ]
 	);
+	const previewBlocks = usePreviewBlocks( content );
 
 	return (
 		<li>
@@ -318,7 +321,10 @@ function LayoutCard( { isCurrent, onSelect, option, Preview } ) {
 				type="button"
 			>
 				<span aria-hidden className="cnl-section-design__preview">
-					<Preview content={ content } description={ option.label } />
+					<Preview
+						blocks={ previewBlocks }
+						description={ option.label }
+					/>
 				</span>
 				<span className="cnl-section-design__layout-footer">
 					<span className="cnl-section-design__label">

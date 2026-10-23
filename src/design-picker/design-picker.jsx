@@ -160,17 +160,23 @@ export function DesignPickerNav( {
 }
 
 /**
- * The strip above the designs for starting with nothing.
+ * The strip above the designs for starting with nothing, or with something
+ * plainer than a design.
  *
  * @param {Object}   props             Component props.
- * @param {string}   props.description What starting from scratch gives you.
+ * @param {string}   props.title       What it starts. "Start from scratch"
+ *                                     if not given.
+ * @param {string}   props.description What starting this way gives you.
+ * @param {Object}   props.icon        Icon in the circle, a plus if not given.
  * @param {boolean}  props.isSelected  Whether it is the choice made, where
  *                                     the choice waits to be confirmed.
  * @param {Function} props.onClick     Called when picked.
  * @return {Element} The strip.
  */
 export function StartFromScratch( {
+	title,
 	description,
+	icon = plusIcon,
 	isSelected = false,
 	onClick,
 } ) {
@@ -184,11 +190,11 @@ export function StartFromScratch( {
 			type="button"
 		>
 			<span aria-hidden className="cnl-design-picker__scratch-icon">
-				<Icon icon={ plusIcon } />
+				<Icon icon={ icon } />
 			</span>
 			<span className="cnl-design-picker__scratch-text">
 				<span className="cnl-design-picker__scratch-title">
-					{ __( 'Start from scratch' ) }
+					{ title || __( 'Start from scratch' ) }
 				</span>
 				<span className="cnl-design-picker__scratch-description">
 					{ description }

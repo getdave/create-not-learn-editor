@@ -53,6 +53,8 @@ import {
 	getPatternDescription,
 	getPatternTitle,
 } from '../routes/content/page-layouts';
+import { usePreviewBlocks } from '../pickers/preview-blocks';
+import { useHasPreviewDrawn } from '../pickers/preview-loading';
 import { searchSectionDesigns } from './groups';
 import { useSectionDesigns } from './patterns';
 
@@ -183,46 +185,6 @@ function useHasBeenNearView( ref, rootRef ) {
 }
 
 /**
- * Whether a preview has drawn its design yet. The block editor's preview
- * renders into a frame that only gets a height once the design inside it has
- * been measured, so until then the card would be an empty box.
- *
- * @param {Object} ref Ref of the element the preview renders in.
- * @return {boolean} Whether the preview has drawn.
- */
-function useHasPreviewDrawn( ref ) {
-	const [ hasDrawn, setHasDrawn ] = useState( false );
-
-	useEffect( () => {
-		const node = ref.current;
-
-		if ( hasDrawn || ! node ) {
-			return;
-		}
-
-		const check = () => {
-			const frame = node.querySelector( 'iframe' );
-
-			if ( frame && parseFloat( frame.style.height ) > 0 ) {
-				setHasDrawn( true );
-			}
-		};
-		const observer = new window.MutationObserver( check );
-
-		observer.observe( node, {
-			attributeFilter: [ 'style' ],
-			childList: true,
-			subtree: true,
-		} );
-		check();
-
-		return () => observer.disconnect();
-	}, [ hasDrawn, ref ] );
-
-	return hasDrawn;
-}
-
-/**
  * A section design: its preview, and its name with "Add" underneath.
  *
  * Shared with the chat, which marks the design it has added.
@@ -247,6 +209,9 @@ export function SectionDesignCard( {
 	const previewRef = useRef();
 	const isNearView = useHasBeenNearView( ref, scrollRef );
 	const hasDrawn = useHasPreviewDrawn( previewRef );
+	const previewBlocks = usePreviewBlocks(
+		isNearView ? getPatternContent( pattern ) : ''
+	);
 	const title = getPatternTitle( pattern );
 	const description = getPatternDescription( pattern );
 
@@ -272,7 +237,7 @@ export function SectionDesignCard( {
 				>
 					{ isNearView && (
 						<Preview
-							content={ getPatternContent( pattern ) }
+							blocks={ previewBlocks }
 							description={ title }
 						/>
 					) }

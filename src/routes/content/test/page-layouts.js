@@ -9,6 +9,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	OTHER_PAGE_LAYOUT_TYPE,
 	getPageLayoutGroups,
+	getPageLayoutKinds,
 	getPatternContent,
 	getPatternDescription,
 	getPatternTermSlugs,
@@ -155,6 +156,102 @@ describe( 'page layout helpers', () => {
 		expect( groupBySlug[ OTHER_PAGE_LAYOUT_TYPE ].patterns ).toEqual( [
 			otherPattern,
 		] );
+	} );
+
+	test( "groups page designs by the theme's own kinds of page, in registered order", () => {
+		const page = { postTypes: [ 'page' ] };
+		const homePattern = {
+			...page,
+			categories: [ 'mainstay/pages', 'mainstay/pages-essentials' ],
+			title: 'Homepage',
+		};
+		const menuPattern = {
+			...page,
+			categories: [
+				'mainstay/pages',
+				'mainstay/pages-offer',
+				'featured',
+			],
+			title: 'Menu',
+		};
+		const comingSoonPattern = {
+			...page,
+			categories: [ 'mainstay/pages', 'mainstay/pages-more' ],
+			title: 'Coming soon',
+		};
+		const uncategorisedPattern = {
+			...page,
+			categories: [ 'mainstay/pages' ],
+			title: 'Another page',
+		};
+		const sectionPattern = { categories: [ 'featured' ], title: 'Hero' };
+		const pagePatterns = [
+			comingSoonPattern,
+			menuPattern,
+			homePattern,
+			uncategorisedPattern,
+		];
+
+		const kinds = getPageLayoutKinds(
+			[ ...pagePatterns, sectionPattern ],
+			[
+				{ label: 'Pages', name: 'mainstay/pages' },
+				{ label: 'Essentials', name: 'mainstay/pages-essentials' },
+				{ label: 'What you offer', name: 'mainstay/pages-offer' },
+				{ label: 'More pages', name: 'mainstay/pages-more' },
+			]
+		);
+
+		// "Featured" is shared with sections, so it isn't a kind of page.
+		expect( kinds.map( ( kind ) => kind.label ) ).toEqual( [
+			'Essentials',
+			'What you offer',
+			'More pages',
+		] );
+		expect(
+			getPageLayoutGroups( pagePatterns, kinds ).map( ( group ) => [
+				group.label,
+				group.patterns,
+			] )
+		).toEqual( [
+			[ 'Essentials', [ homePattern ] ],
+			[ 'What you offer', [ menuPattern ] ],
+			// Its own kind wins over the "coming soon" in its title.
+			[ 'More pages', [ comingSoonPattern ] ],
+			[ 'Other designs', [ uncategorisedPattern ] ],
+		] );
+	} );
+
+	test( 'ignores a catch-all for page designs', () => {
+		const patterns = [
+			{ categories: [ 'theme_page', 'featured' ], postTypes: [ 'page' ] },
+			{ categories: [ 'theme_page' ], postTypes: [ 'page' ] },
+			// Not in the catch-all, as Twenty Twenty-Five's "Event RSVP" isn't.
+			{ categories: [ 'call-to-action' ], postTypes: [ 'page' ] },
+			{ categories: [ 'featured', 'call-to-action' ] },
+		];
+
+		expect( getPageLayoutKinds( patterns ) ).toEqual( [] );
+	} );
+
+	test( 'ignores a category every page design is in', () => {
+		const patterns = [
+			{ categories: [ 'theme/all' ], postTypes: [ 'page' ] },
+			{ categories: [ 'theme/all' ], postTypes: [ 'page' ] },
+		];
+
+		expect( getPageLayoutKinds( patterns ) ).toEqual( [] );
+	} );
+
+	test( 'names a kind from its slug when it is not registered', () => {
+		const patterns = [
+			{ categories: [ 'acme/shop' ], postTypes: [ 'page' ] },
+			{ categories: [ 'acme/blog' ], postTypes: [ 'page' ] },
+		];
+
+		expect(
+			getPageLayoutKinds( patterns ).map( ( kind ) => kind.label )
+		).toEqual( [ 'Shop', 'Blog' ] );
 	} );
 
 	test( 'decodes pattern titles and descriptions', () => {

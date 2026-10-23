@@ -18,15 +18,14 @@ import {
 	BlockPreview,
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
-import { parse } from '@wordpress/blocks';
 import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
-import { useMemo } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import { store as noticesStore } from '@wordpress/notices';
 
 /**
  * Internal dependencies
  */
+import { usePreviewBlocks } from '../pickers/preview-blocks';
 import { getPatternTitle } from '../routes/content/page-layouts';
 import { getSectionTitle } from '../routes/content/pages/page-sections';
 import {
@@ -54,10 +53,7 @@ export {
  * @return {Element} The preview.
  */
 export function EditorPreview( { content } ) {
-	const blocks = useMemo(
-		() => parse( content, { __unstableSkipMigrationLogs: true } ),
-		[ content ]
-	);
+	const blocks = usePreviewBlocks( content );
 
 	return (
 		<BlockPreview.Async>

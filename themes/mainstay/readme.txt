@@ -15,8 +15,8 @@ Mainstay builds pages from full-width sections. Each section can take one of fiv
 It comes with:
 
 * Header and footer layouts.
-* Ready-made sections for introductions, services, prices, menus, events, testimonials, galleries, team, questions and contact details.
-* Whole-page layouts for a homepage, about, services and contact page.
+* Ready-made sections for introductions, services, prices, menus, events, testimonials, galleries, team, jobs, questions, contact details, long text and a coming soon notice.
+* Whole-page layouts for a homepage, about, services, contact, menu, events, gallery, our work, pricing, FAQ, work with us, privacy policy and coming soon page.
 * Five extra colour palettes, three font pairings and three complete looks.
 * Image shapes: an arched top and soft rounded corners.
 
