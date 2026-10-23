@@ -235,10 +235,19 @@ export function PageDetailStage( {
 			breadcrumbs={
 				<Breadcrumbs
 					items={ [
-						// Opened from the "Your site" screen, a page leads
+						// Opened from the "My site" screen, a page leads
 						// back to it.
 						...siteTrail,
-						{ label: __( 'Pages' ), to: LIST_PATH },
+						{
+							label: __( 'Pages' ),
+							// Only the visit's origin carries over: the rest
+							// is this page's own view state, not the list's.
+							to: searchParams.from
+								? `${ LIST_PATH }?from=${ encodeURIComponent(
+										searchParams.from
+									) }`
+								: LIST_PATH,
+						},
 						...ancestors.map( ( label ) => ( { label } ) ),
 						// The sections lead back to the page's details.
 						...( isComposing

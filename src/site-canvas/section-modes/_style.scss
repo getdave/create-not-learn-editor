@@ -584,6 +584,44 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	}
 }
 
+// Custom: a colour wheel, for any colour, until the section has its own.
+// Shaded while its tray is open, rather than ringed, so it isn't mistaken
+// for the colour in use.
+.cnl-section-modes__swatch-wheel {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: conic-gradient(#f44, #fb3, #4c4, #3be, #46f, #c4e, #f44);
+	box-shadow: inset 0 0 0 1px $stroke-control;
+}
+
+.cnl-section-modes .components-button.cnl-section-modes__custom[aria-expanded="true"] {
+	border-color: $stroke-active;
+	background: var(--wpds-color-background-interactive-neutral-weak-active);
+}
+
+// One of the custom colours: its colour and name, and a caution mark when
+// it doesn't read against the others.
+.cnl-section-modes .components-button.cnl-section-modes__well {
+	gap: var(--wpds-dimension-gap-xs);
+	padding-inline: 3px 14px;
+
+	.component-color-indicator {
+		width: 24px;
+		height: 24px;
+		box-shadow: inset 0 0 0 1px $stroke-control;
+	}
+
+	&[aria-expanded="true"] {
+		outline-color: $stroke-brand;
+	}
+}
+
+.cnl-section-modes__well-alert {
+	color: var(--wpds-color-foreground-content-caution);
+	fill: currentcolor;
+}
+
 // A width: its icon and name in the same pill.
 .cnl-section-modes .components-button.cnl-section-modes__width {
 	gap: var(--wpds-dimension-gap-xs);
@@ -690,5 +728,178 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	.cnl-section-modes__fresh {
 		animation: none;
 		box-shadow: 0 0 0 4px color-mix(in srgb, #{$theme} 50%, transparent);
+	}
+}
+
+/*
+ * A row's items, on the page: adding, removing and how many per row. See
+ * `row-handles.jsx`.
+ */
+
+// A row of cards: outlined while pointed at, once its section is picked, as
+// a click opens it, and solid while open.
+.cnl-section-modes__row-outline {
+	position: absolute;
+	box-sizing: border-box;
+	border: 1px dashed color-mix(in srgb, #{$theme} 80%, transparent);
+	border-radius: 2px;
+	pointer-events: none;
+
+	&.is-open {
+		border: 2px solid $theme;
+	}
+}
+
+.cnl-section-modes__row-tag {
+	position: absolute;
+	bottom: 100%;
+	left: -1px;
+	padding: 1px 6px;
+	border-radius: 2px 2px 0 0;
+	background: $theme;
+	color: #fff;
+	font-size: var(--wpds-typography-font-size-xs);
+	line-height: 18px;
+	white-space: nowrap;
+}
+
+.cnl-section-modes__row-outline:not(.is-open) .cnl-section-modes__row-tag {
+	background: color-mix(in srgb, #{$theme} 80%, transparent);
+}
+
+// The item pointed at, outlined.
+.cnl-section-modes__row-item {
+	position: absolute;
+	box-sizing: border-box;
+	border: 1px dashed color-mix(in srgb, #{$theme} 70%, transparent);
+	border-radius: 2px;
+	pointer-events: none;
+}
+
+// A slim strip on the right of the last card, where one more would go,
+// with a + in its middle, as "Add section" sits on a section's edge.
+.cnl-section-modes .cnl-section-modes__row-add {
+	position: absolute;
+	box-sizing: border-box;
+	min-width: 0;
+	height: auto;
+	justify-content: center;
+	padding: 0;
+	overflow: visible;
+	border: 2px dashed color-mix(in srgb, #{$theme} 70%, transparent);
+	border-radius: 999px;
+	background: color-mix(in srgb, #{$theme} 10%, $surface);
+	color: #fff;
+	animation: cnl-section-modes-rise $duration-md $easing-expressive both;
+
+	svg {
+		flex: none;
+		box-sizing: content-box;
+		padding: 4px;
+		border-radius: 50%;
+		background: $theme;
+		box-shadow: $lift;
+	}
+
+	&:hover,
+	&:focus-visible {
+		border-style: solid;
+		border-color: $theme;
+		background: color-mix(in srgb, #{$theme} 25%, $surface);
+		color: #fff;
+	}
+}
+
+// A placeholder card in the gap beside the cards in the last line.
+.cnl-section-modes .cnl-section-modes__row-cell {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	padding: 0;
+	border: 2px dashed color-mix(in srgb, #{$theme} 60%, transparent);
+	border-radius: 4px;
+	background: color-mix(in srgb, #{$theme} 6%, transparent);
+	color: $theme;
+	font: inherit;
+	cursor: pointer;
+	animation: cnl-section-modes-rise $duration-md $easing-expressive both;
+
+	&:hover,
+	&:focus-visible {
+		background: color-mix(in srgb, #{$theme} 14%, transparent);
+		border-color: $theme;
+	}
+
+	&:focus-visible {
+		outline: 2px solid $theme;
+		outline-offset: 2px;
+	}
+}
+
+.cnl-section-modes__row-cell-label {
+	padding: 6px 12px;
+	border-radius: $bar-radius;
+	background: $theme;
+	color: #fff;
+	font-weight: 500;
+
+	&::before {
+		content: "+ ";
+	}
+}
+
+// The remove button on the item pointed at's corner.
+.cnl-section-modes .cnl-section-modes__row-remove {
+	position: absolute;
+	width: 24px;
+	min-width: 24px;
+	height: 24px;
+	justify-content: center;
+	padding: 0;
+	border: $edge;
+	border-radius: 50%;
+	background: $surface;
+	color: $ink;
+	box-shadow: $lift;
+
+	&:hover {
+		color: #cc1818;
+	}
+}
+
+// Under a row's end: how many items sit side by side.
+.cnl-section-modes__per-row {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 2px 2px 2px 10px;
+	transform: translateX(-100%);
+	border: $edge;
+	border-radius: $bar-radius;
+	background: $surface;
+	color: $ink;
+	box-shadow: $lift;
+	font-size: var(--wpds-typography-font-size-sm);
+	white-space: nowrap;
+	pointer-events: auto;
+	animation: cnl-section-modes-rise $duration-md $easing-expressive both;
+}
+
+.cnl-section-modes__per-row-label {
+	margin-inline-end: 6px;
+	color: $ink-weak;
+}
+
+.cnl-section-modes .cnl-section-modes__per-row-option {
+	min-width: 28px;
+	justify-content: center;
+	border-radius: $button-radius;
+
+	&[aria-pressed="true"] {
+		background: $theme;
+		color: #fff;
 	}
 }

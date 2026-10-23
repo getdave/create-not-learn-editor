@@ -1,22 +1,28 @@
 /**
- * Edit's section layer. Pointing at a section outlines and names it, lays a
- * light tint over it, and shows a bar of controls: Add, the two ways to
- * edit it, and its moves. Nothing on the page can be clicked until one of
- * those is picked, and only one section is in a mode at a time.
+ * Edit's section layer. A section is worked on a level at a time, a click
+ * at a time:
+ *
+ * 1. A click anywhere on a section picks it: outlined, named, and with its
+ *    bar of Add, Edit design and its moves, which stays while it is worked
+ *    on.
+ * 2. A click on a row of cards in it, like three services side by side,
+ *    opens the row: its tools to add a card, remove one and set how many
+ *    sit in a row. A click on anything not in a row skips this step.
+ * 3. A click on a block in it reaches the block: the caret where the click
+ *    landed in text, or a picture selected, with core's own tools.
+ *
+ * Escape steps back a level at a time. A double click goes straight to the
+ * text. Only one section is worked on at a time.
  *
  * - Edit design turns the bar into the section's design choices, Layout,
  *   Colour, Width and More control, each drilled into in the same bar, and
  *   applied as soon as it is picked. More control is Freeform: core's own
- *   unlock, for core's full block tools, left with Done as Edit content is.
- * - Edit content lets clicks through to the section, so its words and
- *   pictures can be changed with core's own tools, and lays nothing over
- *   it.
+ *   unlock, for core's full block tools, left with Done.
+ * - A header or footer shows on every page, so its words aren't reached by
+ *   clicking: Edit header or Edit footer opens it, in the spotlight, left
+ *   with Done.
  *
- * A double click on a section opens it in Edit content, with the caret
- * where the click landed. Escape, or a click anywhere else, leaves Edit
- * design, its changes kept, the section staying picked; so do Done in Edit
- * content and Freeform. In Edit design, Escape steps back from a design
- * choice to the choices first.
+ * Internally, a section whose blocks are reached is in "Edit content".
  *
  * Compose uses the same layer over the editor zoomed out. Sections are
  * dragged there to reorder them, and their layouts, colours and place on
@@ -51,7 +57,6 @@ import {
 	blockEditorStore,
 	Button,
 	coreDataStore,
-	MediaUpload,
 	noticesStore,
 	sprintf,
 	useCallback,
@@ -82,7 +87,7 @@ import { useCanvasStyles } from '../use-canvas-styles';
 import { createBlankSection, InlineSectionPicker } from '../../section-picker';
 import { EmptyPage } from './empty-page';
 import { RemoveControl } from './remove-control';
-import DesignBar, { MAX_PER_SLIDE } from './design-bar';
+import DesignBar, { getParentView, MAX_PER_SLIDE } from './design-bar';
 import {
 	getSitewideText,
 	HoverBar,
@@ -99,6 +104,8 @@ import {
 } from './use-canvas-events';
 import { useSectionDrag } from './use-section-drag';
 import { useSectionItems } from './use-section-items';
+import { RowHandles } from './row-handles';
+import { useRowActions, useSectionRows } from './use-section-rows';
 
 const CONTENT_REGION = '.interface-interface-skeleton__content';
 
@@ -108,7 +115,7 @@ const GLOBAL_STYLE_ID = 'cnl-section-modes-global';
 // Sizes on screen, in pixels.
 const INSET = 12;
 const BAR_HEIGHT = 40;
-// Narrower than this, the bar puts the three modes on a row of their own.
+// Narrower than this, the bar puts its modes on a row of their own.
 const NARROW_WIDTH = 760;
 const BAR_ROW_GAP = 8;
 // Room either side of the "Add section" button, at the middle of the top
@@ -128,6 +135,9 @@ const DESIGN_BAR_MIN_WIDTH = 360;
 // Edit design's bar is never shorter than this, scrolling its tray rather
 // than running off the canvas.
 const DESIGN_BAR_MIN_HEIGHT = 200;
+// Between a short section and its bar, under it, clear of "Add section" on
+// its bottom edge.
+const SHORT_BAR_GAP = 22;
 // Between a section and what is placed against it, outside.
 const PLACE_GAP = 8;
 // A layout card and the gap after it, and the tray's room around its cards
@@ -544,11 +554,10 @@ export function SectionModesLayer( {
 	const syncHook = useSync();
 	const sync = isComposing ? syncHook : null;
 	const layerRef = useRef();
-	const openMediaRef = useRef();
-	const mediaRequestRef = useRef( null );
 	const host = useContentHost( editorRef );
 	const { parts, rootClientId, sectionIds } = useComposeStructure();
 	const items = useSectionItems();
+	const rowActions = useRowActions();
 	// `{ id, mode, view }` for the section in a mode, `view` being the
 	// design choice drilled into in Edit design.
 	const [ active, setActive ] = useState( null );
@@ -556,6 +565,12 @@ export function SectionModesLayer( {
 	// The section picked, by a click or by leaving a mode, shown as if it
 	// were pointed at while nothing else is.
 	const [ pickedSection, setPickedSection ] = useState( null );
+	const pickedRef = useRef( pickedSection );
+	// The row of cards open in the section, the second level in.
+	const [ activeRowId, setActiveRowId ] = useState( null );
+	const activeRowRef = useRef( activeRowId );
+	// The rows in the section picked, read by the click handlers.
+	const rowsRef = useRef( EMPTY_ARRAY );
 	const [ freshId, setFreshId ] = useState( null );
 	const [ chromeNode, setChromeNode ] = useState( null );
 	const [ chromeSize, setChromeSize ] = useState( null );
@@ -567,6 +582,8 @@ export function SectionModesLayer( {
 	const activeRef = useRef( active );
 
 	activeRef.current = active;
+	pickedRef.current = pickedSection;
+	activeRowRef.current = activeRowId;
 
 	const partsById = useMemo(
 		() =>
@@ -688,7 +705,7 @@ export function SectionModesLayer( {
 			activeRef.current?.mode === MODE_DESIGN &&
 			activeRef.current.view
 		) {
-			setDesignView( null );
+			setDesignView( getParentView( activeRef.current.view ) );
 		} else {
 			exitMode();
 		}
@@ -777,24 +794,116 @@ export function SectionModesLayer( {
 			target === activeRef.current.id
 		);
 
+	// The row of cards a block is in, or is, in the section picked.
+	const getRowOf = ( blockId ) => {
+		const rowIds = rowsRef.current.map( ( row ) => row.clientId );
+		let clientId = blockId;
+
+		while ( clientId ) {
+			if ( rowIds.includes( clientId ) ) {
+				return clientId;
+			}
+
+			clientId = registry
+				.select( blockEditorStore )
+				.getBlockRootClientId( clientId );
+		}
+
+		return null;
+	};
+
+	/*
+	 * Clicks reach a section whose blocks are open, but a click on a row of
+	 * cards other than the one open opens that row first, as the second
+	 * level in.
+	 */
+	const allowsClick = ( target, blockId ) => {
+		if ( ! isOpen( target ) ) {
+			return false;
+		}
+
+		if ( activeRef.current.mode !== MODE_CONTENT || partsById[ target ] ) {
+			return true;
+		}
+
+		const row = getRowOf( blockId );
+
+		return ! row || row === activeRowRef.current;
+	};
+
+	// Put the caret at the point clicked, once the section takes clicks.
+	const openAt = ( target, event, blockId ) => {
+		const doc = event.target.ownerDocument;
+		const { clientX: x, clientY: y } = event;
+
+		if ( activeRef.current?.mode !== MODE_CONTENT ) {
+			enterMode( target, MODE_CONTENT );
+		}
+
+		window.requestAnimationFrame( () =>
+			window.requestAnimationFrame( () =>
+				placeCaret( doc, x, y, blockId )
+			)
+		);
+	};
+
 	useCanvasGuard( {
-		allows: isOpen,
+		allows: allowsClick,
 		canvasDocument,
 		findTarget,
 		isActive: true,
-		// A click picks the section it lands on, or nothing, leaving any
-		// mode.
-		onBlocked: ( target ) => {
-			if ( activeRef.current ) {
-				exitMode();
-			}
+		/*
+		 * A click on a section picks it. On the section picked, it goes a
+		 * level in: to the row of cards it lands on, then to the block. A
+		 * click anywhere else picks what it lands on, or nothing, leaving
+		 * any mode.
+		 */
+		onBlocked: ( target, event ) => {
+			const current = activeRef.current;
+			const held =
+				current?.mode === MODE_CONTENT
+					? current.id
+					: ! current && pickedRef.current;
 
 			setInlineAdd( null );
 
+			if (
+				target &&
+				target === held &&
+				! partsById[ target ] &&
+				! isComposing
+			) {
+				const blockId =
+					event.target.closest?.( '[data-block]' )?.dataset.block;
+				const row = getRowOf( blockId );
+
+				if ( row && row !== activeRowRef.current ) {
+					if ( current ) {
+						exitMode();
+					}
+
+					setActiveRowId( row );
+					return;
+				}
+
+				if ( ! row ) {
+					setActiveRowId( null );
+				}
+
+				openAt( target, event, blockId );
+				return;
+			}
+
+			if ( current ) {
+				exitMode();
+			}
+
+			setActiveRowId( null );
 			setPickedSection( target );
 		},
-		// A double click opens the section in Edit content, with the caret
-		// where it landed, or the block there selected, like a picture.
+		// A double click goes straight to the block, with the caret where it
+		// landed, or the block there selected, like a picture. Not on a
+		// header or footer, which is opened on purpose.
 		onDoubleClick: ( target, event ) => {
 			const doc = event.target.ownerDocument;
 			const { clientX: x, clientY: y } = event;
@@ -817,6 +926,11 @@ export function SectionModesLayer( {
 				return;
 			}
 
+			if ( partsById[ target ] ) {
+				return;
+			}
+
+			setActiveRowId( getRowOf( blockId ) );
 			enterMode( target, MODE_CONTENT );
 
 			// Once the section takes clicks, and core has opened it.
@@ -838,7 +952,10 @@ export function SectionModesLayer( {
 			}
 
 			if ( ! current ) {
-				if ( pickedSection ) {
+				if ( activeRowRef.current ) {
+					event.preventDefault();
+					setActiveRowId( null );
+				} else if ( pickedSection ) {
 					event.preventDefault();
 					setPickedSection( null );
 				} else if ( isComposing ) {
@@ -974,8 +1091,12 @@ export function SectionModesLayer( {
 
 	// A canvas about one section keeps it picked while nothing else is.
 	const picked = pickedSection || focusId;
+	// A section whose blocks are reached is still picked, its bar kept.
+	const isWorkedOn =
+		active?.mode === MODE_CONTENT && ! partsById[ active.id ];
 	const pickedId =
-		! active && picked && targets.has( picked ) ? picked : null;
+		( isWorkedOn && active.id ) ||
+		( ! active && picked && targets.has( picked ) ? picked : null );
 	// The section picked or in a mode, for the chat to change. A header or
 	// footer isn't one.
 	const sharedSectionId = active?.id || pickedId;
@@ -996,13 +1117,48 @@ export function SectionModesLayer( {
 	const isEmpty =
 		! focusId && Boolean( rootClientId ) && sectionIds.length === 0;
 
+	/*
+	 * The section whose rows of cards can be opened: the one picked, or
+	 * worked on. Not a header or footer, nor a section in Edit design or
+	 * Freeform, which have their own tools, nor while composing.
+	 */
+	const rowsSectionId =
+		! isComposing && pickedId && ! partsById[ pickedId ] ? pickedId : null;
+
+	const rows = useSectionRows( rowsSectionId );
+	rowsRef.current = rows;
+
+	// Working on a section's blocks, the row of cards open follows the
+	// block selected, as a click outside the rows still reaches the page.
+	useEffect( () => {
+		if ( active?.mode !== MODE_CONTENT || ! selectedId ) {
+			return;
+		}
+
+		const row = getRowOf( selectedId );
+
+		if ( row !== activeRowRef.current ) {
+			setActiveRowId( row );
+		}
+		// `getRowOf` reads the rows from their ref, set as they are.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ active?.mode, rows, selectedId ] );
+	const openRowId = rows.some( ( row ) => row.clientId === activeRowId )
+		? activeRowId
+		: null;
+	const rowIds = useMemo(
+		() => rows.flatMap( ( row ) => [ row.clientId, ...row.itemIds ] ),
+		[ rows ]
+	);
+
 	const measuredIds = useMemo(
 		() => [
 			...( rootClientId ? [ rootClientId ] : EMPTY_ARRAY ),
 			...targets,
 			...( freshId ? [ freshId ] : EMPTY_ARRAY ),
+			...rowIds,
 		],
-		[ freshId, rootClientId, targets ]
+		[ freshId, rootClientId, rowIds, targets ]
 	);
 	const { frame, rects } = useBlockRects( {
 		clientIds: measuredIds,
@@ -1254,7 +1410,12 @@ export function SectionModesLayer( {
 				return;
 			}
 
-			setPickedSection( null );
+			// The row of cards open closes first.
+			if ( activeRowRef.current ) {
+				setActiveRowId( null );
+			} else {
+				setPickedSection( null );
+			}
 		};
 
 		window.addEventListener( 'keydown', onKeyDown );
@@ -1455,23 +1616,6 @@ export function SectionModesLayer( {
 		focusSoon( added.editableId );
 	};
 
-	const requestMedia = ( mediaRequest ) => {
-		mediaRequestRef.current = mediaRequest;
-		openMediaRef.current?.();
-	};
-
-	const onMediaSelect = ( media ) => {
-		const mediaRequest = mediaRequestRef.current;
-
-		mediaRequestRef.current = null;
-
-		if ( ! mediaRequest || ! media?.url ) {
-			return;
-		}
-
-		leaveCompose( () => addItem( mediaRequest.ownerId, 'image', media ) );
-	};
-
 	// A blank section, opened in Edit content with the caret in its text.
 	const startBlank = ( index = 0 ) => {
 		const section = createBlankSection();
@@ -1526,6 +1670,27 @@ export function SectionModesLayer( {
 		window.requestAnimationFrame( () =>
 			scrollCanvasTo( editorRef, clientId )
 		);
+	};
+
+	// A copy of a row's card added after it, highlighted a moment. A grid
+	// that grows to take it has a new client ID.
+	const addRowItem = ( rowId, index, options ) => {
+		const added = rowActions.addItem( rowId, index, options );
+
+		if ( ! added ) {
+			return;
+		}
+
+		setFreshId( added.addedId );
+
+		if ( rowId === activeRowId ) {
+			setActiveRowId( added.rowId );
+		}
+	};
+
+	const removeRowItem = ( rowId, index ) => {
+		registry.dispatch( blockEditorStore ).clearSelectedBlock();
+		rowActions.removeItem( rowId, index );
 	};
 
 	const onLayoutReplace = ( next ) => {
@@ -1646,8 +1811,9 @@ export function SectionModesLayer( {
 		/*
 		 * A narrow section has the modes on a row of their own. A section
 		 * too short for that, or for the bar at all, has a compact bar, its
-		 * modes as icons, over its middle, so it reaches as little as it can
-		 * over the sections beside it, which the pointer is headed for.
+		 * modes as icons, under it, clear of "Add section" on its bottom
+		 * edge: a click goes into the section, so the bar mustn't cover
+		 * what would be clicked.
 		 */
 		const isNarrow = box.width < NARROW_WIDTH;
 		const isCompact =
@@ -1657,7 +1823,7 @@ export function SectionModesLayer( {
 		const barHeight =
 			isNarrow && ! isCompact ? BAR_HEIGHT * 2 + BAR_ROW_GAP : BAR_HEIGHT;
 		const barTop = isCompact
-			? box.top + ( box.height - barHeight ) / 2
+			? box.top + box.height + SHORT_BAR_GAP
 			: stickyTop( box, barHeight );
 		const holdHover = {
 			onBlur: release,
@@ -1673,11 +1839,11 @@ export function SectionModesLayer( {
 		return (
 			<div className="cnl-section-modes__hover" key={ shownHoverId }>
 				<Scope>
-					{ /* Tinted while pointed at; only outlined while just picked. */ }
+					{ /* Tinted while pointed at, as a click picks it; only
+					outlined once picked, as a click goes into it. */ }
 					<div
 						className={ `cnl-section-modes__tint${
 							shownHoverId === pickedId &&
-							hoveredId !== pickedId &&
 							menuOpenFor !== pickedId
 								? ' is-picked'
 								: ''
@@ -1723,14 +1889,9 @@ export function SectionModesLayer( {
 							isNarrow={ isNarrow && ! isCompact }
 							isPart={ isPart }
 							onAdd={ ( type ) =>
-								type === 'image'
-									? requestMedia( {
-											ownerId: shownHoverId,
-											type: 'add',
-										} )
-									: leaveCompose( () =>
-											addItem( shownHoverId, type )
-										)
+								leaveCompose( () =>
+									addItem( shownHoverId, type )
+								)
 							}
 							onDelete={ () => deleteSection( shownHoverId ) }
 							onDuplicate={ () =>
@@ -1851,7 +2012,9 @@ export function SectionModesLayer( {
 	const renderActive = () => {
 		const rect = active && rects[ active.id ];
 
-		if ( ! rect || ! frame ) {
+		// A section whose blocks are reached is drawn as picked, its bar
+		// kept, with nothing to leave.
+		if ( ! rect || ! frame || isWorkedOn ) {
 			return null;
 		}
 
@@ -1991,10 +2154,23 @@ export function SectionModesLayer( {
 	};
 
 	const freshRect = freshId && frame && rects[ freshId ];
+	const getLevel = () => {
+		if ( isWorkedOn ) {
+			return 'blocks';
+		}
+
+		if ( openRowId ) {
+			return 'cards';
+		}
+
+		return pickedId ? 'section' : 'none';
+	};
 
 	return createPortal(
 		<div
 			className="cnl-section-modes"
+			// How far into the section picked the clicks have gone.
+			data-level={ getLevel() }
 			onKeyDown={ ( event ) => {
 				if ( event.key === 'Escape' && inlineAdd ) {
 					event.stopPropagation();
@@ -2002,6 +2178,9 @@ export function SectionModesLayer( {
 				} else if ( event.key === 'Escape' && active ) {
 					event.stopPropagation();
 					escapeMode();
+				} else if ( event.key === 'Escape' && activeRowId ) {
+					event.stopPropagation();
+					setActiveRowId( null );
 				} else if ( event.key === 'Escape' && pickedSection ) {
 					event.stopPropagation();
 					setPickedSection( null );
@@ -2041,6 +2220,34 @@ export function SectionModesLayer( {
 					{ renderHover() }
 					{ renderInlineAdd() }
 					{ renderActive() }
+					{ rowsSectionId && ! drag && rects[ rowsSectionId ] && (
+						<RowHandles
+							activeRowId={ openRowId }
+							canvasDocument={ canvasDocument }
+							frame={ frame }
+							holdHover={ {
+								onBlur: release,
+								onFocus: () => hold( rowsSectionId ),
+								onPointerEnter: () => hold( rowsSectionId ),
+								onPointerLeave: release,
+							} }
+							onAdd={ addRowItem }
+							onPerRow={ ( rowId, count ) => {
+								const nextId = rowActions.setPerRow(
+									rowId,
+									count
+								);
+
+								if ( nextId && rowId === activeRowId ) {
+									setActiveRowId( nextId );
+								}
+							} }
+							onRemove={ removeRowItem }
+							rects={ rects }
+							rows={ rows }
+							section={ local( rects[ rowsSectionId ], frame ) }
+						/>
+					) }
 					{ renderDrag() }
 					{ freshRect && (
 						<div
@@ -2060,15 +2267,6 @@ export function SectionModesLayer( {
 					} }
 				/>
 			) }
-			<MediaUpload
-				allowedTypes={ [ 'image' ] }
-				multiple={ false }
-				onSelect={ onMediaSelect }
-				render={ ( { open } ) => {
-					openMediaRef.current = open;
-					return null;
-				} }
-			/>
 		</div>,
 		host
 	);

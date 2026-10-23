@@ -17,6 +17,14 @@
  * a button, a band in another colour or a photo, doesn't count, as its
  * colours go with that background.
  *
+ * People can also make their own: a background, a text colour and a button
+ * colour, and nothing more (`withCustomColors`). They are saved on the
+ * section's own block with core's colour settings, headings and links
+ * taking the text colour and the button's words whichever of the other two
+ * reads on it. Colours set on a block that fit those three, however they
+ * got there, are the section's custom colours (`getCustomColors`), so they
+ * can be changed, or swapped for another option, from Edit design.
+ *
  * Pure functions only: no React, no stores.
  */
 
@@ -65,6 +73,9 @@ const SET_ELEMENTS = [ 'link', 'heading', 'button' ];
 
 const EMPTY_ARRAY = [];
 
+// The section's own colours, as the current option when it has them.
+export const CUSTOM_COLOR = 'custom';
+
 function getClasses( className ) {
 	return ( className || '' ).split( /\s+/ ).filter( Boolean );
 }
@@ -100,6 +111,37 @@ function hasTextColors( attributes, elementNames ) {
 
 function toPreset( slug ) {
 	return `var:preset|color|${ slug }`;
+}
+
+/**
+ * A colour as custom colours save it: a preset by name, or as CSS.
+ *
+ * @param {?string} value Either way a theme writes a preset, or CSS.
+ * @return {?string} The colour, or null.
+ */
+function toValue( value ) {
+	const slug = getPresetSlug( value );
+
+	if ( slug ) {
+		return toPreset( slug );
+	}
+
+	return typeof value === 'string' && value ? value : null;
+}
+
+/**
+ * An option's background, text and button colours, to start custom
+ * colours from.
+ *
+ * @param {?Object} styles Styles with the colours, theme.json's way.
+ * @return {Object} `{ background, text, button }`, each a colour or null.
+ */
+function getStyleValues( styles ) {
+	return {
+		background: toValue( styles?.color?.background ),
+		button: toValue( styles?.elements?.button?.color?.background ),
+		text: toValue( styles?.color?.text ),
+	};
 }
 
 /**
@@ -232,6 +274,7 @@ function makeStyleOption( style, styles, colors ) {
 				withSectionStyle( attributes.className, null )
 			),
 		swatch: getStyleSwatch( styles, colors ),
+		values: getStyleValues( styles ),
 	};
 }
 
@@ -321,6 +364,7 @@ function makeThemeOption( page, colors, styles ) {
 		name: null,
 		remove,
 		swatch: getStyleSwatch( styles, colors ),
+		values: getStyleValues( styles ),
 	};
 }
 
@@ -383,6 +427,11 @@ function makePaletteOption( set, supports, page ) {
 			return withoutElementColors( rest, presets );
 		},
 		swatch: set.swatch,
+		values: {
+			background: presets[ 0 ],
+			button: set.invertButton ? presets[ 1 ] : page.button,
+			text: presets[ 1 ],
+		},
 	};
 }
 
@@ -403,12 +452,13 @@ function makePaletteOption( set, supports, page ) {
  * @param {Object}   options.supports    Which of `background`, `text`,
  *                                       `link`, `heading` and `button`
  *                                       colours the block type takes.
- * @return {Object[]} `{ name, label, swatch, colors, background, matches,
- *                    apply, remove }` for each, the theme's first, with a
- *                    null name; none when there are no colours but the
- *                    theme's. `swatch` is up to three colours, for Edit
+ * @return {Object[]} `{ name, label, swatch, colors, values, background,
+ *                    matches, apply, remove }` for each, the theme's first,
+ *                    with a null name; none when there are no colours but
+ *                    the theme's. `swatch` is up to three colours, for Edit
  *                    design; `colors` is `{ background, heading, text }`,
- *                    for the chat.
+ *                    for the chat; `values` is `{ background, text, button
+ *                    }`, as saved, to start custom colours from.
  */
 export function getColorOptions( {
 	blockStyles,
@@ -420,6 +470,7 @@ export function getColorOptions( {
 } ) {
 	const page = {
 		background: getPresetSlug( styles?.color?.background ),
+		button: toValue( styles?.elements?.button?.color?.background ),
 		text: getPresetSlug( styles?.color?.text ),
 	};
 	const sectionStyles = getSectionStyles( blockStyles, variations );
@@ -520,7 +571,8 @@ export function getReadableOptions( block, options, colors ) {
 }
 
 /**
- * A section's attributes with another colour on, or the theme's.
+ * A section's attributes with another colour on, or the theme's. Custom
+ * colours it had are taken off.
  *
  * @param {Object}   attributes The section block's attributes.
  * @param {Object[]} options    Result of `getColorOptions`.
@@ -531,11 +583,15 @@ export function getReadableOptions( block, options, colors ) {
 export function withSectionColor( attributes, options, name ) {
 	let next = attributes;
 
-	byPrecedence( options ).forEach( ( option ) => {
-		if ( option.matches( next ) ) {
-			next = option.remove( next );
-		}
-	} );
+	if ( isCustom( attributes, options ) ) {
+		next = withoutCustomColors( attributes );
+	} else {
+		byPrecedence( options ).forEach( ( option ) => {
+			if ( option.matches( next ) ) {
+				next = option.remove( next );
+			}
+		} );
+	}
 
 	const chosen = name && options.find( ( option ) => option.name === name );
 
@@ -544,23 +600,55 @@ export function withSectionColor( attributes, options, name ) {
 
 /**
  * A header's or footer's blocks with a colour on its outermost blocks, as
- * `withSectionColor` does for a section. Blocks with colours of their own,
- * or text that wouldn't read on it, are left as they are.
+ * `withSectionColor` does for a section, or custom colours, as
+ * `withCustomColors` does. Blocks with colours of their own, or text that
+ * wouldn't read on a colour, are left as they are.
  *
  * @param {Object[]} blocks    The part's blocks.
  * @param {string}   blockName The type of block that takes the colour.
- * @param {Object[]} options   Result of `getColorOptions` for that type.
+ * @param {Object[]} options   Result of `getColorOptions` for that
+ *                             type.
  * @param {Object[]} colors    The colours presets can name.
- * @param {?string}  name      The colour, or nothing for the theme's.
+ * @param {?string}  name      The colour, `CUSTOM_COLOR`, or nothing
+ *                             for the theme's.
+ * @param {?Object}  custom    For custom colours, `{ values, supports
+ *                             }`, as `withCustomColors` takes them.
  * @return {Object[]} The blocks.
  */
-export function withPartColor( blocks, blockName, options, colors, name ) {
-	return blocks.map( ( block ) =>
-		block.name === blockName &&
-		getSectionColor( block, options ) !== undefined &&
-		getReadableOptions( block, options, colors ).some(
-			( option ) => option.name === name
-		)
+export function withPartColor(
+	blocks,
+	blockName,
+	options,
+	colors,
+	name,
+	custom
+) {
+	const isCustomColor = name === CUSTOM_COLOR && !! custom;
+
+	return blocks.map( ( block ) => {
+		if ( block.name !== blockName ) {
+			return block;
+		}
+
+		if ( isCustomColor ) {
+			return getSectionColor( block, options ) !== undefined ||
+				isCustom( block.attributes, options )
+				? {
+						...block,
+						attributes: withCustomColors(
+							block.attributes,
+							options,
+							custom.values,
+							{ colors, supports: custom.supports }
+						),
+					}
+				: block;
+		}
+
+		return getSectionColor( block, options ) !== undefined &&
+			getReadableOptions( block, options, colors ).some(
+				( option ) => option.name === name
+			)
 			? {
 					...block,
 					attributes: withSectionColor(
@@ -569,8 +657,8 @@ export function withPartColor( blocks, blockName, options, colors, name ) {
 						name
 					),
 				}
-			: block
-	);
+			: block;
+	} );
 }
 
 /**
@@ -587,4 +675,217 @@ export function getAttributeUpdate( before, after ) {
 			...new Set( [ ...Object.keys( before ), ...Object.keys( after ) ] ),
 		].map( ( key ) => [ key, after[ key ] ] )
 	);
+}
+
+/**
+ * A section's custom colours: colours set on its own block that are no more
+ * than custom colours set, a background, maybe a text colour, headings and
+ * links in that text colour, and a button colour.
+ *
+ * @param {Object} attributes The section block's attributes.
+ * @return {?Object} `{ background, text, button }`, as saved, text and
+ *                   button null when not set; or null when the block has
+ *                   no background of its own, or colours of other kinds.
+ */
+export function getCustomColors( attributes ) {
+	const style = attributes.style || {};
+	const background = attributes.backgroundColor
+		? toPreset( attributes.backgroundColor )
+		: style.color?.background;
+
+	if (
+		! background ||
+		attributes.customBackgroundColor ||
+		attributes.customTextColor ||
+		attributes.gradient ||
+		style.color?.gradient ||
+		getClasses( attributes.className ).some( ( item ) =>
+			COLOR_CLASS.test( item )
+		)
+	) {
+		return null;
+	}
+
+	const text = attributes.textColor
+		? toPreset( attributes.textColor )
+		: style.color?.text || null;
+	const elements = style.elements || {};
+	const isMore = Object.entries( elements ).some( ( [ name, element ] ) => {
+		if ( ! element?.color && ! element?.[ ':hover' ]?.color ) {
+			return false;
+		}
+
+		if ( ! SET_ELEMENTS.includes( name ) || element[ ':hover' ]?.color ) {
+			return true;
+		}
+
+		return (
+			name !== 'button' &&
+			Object.entries( element.color ).some(
+				( [ key, value ] ) => key !== 'text' || value !== text
+			)
+		);
+	} );
+
+	return isMore
+		? null
+		: {
+				background,
+				button: elements.button?.color?.background || null,
+				text,
+			};
+}
+
+/**
+ * Whether a section has custom colours, rather than one of the options.
+ *
+ * @param {Object}   attributes The section block's attributes.
+ * @param {Object[]} options    Result of `getColorOptions`.
+ * @return {boolean} Whether it does.
+ */
+function isCustom( attributes, options ) {
+	return (
+		getSectionColor( { attributes }, options ) === undefined &&
+		!! getCustomColors( attributes )
+	);
+}
+
+/**
+ * Attributes without the colours custom colours set.
+ *
+ * @param {Object} attributes The section block's attributes.
+ * @return {Object} The attributes.
+ */
+function withoutCustomColors( attributes ) {
+	const { backgroundColor, textColor, ...rest } = attributes;
+
+	if ( ! rest.style ) {
+		return rest;
+	}
+
+	const { color = {}, elements = {}, ...style } = rest.style;
+	const { background, text, ...otherColor } = color;
+	const otherElements = { ...elements };
+
+	SET_ELEMENTS.forEach( ( name ) => {
+		if ( otherElements[ name ]?.color ) {
+			const { color: previous, ...other } = otherElements[ name ];
+
+			if ( Object.keys( other ).length ) {
+				otherElements[ name ] = other;
+			} else {
+				delete otherElements[ name ];
+			}
+		}
+	} );
+
+	return withStyle( rest, {
+		...style,
+		...( Object.keys( otherColor ).length && { color: otherColor } ),
+		...( Object.keys( otherElements ).length && {
+			elements: otherElements,
+		} ),
+	} );
+}
+
+/**
+ * The colour a button's words take, to read on the button: whichever of
+ * the section's background and text colours reads best on it, or, when
+ * neither reads well enough, the palette colour that reads best.
+ *
+ * @param {Object}   values `{ background, text, button }`.
+ * @param {Object[]} colors The colours presets can name: the palette.
+ * @return {string} The colour, as saved.
+ */
+export function getButtonTextValue( values, colors ) {
+	const button = parseColor( resolveColor( values.button, colors ) );
+
+	if ( ! button ) {
+		return values.background;
+	}
+
+	const getScore = ( value ) => {
+		const color = parseColor( resolveColor( value, colors ) );
+
+		return color ? getContrast( button, color ) : 0;
+	};
+	const [ best ] = [ values.background, values.text ]
+		.filter( Boolean )
+		.sort( ( a, b ) => getScore( b ) - getScore( a ) );
+
+	if ( getScore( best ) >= MIN_TEXT_CONTRAST ) {
+		return best;
+	}
+
+	return [ best, ...colors.map( ( item ) => toPreset( item.slug ) ) ].reduce(
+		( winner, value ) =>
+			getScore( value ) > getScore( winner ) ? value : winner
+	);
+}
+
+/**
+ * A section's attributes with custom colours on, in place of whatever
+ * option or custom colours it had.
+ *
+ * @param {Object}   attributes       The section block's attributes.
+ * @param {Object[]} options          Result of `getColorOptions`.
+ * @param {Object}   values           `{ background, text, button }`, each
+ *                                    a preset (`var:preset|color|slug`) or
+ *                                    CSS.
+ * @param {Object}   context
+ * @param {Object[]} context.colors   The colours presets can name.
+ * @param {Object}   context.supports As for `getColorOptions`.
+ * @return {Object} The attributes.
+ */
+export function withCustomColors(
+	attributes,
+	options,
+	values,
+	{ colors, supports }
+) {
+	const next = { ...withSectionColor( attributes, options, null ) };
+	const style = { ...next.style };
+	const color = { ...style.color };
+	const backgroundSlug = getPresetSlug( values.background );
+	const textSlug = getPresetSlug( values.text );
+
+	if ( backgroundSlug ) {
+		next.backgroundColor = backgroundSlug;
+	} else {
+		color.background = values.background;
+	}
+
+	if ( textSlug ) {
+		next.textColor = textSlug;
+	} else if ( values.text ) {
+		color.text = values.text;
+	}
+
+	if ( Object.keys( color ).length ) {
+		style.color = color;
+	}
+
+	const elementColors = {
+		link: supports.link && values.text && { text: values.text },
+		heading: supports.heading && values.text && { text: values.text },
+		button: supports.button &&
+			values.button && {
+				background: values.button,
+				text: getButtonTextValue( values, colors ),
+			},
+	};
+
+	SET_ELEMENTS.forEach( ( name ) => {
+		if ( elementColors[ name ] ) {
+			style.elements = {
+				...style.elements,
+				[ name ]: {
+					...style.elements?.[ name ],
+					color: elementColors[ name ],
+				},
+			};
+		}
+	} );
+
+	return withStyle( next, style );
 }

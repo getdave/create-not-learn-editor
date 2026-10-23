@@ -13,12 +13,11 @@ import {
 	DEFAULT_TEMPLATE_LAYOUTS,
 	EMPTY_ARRAY,
 	NO_LIST_DATA,
-	getSearchParams,
-	getSearchValue,
 } from './list-shared';
 import {
 	getErrorMessage,
 	getTemplateAuthorText,
+	getTemplateDisplayDescription,
 	getTemplateDisplayTitle,
 	getTitleText,
 } from '../../records';
@@ -66,10 +65,6 @@ const DEFAULT_TEMPLATE_VIEW = {
 	titleField: 'title',
 	type: 'grid',
 };
-
-function getTemplateDescription( template ) {
-	return template?.description || '';
-}
 
 function getTemplateStatusLabel( template ) {
 	switch ( template?.status ) {
@@ -169,11 +164,11 @@ function getTemplateFields() {
 		{
 			enableGlobalSearch: true,
 			enableSorting: false,
-			getValue: ( { item } ) => getTemplateDescription( item ),
+			getValue: ( { item } ) => getTemplateDisplayDescription( item ),
 			id: 'description',
 			label: __( 'Description' ),
 			render: ( { item } ) =>
-				getTemplateDescription( item ) ||
+				getTemplateDisplayDescription( item ) ||
 				__( 'Controls part of the site layout.' ),
 			type: 'text',
 		},
@@ -209,21 +204,21 @@ function getTemplateFields() {
 	];
 }
 
+function openTemplate( navigate, template ) {
+	if ( template?.id ) {
+		navigate( {
+			search: {
+				postId: template.id,
+			},
+			to: '/wp_template',
+		} );
+	}
+}
+
 function getTemplateActions( navigate, onRename ) {
 	return [
 		{
-			callback: ( items ) => {
-				const item = items[ 0 ];
-
-				if ( item?.id ) {
-					navigate( {
-						search: {
-							postId: item.id,
-						},
-						to: '/wp_template',
-					} );
-				}
-			},
+			callback: ( items ) => openTemplate( navigate, items[ 0 ] ),
 			id: 'edit-template',
 			isPrimary: true,
 			label: __( 'Edit' ),
@@ -397,7 +392,6 @@ function TemplatesDataViewsLayout() {
 			</div>
 			<DataViews.Filters className="routes-template-list__dataviews-filters" />
 			<div className="routes-template-list__dataviews-scroll">
-				<DataViews.BulkActionToolbar />
 				<DataViews.Layout />
 				<DataViews.Pagination />
 			</div>
@@ -422,17 +416,6 @@ function useTemplatesData() {
 	}, [] );
 }
 
-function getSelectedTemplateIdFromSearch() {
-	const params = getSearchParams();
-
-	return (
-		getSearchValue( params.getAll( 'postIds[]' ) ) ||
-		params.get( 'postId' ) ||
-		getSearchValue( params.getAll( 'templateIds[]' ) ) ||
-		params.get( 'templateId' )
-	);
-}
-
 export function TemplatesStage() {
 	const navigate = useNavigate();
 	const dataViews = useDataViews();
@@ -442,9 +425,6 @@ export function TemplatesStage() {
 		useDispatch( noticesStore );
 	const { error, isLoading, templates } = useTemplatesData();
 	const [ view, setView ] = useState( DEFAULT_TEMPLATE_VIEW );
-	const [ selectedTemplateId, setSelectedTemplateId ] = useState(
-		getSelectedTemplateIdFromSearch()
-	);
 	const [ isCreateModalOpen, setIsCreateModalOpen ] = useState( false );
 	const [ isCreatingTemplate, setIsCreatingTemplate ] = useState( false );
 	const [ createTemplateError, setCreateTemplateError ] = useState( '' );
@@ -531,23 +511,6 @@ export function TemplatesStage() {
 				: NO_LIST_DATA,
 		[ dataViews, fields, templates, view ]
 	);
-	const selectedTemplate =
-		templates.find(
-			( template ) =>
-				String( template.id ) === String( selectedTemplateId )
-		) || templates[ 0 ];
-	const selection = selectedTemplate?.id
-		? [ String( selectedTemplate.id ) ]
-		: [];
-	const selectTemplate = ( templateId ) => {
-		setSelectedTemplateId( templateId );
-		navigate( {
-			search: {
-				postId: templateId ? String( templateId ) : undefined,
-			},
-			to: '/templates',
-		} );
-	};
 	const onChangeView = ( nextView ) => {
 		setView( nextView );
 		navigate( {
@@ -658,13 +621,11 @@ export function TemplatesStage() {
 					fields={ fields }
 					getItemId={ ( item ) => String( item.id ) }
 					isLoading={ isLoading }
-					onChangeSelection={ ( items ) =>
-						selectTemplate( items[ 0 ] )
-					}
+					onChangeSelection={ () => {} }
 					onChangeView={ onChangeView }
-					onClickItem={ ( item ) => selectTemplate( item.id ) }
+					onClickItem={ ( item ) => openTemplate( navigate, item ) }
 					paginationInfo={ paginationInfo }
-					selection={ selection }
+					selection={ EMPTY_ARRAY }
 					view={ view }
 				>
 					<TemplatesDataViewsLayout />
@@ -695,88 +656,5 @@ export function TemplatesStage() {
 				/>
 			) }
 		</Page>
-	);
-}
-
-export function TemplatesCanvas() {
-	const navigate = useNavigate();
-	const { isLoading, templates } = useTemplatesData();
-	const selectedTemplateId = getSelectedTemplateIdFromSearch();
-	const selectedTemplate =
-		templates.find(
-			( template ) =>
-				String( template.id ) === String( selectedTemplateId )
-		) || templates[ 0 ];
-	let canvasContent = (
-		<div className="cnl-editor-canvas-placeholder">
-			<span
-				aria-hidden
-				className="cnl-editor-canvas-placeholder__icon dashicons dashicons-media-document"
-			/>
-			<h2 className="cnl-editor-canvas-placeholder__title">
-				{ __( 'No layout selected' ) }
-			</h2>
-			<p className="cnl-editor-canvas-placeholder__description">
-				{ __( 'Pick a layout to see how it arranges a page.' ) }
-			</p>
-		</div>
-	);
-
-	if ( selectedTemplate ) {
-		canvasContent = (
-			<div className="routes-template-list__canvas-preview">
-				<LazyEditorPreview
-					content={ selectedTemplate?.content?.raw }
-					description={ getTitleText( selectedTemplate.title ) }
-				/>
-			</div>
-		);
-	}
-
-	if ( isLoading ) {
-		canvasContent = (
-			<div className="cnl-editor-spinner">
-				<Spinner />
-			</div>
-		);
-	}
-
-	return (
-		<section className="cnl-editor-canvas">
-			<header className="cnl-editor-canvas__toolbar">
-				<div>
-					<div className="cnl-editor-canvas__label">
-						{ selectedTemplate
-							? getTemplateDisplayTitle( selectedTemplate )
-							: __( 'Layouts' ) }
-					</div>
-					<div className="cnl-editor-canvas__status">
-						{ selectedTemplate
-							? getTemplateStatusLabel( selectedTemplate )
-							: __( 'Advanced' ) }
-					</div>
-				</div>
-				<div className="cnl-editor-canvas__actions">
-					{ selectedTemplate?.id && (
-						<Button
-							onClick={ () =>
-								navigate( {
-									search: {
-										postId: selectedTemplate.id,
-									},
-									to: '/wp_template',
-								} )
-							}
-							variant="primary"
-						>
-							{ __( 'Edit' ) }
-						</Button>
-					) }
-				</div>
-			</header>
-			<div className="cnl-editor-canvas__frame-wrap">
-				{ canvasContent }
-			</div>
-		</section>
 	);
 }
