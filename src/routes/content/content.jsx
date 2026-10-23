@@ -514,7 +514,7 @@ function Stage() {
 	}
 
 	const title = type.menuName || type.label;
-	// Opened from the "Your site" screen, or the Header or Footer screen,
+	// Opened from the "My site" screen, or the Header or Footer screen,
 	// Pages leads back there.
 	const siteCrumbs = isPages ? siteTrail : [];
 	const pageHeader = subScreenLabel

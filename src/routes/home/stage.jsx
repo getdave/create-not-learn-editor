@@ -56,7 +56,7 @@ export default function Stage() {
 		<div className="cnl-editor-stage cnl-site-hub">
 			<Stack direction="column" gap="xs">
 				<Text render={ <h1 /> } variant="heading-lg">
-					{ __( 'Your site' ) }
+					{ __( 'My site' ) }
 				</Text>
 				<Text className="cnl-site-hub__meta" variant="body-sm">
 					{ siteName || __( 'Untitled site' ) }

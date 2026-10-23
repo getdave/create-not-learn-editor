@@ -1,8 +1,8 @@
 /**
- * Screens opened from the "Your site" screen start their breadcrumbs with
- * "Your site", so each one has a way back to where it was picked. The screens
+ * Screens opened from the "My site" screen start their breadcrumbs with
+ * "My site", so each one has a way back to where it was picked. The screens
  * stay where they live in the editor; only the trail changes, and only on
- * visits that began at "Your site".
+ * visits that began at "My site".
  */
 
 /**
@@ -18,7 +18,7 @@ import { __, useMemo } from './wordpress-packages';
 const EMPTY_ARRAY = [];
 
 /**
- * Search params "Your site" adds to the screens it opens.
+ * Search params "My site" adds to the screens it opens.
  */
 export const FROM_SITE_SEARCH = { from: 'site' };
 
@@ -34,18 +34,18 @@ export function getFromNavigationSearch() {
 }
 
 /**
- * The breadcrumb back to the "Your site" screen.
+ * The breadcrumb back to the "My site" screen.
  *
  * @return {Object} Breadcrumb item.
  */
 export function getSiteCrumb() {
-	return { label: __( 'Your site' ), to: '/' };
+	return { label: __( 'My site' ), to: '/' };
 }
 
 /**
- * The breadcrumbs leading back to where the visit began: "Your site". Visits
+ * The breadcrumbs leading back to where the visit began: "My site". Visits
  * from the Menus screen lead back there instead, since it isn't linked from
- * "Your site". Empty for visits that began anywhere else.
+ * "My site". Empty for visits that began anywhere else.
  *
  * @return {Object[]} Breadcrumb items, to put before the screen's own.
  */

@@ -80,7 +80,7 @@ function openPage( pageId ) {
  * own heading, with the words someone might search for it by.
  *
  * The palette lists matches in the order they were registered rather than by
- * how well they match, so the places "Your site" offers come first, in its
+ * how well they match, so the places "My site" offers come first, in its
  * order, ahead of the screens under Design and Advanced.
  *
  * @return {Object[]} Commands.
@@ -102,7 +102,7 @@ function getScreenCommands() {
 	return [
 		{
 			name: 'create-not-learn-editor/screen-site',
-			label: __( 'Your site' ),
+			label: __( 'My site' ),
 			icon: homeIcon,
 			to: '/',
 			keywords: [ __( 'start' ), __( 'dashboard' ), __( 'my site' ) ],
