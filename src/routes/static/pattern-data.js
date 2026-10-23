@@ -61,15 +61,26 @@ function getUserPatternCategorySlugs( pattern, userCategories ) {
 		.filter( Boolean );
 }
 
+/*
+ * Patterns can name categories nobody registered, such as the layouts' groups
+ * or the Pattern Directory's "wireframe". Those only have a slug, so they are
+ * left out wherever a category is shown.
+ */
+function getNamedCategories( pattern, categoryMap ) {
+	return ( pattern?.categories || EMPTY_ARRAY ).filter( ( category ) =>
+		categoryMap.has( category )
+	);
+}
+
 export function getPatternCategoryLabels( pattern, categoryMap ) {
-	const categories = pattern?.categories || EMPTY_ARRAY;
+	const categories = getNamedCategories( pattern, categoryMap );
 
 	if ( ! categories.length ) {
-		return __( 'Uncategorized' );
+		return __( 'Other' );
 	}
 
 	return categories
-		.map( ( category ) => categoryMap.get( category ) || category )
+		.map( ( category ) => categoryMap.get( category ) )
 		.join( ', ' );
 }
 
@@ -143,7 +154,7 @@ export function getPatternCategoryChips( patterns, categoryMap ) {
 	const counts = new Map();
 
 	patterns.forEach( ( pattern ) =>
-		( pattern.categories || EMPTY_ARRAY ).forEach( ( category ) =>
+		getNamedCategories( pattern, categoryMap ).forEach( ( category ) =>
 			counts.set( category, ( counts.get( category ) || 0 ) + 1 )
 		)
 	);
@@ -152,7 +163,7 @@ export function getPatternCategoryChips( patterns, categoryMap ) {
 		.sort( ( [ , first ], [ , second ] ) => second - first )
 		.slice( 0, MAX_CATEGORY_CHIPS )
 		.map( ( [ value ] ) => ( {
-			label: categoryMap.get( value ) || value,
+			label: categoryMap.get( value ),
 			value,
 		} ) )
 		.sort( ( first, second ) => first.label.localeCompare( second.label ) );

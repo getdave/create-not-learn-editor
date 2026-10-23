@@ -689,6 +689,41 @@ export function getTemplateDisplayTitle( template ) {
 	return getTitleText( template?.title );
 }
 
+const TEMPLATE_DESCRIPTIONS = {
+	404: __( 'What people see when a link is broken or a page is gone.' ),
+	archive: __(
+		'Lists of posts, such as every post in one category or by one author.'
+	),
+	attachment: __( 'An image or file shown on a page of its own.' ),
+	author: __( 'Lists of posts by one author.' ),
+	category: __( 'Lists of posts in one category.' ),
+	date: __( 'Lists of posts from one month or year.' ),
+	'front-page': __( 'Your homepage.' ),
+	home: __( 'Your blog posts, newest first.' ),
+	index: __( 'Used for anything that has no layout of its own.' ),
+	page: __( 'Your pages, like About or Contact.' ),
+	'privacy-policy': __( 'Your privacy policy page.' ),
+	search: __( 'What people see after they search your site.' ),
+	single: __( 'Each blog post, shown on its own.' ),
+	singular: __( 'Each post and page, shown on its own.' ),
+	tag: __( 'Lists of posts with one tag.' ),
+	taxonomy: __( 'Lists of posts that share a topic.' ),
+};
+
+/**
+ * A plain-language description of a template. WordPress describes its own
+ * templates in template-hierarchy terms, so those get ours. Templates made by
+ * the theme or the site keep the description they were given.
+ *
+ * @param {Object} template Template record.
+ * @return {string} Description, or an empty string if there is none.
+ */
+export function getTemplateDisplayDescription( template ) {
+	return (
+		TEMPLATE_DESCRIPTIONS[ template?.slug ] || template?.description || ''
+	);
+}
+
 function getTitleCasedSlug( slug ) {
 	return slug
 		.replace( /-/g, ' ' )

@@ -24,7 +24,7 @@ test( 'every main screen loads without errors', async ( { page, rest } ) => {
 	await test.step( 'Home', async () => {
 		await visitEditor( page );
 		await expect(
-			page.getByRole( 'heading', { level: 1, name: 'Your site' } )
+			page.getByRole( 'heading', { level: 1, name: 'My site' } )
 		).toBeVisible();
 		await expect( getSitePreview( page ) ).toBeVisible( {
 			timeout: 15000,

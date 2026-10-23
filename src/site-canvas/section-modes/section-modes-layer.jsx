@@ -57,7 +57,6 @@ import {
 	blockEditorStore,
 	Button,
 	coreDataStore,
-	MediaUpload,
 	noticesStore,
 	sprintf,
 	useCallback,
@@ -88,7 +87,7 @@ import { useCanvasStyles } from '../use-canvas-styles';
 import { createBlankSection, InlineSectionPicker } from '../../section-picker';
 import { EmptyPage } from './empty-page';
 import { RemoveControl } from './remove-control';
-import DesignBar, { MAX_PER_SLIDE } from './design-bar';
+import DesignBar, { getParentView, MAX_PER_SLIDE } from './design-bar';
 import {
 	getSitewideText,
 	HoverBar,
@@ -555,8 +554,6 @@ export function SectionModesLayer( {
 	const syncHook = useSync();
 	const sync = isComposing ? syncHook : null;
 	const layerRef = useRef();
-	const openMediaRef = useRef();
-	const mediaRequestRef = useRef( null );
 	const host = useContentHost( editorRef );
 	const { parts, rootClientId, sectionIds } = useComposeStructure();
 	const items = useSectionItems();
@@ -708,7 +705,7 @@ export function SectionModesLayer( {
 			activeRef.current?.mode === MODE_DESIGN &&
 			activeRef.current.view
 		) {
-			setDesignView( null );
+			setDesignView( getParentView( activeRef.current.view ) );
 		} else {
 			exitMode();
 		}
@@ -1619,23 +1616,6 @@ export function SectionModesLayer( {
 		focusSoon( added.editableId );
 	};
 
-	const requestMedia = ( mediaRequest ) => {
-		mediaRequestRef.current = mediaRequest;
-		openMediaRef.current?.();
-	};
-
-	const onMediaSelect = ( media ) => {
-		const mediaRequest = mediaRequestRef.current;
-
-		mediaRequestRef.current = null;
-
-		if ( ! mediaRequest || ! media?.url ) {
-			return;
-		}
-
-		leaveCompose( () => addItem( mediaRequest.ownerId, 'image', media ) );
-	};
-
 	// A blank section, opened in Edit content with the caret in its text.
 	const startBlank = ( index = 0 ) => {
 		const section = createBlankSection();
@@ -1909,14 +1889,9 @@ export function SectionModesLayer( {
 							isNarrow={ isNarrow && ! isCompact }
 							isPart={ isPart }
 							onAdd={ ( type ) =>
-								type === 'image'
-									? requestMedia( {
-											ownerId: shownHoverId,
-											type: 'add',
-										} )
-									: leaveCompose( () =>
-											addItem( shownHoverId, type )
-										)
+								leaveCompose( () =>
+									addItem( shownHoverId, type )
+								)
 							}
 							onDelete={ () => deleteSection( shownHoverId ) }
 							onDuplicate={ () =>
@@ -2292,15 +2267,6 @@ export function SectionModesLayer( {
 					} }
 				/>
 			) }
-			<MediaUpload
-				allowedTypes={ [ 'image' ] }
-				multiple={ false }
-				onSelect={ onMediaSelect }
-				render={ ( { open } ) => {
-					openMediaRef.current = open;
-					return null;
-				} }
-			/>
 		</div>,
 		host
 	);

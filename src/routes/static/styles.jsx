@@ -2,7 +2,7 @@
  * Internal dependencies
  */
 import { settings as appSettings } from '../../settings';
-import { DesignScreenHeading } from './design-heading';
+import { DesignPage } from './design-page';
 import SitePreviewCanvas from './site-preview';
 import ScreenLinks from '../../screen-links';
 import {
@@ -67,12 +67,11 @@ function StylesScreen( {
 	title,
 } ) {
 	return (
-		<div className="cnl-editor-stage routes-styles">
-			<DesignScreenHeading
-				description={ description }
-				isTopLevel={ isTopLevel }
-				title={ title }
-			/>
+		<DesignPage
+			description={ description }
+			isTopLevel={ isTopLevel }
+			title={ title }
+		>
 			{ isLoading && (
 				<div className="cnl-editor-spinner">
 					<Spinner />
@@ -90,7 +89,7 @@ function StylesScreen( {
 					.
 				</Text>
 			) }
-		</div>
+		</DesignPage>
 	);
 }
 
@@ -134,7 +133,7 @@ export function ColorsStage() {
 			isLoading={ isLoading }
 			title={ __( 'Colors' ) }
 		>
-			<PalettePicker />
+			<PalettePicker allowCustom />
 		</StylesScreen>
 	);
 }

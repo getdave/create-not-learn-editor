@@ -8,6 +8,7 @@ import { MODE_EDIT, setCanvasMode } from '../../site-canvas/mode';
 import { FROM_SITE_SEARCH } from '../../site-trail';
 import {
 	Link,
+	Page,
 	Stack,
 	Text,
 	__,
@@ -53,12 +54,12 @@ export default function Stage() {
 	const siteName = decodeEntities( siteTitle || settings.siteName || '' );
 
 	return (
-		<div className="cnl-editor-stage cnl-site-hub">
-			<Stack direction="column" gap="xs">
-				<Text render={ <h1 /> } variant="heading-lg">
-					{ __( 'Your site' ) }
-				</Text>
-				<Text className="cnl-site-hub__meta" variant="body-sm">
+		<Page
+			className="cnl-editor-stage cnl-editor-content-page"
+			hasPadding={ false }
+			headingLevel={ 1 }
+			subTitle={
+				<>
 					{ siteName || __( 'Untitled site' ) }
 					{ settings.homeUrl && ' · ' }
 					{ settings.homeUrl && (
@@ -66,22 +67,26 @@ export default function Stage() {
 							{ __( 'View site' ) }
 						</Link>
 					) }
+				</>
+			}
+			title={ __( 'My site' ) }
+		>
+			<div className="cnl-editor-stage cnl-site-hub">
+				<Stack direction="column" gap="sm">
+					<Text render={ <h2 /> } variant="heading-sm">
+						{ __( 'Where do you want to start?' ) }
+					</Text>
+					<ScreenLinks
+						label={ __( 'Start working on your site' ) }
+						links={ getStartLinks() }
+					/>
+				</Stack>
+				<Text className="cnl-site-hub__hint" variant="body-sm">
+					{ __(
+						'Tip: follow links on the page to visit the rest of your site. Switch to Edit to change what is on it, then zoom out to add and arrange its sections.'
+					) }
 				</Text>
-			</Stack>
-			<Stack direction="column" gap="sm">
-				<Text render={ <h2 /> } variant="heading-sm">
-					{ __( 'Where do you want to start?' ) }
-				</Text>
-				<ScreenLinks
-					label={ __( 'Start working on your site' ) }
-					links={ getStartLinks() }
-				/>
-			</Stack>
-			<Text className="cnl-site-hub__hint" variant="body-sm">
-				{ __(
-					'Tip: follow links on the page to visit the rest of your site. Switch to Edit to change what is on it, then zoom out to add and arrange its sections.'
-				) }
-			</Text>
-		</div>
+			</div>
+		</Page>
 	);
 }

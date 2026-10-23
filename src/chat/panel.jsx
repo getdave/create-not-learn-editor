@@ -17,7 +17,7 @@ import { Icon, Text } from '@wordpress/ui';
 /**
  * Internal dependencies
  */
-import { Composer } from './composer';
+import { Composer, canType } from './composer';
 import { sparkleIcon } from './icons';
 import { Message, Suggestions } from './message';
 import { useChat } from './store';
@@ -36,9 +36,13 @@ function EmptyConversation() {
 				{ __( 'What would you like to change?' ) }
 			</Text>
 			<Text className="cnl-chat-empty__description" variant="body-md">
-				{ __(
-					'Ask in your own words. I’ll show you the options, and you’ll see each one on your site before you keep it.'
-				) }
+				{ canType()
+					? __(
+							'Ask in your own words. I’ll show you the options, and you’ll see each one on your site before you keep it.'
+						)
+					: __(
+							'Pick something to change. I’ll show you the options, and you’ll see each one on your site before you keep it.'
+						) }
 			</Text>
 			<Suggestions isLarge />
 		</div>

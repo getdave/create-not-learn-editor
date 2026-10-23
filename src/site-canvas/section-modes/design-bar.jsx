@@ -5,7 +5,10 @@
  * again. Colours and widths
  * sit in the bar's row; layouts, each drawn with the section's own content,
  * open in a tray under it. A header or footer offers its designs as its
- * layouts, and its colours.
+ * layouts, and its colours. The last colour, Custom, opens a tray under
+ * the colours with the section's own background, text and button colours,
+ * so they are there for people who look for them without being offered
+ * up front.
  *
  * Picking an option changes the section underneath at once, and that is it:
  * there is nothing to confirm. Back, Escape or a click anywhere else steps
@@ -39,11 +42,13 @@ import {
 	__,
 	blockEditorStore,
 	Button,
+	cautionIcon,
 	chevronLeftIcon,
 	chevronRightIcon,
 	cloneBlock,
 	ColorIndicator,
 	coreDataStore,
+	Icon,
 	isRTL,
 	serialize,
 	sprintf,
@@ -52,6 +57,7 @@ import {
 	useSelect,
 } from '../../wordpress-packages';
 import { GlobalNote } from '../../global-scope';
+import ColorWell from '../../pickers/color-well';
 import { getSitewideText } from './section-chrome';
 import {
 	usePartColors,
@@ -59,9 +65,18 @@ import {
 	useSectionVariations,
 } from './use-variations';
 import {
+	CUSTOM_COLOR,
 	getAttributeUpdate,
+	getButtonTextValue,
+	withCustomColors,
 	withSectionColor,
 } from '../compose/section-colors';
+import {
+	getContrast,
+	MIN_TEXT_CONTRAST,
+	parseColor,
+} from '../compose/palette-colors';
+import { resolveColor } from '../../pickers/resolve-color';
 import { getPartColorBlocks } from '../compose/section-styles';
 import {
 	useSectionWidth,
@@ -73,6 +88,21 @@ import {
 export const VIEW_LAYOUT = 'layout';
 export const VIEW_COLOR = 'color';
 export const VIEW_WIDTH = 'width';
+export const VIEW_CUSTOM_COLOR = 'custom-color';
+
+// Below this, a button would be lost against the section's background.
+const MIN_BUTTON_CONTRAST = 3;
+
+/**
+ * The level Escape steps out to from a design choice: from the custom
+ * colours' tray to the colours, and from a choice to the choices.
+ *
+ * @param {?string} view The choice drilled into.
+ * @return {?string} The choice above it, or null for the choices.
+ */
+export function getParentView( view ) {
+	return view === VIEW_CUSTOM_COLOR ? VIEW_COLOR : null;
+}
 
 // The most layouts the carousel shows at once.
 export const MAX_PER_SLIDE = 4;
@@ -276,11 +306,23 @@ function WidthOptions( { width } ) {
  * a swatch of the page's own colours, named "Default" in its place while
  * pointed at or focused, as it has no name of its own to show in a tooltip.
  *
- * @param {Object} props
- * @param {Object} props.colors `{ current, options, onSelect }`.
+ * Custom comes last, a swatch like the others: a colour wheel, or the
+ * section's own colours once it has them. It picks nothing by itself; it
+ * opens and closes the tray of custom colours.
+ *
+ * @param {Object}    props
+ * @param {Object}    props.colors       `{ current, options, onSelect,
+ *                                       swatch }`; `swatch` is the custom
+ *                                       colours'.
+ * @param {boolean}   props.isCustomOpen Whether the custom colours' tray is
+ *                                       open.
+ * @param {?Function} props.onCustom     Opens or closes the tray, when
+ *                                       custom colours are offered.
  * @return {Element} The swatches.
  */
-function ColorOptions( { colors } ) {
+function ColorOptions( { colors, isCustomOpen, onCustom } ) {
+	const isCustom = colors.current === CUSTOM_COLOR;
+
 	return (
 		<div
 			aria-label={ __( 'Colour' ) }
@@ -329,6 +371,125 @@ function ColorOptions( { colors } ) {
 					</Button>
 				);
 			} ) }
+			{ onCustom && (
+				<Button
+					aria-expanded={ isCustomOpen }
+					aria-pressed={ isCustom }
+					className="cnl-section-modes__swatch cnl-section-modes__custom"
+					label={ __( 'Custom' ) }
+					onClick={ onCustom }
+					showTooltip
+					tooltipPosition="bottom"
+				>
+					<span
+						aria-hidden
+						className="cnl-section-modes__swatch-colors"
+					>
+						{ isCustom ? (
+							colors.swatch.map( ( color, index ) => (
+								<ColorIndicator
+									colorValue={ color }
+									key={ index }
+								/>
+							) )
+						) : (
+							<span className="cnl-section-modes__swatch-wheel" />
+						) }
+					</span>
+				</Button>
+			) }
+		</div>
+	);
+}
+
+/**
+ * Whether two colours stand apart enough, or true when either can't be
+ * read, so nothing is flagged that can't be checked.
+ *
+ * @param {?string} a   A CSS colour.
+ * @param {?string} b   Another.
+ * @param {number}  min The contrast they need.
+ * @return {boolean} Whether they do.
+ */
+function hasContrast( a, b, min ) {
+	const first = parseColor( a );
+	const second = parseColor( b );
+
+	return ! first || ! second || getContrast( first, second ) >= min;
+}
+
+/**
+ * A section's own colours, in the bar's row: its background, its text,
+ * headings and links taking that too, and its buttons, whose words take
+ * whichever of the other two reads on them. Each opens core's palette,
+ * and each change shows at once.
+ *
+ * @param {Object} props
+ * @param {Object} props.colors `{ palette, values, onChange }`.
+ * @return {Element} The colours.
+ */
+function CustomColors( { colors } ) {
+	const { onChange, palette, values } = colors;
+	const resolved = Object.fromEntries(
+		Object.entries( values ).map( ( [ key, value ] ) => [
+			key,
+			resolveColor( value, palette ),
+		] )
+	);
+	const isTextReadable = hasContrast(
+		resolved.text,
+		resolved.background,
+		MIN_TEXT_CONTRAST
+	);
+	const textNote =
+		! isTextReadable &&
+		__( 'Text may be hard to read on this background.' );
+	const buttonNote =
+		( ! hasContrast(
+			resolved.button,
+			resolved.background,
+			MIN_BUTTON_CONTRAST
+		) &&
+			__( 'Buttons may not stand out from the background.' ) ) ||
+		( ! hasContrast(
+			resolved.button,
+			resolveColor( getButtonTextValue( values, palette ), palette ),
+			MIN_TEXT_CONTRAST
+		) &&
+			__( 'Words on buttons may be hard to read in this colour.' ) );
+	const wells = [
+		{ key: 'background', label: __( 'Background' ), note: textNote },
+		{ key: 'text', label: __( 'Text' ), note: textNote },
+		{ key: 'button', label: __( 'Button' ), note: buttonNote },
+	];
+
+	return (
+		<div
+			aria-label={ __( 'Custom colours' ) }
+			className="cnl-section-modes__swatches"
+			role="group"
+		>
+			{ wells.map( ( { key, label, note } ) => (
+				<ColorWell
+					className="cnl-section-modes__swatch cnl-section-modes__well"
+					key={ key }
+					label={ label }
+					note={ note }
+					onChange={ ( value ) =>
+						onChange( { ...values, [ key ]: value } )
+					}
+					palette={ palette }
+					value={ values[ key ] }
+				>
+					{ note && (
+						<Icon
+							className="cnl-section-modes__well-alert"
+							icon={ cautionIcon }
+							size={ 16 }
+						/>
+					) }
+				</ColorWell>
+			) ) }
 		</div>
 	);
 }
@@ -356,6 +517,72 @@ function useUpdateColors() {
 		updateBlockAttributes( Object.keys( changes ), changes, {
 			uniqueByBlock: true,
 		} );
+	};
+}
+
+/**
+ * Puts custom colours on blocks in the editor, in one change.
+ *
+ * @return {Function} Called with the blocks, the colours, as
+ *                    `withCustomColors` takes them, and the result of
+ *                    `useColorOptions`.
+ */
+function useUpdateCustomColors() {
+	const { updateBlockAttributes } = useDispatch( blockEditorStore );
+
+	return ( blocks, values, choices ) => {
+		const changes = Object.fromEntries(
+			blocks.map( ( block ) => [
+				block.clientId,
+				getAttributeUpdate(
+					block.attributes,
+					withCustomColors(
+						block.attributes,
+						choices.options,
+						values,
+						{
+							colors: choices.colors,
+							supports: choices.supports,
+						}
+					)
+				),
+			] )
+		);
+
+		updateBlockAttributes( Object.keys( changes ), changes, {
+			uniqueByBlock: true,
+		} );
+	};
+}
+
+/**
+ * A colour offer with what Custom needs: the swatch it shows while it is
+ * the one in use, and how to change its colours.
+ *
+ * @param {?Object}  colors   From `getColorOffer`.
+ * @param {Object}   choices  Result of `useColorOptions`.
+ * @param {Function} onSelect Called with the option picked.
+ * @param {Function} onCustom Called with the custom colours.
+ * @return {?Object} `{ current, options, onSelect, custom }`.
+ */
+function withCustom( colors, choices, onSelect, onCustom ) {
+	if ( ! colors ) {
+		return null;
+	}
+
+	return {
+		...colors,
+		custom: {
+			onChange: onCustom,
+			palette: choices.colors,
+			values: colors.values,
+		},
+		onSelect,
+		swatch: [ 'background', 'text', 'button' ]
+			.map( ( key ) =>
+				resolveColor( colors.values[ key ], choices.colors )
+			)
+			.filter( Boolean ),
 	};
 }
 
@@ -400,6 +627,7 @@ const DesignBarView = forwardRef( function UnforwardedDesignBarView(
 	ref
 ) {
 	const labels = getViewLabels();
+	const isColorView = view === VIEW_COLOR || view === VIEW_CUSTOM_COLOR;
 	const views = [ VIEW_LAYOUT, VIEW_COLOR, VIEW_WIDTH ].filter(
 		( name ) =>
 			( name === VIEW_LAYOUT && choices.layouts ) ||
@@ -469,8 +697,27 @@ const DesignBarView = forwardRef( function UnforwardedDesignBarView(
 						</Button>
 					</>
 				) }
-				{ view === VIEW_COLOR && choices.colors && (
-					<ColorOptions colors={ choices.colors } />
+				{ isColorView && choices.colors && (
+					<ColorOptions
+						colors={ {
+							...choices.colors,
+							// Picking a colour closes the custom ones.
+							onSelect: ( name ) => {
+								choices.colors.onSelect( name );
+								onView( VIEW_COLOR );
+							},
+						} }
+						isCustomOpen={ view === VIEW_CUSTOM_COLOR }
+						onCustom={
+							choices.colors.custom &&
+							( () =>
+								onView(
+									view === VIEW_CUSTOM_COLOR
+										? VIEW_COLOR
+										: VIEW_CUSTOM_COLOR
+								) )
+						}
+					/>
 				) }
 				{ view === VIEW_WIDTH && choices.width && (
 					<WidthOptions width={ choices.width } />
@@ -479,6 +726,11 @@ const DesignBarView = forwardRef( function UnforwardedDesignBarView(
 			{ view === VIEW_LAYOUT && choices.layouts && (
 				<div className="cnl-section-modes__design-tray">
 					<LayoutOptions { ...choices.layouts } />
+				</div>
+			) }
+			{ view === VIEW_CUSTOM_COLOR && choices.colors?.custom && (
+				<div className="cnl-section-modes__design-tray">
+					<CustomColors colors={ choices.colors.custom } />
 				</div>
 			) }
 			{ isPart && (
@@ -506,18 +758,24 @@ const SectionDesignBar = forwardRef( function UnforwardedSectionDesignBar(
 ) {
 	const { replaceBlock } = useDispatch( blockEditorStore );
 	const updateColors = useUpdateColors();
-	const { block, colors, layouts } = useSectionVariations( clientId );
+	const updateCustomColors = useUpdateCustomColors();
+	const { block, choices, colors, layouts } = useSectionVariations(
+		clientId,
+		{ allowCustom: true }
+	);
 	const width = useWidthChoice( clientId );
 
 	return (
 		<DesignBarView
 			{ ...props }
 			choices={ {
-				colors: colors && {
-					...colors,
-					onSelect: ( name ) =>
-						updateColors( [ block ], name, colors.options ),
-				},
+				colors: withCustom(
+					colors,
+					choices,
+					( name ) => updateColors( [ block ], name, colors.options ),
+					( values ) =>
+						updateCustomColors( [ block ], values, choices )
+				),
 				layouts: layouts && {
 					...layouts,
 					onSelect: ( option ) => {
@@ -549,6 +807,7 @@ const PartDesignBar = forwardRef( function UnforwardedPartDesignBar(
 ) {
 	const { editEntityRecord } = useDispatch( coreDataStore );
 	const updateColors = useUpdateColors();
+	const updateCustomColors = useUpdateCustomColors();
 	const { blockName, choices, colors } = usePartColors( part );
 	const designs = usePartDesigns(
 		part,
@@ -556,6 +815,7 @@ const PartDesignBar = forwardRef( function UnforwardedPartDesignBar(
 			blockName,
 			choices,
 			name: colors.current,
+			values: colors.values,
 		}
 	);
 	const partBlocks = useSelect(
@@ -568,15 +828,22 @@ const PartDesignBar = forwardRef( function UnforwardedPartDesignBar(
 		<DesignBarView
 			{ ...props }
 			choices={ {
-				colors: colors && {
-					...colors,
-					onSelect: ( name ) =>
+				colors: withCustom(
+					colors,
+					choices,
+					( name ) =>
 						updateColors(
 							getPartColorBlocks( partBlocks ),
 							name,
 							colors.options
 						),
-				},
+					( values ) =>
+						updateCustomColors(
+							getPartColorBlocks( partBlocks ),
+							values,
+							choices
+						)
+				),
 				layouts:
 					designs.options.length > 1
 						? {

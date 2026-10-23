@@ -584,6 +584,44 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	}
 }
 
+// Custom: a colour wheel, for any colour, until the section has its own.
+// Shaded while its tray is open, rather than ringed, so it isn't mistaken
+// for the colour in use.
+.cnl-section-modes__swatch-wheel {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: conic-gradient(#f44, #fb3, #4c4, #3be, #46f, #c4e, #f44);
+	box-shadow: inset 0 0 0 1px $stroke-control;
+}
+
+.cnl-section-modes .components-button.cnl-section-modes__custom[aria-expanded="true"] {
+	border-color: $stroke-active;
+	background: var(--wpds-color-background-interactive-neutral-weak-active);
+}
+
+// One of the custom colours: its colour and name, and a caution mark when
+// it doesn't read against the others.
+.cnl-section-modes .components-button.cnl-section-modes__well {
+	gap: var(--wpds-dimension-gap-xs);
+	padding-inline: 3px 14px;
+
+	.component-color-indicator {
+		width: 24px;
+		height: 24px;
+		box-shadow: inset 0 0 0 1px $stroke-control;
+	}
+
+	&[aria-expanded="true"] {
+		outline-color: $stroke-brand;
+	}
+}
+
+.cnl-section-modes__well-alert {
+	color: var(--wpds-color-foreground-content-caution);
+	fill: currentcolor;
+}
+
 // A width: its icon and name in the same pill.
 .cnl-section-modes .components-button.cnl-section-modes__width {
 	gap: var(--wpds-dimension-gap-xs);
