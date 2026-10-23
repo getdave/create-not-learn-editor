@@ -2,8 +2,8 @@
  * The site canvas's Compose mode: the page zoomed out, with the same section
  * controls as Edit. Sections are dragged to reorder them, and a section's
  * layout, colours and place on the page are changed without leaving.
- * Anything else, like reaching a section's words, goes back to Edit to do
- * it.
+ * Anything else, like reaching a section's words with Edit content, goes
+ * back to Edit to do it.
  */
 const {
 	expect,
@@ -118,8 +118,15 @@ test.describe( 'Compose', () => {
 			bar.getByRole( 'button', { name: 'Edit design' } )
 		).toBeVisible();
 		await expect(
+			bar.getByRole( 'button', { name: 'Edit content' } )
+		).toBeVisible();
+		await expect(
 			bar.getByRole( 'button', { name: 'Delete section' } )
 		).toBeVisible();
+		// Adding to a section is done in Edit.
+		await expect(
+			bar.getByRole( 'button', { name: 'Add', exact: true } )
+		).toHaveCount( 0 );
 
 		await setCanvasMode( page, 'Edit' );
 		await expect(
@@ -303,6 +310,34 @@ test.describe( 'Compose', () => {
 				} )
 			)
 			.toBe( 'Some words inside a section' );
+	} );
+
+	test( 'Edit content goes back to Edit with the section picked', async ( {
+		page,
+		rest,
+	} ) => {
+		await openPage( page, rest, {
+			content: tallSection( 'A section to edit' ),
+		} );
+		await setCanvasMode( page, 'Compose' );
+
+		const words = getWords( page, 'A section to edit' );
+		const bar = page.locator( '.cnl-section-modes__bar' );
+		const layer = page.locator( '.cnl-section-modes' );
+
+		await pointAtSection( page, words );
+		await bar.getByRole( 'button', { name: 'Edit content' } ).click();
+
+		await expectCanvasMode( page, 'Edit' );
+		await expect( layer ).toHaveAttribute( 'data-level', 'section' );
+		await expect( words ).toBeInViewport();
+		// Back in Edit, Add is on the bar again, and Edit content isn't.
+		await expect(
+			bar.getByRole( 'button', { name: 'Add', exact: true } )
+		).toBeVisible();
+		await expect(
+			bar.getByRole( 'button', { name: 'Edit content' } )
+		).toHaveCount( 0 );
 	} );
 
 	test( 'Escape with nothing picked goes back to Edit', async ( {

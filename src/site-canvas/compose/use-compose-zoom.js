@@ -53,6 +53,46 @@ export function afterZoomIn( callback ) {
 	pending.push( callback );
 }
 
+// Core's class on the canvas's page while it animates the zoom.
+const ANIMATING_CLASS = 'zoom-out-animation';
+
+// Frames to wait for core to start animating, with motion reduced, before
+// taking it that it won't.
+const ANIMATION_START_FRAMES = 10;
+
+/**
+ * Do something once core has finished animating the zoom, such as scroll to
+ * a block. Core sets the canvas's scroll as the animation ends, so a scroll
+ * before then is lost.
+ *
+ * @param {Object}   editorRef Ref to the editor's container.
+ * @param {Function} callback  Called once the canvas is still.
+ */
+export function whenZoomSettles( editorRef, callback ) {
+	let frames = 0;
+	let hasStarted = false;
+
+	const tick = () => {
+		const doc = getCanvasFrame( editorRef.current )?.contentDocument;
+		const isAnimating =
+			!! doc?.documentElement.classList.contains( ANIMATING_CLASS );
+
+		hasStarted ||= isAnimating;
+
+		if (
+			isAnimating ||
+			( ! hasStarted && frames++ < ANIMATION_START_FRAMES )
+		) {
+			window.requestAnimationFrame( tick );
+			return;
+		}
+
+		callback();
+	};
+
+	window.requestAnimationFrame( tick );
+}
+
 /**
  * @param {boolean} isComposing Whether the canvas is in Compose.
  * @param {Object}  editorRef   Ref to the editor's container.

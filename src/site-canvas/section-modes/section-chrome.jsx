@@ -1,8 +1,8 @@
 /**
  * The controls Edit lays over a section: its name, the bar over it while it
  * is pointed at or picked, with Add, Edit design (and Edit header or Edit
- * footer) and its own moves, and the small bar on a header or footer being
- * edited, or a section in Freeform.
+ * footer, or Edit content in Compose) and its own moves, and the small bar
+ * on a header or footer being edited, or a section in Freeform.
  */
 
 /**
@@ -42,6 +42,8 @@ import { getAddableTypes } from './items';
 
 export const MODE_DESIGN = 'design';
 export const MODE_CONTENT = 'content';
+// Compose's way back into Edit, with the section picked.
+export const MODE_ZOOM_IN = 'zoom-in';
 // Part of Edit design, reached from its panel.
 export const MODE_FREEFORM = 'free';
 
@@ -56,13 +58,16 @@ const ADD_ICONS = {
  * The ways to edit a section, on the bar over it. A section's words and
  * pictures are changed by clicking into it, so it has Edit design only. A
  * header or footer shows on every page, so it is opened on purpose, with
- * Edit header or Edit footer.
+ * Edit header or Edit footer. Zoomed out in Compose, a section's words and
+ * pictures are too small to click into, so it has Edit content too, which
+ * zooms back into Edit with the section picked.
  *
- * @param {boolean} isPart Whether it is the header or footer.
- * @param {string}  title  Its name, like Header.
+ * @param {boolean} isPart      Whether it is the header or footer.
+ * @param {string}  title       Its name, like Header.
+ * @param {boolean} isComposing Whether the canvas is in Compose.
  * @return {Object[]} `{ mode, label, description, icon }` for each.
  */
-export function getModes( isPart = false, title = '' ) {
+export function getModes( isPart = false, title = '', isComposing = false ) {
 	const modes = [
 		{
 			description: __( 'Change the layout, colour and width' ),
@@ -81,6 +86,13 @@ export function getModes( isPart = false, title = '' ) {
 					? __( 'Edit footer' )
 					: __( 'Edit header' ),
 			mode: MODE_CONTENT,
+		} );
+	} else if ( isComposing ) {
+		modes.push( {
+			description: __( 'Zoom in to change its words and pictures' ),
+			icon: pencilIcon,
+			label: __( 'Edit content' ),
+			mode: MODE_ZOOM_IN,
 		} );
 	}
 
@@ -243,6 +255,9 @@ function AddMenu( { onAdd, onToggle, title } ) {
  * @param {string}   props.title        The section's name.
  * @param {boolean}  props.isPart       Whether it is the header or footer,
  *                                      which stay where they are.
+ * @param {boolean}  props.isComposing  Whether the canvas is in Compose,
+ *                                      which has Edit content in place of
+ *                                      Add.
  * @param {boolean}  props.isNarrow     Whether the modes go on a row of
  *                                      their own, for a narrow section.
  * @param {boolean}  props.isCompact    Whether the modes are icons only,
@@ -262,6 +277,7 @@ export function HoverBar( {
 	canMoveDown,
 	canMoveUp,
 	isCompact,
+	isComposing,
 	isNarrow,
 	isPart,
 	onAdd,
@@ -281,7 +297,7 @@ export function HoverBar( {
 			style={ style }
 		>
 			<div className="cnl-section-modes__bar-start">
-				{ ! isPart && (
+				{ ! isPart && ! isComposing && (
 					<AddMenu
 						onAdd={ onAdd }
 						onToggle={ onMenuToggle }
@@ -298,7 +314,7 @@ export function HoverBar( {
 				className="cnl-section-modes__group"
 				role="group"
 			>
-				{ getModes( isPart, title ).map(
+				{ getModes( isPart, title, isComposing ).map(
 					( { description, icon, label, mode } ) => (
 						<BarButton
 							icon={ icon }
