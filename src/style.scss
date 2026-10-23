@@ -45,6 +45,12 @@
 	background: #fff;
 }
 
+// As tall as a header with a button in it, so titles and breadcrumbs sit at
+// the same height on every screen.
+.cnl-editor-stage > [class*="__header"] > [class*="__header-content"] {
+	min-height: var(--wpds-dimension-size-lg);
+}
+
 .cnl-editor-content-page__header {
 	display: flex;
 	gap: 16px;
@@ -2830,7 +2836,6 @@
 	}
 }
 
-.cnl-site-hub__meta,
 .cnl-site-hub__hint {
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
