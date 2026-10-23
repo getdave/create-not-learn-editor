@@ -7,12 +7,16 @@ import { describe, expect, it } from 'vitest';
  * Internal dependencies
  */
 import {
+	CUSTOM_COLOR,
 	getAttributeUpdate,
+	getButtonTextValue,
 	getColorOptions,
+	getCustomColors,
 	getInnerTextColors,
 	getReadableOptions,
 	getSectionColor,
 	hasOwnColors,
+	withCustomColors,
 	withPartColor,
 	withSectionColor,
 } from '../section-colors';
@@ -470,5 +474,226 @@ describe( 'getAttributeUpdate', () => {
 			backgroundColor: undefined,
 			className: 'x',
 		} );
+	} );
+} );
+
+describe( 'getCustomColors', () => {
+	it( 'reads a background, text and button set on the block', () => {
+		expect(
+			getCustomColors( {
+				backgroundColor: 'primary',
+				style: {
+					color: { text: '#123456' },
+					elements: {
+						button: {
+							color: { background: '#ff0000', text: '#fff' },
+						},
+						heading: { color: { text: '#123456' } },
+						link: { color: { text: '#123456' } },
+					},
+				},
+			} )
+		).toEqual( {
+			background: 'var:preset|color|primary',
+			button: '#ff0000',
+			text: '#123456',
+		} );
+	} );
+
+	it( 'needs a background', () => {
+		expect( getCustomColors( { textColor: 'contrast' } ) ).toBeNull();
+	} );
+
+	it( 'leaves out colours of other kinds', () => {
+		expect(
+			getCustomColors( {
+				backgroundColor: 'primary',
+				style: { color: { gradient: 'linear-gradient(red, blue)' } },
+			} )
+		).toBeNull();
+		expect(
+			getCustomColors( {
+				backgroundColor: 'primary',
+				textColor: 'contrast',
+				style: {
+					elements: { link: { color: { text: '#ff0000' } } },
+				},
+			} )
+		).toBeNull();
+		expect(
+			getCustomColors( {
+				backgroundColor: 'primary',
+				style: {
+					elements: { caption: { color: { text: '#ff0000' } } },
+				},
+			} )
+		).toBeNull();
+	} );
+} );
+
+describe( 'withCustomColors', () => {
+	const context = { colors: PALETTE, supports: SUPPORTS };
+	const values = {
+		background: '#102030',
+		button: 'var:preset|color|primary',
+		text: 'var:preset|color|base',
+	};
+
+	it( 'saves presets by name and other colours as CSS', () => {
+		expect(
+			withCustomColors(
+				{ align: 'full' },
+				PALETTE_OPTIONS,
+				values,
+				context
+			)
+		).toEqual( {
+			align: 'full',
+			style: {
+				color: { background: '#102030' },
+				elements: {
+					button: {
+						color: {
+							background: 'var:preset|color|primary',
+							// Black reads better than white on the green.
+							text: '#102030',
+						},
+					},
+					heading: { color: { text: 'var:preset|color|base' } },
+					link: { color: { text: 'var:preset|color|base' } },
+				},
+			},
+			textColor: 'base',
+		} );
+	} );
+
+	it( 'takes the place of an option, and an option takes its place', () => {
+		const custom = withCustomColors(
+			withSectionColor( {}, PALETTE_OPTIONS, 'palette-inverse' ),
+			PALETTE_OPTIONS,
+			values,
+			context
+		);
+
+		expect( custom.backgroundColor ).toBeUndefined();
+		expect( getSectionColor( makeBlock( custom ), PALETTE_OPTIONS ) ).toBe(
+			undefined
+		);
+		expect( getCustomColors( custom ) ).toEqual( values );
+		expect(
+			withSectionColor( custom, PALETTE_OPTIONS, 'palette-inverse' )
+		).toEqual( withSectionColor( {}, PALETTE_OPTIONS, 'palette-inverse' ) );
+		expect( withSectionColor( custom, PALETTE_OPTIONS, null ) ).toEqual(
+			{}
+		);
+	} );
+
+	it( 'takes the place of a section style', () => {
+		const custom = withCustomColors(
+			{ className: 'is-style-section-dark' },
+			STYLE_OPTIONS,
+			values,
+			context
+		);
+
+		expect( custom.className ).toBeUndefined();
+		expect( custom.style.color.background ).toBe( '#102030' );
+	} );
+
+	it( 'keeps a background that is the page’s own', () => {
+		const custom = withCustomColors(
+			{},
+			PALETTE_OPTIONS,
+			{ ...values, background: 'var:preset|color|base', text: '#333' },
+			context
+		);
+
+		expect( custom.backgroundColor ).toBe( 'base' );
+		expect( getSectionColor( makeBlock( custom ), PALETTE_OPTIONS ) ).toBe(
+			undefined
+		);
+		expect( withSectionColor( custom, PALETTE_OPTIONS, null ) ).toEqual(
+			{}
+		);
+	} );
+} );
+
+describe( 'getButtonTextValue', () => {
+	it( 'picks whichever of the section’s colours reads on the button', () => {
+		expect(
+			getButtonTextValue(
+				{ background: '#ffffff', button: '#000080', text: '#000000' },
+				[]
+			)
+		).toBe( '#ffffff' );
+		expect(
+			getButtonTextValue(
+				{ background: '#000000', button: '#ffff00', text: '#ffffff' },
+				[]
+			)
+		).toBe( '#000000' );
+	} );
+
+	it( 'looks to the palette when neither reads on the button', () => {
+		expect(
+			getButtonTextValue(
+				{
+					background: '#2e6b4f',
+					button: '#f2c14e',
+					text: '#fbfbf8',
+				},
+				[
+					{ slug: 'base', color: '#fbfbf8' },
+					{ slug: 'ink', color: '#1b2a22' },
+				]
+			)
+		).toBe( 'var:preset|color|ink' );
+	} );
+} );
+
+describe( 'withPartColor with custom colours', () => {
+	it( 'puts them on the outermost blocks', () => {
+		const [ block ] = withPartColor(
+			[ makeBlock() ],
+			'core/group',
+			PALETTE_OPTIONS,
+			PALETTE,
+			CUSTOM_COLOR,
+			{
+				supports: SUPPORTS,
+				values: {
+					background: '#102030',
+					button: null,
+					text: '#ffffff',
+				},
+			}
+		);
+
+		expect( block.attributes.style.color ).toEqual( {
+			background: '#102030',
+			text: '#ffffff',
+		} );
+	} );
+} );
+
+describe( 'getColorOptions values', () => {
+	it( 'gives each option the colours to start custom colours from', () => {
+		expect( PALETTE_OPTIONS.map( ( option ) => option.values ) ).toEqual( [
+			{
+				background: 'var:preset|color|base',
+				button: 'var:preset|color|primary',
+				text: 'var:preset|color|contrast',
+			},
+			{
+				background: 'var:preset|color|contrast',
+				button: 'var:preset|color|primary',
+				text: 'var:preset|color|base',
+			},
+			{
+				background: 'var:preset|color|primary',
+				button: 'var:preset|color|contrast',
+				text: 'var:preset|color|contrast',
+			},
+		] );
 	} );
 } );

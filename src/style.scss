@@ -10,6 +10,7 @@
 @use "./section-picker/style" as section-picker;
 @use "./editor-extensions/style" as editor-extensions;
 @use "./global-scope/style" as global-scope;
+@use "./pickers/color-well" as color-well;
 
 .cnl-editor-page {
 
@@ -1101,6 +1102,77 @@
 .routes-styles__palette-default {
 	padding: 0 var(--wpds-dimension-padding-xs);
 	font-size: var(--wpds-typography-font-size-sm);
+}
+
+// Your own colours: a row each, the colour, its name and its value, as
+// core's Styles panel lists colours.
+.routes-styles__custom-colors {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-md);
+
+	> p {
+		margin: 0;
+	}
+}
+
+// Custom: a colour wheel, for any colour, until the site has its own.
+.routes-styles__palette-wheel {
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: conic-gradient(#f44, #fb3, #4c4, #3be, #46f, #c4e, #f44);
+	box-shadow: inset 0 0 0 1px var(--wpds-color-stroke-interactive-neutral);
+}
+
+// Open, but not necessarily in use: shaded rather than ringed, so it
+// isn't mistaken for the palette in use.
+.components-button.routes-styles__palette[aria-expanded="true"] {
+	border-color: var(--wpds-color-stroke-interactive-neutral-active);
+	background: var(--wpds-color-background-interactive-neutral-weak-active);
+}
+
+.routes-styles__color-rows {
+	display: flex;
+	flex-direction: column;
+	border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+	border-radius: var(--wpds-border-radius-sm);
+
+	.cnl-color-well {
+		display: block;
+	}
+
+	.cnl-color-well + .cnl-color-well {
+		border-top: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-neutral);
+	}
+}
+
+.components-button.routes-styles__color-row {
+	gap: var(--wpds-dimension-gap-sm);
+	width: 100%;
+	height: auto;
+	min-height: var(--wpds-dimension-size-lg);
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+	border-radius: 0;
+	color: var(--wpds-color-foreground-interactive-neutral);
+
+	.component-color-indicator {
+		width: 24px;
+		height: 24px;
+		box-shadow: inset 0 0 0 1px var(--wpds-color-stroke-interactive-neutral);
+	}
+
+	.cnl-color-well__label {
+		flex: 1;
+		text-align: start;
+	}
+}
+
+.routes-styles__color-value {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-family: var(--wpds-typography-font-family-mono);
+	font-size: var(--wpds-typography-font-size-xs);
+	text-transform: uppercase;
 }
 
 // Font pairings are picked the way looks are: ringed and ticked when in use.
