@@ -82,7 +82,7 @@ import { useCanvasStyles } from '../use-canvas-styles';
 import { createBlankSection, InlineSectionPicker } from '../../section-picker';
 import { EmptyPage } from './empty-page';
 import { RemoveControl } from './remove-control';
-import DesignBar, { MAX_PER_SLIDE } from './design-bar';
+import DesignBar, { getParentView, MAX_PER_SLIDE } from './design-bar';
 import {
 	getSitewideText,
 	HoverBar,
@@ -688,7 +688,7 @@ export function SectionModesLayer( {
 			activeRef.current?.mode === MODE_DESIGN &&
 			activeRef.current.view
 		) {
-			setDesignView( null );
+			setDesignView( getParentView( activeRef.current.view ) );
 		} else {
 			exitMode();
 		}

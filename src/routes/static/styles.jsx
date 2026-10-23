@@ -133,7 +133,7 @@ export function ColorsStage() {
 			isLoading={ isLoading }
 			title={ __( 'Colors' ) }
 		>
-			<PalettePicker />
+			<PalettePicker allowCustom />
 		</StylesScreen>
 	);
 }

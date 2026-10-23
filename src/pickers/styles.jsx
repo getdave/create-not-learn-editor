@@ -16,7 +16,7 @@
 import { Button, ColorIndicator } from '@wordpress/components';
 import { store as coreDataStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
-import { useMemo } from '@wordpress/element';
+import { useMemo, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import { check as checkIcon } from '@wordpress/icons';
 import { Icon, Spinner, Text } from '@wordpress/ui';
@@ -28,6 +28,7 @@ import {
 	COLOR_PROPERTIES,
 	TYPOGRAPHY_PROPERTIES,
 	applyPreset,
+	areStyleConfigsEqual,
 	findActiveLook,
 	findActivePreset,
 	getStyleConfig,
@@ -37,7 +38,19 @@ import {
 	groupStyleVariations,
 } from '../routes/static/style-variations';
 import { settings as appSettings } from '../settings';
+import {
+	getContrast,
+	MIN_TEXT_CONTRAST,
+	parseColor,
+} from '../site-canvas/compose/palette-colors';
+import ColorWell from './color-well';
 import { resolveColor } from './resolve-color';
+import {
+	getSiteColors,
+	getSitePalette,
+	SITE_COLOR_KEYS,
+	withSiteColor,
+} from './site-colors';
 
 const EMPTY_ARRAY = [];
 const EMPTY_OBJECT = {};
@@ -268,25 +281,38 @@ function LookCard( {
 	);
 }
 
-function PaletteOption( { colors, isSelected, onSelect, title } ) {
+function PaletteOption( {
+	children,
+	colors,
+	isExpanded,
+	isSelected,
+	onSelect,
+	title,
+} ) {
 	return (
 		<Button
+			aria-expanded={ isExpanded }
 			aria-pressed={ isSelected }
 			className={ `routes-styles__palette${
 				isSelected ? ' is-selected' : ''
 			}` }
 			label={ title }
-			// Picking what is already in use changes nothing.
-			onClick={ () => ! isSelected && onSelect() }
+			// Picking what is already in use changes nothing, but a toggle,
+			// like Custom, always toggles.
+			onClick={ () =>
+				( ! isSelected || isExpanded !== undefined ) && onSelect()
+			}
 			showTooltip
 		>
-			{ colors.length ? (
+			{ children }
+			{ ! children && colors.length > 0 && (
 				<span aria-hidden className="routes-styles__palette-colors">
 					{ colors.map( ( color ) => (
 						<ColorIndicator colorValue={ color } key={ color } />
 					) ) }
 				</span>
-			) : (
+			) }
+			{ ! children && ! colors.length && (
 				<span aria-hidden className="routes-styles__palette-default">
 					{ __( 'Theme' ) }
 				</span>
@@ -443,11 +469,20 @@ export function LookPicker( { onPick } ) {
  * The theme's colour palettes, its own first. Picking one changes only the
  * site's colours.
  *
- * @param {Object}   props        Component props.
- * @param {Function} props.onPick Called with the palette's title once applied.
+ * With `allowCustom`, Custom comes last, a palette like the others: a
+ * colour wheel, or the site's own colours once it has them. It picks
+ * nothing by itself; it shows and hides the site's own colours under the
+ * palettes, so they are there for people who look for them without being
+ * offered up front.
+ *
+ * @param {Object}   props             Component props.
+ * @param {boolean}  props.allowCustom Whether to offer custom colours.
+ * @param {Function} props.onPick      Called with the palette's title once
+ *                                     applied.
  * @return {Element} The palettes.
  */
-export function PalettePicker( { onPick } ) {
+export function PalettePicker( { allowCustom = false, onPick } ) {
+	const [ isCustomOpen, setIsCustomOpen ] = useState( false );
 	const { baseStyles, isLoading, setConfig, userConfig, variations } =
 		useStylesData();
 	const groups = useMemo(
@@ -460,8 +495,15 @@ export function PalettePicker( { onPick } ) {
 		groups.colors,
 		COLOR_PROPERTIES
 	);
+	// Colours changed by hand, rather than the theme's, a palette's or a
+	// look's: none of the palettes is the one in use.
+	const isCustom =
+		! activeColors &&
+		! findActivePreset( userConfig, variations, COLOR_PROPERTIES ) &&
+		hasColors( userConfig );
 	const pick = ( preset, title ) => {
 		setConfig( applyPreset( userConfig, preset, COLOR_PROPERTIES ) );
+		setIsCustomOpen( false );
 		onPick?.( title );
 	};
 
@@ -469,12 +511,15 @@ export function PalettePicker( { onPick } ) {
 		return <Loading />;
 	}
 
+	const customPalette = getSitePalette( userConfig, baseStyles );
+	const customValues = getSiteColors( userConfig, baseStyles );
+
 	return (
 		<>
 			<div className="routes-styles__palettes">
 				<PaletteOption
 					colors={ getSwatches( basePalette ) }
-					isSelected={ ! activeColors }
+					isSelected={ ! activeColors && ! isCustom }
 					onSelect={ () => pick( null, __( 'Theme colors' ) ) }
 					title={ __( 'Theme colors' ) }
 				/>
@@ -489,13 +534,147 @@ export function PalettePicker( { onPick } ) {
 						title={ getVariationTitle( preset ) }
 					/>
 				) ) }
+				{ allowCustom && (
+					<PaletteOption
+						isExpanded={ isCustomOpen }
+						isSelected={ isCustom }
+						onSelect={ () => setIsCustomOpen( ! isCustomOpen ) }
+						title={ __( 'Custom' ) }
+					>
+						<span
+							aria-hidden
+							className="routes-styles__palette-colors"
+						>
+							{ isCustom ? (
+								SITE_COLOR_KEYS.map( ( key ) => (
+									<ColorIndicator
+										colorValue={ resolveColor(
+											customValues[ key ],
+											customPalette
+										) }
+										key={ key }
+									/>
+								) )
+							) : (
+								<span className="routes-styles__palette-wheel" />
+							) }
+						</span>
+					</PaletteOption>
+				) }
 			</div>
-			{ ! groups.colors.length && (
+			{ ! groups.colors.length && ! allowCustom && (
 				<EmptyNote>
 					{ __( 'Your theme only offers its own palette.' ) }
 				</EmptyNote>
 			) }
+			{ allowCustom && isCustomOpen && (
+				<CustomColors
+					baseStyles={ baseStyles }
+					setConfig={ setConfig }
+					userConfig={ userConfig }
+				/>
+			) }
 		</>
+	);
+}
+
+/**
+ * Whether a config has colours of its own.
+ *
+ * @param {Object} config User global styles config.
+ * @return {boolean} Whether it does.
+ */
+function hasColors( config ) {
+	return ! areStyleConfigsEqual(
+		applyPreset( config, null, COLOR_PROPERTIES ),
+		config
+	);
+}
+
+/**
+ * Whether two colours stand apart enough to read, or true when either
+ * can't be checked.
+ *
+ * @param {?string} a A CSS colour.
+ * @param {?string} b Another.
+ * @return {boolean} Whether they do.
+ */
+function canRead( a, b ) {
+	const first = parseColor( a );
+	const second = parseColor( b );
+
+	return (
+		! first || ! second || getContrast( first, second ) >= MIN_TEXT_CONTRAST
+	);
+}
+
+/**
+ * The site's background, text and button colours, starting from the
+ * palette in use, for people who want their own. Each changes the palette
+ * colour behind it, so the whole site follows. See `site-colors.js`.
+ *
+ * @param {Object}   props            Component props.
+ * @param {Object}   props.baseStyles The theme's global styles.
+ * @param {Function} props.setConfig  Saves the user's global styles.
+ * @param {Object}   props.userConfig The user's global styles.
+ * @return {Element} The colours.
+ */
+function CustomColors( { baseStyles, setConfig, userConfig } ) {
+	const palette = getSitePalette( userConfig, baseStyles );
+	const values = getSiteColors( userConfig, baseStyles );
+	const resolved = Object.fromEntries(
+		SITE_COLOR_KEYS.map( ( key ) => [
+			key,
+			resolveColor( values[ key ], palette ),
+		] )
+	);
+	const textNote =
+		! canRead( resolved.text, resolved.background ) &&
+		__( 'Text may be hard to read on this background.' );
+	const labels = {
+		background: __( 'Background' ),
+		button: __( 'Buttons' ),
+		text: __( 'Text' ),
+	};
+
+	return (
+		<section
+			aria-label={ __( 'Custom colors' ) }
+			className="routes-styles__custom-colors"
+		>
+			<Text className="routes-styles__muted" variant="body-sm">
+				{ __(
+					'Change the three colors your site is built on. Everything that uses them follows.'
+				) }
+			</Text>
+			<div className="routes-styles__color-rows">
+				{ SITE_COLOR_KEYS.map( ( key ) => (
+					<ColorWell
+						asPreset={ false }
+						className="routes-styles__color-row"
+						key={ key }
+						label={ labels[ key ] }
+						note={ key !== 'button' && textNote }
+						onChange={ ( color ) =>
+							setConfig(
+								withSiteColor(
+									userConfig,
+									baseStyles,
+									key,
+									color
+								)
+							)
+						}
+						palette={ palette }
+						value={ values[ key ] }
+					>
+						<span className="routes-styles__color-value">
+							{ resolved[ key ] }
+						</span>
+					</ColorWell>
+				) ) }
+			</div>
+		</section>
 	);
 }
 

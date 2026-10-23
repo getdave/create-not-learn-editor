@@ -41,15 +41,21 @@ import { Icon } from '@wordpress/ui';
 import { getSectionArrangements } from '../layouts/variants';
 import { getVariationPalette } from '../routes/static/style-variations';
 import {
+	CUSTOM_COLOR,
 	getAttributeUpdate,
 	getColorOptions,
+	getCustomColors,
 	getReadableOptions,
 	getSectionColor,
 	withSectionColor,
 } from '../site-canvas/compose/section-colors';
 
 const EMPTY_ARRAY = [];
-const NO_COLORS = { colors: EMPTY_ARRAY, options: EMPTY_ARRAY };
+const NO_COLORS = {
+	colors: EMPTY_ARRAY,
+	options: EMPTY_ARRAY,
+	supports: {},
+};
 
 const NO_SITE_STYLES = { base: null, user: null };
 
@@ -110,12 +116,20 @@ function getSiteColors( site ) {
  * @param {Object} site      `{ base, blockStyles, user }`: the site's
  *                           styles and the block type's block styles.
  * @param {string} blockName The block type.
- * @return {Object} `{ colors, options }`: the palette, and the result of
- *                  `getColorOptions`.
+ * @return {Object} `{ colors, options, supports }`: the palette, the result
+ *                  of `getColorOptions`, and which colours the block type
+ *                  takes, for custom colours.
  */
 function buildColorChoices( site, blockName ) {
 	const { palette, styles } = getSiteColors( site );
 	const color = getBlockType( blockName )?.supports?.color;
+	const supports = {
+		background: !! color && color.background !== false,
+		button: !! color?.button,
+		heading: !! color?.heading,
+		link: !! color?.link,
+		text: !! color && color.text !== false,
+	};
 
 	return {
 		colors: palette,
@@ -124,15 +138,10 @@ function buildColorChoices( site, blockName ) {
 			colors: palette,
 			palette,
 			styles,
-			supports: {
-				background: !! color && color.background !== false,
-				button: !! color?.button,
-				heading: !! color?.heading,
-				link: !! color?.link,
-				text: !! color && color.text !== false,
-			},
+			supports,
 			variations: site.base?.styles?.blocks?.[ blockName ]?.variations,
 		} ),
+		supports,
 	};
 }
 
@@ -192,20 +201,37 @@ export function useColorOptions( blockName ) {
  * colours set on the blocks themselves, which win over any picked, or no
  * other colour their text can be read on.
  *
- * @param {Object[]} blocks  The blocks.
- * @param {Object}   choices Result of `useColorOptions`.
- * @return {?Object} `{ current, options }`.
+ * With `allowCustom`, custom colours are a choice too, as Edit design
+ * offers them: blocks with custom colours are offered the options, with
+ * `CUSTOM_COLOR` as the one they have, and blocks are offered custom colours
+ * even when no other option reads on them.
+ *
+ * @param {Object[]} blocks               The blocks.
+ * @param {Object}   choices              Result of `useColorOptions`.
+ * @param {Object}   settings
+ * @param {boolean}  settings.allowCustom Whether custom colours are a
+ *                                        choice.
+ * @return {?Object} `{ current, options, values }`. `values` is `{
+ *                   background, text, button }`: the colours the blocks
+ *                   have now, to start custom colours from.
  */
-export function getColorOffer( blocks, choices ) {
+export function getColorOffer( blocks, choices, { allowCustom = false } = {} ) {
 	const { colors, options } = choices;
 
-	if (
-		! blocks.length ||
-		! options.length ||
-		blocks.some(
-			( block ) => getSectionColor( block, options ) === undefined
-		)
-	) {
+	if ( ! blocks.length || ! options.length ) {
+		return null;
+	}
+
+	const current = blocks.map( ( block ) =>
+		getSectionColor( block, options )
+	);
+	const custom =
+		allowCustom &&
+		current.every( ( name ) => name === undefined ) &&
+		blocks.every( ( block ) => getCustomColors( block.attributes ) ) &&
+		getCustomColors( blocks[ 0 ].attributes );
+
+	if ( ! custom && current.some( ( name ) => name === undefined ) ) {
 		return null;
 	}
 
@@ -217,11 +243,22 @@ export function getColorOffer( blocks, choices ) {
 		return list.filter( ( option ) => names.includes( option.name ) );
 	}, options );
 
+	const page = options.find( ( option ) => ! option.name ).values;
+	const values =
+		custom ||
+		options.find( ( option ) => option.name === current[ 0 ] )?.values;
+	const fill = ( name ) => values?.[ name ] || page[ name ];
+
 	// Something to change to, besides the colour it has.
-	return readable.length > 1
+	return readable.length > 1 || allowCustom
 		? {
-				current: getSectionColor( blocks[ 0 ], options ),
+				current: custom ? CUSTOM_COLOR : current[ 0 ],
 				options: readable,
+				values: {
+					background: fill( 'background' ),
+					button: fill( 'button' ),
+					text: fill( 'text' ),
+				},
 			}
 		: null;
 }
@@ -244,14 +281,18 @@ export function getColorUpdate( block, options, name ) {
 /**
  * A section's layouts and colours, each as it would look.
  *
- * @param {?string} clientId The section's client ID.
- * @return {Object} `{ block, colors, layouts }`. `colors` and `layouts` are
+ * @param {?string} clientId             The section's client ID.
+ * @param {Object}  settings
+ * @param {boolean} settings.allowCustom Whether custom colours are a
+ *                                       choice, as `getColorOffer` has it.
+ * @return {Object} `{ block, choices, colors, layouts }`. `choices` is the
+ *                  result of `useColorOptions`. `colors` and `layouts` are
  *                  `{ current, options }`, or null when there are none.
  *                  Each option is `{ blocks, label, name }`, `blocks` being
  *                  how the section looks with it; a layout's has the
  *                  rearranged `block`, and a colour's its swatch `colors`.
  */
-export function useSectionVariations( clientId ) {
+export function useSectionVariations( clientId, { allowCustom = false } = {} ) {
 	const block = useSelect(
 		( select ) =>
 			clientId ? select( blockEditorStore ).getBlock( clientId ) : null,
@@ -276,7 +317,8 @@ export function useSectionVariations( clientId ) {
 	}, [ block ] );
 
 	const colors = useMemo( () => {
-		const offer = block && getColorOffer( [ block ], choices );
+		const offer =
+			block && getColorOffer( [ block ], choices, { allowCustom } );
 
 		return (
 			offer && {
@@ -296,9 +338,9 @@ export function useSectionVariations( clientId ) {
 				} ) ),
 			}
 		);
-	}, [ block, choices ] );
+	}, [ allowCustom, block, choices ] );
 
-	return { block, colors, layouts };
+	return { block, choices, colors, layouts };
 }
 
 function LayoutCard( { isCurrent, onSelect, option, Preview } ) {

@@ -1,0 +1,26 @@
+/*
+ * A custom colour's palette, in its popover. See `color-well.jsx`.
+ */
+.cnl-color-well__popover .components-popover__content {
+	width: 260px;
+	padding: var(--wpds-dimension-padding-lg);
+}
+
+.cnl-color-well__content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-md);
+}
+
+.cnl-color-well__note {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--wpds-dimension-gap-xs);
+	margin: 0;
+	color: var(--wpds-color-foreground-content-caution);
+
+	svg {
+		flex: none;
+		fill: currentcolor;
+	}
+}

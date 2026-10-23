@@ -44,7 +44,10 @@ export function usePartColors( part ) {
 	const choices = useColorOptions( blockName );
 
 	const colors = useMemo(
-		() => getColorOffer( getPartColorBlocks( partBlocks ), choices ),
+		() =>
+			getColorOffer( getPartColorBlocks( partBlocks ), choices, {
+				allowCustom: true,
+			} ),
 		[ choices, partBlocks ]
 	);
 
@@ -66,10 +69,10 @@ export function usePartColors( part ) {
  * found as the Header and Footer screens find it, whatever its colours.
  *
  * @param {Object}  part  `{ area, clientId, id }`.
- * @param {?Object} color `{ blockName, name, choices }`: the block type that
- *                        takes the part's colour, the colour, and the
- *                        result of `useColorOptions`, or null when it takes
- *                        none.
+ * @param {?Object} color `{ blockName, name, choices, values }`: the block
+ *                        type that takes the part's colour, the colour, the
+ *                        result of `useColorOptions`, and its colours, for
+ *                        custom colours; or null when it takes none.
  * @return {Object} `{ current, options }`.
  */
 export function usePartDesigns( part, color ) {
@@ -86,6 +89,7 @@ export function usePartDesigns( part, color ) {
 	);
 	const colorBlockName = color?.blockName;
 	const colorName = color?.name;
+	const colorValues = color?.values;
 	const choices = color?.choices;
 
 	// Parsed once, rather than again with every change to the part. Options
@@ -107,13 +111,14 @@ export function usePartDesigns( part, color ) {
 							colorBlockName,
 							choices.options,
 							choices.colors,
-							colorName
+							colorName,
+							{ supports: choices.supports, values: colorValues }
 						)
 					: blocks,
 				label: pattern.title,
 				name: pattern.name,
 			} ) ),
-		[ choices, colorBlockName, colorName, layouts ]
+		[ choices, colorBlockName, colorName, colorValues, layouts ]
 	);
 	const current = useMemo(
 		() =>
