@@ -2,7 +2,7 @@
 /**
  * Title: Homepage
  * Slug: mainstay/page-home
- * Categories: mainstay/pages
+ * Categories: mainstay/pages, mainstay/pages-essentials
  * Keywords: home, front page, landing
  * Post Types: page
  * Block Types: core/post-content

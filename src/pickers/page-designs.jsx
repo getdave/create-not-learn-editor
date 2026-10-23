@@ -27,22 +27,26 @@ import { Icon } from '@wordpress/ui';
  */
 import {
 	EMPTY_ARRAY,
+	getPageLayoutKinds,
 	getPatternDescription,
 	getPatternPreviewContent,
 	getPatternTitle,
 	isPageLayoutPattern,
 } from '../routes/content/page-layouts';
+import { usePreviewBlocks } from './preview-blocks';
+import { PagePreviewLoading, useHasPreviewDrawn } from './preview-loading';
 
 /**
- * The theme's whole-page designs.
+ * The theme's whole-page designs, and the kinds of page it sorts them into.
  *
- * @return {Object} `{ isResolving, patterns }`.
+ * @return {Object} `{ isResolving, kinds, patterns }`.
  */
 export function usePageLayoutPatterns() {
-	const { isResolving, patterns } = useSelect( ( select ) => {
+	const { categories, isResolving, patterns } = useSelect( ( select ) => {
 		const store = select( coreDataStore );
 
 		return {
+			categories: store.getBlockPatternCategories?.() || EMPTY_ARRAY,
 			isResolving: store.isResolving?.( 'getBlockPatterns' ) || false,
 			patterns: store.getBlockPatterns?.() || EMPTY_ARRAY,
 		};
@@ -51,21 +55,10 @@ export function usePageLayoutPatterns() {
 	return useMemo(
 		() => ( {
 			isResolving,
+			kinds: getPageLayoutKinds( patterns, categories ),
 			patterns: patterns.filter( isPageLayoutPattern ),
 		} ),
-		[ isResolving, patterns ]
-	);
-}
-
-export function PageLayoutPreviewPlaceholder() {
-	return (
-		<div className="cnl-add-page-layout-placeholder">
-			<div className="cnl-add-page-layout-placeholder__brand" />
-			<div className="cnl-add-page-layout-placeholder__title" />
-			<div className="cnl-add-page-layout-placeholder__line" />
-			<div className="cnl-add-page-layout-placeholder__line" />
-			<div className="cnl-add-page-layout-placeholder__media" />
-		</div>
+		[ categories, isResolving, patterns ]
 	);
 }
 
@@ -86,6 +79,8 @@ export function PageLayoutCard( {
 		pattern,
 		pageTemplateContent
 	);
+	const previewBlocks = usePreviewBlocks( previewContent );
+	const hasDrawn = useHasPreviewDrawn( scrollerRef );
 	const title = getPatternTitle( pattern );
 	const description = getPatternDescription( pattern );
 
@@ -101,16 +96,14 @@ export function PageLayoutCard( {
 					className="cnl-add-page-layout-preview-page"
 					ref={ scrollerRef }
 				>
-					{ previewContent && Preview ? (
+					{ previewContent && Preview && (
 						<Preview
-							content={ previewContent }
+							blocks={ previewBlocks }
 							description={ title }
-							placeholder={ <PageLayoutPreviewPlaceholder /> }
 						/>
-					) : (
-						<PageLayoutPreviewPlaceholder />
 					) }
 				</div>
+				{ ! hasDrawn && <PagePreviewLoading /> }
 				<button
 					aria-label={ sprintf(
 						/* translators: %s: page design name. */

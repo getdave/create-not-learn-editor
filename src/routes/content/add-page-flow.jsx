@@ -33,12 +33,18 @@ import {
 	PageLayoutCard,
 	usePageLayoutPatterns,
 } from '../../pickers/page-designs';
+import { usePreviewBlocks } from '../../pickers/preview-blocks';
+import {
+	PagePreviewLoading,
+	useHasPreviewDrawn,
+} from '../../pickers/preview-loading';
 import {
 	Button,
 	CheckboxControl,
 	chevronLeftIcon,
 	chevronRightIcon,
 	coreDataStore,
+	postContentIcon,
 	InputControl,
 	Notice,
 	SelectControl,
@@ -55,12 +61,55 @@ import {
 	useDispatch,
 	useId,
 	useMemo,
+	useRef,
+	useSelect,
 	useState,
 } from '../../wordpress-packages';
 
 const PAGE_TITLE_PREVIEW_DEBOUNCE_MS = 700;
 
 const BLANK_PAGE_PATTERN = { content: '' };
+
+/*
+ * A page that is mostly words, like a privacy policy. It keeps the theme's
+ * standard layout, which puts the title and featured image at the top, and
+ * starts with one section of text, so it is written rather than designed.
+ */
+function getTextPageContent( paragraph ) {
+	return `<!-- wp:group ${ JSON.stringify( {
+		metadata: { name: __( 'Page text' ) },
+		layout: { type: 'constrained' },
+	} ) } -->
+<div class="wp-block-group">${ paragraph }</div>
+<!-- /wp:group -->`;
+}
+
+const TEXT_PAGE_PATTERN = {
+	content: getTextPageContent( `<!-- wp:paragraph ${ JSON.stringify( {
+		placeholder: __( 'Start writing your page…' ),
+	} ) } -->
+<p></p>
+<!-- /wp:paragraph -->` ),
+	title: __( 'Text page' ),
+};
+
+// The page starts empty, which a preview can't show, so it shows some text.
+const TEXT_PAGE_PREVIEW_PATTERN = {
+	content: getTextPageContent( `<!-- wp:paragraph -->
+<p>${ __(
+		'Your text goes here. Write as much as you need, and add headings, lists and links where they help. Pages like this are for reading, so there are no sections to design.'
+	) }</p>
+<!-- /wp:paragraph -->` ),
+};
+
+/*
+ * New pages get the plugin's Blank template (see
+ * `includes/block-templates.php`), so the standard layout previews with it
+ * rather than the theme's Page template, whose title and featured image have
+ * nothing to show yet. WordPress lists it under the active theme, as
+ * `<theme>//blank-page`.
+ */
+const NEW_PAGE_TEMPLATE_SLUG = 'blank-page';
 
 /*
  * Each density is a grid shape, and that shape doubles as the page size: the
@@ -96,6 +145,30 @@ function getPageTemplateOptions( templates ) {
 				value: template.slug || String( template.id ),
 			} ) ),
 	];
+}
+
+/*
+ * The page being named, as it will start. It shows a page in outline until
+ * the preview has drawn, and again for each design chosen, as it mounts anew.
+ */
+function FormPreview( { blocks, description } ) {
+	const ref = useRef();
+	const hasDrawn = useHasPreviewDrawn( ref );
+
+	return (
+		<div className="cnl-add-page-form__preview">
+			<div
+				className="cnl-design-picker__preview cnl-add-page-form__preview-page"
+				ref={ ref }
+			>
+				<LazyEditorPreview
+					blocks={ blocks }
+					description={ description }
+				/>
+			</div>
+			{ ! hasDrawn && <PagePreviewLoading /> }
+		</div>
+	);
 }
 
 function PageLayoutSidebarPlaceholder() {
@@ -188,23 +261,11 @@ export default function AddPageFlow( {
 	const [ validationError, setValidationError ] = useState();
 	const [ isBusy, setIsBusy ] = useState( false );
 	const idPrefix = `cnl-add-page-${ useId().replace( /:/g, '' ) }`;
-	const { isResolving, patterns } = usePageLayoutPatterns();
+	const { isResolving, kinds, patterns } = usePageLayoutPatterns();
 	const pageLayoutGroups = useMemo(
-		() => getPageLayoutGroups( patterns ),
-		[ patterns ]
+		() => getPageLayoutGroups( patterns, kinds ),
+		[ kinds, patterns ]
 	);
-	const visiblePageLayoutGroups = useMemo( () => {
-		if ( pageLayoutGroups.length !== 1 ) {
-			return pageLayoutGroups;
-		}
-
-		return [
-			{
-				...pageLayoutGroups[ 0 ],
-				label: __( 'All designs' ),
-			},
-		];
-	}, [ pageLayoutGroups ] );
 	const activePageType =
 		selectedPageType ||
 		pageLayoutGroups[ 0 ]?.slug ||
@@ -221,18 +282,47 @@ export default function AddPageFlow( {
 		Math.ceil( activePageLayouts.length / pageLayoutPerPage )
 	);
 	const isLoadingPageLayouts = isResolving && ! pageLayoutGroups.length;
+	// A list of kinds with only one kind in it has nothing to choose between.
+	const hasPageLayoutNav =
+		isLoadingPageLayouts || pageLayoutGroups.length > 1;
+	const activePageLayoutLabel =
+		pageLayoutGroups.length === 1 &&
+		activePageLayoutGroup?.slug === OTHER_PAGE_LAYOUT_TYPE
+			? __( 'All designs' )
+			: activePageLayoutGroup?.label;
+	const newPageTemplateContent = useSelect( ( select ) => {
+		const store = select( coreDataStore );
+		const theme = store.getCurrentTheme()?.stylesheet;
+
+		return theme
+			? store.getEntityRecord(
+					'postType',
+					'wp_template',
+					`${ theme }//${ NEW_PAGE_TEMPLATE_SLUG }`
+				)?.content?.raw
+			: undefined;
+	}, [] );
 	const pageTemplateOptions = useMemo(
 		() => getPageTemplateOptions( templates ),
 		[ templates ]
 	);
+	const isTextPage = selectedLayout === TEXT_PAGE_PATTERN;
 	const pageTemplateContent = useMemo(
-		() => getSelectedTemplateContent( templates, selectedTemplateSlug ),
-		[ selectedTemplateSlug, templates ]
+		() =>
+			( ! selectedTemplateSlug &&
+				! isTextPage &&
+				newPageTemplateContent ) ||
+			getSelectedTemplateContent( templates, selectedTemplateSlug ),
+		[ isTextPage, newPageTemplateContent, selectedTemplateSlug, templates ]
 	);
 	const isShowingForm = startedBlank || !! selectedLayout;
 	// A blank page still previews, as its layout with nothing in it.
-	const previewPattern =
-		selectedLayout || ( startedBlank ? BLANK_PAGE_PATTERN : undefined );
+	let previewPattern = startedBlank ? BLANK_PAGE_PATTERN : selectedLayout;
+
+	if ( isTextPage ) {
+		previewPattern = TEXT_PAGE_PREVIEW_PATTERN;
+	}
+
 	useEffect( () => {
 		if ( ! previewPattern ) {
 			setPreviewPageTitle( pageTitle );
@@ -258,6 +348,7 @@ export default function AddPageFlow( {
 				: '',
 		[ pageTemplateContent, previewPageTitle, previewPattern ]
 	);
+	const formPreviewBlocks = usePreviewBlocks( formPreviewContent );
 	const canCreate = pageTitle.trim().length > 0;
 
 	useEffect( () => {
@@ -282,6 +373,13 @@ export default function AddPageFlow( {
 	const handleStartBlank = () => {
 		setStartedBlank( true );
 		setSelectedLayout( undefined );
+		setSelectedTemplateSlug( '' );
+		setPageTitle( '' );
+		setValidationError( undefined );
+	};
+	const handleStartText = () => {
+		setStartedBlank( false );
+		setSelectedLayout( TEXT_PAGE_PATTERN );
 		setSelectedTemplateSlug( '' );
 		setPageTitle( '' );
 		setValidationError( undefined );
@@ -321,7 +419,12 @@ export default function AddPageFlow( {
 						publishImmediately || isForHomepage
 							? 'publish'
 							: 'draft',
-					template: selectedTemplateSlug || undefined,
+					/*
+					 * Left out, a new page gets the Blank template. A text
+					 * page asks for none, which is the theme's standard one.
+					 */
+					template:
+						selectedTemplateSlug || ( isTextPage ? '' : undefined ),
 					title: trimmedTitle,
 				},
 				{ throwOnError: true }
@@ -374,17 +477,22 @@ export default function AddPageFlow( {
 				}` }
 				onClose={ onClose }
 				subtitle={
-					selectedLayout
-						? sprintf(
-								/* translators: %s: page design name. */
-								__(
-									'Your page starts from the “%s” design. You can change its name later.'
-								),
-								getPatternTitle( selectedLayout )
+					// eslint-disable-next-line no-nested-ternary
+					isTextPage
+						? __(
+								'Your page uses your theme’s standard layout, with its title and featured image at the top and your text below. You can change its name later.'
 							)
-						: __(
-								'Your page starts blank. You can change its name later.'
-							)
+						: selectedLayout
+							? sprintf(
+									/* translators: %s: page design name. */
+									__(
+										'Your page starts from the “%s” design. You can change its name later.'
+									),
+									getPatternTitle( selectedLayout )
+								)
+							: __(
+									'Your page starts blank. You can change its name later.'
+								)
 				}
 				title={ __( 'Name your page' ) }
 			>
@@ -478,18 +586,14 @@ export default function AddPageFlow( {
 					</div>
 				</div>
 				{ formPreviewContent && (
-					<div className="cnl-add-page-form__preview">
-						<div className="cnl-design-picker__preview cnl-add-page-form__preview-page">
-							<LazyEditorPreview
-								content={ formPreviewContent }
-								description={
-									selectedLayout
-										? getPatternTitle( selectedLayout )
-										: __( 'Blank page' )
-								}
-							/>
-						</div>
-					</div>
+					<FormPreview
+						blocks={ formPreviewBlocks }
+						description={
+							selectedLayout
+								? getPatternTitle( selectedLayout )
+								: __( 'Blank page' )
+						}
+					/>
 				) }
 			</DesignPicker>
 		);
@@ -547,7 +651,7 @@ export default function AddPageFlow( {
 			>
 				<GroupHeading
 					id={ `${ idPrefix }-heading` }
-					label={ activePageLayoutGroup?.label }
+					label={ activePageLayoutLabel }
 				>
 					{ activePageLayouts.length > pageLayoutPerPage && (
 						<Stack
@@ -663,17 +767,21 @@ export default function AddPageFlow( {
 			className="cnl-add-page-modal"
 			mainClassName="cnl-add-page-layout-main"
 			nav={
-				<DesignPickerNav
-					current={ activePageType }
-					items={ visiblePageLayoutGroups.map( ( group ) => ( {
-						label: group.label,
-						value: group.slug,
-					} ) ) }
-					label={ __( 'Page types' ) }
-					onSelect={ setSelectedPageType }
-				>
-					{ isLoadingPageLayouts && <PageLayoutSidebarPlaceholder /> }
-				</DesignPickerNav>
+				hasPageLayoutNav && (
+					<DesignPickerNav
+						current={ activePageType }
+						items={ pageLayoutGroups.map( ( group ) => ( {
+							label: group.label,
+							value: group.slug,
+						} ) ) }
+						label={ __( 'Page types' ) }
+						onSelect={ setSelectedPageType }
+					>
+						{ isLoadingPageLayouts && (
+							<PageLayoutSidebarPlaceholder />
+						) }
+					</DesignPickerNav>
+				)
 			}
 			onClose={ onClose }
 			subtitle={ __(
@@ -681,10 +789,20 @@ export default function AddPageFlow( {
 			) }
 			title={ __( 'Add a page' ) }
 		>
-			<StartFromScratch
-				description={ __( 'Build your page on a blank canvas' ) }
-				onClick={ handleStartBlank }
-			/>
+			<div className="cnl-design-picker__starts">
+				<StartFromScratch
+					description={ __( 'Build your page on a blank canvas' ) }
+					onClick={ handleStartBlank }
+				/>
+				<StartFromScratch
+					description={ __(
+						'A title and text, for pages like a privacy policy'
+					) }
+					icon={ postContentIcon }
+					onClick={ handleStartText }
+					title={ __( 'Text page' ) }
+				/>
+			</div>
 			{ designs }
 		</DesignPicker>
 	);
