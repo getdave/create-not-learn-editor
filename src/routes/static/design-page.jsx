@@ -41,7 +41,7 @@ export function DesignPage( { children, description, isTopLevel, title } ) {
 			breadcrumbs={ breadcrumbs }
 			className="cnl-editor-stage cnl-editor-content-page"
 			hasPadding={ false }
-			headingLevel={ 2 }
+			headingLevel={ 1 }
 			subTitle={ description }
 			title={ breadcrumbs ? undefined : title }
 		>
