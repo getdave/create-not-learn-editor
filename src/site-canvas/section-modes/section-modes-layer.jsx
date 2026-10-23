@@ -74,7 +74,7 @@ import {
 	useBlockRects,
 } from '../compose/use-block-rects';
 import { useComposeStructure } from '../compose/use-compose-structure';
-import { afterZoomIn } from '../compose/use-compose-zoom';
+import { afterZoomIn, whenZoomSettles } from '../compose/use-compose-zoom';
 import {
 	PART_CONTENT,
 	PART_FREEFORM,
@@ -94,6 +94,7 @@ import {
 	MODE_CONTENT,
 	MODE_FREEFORM,
 	MODE_DESIGN,
+	MODE_ZOOM_IN,
 	ModeBar,
 	SectionTab,
 } from './section-chrome';
@@ -669,6 +670,20 @@ export function SectionModesLayer( {
 
 		afterZoomIn( () => then() );
 		onExitCompose();
+	};
+
+	// Compose's Edit content: back into Edit with the section picked, as a
+	// click there picks it, and in view, as the page moves as it zooms in.
+	const zoomInTo = ( clientId ) => {
+		setMenuOpenFor( null );
+		setInlineAdd( null );
+		setActiveRowId( null );
+		setPickedSection( clientId );
+		leaveCompose( () =>
+			whenZoomSettles( editorRef, () =>
+				scrollCanvasTo( editorRef, clientId )
+			)
+		);
 	};
 
 	// From Edit design's More control into Freeform, which Done, Escape or a
@@ -1886,6 +1901,7 @@ export function SectionModesLayer( {
 							canMoveDown={ index < sectionIds.length - 1 }
 							canMoveUp={ index > 0 }
 							isCompact={ isCompact }
+							isComposing={ isComposing }
 							isNarrow={ isNarrow && ! isCompact }
 							isPart={ isPart }
 							onAdd={ ( type ) =>
@@ -1904,13 +1920,17 @@ export function SectionModesLayer( {
 									isMenuOpen ? shownHoverId : null
 								)
 							}
-							onMode={ ( mode ) =>
-								mode === MODE_CONTENT
-									? leaveCompose( () =>
-											enterMode( shownHoverId, mode )
-										)
-									: enterMode( shownHoverId, mode )
-							}
+							onMode={ ( mode ) => {
+								if ( mode === MODE_ZOOM_IN ) {
+									zoomInTo( shownHoverId );
+								} else if ( mode === MODE_CONTENT ) {
+									leaveCompose( () =>
+										enterMode( shownHoverId, mode )
+									);
+								} else {
+									enterMode( shownHoverId, mode );
+								}
+							} }
 							onMove={ ( direction ) =>
 								moveSection( shownHoverId, direction )
 							}
