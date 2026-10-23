@@ -63,6 +63,7 @@
 		"@wordpress/html-entities": "^4.57.0",
 		"@wordpress/i18n": "^6.30.0",
 		"@wordpress/icons": "^18.0.0",
+		"@wordpress/keyboard-shortcuts": "^5.57.0",
 		"@wordpress/keycodes": "^4.57.0",
 		"@wordpress/lazy-editor": "^1.23.0",
 		"@wordpress/media-utils": "^5.57.0",

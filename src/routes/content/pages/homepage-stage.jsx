@@ -8,6 +8,11 @@
  */
 
 /**
+ * WordPress dependencies
+ */
+import { useSearch } from '@wordpress/route';
+
+/**
  * Internal dependencies
  */
 import ScreenLinks from '../../../screen-links';
@@ -23,7 +28,9 @@ import {
 	findDefaultHomepagePage,
 	isFrontPageTemplateId,
 } from './homepage-state';
+import { HOMEPAGE_VIEW } from './homepage-view';
 import { MemoizedPageLayouts } from './page-layout-picker';
+import { getPageSearchString } from './sections-view';
 import { PageDetailStage } from './stage';
 import {
 	__,
@@ -44,6 +51,7 @@ import {
 	postIcon,
 	postListIcon,
 	SelectControl,
+	settingsIcon,
 	sprintf,
 	Stack,
 	Text,
@@ -417,14 +425,15 @@ function getSentence( homepage ) {
 }
 
 /**
- * The top of the homepage: anything wrong with it, and what it shows.
+ * The top of the homepage: anything wrong with it, and what it shows. What it
+ * shows can be changed, but that is tucked away behind "Configure homepage",
+ * as most sites never need it.
  *
- * @param {Object}   props                Component props.
- * @param {Object}   props.homepage       Result of `useHomepageState`.
- * @param {Function} props.onStartNewPage Opens the add page flow for it.
+ * @param {Object} props          Component props.
+ * @param {Object} props.homepage Result of `useHomepageState`.
  * @return {Element} The intro.
  */
-function HomepageIntro( { homepage, onStartNewPage } ) {
+function HomepageIntro( { homepage } ) {
 	const sentence = getSentence( homepage );
 
 	return (
@@ -434,12 +443,6 @@ function HomepageIntro( { homepage, onStartNewPage } ) {
 				<Text className="cnl-homepage-intro" variant="body-md">
 					{ sentence }
 				</Text>
-			) }
-			{ homepage.canSwitch && homepage.shows !== 'theme' && (
-				<HomepageChoice
-					homepage={ homepage }
-					onStartNewPage={ onStartNewPage }
-				/>
 			) }
 		</>
 	);
@@ -472,11 +475,14 @@ function getLayoutDestination( templateId ) {
  * The homepage when no page is behind it: a word about what it lists, and
  * ways on to the posts and to how they look.
  *
- * @param {Object} props          Component props.
- * @param {Object} props.homepage Result of `useHomepageState`.
+ * @param {Object}  props              Component props.
+ * @param {boolean} props.canConfigure Whether what the homepage shows can be
+ *                                     changed.
+ * @param {Object}  props.homepage     Result of `useHomepageState`.
+ * @param {Object}  props.searchParams The route's search params.
  * @return {Element} The body.
  */
-function LatestPostsBody( { homepage } ) {
+function LatestPostsBody( { canConfigure, homepage, searchParams } ) {
 	const layout = homepage.latestPostsTemplateId
 		? getLayoutDestination( homepage.latestPostsTemplateId )
 		: null;
@@ -513,6 +519,13 @@ function LatestPostsBody( { homepage } ) {
 						title: __( 'Change how it looks' ),
 						to: layout.to,
 					},
+					canConfigure && {
+						description: __( 'Choose what visitors see first' ),
+						icon: settingsIcon,
+						search: { ...searchParams, view: HOMEPAGE_VIEW },
+						title: __( 'Configure homepage' ),
+						to: LIST_PATH,
+					},
 				].filter( Boolean ) }
 			/>
 		</>
@@ -530,20 +543,22 @@ function LatestPostsBody( { homepage } ) {
 export default function HomepageStage( { onStartNewPage } ) {
 	const homepage = useHomepageState();
 	const siteTrail = useSiteTrail();
+	const searchParams = useSearch( { strict: false } );
 	const startNewPage = useCallback(
 		() => onStartNewPage?.(),
 		[ onStartNewPage ]
 	);
-	const intro = (
-		<MemoizedHomepageIntro
-			homepage={ homepage }
-			onStartNewPage={ startNewPage }
-		/>
-	);
+	const canConfigure = homepage.canSwitch && homepage.shows !== 'theme';
+	const isConfiguring = canConfigure && searchParams.view === HOMEPAGE_VIEW;
+	const intro = <MemoizedHomepageIntro homepage={ homepage } />;
+	const configurePanel = canConfigure ? (
+		<HomepageChoice homepage={ homepage } onStartNewPage={ startNewPage } />
+	) : null;
 
 	if ( homepage.pageId ) {
 		return (
 			<PageDetailStage
+				configurePanel={ configurePanel }
 				intro={ intro }
 				isHomepage
 				key={ homepage.pageId }
@@ -560,7 +575,17 @@ export default function HomepageStage( { onStartNewPage } ) {
 					items={ [
 						...siteTrail,
 						{ label: __( 'Pages' ), to: LIST_PATH },
-						{ label: __( 'Homepage' ) },
+						...( isConfiguring
+							? [
+									{
+										label: __( 'Homepage' ),
+										to: `${ LIST_PATH }?${ getPageSearchString(
+											searchParams
+										) }`,
+									},
+									{ label: __( 'Configure homepage' ) },
+								]
+							: [ { label: __( 'Homepage' ) } ] ),
 					] }
 				/>
 			}
@@ -569,10 +594,15 @@ export default function HomepageStage( { onStartNewPage } ) {
 			headingLevel={ 2 }
 		>
 			<div className="cnl-pages-detail__body">
-				{ ! homepage.isLoading && intro }
-				{ ! homepage.isLoading && (
-					<LatestPostsBody homepage={ homepage } />
+				{ ! homepage.isLoading && ! isConfiguring && intro }
+				{ ! homepage.isLoading && ! isConfiguring && (
+					<LatestPostsBody
+						canConfigure={ canConfigure }
+						homepage={ homepage }
+						searchParams={ searchParams }
+					/>
 				) }
+				{ ! homepage.isLoading && isConfiguring && configurePanel }
 			</div>
 		</Page>
 	);
