@@ -7,9 +7,9 @@ import { withUiTheme } from '../../theme';
 import { getCurrentEditorPath, getStaticScreen } from './screens';
 import { SiteIdentityCanvas, SiteIdentityStage } from './identity';
 import { ColorsStage, DesignStage, FontsStage, StylesCanvas } from './styles';
-import { TemplatesCanvas, TemplatesStage } from './templates';
-import { TemplatePartsCanvas, TemplatePartsStage } from './template-parts';
-import { PatternsCanvas, PatternsStage } from './patterns';
+import { TemplatesStage } from './templates';
+import { TemplatePartsStage } from './template-parts';
+import { PatternsStage } from './patterns';
 
 function Stage() {
 	if ( getCurrentEditorPath() === '/patterns' ) {
@@ -55,19 +55,8 @@ function Stage() {
 	);
 }
 
+// The Advanced lists have no canvas; see `route.js`.
 function Canvas() {
-	if ( getCurrentEditorPath() === '/patterns' ) {
-		return <PatternsCanvas />;
-	}
-
-	if ( getCurrentEditorPath() === '/template-parts' ) {
-		return <TemplatePartsCanvas />;
-	}
-
-	if ( getCurrentEditorPath() === '/templates' ) {
-		return <TemplatesCanvas />;
-	}
-
 	if (
 		getCurrentEditorPath() === '/design' ||
 		getCurrentEditorPath() === '/design/colors' ||

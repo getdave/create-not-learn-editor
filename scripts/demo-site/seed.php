@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const CNL_DEMO_SITE_VERSION = 3;
+const CNL_DEMO_SITE_VERSION = 4;
 
 $cnl_demo_installed_version = (int) get_option( 'cnl_demo_site_version' );
 
@@ -32,6 +32,28 @@ if ( ! wp_get_theme( 'mainstay' )->exists() ) {
 }
 
 require_once ABSPATH . 'wp-admin/includes/image.php';
+
+/**
+ * The site's first administrator, who the demo content is written by.
+ *
+ * @return int User ID, or 0 if the site has no administrator.
+ */
+function cnl_demo_author_id() {
+	$administrators = get_users(
+		array(
+			'role'    => 'administrator',
+			'orderby' => 'ID',
+			'number'  => 1,
+			'fields'  => 'ID',
+		)
+	);
+
+	return $administrators ? (int) $administrators[0] : 0;
+}
+
+// `wp eval-file` runs as nobody, and posts take their author from whoever is
+// logged in, so the demo's posts and pages would have no author.
+wp_set_current_user( cnl_demo_author_id() );
 
 /**
  * Block markup that renders the given theme patterns in order.
@@ -490,6 +512,29 @@ function cnl_demo_page_sections() {
 	}
 }
 
+/**
+ * Version 4: give the posts and pages earlier versions added an author, as
+ * they were added with none. Only posts and pages without an author change.
+ */
+function cnl_demo_post_authors() {
+	global $wpdb;
+
+	$author_id = cnl_demo_author_id();
+
+	if ( ! $author_id ) {
+		return;
+	}
+
+	// Not `get_posts()`, which takes an author of 0 to mean anyone.
+	$authorless = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_author = 0 AND post_type IN ( 'post', 'page' )" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+	foreach ( $authorless as $post_id ) {
+		// Straight to the table, so the post's modified date stays as it was.
+		$wpdb->update( $wpdb->posts, array( 'post_author' => $author_id ), array( 'ID' => $post_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		clean_post_cache( $post_id );
+	}
+}
+
 if ( $cnl_demo_installed_version < 1 ) {
 	cnl_demo_content();
 }
@@ -500,6 +545,10 @@ if ( $cnl_demo_installed_version < 2 ) {
 
 if ( $cnl_demo_installed_version < 3 ) {
 	cnl_demo_page_sections();
+}
+
+if ( $cnl_demo_installed_version < 4 ) {
+	cnl_demo_post_authors();
 }
 
 update_option( 'cnl_demo_site_version', CNL_DEMO_SITE_VERSION );

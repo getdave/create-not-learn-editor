@@ -24,6 +24,7 @@ import {
 	PostListDataViewsLayout,
 	getContentActions,
 	getContentFields,
+	usePostAuthors,
 } from './content-fields';
 import { getStatusLabel, getTemplateTitle } from './helpers';
 import PagesTable from './pages-table';
@@ -189,15 +190,19 @@ function Stage() {
 	const isPages = type?.name === 'page';
 	// Pages lists its pages in menu groups; every other type in DataViews.
 	const dataViews = useDataViews( !! type && ! isPages );
+	const authors = usePostAuthors( isPages ? EMPTY_ARRAY : posts );
 	const contentFields = useMemo(
 		() =>
-			getContentFields( {
-				frontPageId,
-				isPages,
-				menuPages: mainMenu.menuPages,
-				postsPageId,
-			} ),
-		[ frontPageId, isPages, mainMenu.menuPages, postsPageId ]
+			getContentFields(
+				{
+					frontPageId,
+					isPages,
+					menuPages: mainMenu.menuPages,
+					postsPageId,
+				},
+				authors
+			),
+		[ authors, frontPageId, isPages, mainMenu.menuPages, postsPageId ]
 	);
 	const contentActions = useMemo(
 		() => ( type ? getContentActions( navigate, type ) : [] ),

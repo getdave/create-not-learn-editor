@@ -189,20 +189,25 @@ function getPatternFields( categoryMap ) {
 	];
 }
 
+// Only sections saved on the site can be edited; the theme's are read only.
+function canEditPattern( pattern ) {
+	return pattern?.type === PATTERN_TYPES.user && !! pattern.recordId;
+}
+
+function openPattern( navigate, pattern ) {
+	if ( canEditPattern( pattern ) ) {
+		navigate( {
+			to: `/types/wp_block/edit/${ pattern.recordId }`,
+		} );
+	}
+}
+
 function getPatternActions( navigate ) {
 	return [
 		{
-			callback: ( items ) => {
-				const item = items[ 0 ];
-
-				if ( item?.recordId ) {
-					navigate( {
-						to: `/types/wp_block/edit/${ item.recordId }`,
-					} );
-				}
-			},
+			callback: ( items ) => openPattern( navigate, items[ 0 ] ),
 			id: 'edit-pattern',
-			isEligible: ( item ) => item?.type === PATTERN_TYPES.user,
+			isEligible: canEditPattern,
 			isPrimary: true,
 			label: __( 'Edit' ),
 			supportsBulk: false,
@@ -320,7 +325,6 @@ function PatternsDataViewsLayout() {
 			</div>
 			<DataViews.Filters className="routes-pattern-list__dataviews-filters" />
 			<div className="routes-pattern-list__dataviews-scroll">
-				<DataViews.BulkActionToolbar />
 				<DataViews.Layout />
 				<DataViews.Pagination />
 			</div>
@@ -397,10 +401,6 @@ function getPatternTabFromSearch() {
 	return getSearchParams().get( 'type' ) || 'all';
 }
 
-function getSelectedPatternIdFromSearch() {
-	return getSearchParams().get( 'patternId' );
-}
-
 export function PatternsStage() {
 	const navigate = useNavigate();
 	const dataViews = useDataViews();
@@ -409,9 +409,6 @@ export function PatternsStage() {
 	const { categoryMap, error, isLoading, patterns } = usePatternsData();
 	const [ view, setView ] = useState( DEFAULT_PATTERN_VIEW );
 	const [ activeTab, setActiveTab ] = useState( getPatternTabFromSearch() );
-	const [ selectedPatternId, setSelectedPatternId ] = useState(
-		getSelectedPatternIdFromSearch()
-	);
 	const [ isCreateModalOpen, setIsCreateModalOpen ] = useState( false );
 	const [ isCreatingPattern, setIsCreatingPattern ] = useState( false );
 	const [ createPatternError, setCreatePatternError ] = useState( '' );
@@ -443,7 +440,6 @@ export function PatternsStage() {
 	);
 	const selectCategory = ( nextCategory ) => {
 		setActiveCategory( nextCategory );
-		setSelectedPatternId( null );
 		setView( ( currentView ) => ( {
 			...currentView,
 			page: 1,
@@ -468,32 +464,15 @@ export function PatternsStage() {
 				: NO_LIST_DATA,
 		[ dataViews, fields, view, visiblePatterns ]
 	);
-	const selectedPattern =
-		visiblePatterns.find(
-			( pattern ) => pattern.id === selectedPatternId
-		) || visiblePatterns[ 0 ];
-	const selection = selectedPattern?.id ? [ selectedPattern.id ] : [];
-	const selectPattern = ( patternId ) => {
-		setSelectedPatternId( patternId );
-		navigate( {
-			search: {
-				patternId: patternId || undefined,
-				type: activeTab === 'all' ? undefined : activeTab,
-			},
-			to: '/patterns',
-		} );
-	};
 	const selectTab = ( nextTab ) => {
 		setActiveTab( nextTab );
 		setActiveCategory( 'all' );
-		setSelectedPatternId( null );
 		setView( ( currentView ) => ( {
 			...currentView,
 			page: 1,
 		} ) );
 		navigate( {
 			search: {
-				patternId: undefined,
 				search: undefined,
 				type: nextTab === 'all' ? undefined : nextTab,
 			},
@@ -508,7 +487,6 @@ export function PatternsStage() {
 					nextView.page && nextView.page > 1
 						? nextView.page
 						: undefined,
-				patternId: selectedPattern?.id,
 				search: nextView.search || undefined,
 				type: activeTab === 'all' ? undefined : activeTab,
 			},
@@ -629,13 +607,12 @@ export function PatternsStage() {
 					fields={ fields }
 					getItemId={ ( item ) => item.id }
 					isLoading={ isLoading }
-					onChangeSelection={ ( items ) =>
-						selectPattern( items[ 0 ] )
-					}
+					isItemClickable={ canEditPattern }
+					onChangeSelection={ () => {} }
 					onChangeView={ onChangeView }
-					onClickItem={ ( item ) => selectPattern( item.id ) }
+					onClickItem={ ( item ) => openPattern( navigate, item ) }
 					paginationInfo={ paginationInfo }
-					selection={ selection }
+					selection={ EMPTY_ARRAY }
 					view={ view }
 				>
 					<PatternsDataViewsLayout />
@@ -654,87 +631,5 @@ export function PatternsStage() {
 				/>
 			) }
 		</Page>
-	);
-}
-
-export function PatternsCanvas() {
-	const navigate = useNavigate();
-	const { isLoading, patterns } = usePatternsData();
-	const activeTab = getPatternTabFromSearch();
-	const visiblePatterns = getPatternsForTab( patterns, activeTab );
-	const selectedPatternId = getSelectedPatternIdFromSearch();
-	const selectedPattern =
-		visiblePatterns.find(
-			( pattern ) => pattern.id === selectedPatternId
-		) || visiblePatterns[ 0 ];
-	let canvasContent = (
-		<div className="cnl-editor-canvas-placeholder">
-			<span
-				aria-hidden
-				className="cnl-editor-canvas-placeholder__icon dashicons dashicons-layout"
-			/>
-			<h2 className="cnl-editor-canvas-placeholder__title">
-				{ __( 'No section selected' ) }
-			</h2>
-			<p className="cnl-editor-canvas-placeholder__description">
-				{ __( 'Pick a section to preview it.' ) }
-			</p>
-		</div>
-	);
-
-	if ( selectedPattern ) {
-		canvasContent = (
-			<div className="routes-pattern-list__canvas-preview">
-				<LazyEditorPreview
-					content={ selectedPattern.content }
-					description={ getPatternTitle( selectedPattern ) }
-					viewportWidth={ selectedPattern.viewportWidth }
-				/>
-			</div>
-		);
-	}
-
-	if ( isLoading ) {
-		canvasContent = (
-			<div className="cnl-editor-spinner">
-				<Spinner />
-			</div>
-		);
-	}
-
-	return (
-		<section className="cnl-editor-canvas">
-			<header className="cnl-editor-canvas__toolbar">
-				<div>
-					<div className="cnl-editor-canvas__label">
-						{ selectedPattern
-							? getPatternTitle( selectedPattern )
-							: __( 'Sections' ) }
-					</div>
-					<div className="cnl-editor-canvas__status">
-						{ selectedPattern
-							? getPatternTypeLabel( selectedPattern.type )
-							: __( 'Advanced' ) }
-					</div>
-				</div>
-				<div className="cnl-editor-canvas__actions">
-					{ selectedPattern?.recordId && (
-						<Button
-							onClick={ () =>
-								navigate( {
-									to: `/types/wp_block/edit/${ selectedPattern.recordId }`,
-								} )
-							}
-							variant="primary"
-						>
-							{ __( 'Edit pattern' ) }
-						</Button>
-					) }
-				</div>
-			</header>
-			<div className="cnl-editor-canvas__frame-wrap">
-				{ canvasContent }
-			</div>
-		</section>
 	);
 }

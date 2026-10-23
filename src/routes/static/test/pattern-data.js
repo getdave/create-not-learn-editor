@@ -51,18 +51,25 @@ describe( 'pattern data', () => {
 		);
 	} );
 
-	test( 'lists category labels, falling back to the slug', () => {
-		const categoryMap = new Map( [ [ 'hero', 'Hero' ] ] );
+	test( 'lists category labels, leaving out categories with no name', () => {
+		const categoryMap = new Map( [
+			[ 'hero', 'Hero' ],
+			[ 'about', 'About' ],
+		] );
 
 		expect(
 			getPatternCategoryLabels(
-				{ categories: [ 'hero', 'footer' ] },
+				{ categories: [ 'hero', 'wireframe', 'about' ] },
 				categoryMap
 			)
-		).toBe( 'Hero, footer' );
-		expect( getPatternCategoryLabels( {}, categoryMap ) ).toBe(
-			'Uncategorized'
-		);
+		).toBe( 'Hero, About' );
+		expect(
+			getPatternCategoryLabels(
+				{ categories: [ 'cnl-layouts-columns' ] },
+				categoryMap
+			)
+		).toBe( 'Other' );
+		expect( getPatternCategoryLabels( {}, categoryMap ) ).toBe( 'Other' );
 	} );
 
 	test( 'normalizes a theme pattern', () => {
@@ -153,6 +160,11 @@ describe( 'pattern data', () => {
 		const categoryMap = new Map( [
 			[ 'hero', 'Hero' ],
 			[ 'about', 'About' ],
+			[ 'rare', 'Rare' ],
+			...Array.from( { length: 10 }, ( _, index ) => [
+				`extra-${ index }`,
+				`Extra ${ index }`,
+			] ),
 		] );
 		const patterns = [
 			{ categories: [ 'hero', 'about' ] },
@@ -169,5 +181,17 @@ describe( 'pattern data', () => {
 		expect( chips[ 0 ] ).toEqual( { label: 'About', value: 'about' } );
 		expect( chips.map( ( chip ) => chip.value ) ).toContain( 'hero' );
 		expect( chips.map( ( chip ) => chip.value ) ).not.toContain( 'rare' );
+	} );
+
+	test( 'leaves categories with no name out of the chips', () => {
+		const categoryMap = new Map( [ [ 'hero', 'Hero' ] ] );
+		const patterns = [
+			{ categories: [ 'hero', 'wireframe' ] },
+			{ categories: [ 'wireframe', 'images' ] },
+		];
+
+		expect( getPatternCategoryChips( patterns, categoryMap ) ).toEqual( [
+			{ label: 'Hero', value: 'hero' },
+		] );
 	} );
 } );
