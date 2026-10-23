@@ -595,6 +595,12 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	box-shadow: inset 0 0 0 1px $stroke-control;
 }
 
+// Its name beside it, until there are colours to show in its place.
+.cnl-section-modes__swatch-custom-label {
+	align-self: center;
+	padding: 0 8px 0 6px;
+}
+
 .cnl-section-modes .components-button.cnl-section-modes__custom[aria-expanded="true"] {
 	border-color: $stroke-active;
 	background: var(--wpds-color-background-interactive-neutral-weak-active);

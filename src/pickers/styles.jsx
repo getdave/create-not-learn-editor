@@ -286,6 +286,7 @@ function PaletteOption( {
 	colors,
 	isExpanded,
 	isSelected,
+	isTitleShown,
 	onSelect,
 	title,
 } ) {
@@ -302,7 +303,8 @@ function PaletteOption( {
 			onClick={ () =>
 				( ! isSelected || isExpanded !== undefined ) && onSelect()
 			}
-			showTooltip
+			// No tooltip to repeat a name that is already on the button.
+			showTooltip={ ! isTitleShown }
 		>
 			{ children }
 			{ ! children && colors.length > 0 && (
@@ -538,6 +540,7 @@ export function PalettePicker( { allowCustom = false, onPick } ) {
 					<PaletteOption
 						isExpanded={ isCustomOpen }
 						isSelected={ isCustom }
+						isTitleShown={ ! isCustom }
 						onSelect={ () => setIsCustomOpen( ! isCustomOpen ) }
 						title={ __( 'Custom' ) }
 					>
@@ -556,7 +559,12 @@ export function PalettePicker( { allowCustom = false, onPick } ) {
 									/>
 								) )
 							) : (
-								<span className="routes-styles__palette-wheel" />
+								<>
+									<span className="routes-styles__palette-wheel" />
+									<span className="routes-styles__palette-custom-label">
+										{ __( 'Custom' ) }
+									</span>
+								</>
 							) }
 						</span>
 					</PaletteOption>

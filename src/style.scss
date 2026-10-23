@@ -1120,6 +1120,13 @@
 	box-shadow: inset 0 0 0 1px var(--wpds-color-stroke-interactive-neutral);
 }
 
+// Its name beside it, until there are colours to show in its place.
+.routes-styles__palette-custom-label {
+	align-self: center;
+	padding: 0 var(--wpds-dimension-padding-xs);
+	font-size: var(--wpds-typography-font-size-sm);
+}
+
 // Open, but not necessarily in use: shaded rather than ringed, so it
 // isn't mistaken for the palette in use.
 .components-button.routes-styles__palette[aria-expanded="true"] {
