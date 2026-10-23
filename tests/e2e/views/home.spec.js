@@ -16,7 +16,7 @@ test.describe( 'Home view', () => {
 
 	test( 'offers places to start working on the site', async ( { page } ) => {
 		await expect(
-			page.getByRole( 'heading', { level: 1, name: 'Your site' } )
+			page.getByRole( 'heading', { level: 1, name: 'My site' } )
 		).toBeVisible();
 		await expect(
 			page.getByRole( 'link', { name: /View site/ } )
