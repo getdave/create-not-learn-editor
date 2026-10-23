@@ -132,9 +132,12 @@ export function useCanvasHover( { canvasDocument, findTarget, isActive } ) {
  * @param {Function}  options.findTarget     Called with a block's client ID,
  *                                           returns its section's.
  * @param {Function}  options.allows         Called with a section's client ID,
- *                                           or null, returns whether a click
- *                                           there reaches the page.
- * @param {Function}  options.onBlocked      Called on each click kept off it.
+ *                                           or null, and the block clicked,
+ *                                           returns whether a click there
+ *                                           reaches the page.
+ * @param {Function}  options.onBlocked      Called with the section's client
+ *                                           ID and the event, on each click
+ *                                           kept off it.
  * @param {Function}  options.onDoubleClick  Called with a section's client ID
  *                                           and the event, on a double click
  *                                           kept off it.
@@ -171,7 +174,7 @@ export function useCanvasGuard( {
 				? latest.findTarget( block.dataset.block )
 				: null;
 
-			if ( latest.allows( target ) ) {
+			if ( latest.allows( target, block?.dataset.block ?? null ) ) {
 				return;
 			}
 
@@ -179,7 +182,7 @@ export function useCanvasGuard( {
 			event.stopPropagation();
 
 			if ( event.type === 'pointerdown' ) {
-				latest.onBlocked( target );
+				latest.onBlocked( target, event );
 			}
 
 			if ( event.type === 'dblclick' && target ) {

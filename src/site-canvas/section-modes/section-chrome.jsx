@@ -1,7 +1,8 @@
 /**
  * The controls Edit lays over a section: its name, the bar over it while it
- * is pointed at, with Add, the two ways to edit it and its own moves, and
- * the small bar that names the mode it is in.
+ * is pointed at or picked, with Add, Edit design (and Edit header or Edit
+ * footer) and its own moves, and the small bar on a header or footer being
+ * edited, or a section in Freeform.
  */
 
 /**
@@ -52,25 +53,38 @@ const ADD_ICONS = {
 };
 
 /**
- * The two ways to edit a section, on the bar over it.
+ * The ways to edit a section, on the bar over it. A section's words and
+ * pictures are changed by clicking into it, so it has Edit design only. A
+ * header or footer shows on every page, so it is opened on purpose, with
+ * Edit header or Edit footer.
  *
+ * @param {boolean} isPart Whether it is the header or footer.
+ * @param {string}  title  Its name, like Header.
  * @return {Object[]} `{ mode, label, description, icon }` for each.
  */
-export function getModes() {
-	return [
+export function getModes( isPart = false, title = '' ) {
+	const modes = [
 		{
 			description: __( 'Change the layout, colour and width' ),
 			icon: designIcon,
 			label: __( 'Edit design' ),
 			mode: MODE_DESIGN,
 		},
-		{
-			description: __( 'Change text and images; positions stay put' ),
-			icon: pencilIcon,
-			label: __( 'Edit content' ),
-			mode: MODE_CONTENT,
-		},
 	];
+
+	if ( isPart ) {
+		modes.push( {
+			description: getSitewideText( title ),
+			icon: pencilIcon,
+			label:
+				title === __( 'Footer' )
+					? __( 'Edit footer' )
+					: __( 'Edit header' ),
+			mode: MODE_CONTENT,
+		} );
+	}
+
+	return modes;
 }
 
 /**
@@ -284,15 +298,17 @@ export function HoverBar( {
 				className="cnl-section-modes__group"
 				role="group"
 			>
-				{ getModes().map( ( { description, icon, label, mode } ) => (
-					<BarButton
-						icon={ icon }
-						key={ mode }
-						label={ isCompact ? label : description }
-						onClick={ () => onMode( mode ) }
-						text={ isCompact ? null : label }
-					/>
-				) ) }
+				{ getModes( isPart, title ).map(
+					( { description, icon, label, mode } ) => (
+						<BarButton
+							icon={ icon }
+							key={ mode }
+							label={ isCompact ? label : description }
+							onClick={ () => onMode( mode ) }
+							text={ isCompact ? null : label }
+						/>
+					)
+				) }
 			</div>
 			<div className="cnl-section-modes__bar-end">
 				{ ! isPart && (

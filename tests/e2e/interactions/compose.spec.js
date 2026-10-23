@@ -2,7 +2,8 @@
  * The site canvas's Compose mode: the page zoomed out, with the same section
  * controls as Edit. Sections are dragged to reorder them, and a section's
  * layout, colours and place on the page are changed without leaving.
- * Anything else, like Edit content, goes back to Edit to do it.
+ * Anything else, like reaching a section's words, goes back to Edit to do
+ * it.
  */
 const {
 	expect,
@@ -115,9 +116,6 @@ test.describe( 'Compose', () => {
 		await pointAtSection( page, getWords( page, 'A section' ) );
 		await expect(
 			bar.getByRole( 'button', { name: 'Edit design' } )
-		).toBeVisible();
-		await expect(
-			bar.getByRole( 'button', { name: 'Edit content' } )
 		).toBeVisible();
 		await expect(
 			bar.getByRole( 'button', { name: 'Delete section' } )
@@ -271,26 +269,6 @@ test.describe( 'Compose', () => {
 		// Still composing, the section in its new arrangement.
 		await expect( option ).toHaveAttribute( 'aria-pressed', 'true' );
 		await expectCanvasMode( page, 'Compose' );
-	} );
-
-	test( 'Edit content goes back to Edit, in Edit content', async ( {
-		page,
-		rest,
-	} ) => {
-		await openPage( page, rest, {
-			content: tallSection( 'Only section' ),
-		} );
-		await setCanvasMode( page, 'Compose' );
-		await pointAtSection( page, getWords( page, 'Only section' ) );
-		await page
-			.locator( '.cnl-section-modes__bar' )
-			.getByRole( 'button', { name: 'Edit content' } )
-			.click();
-
-		await expectCanvasMode( page, 'Edit' );
-		await expect(
-			page.locator( '.cnl-section-modes__mode-bar' )
-		).toHaveAttribute( 'aria-label', 'Edit content' );
 	} );
 
 	test( 'double-clicking a block goes back to Edit with it selected', async ( {
