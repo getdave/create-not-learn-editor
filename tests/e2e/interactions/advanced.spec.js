@@ -119,6 +119,27 @@ test.describe( 'Advanced interactions', () => {
 		expect( pattern.title.raw ).toBe( title );
 	} );
 
+	test( 'opens a site part from its card, with nothing selected first', async ( {
+		page,
+	} ) => {
+		await visitEditor( page, '/template-parts' );
+
+		const stage = getStage( page );
+		const firstTitle = stage
+			.locator( '.cnl-editor-dataviews-title' )
+			.first();
+
+		await expect( firstTitle ).toBeVisible( { timeout: 15000 } );
+		await expect( stage.getByText( /selected/i ) ).toHaveCount( 0 );
+
+		await firstTitle.click();
+
+		await expect
+			.poll( () => getRoute( page ), { timeout: 15000 } )
+			.toMatch( /^\/wp_template_part\?/ );
+		await expectBlockEditor( page );
+	} );
+
 	test( 'finds a saved section by searching', async ( { page, rest } ) => {
 		const pattern = await rest.createPattern();
 

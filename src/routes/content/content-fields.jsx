@@ -5,7 +5,17 @@ import { getTitleText } from '../../records';
 import { isPageInMenu } from './menu-status';
 import { getStatusLabel } from './helpers';
 import { useDataViews } from '../../use-dataviews';
-import { Badge, Stack, __, sprintf } from '../../wordpress-packages';
+import {
+	Badge,
+	coreDataStore,
+	Stack,
+	__,
+	sprintf,
+	useMemo,
+	useSelect,
+} from '../../wordpress-packages';
+
+const NO_AUTHORS = new Map();
 
 export const DEFAULT_CONTENT_LAYOUTS = {
 	list: true,
@@ -104,7 +114,58 @@ function renderSiteRoleBadges( item, siteRoles ) {
 	);
 }
 
-export function getContentFields( siteRoles = {} ) {
+/**
+ * The names of the people who wrote the given posts.
+ *
+ * @param {Object[]} posts Post records.
+ * @return {Map<number, string>} Author names keyed by user ID.
+ */
+export function usePostAuthors( posts ) {
+	const authorIds = useMemo(
+		() =>
+			[
+				...new Set(
+					posts
+						.map( ( post ) => Number( post.author ) )
+						.filter( ( id ) => id > 0 )
+				),
+			].sort( ( first, second ) => first - second ),
+		[ posts ]
+	);
+	const authorIdsKey = authorIds.join( ',' );
+	const users = useSelect(
+		( select ) =>
+			authorIdsKey
+				? select( coreDataStore ).getEntityRecords( 'root', 'user', {
+						_fields: 'id,name',
+						context: 'view',
+						include: authorIdsKey,
+						per_page: 100,
+					} )
+				: null,
+		[ authorIdsKey ]
+	);
+
+	return useMemo(
+		() =>
+			users
+				? new Map( users.map( ( user ) => [ user.id, user.name ] ) )
+				: NO_AUTHORS,
+		[ users ]
+	);
+}
+
+function getAuthorName( item, authors ) {
+	const authorId = Number( item.author );
+
+	if ( ! authorId ) {
+		return __( 'No author' );
+	}
+
+	return authors.get( authorId ) || '';
+}
+
+export function getContentFields( siteRoles = {}, authors = NO_AUTHORS ) {
 	return [
 		{
 			enableGlobalSearch: true,
@@ -122,16 +183,10 @@ export function getContentFields( siteRoles = {} ) {
 		{
 			enableSorting: false,
 			filterBy: false,
-			getValue: ( { item } ) => item.author || '',
+			getValue: ( { item } ) => getAuthorName( item, authors ),
 			id: 'author',
 			label: __( 'Author' ),
-			render: ( { item } ) =>
-				sprintf(
-					/* translators: %s: author ID. */
-					__( 'Author ID %s' ),
-					item.author || __( 'Unknown' )
-				),
-			type: 'integer',
+			type: 'text',
 		},
 		{
 			elements: STATUS_OPTIONS,

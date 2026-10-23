@@ -14,7 +14,6 @@ import {
 	EMPTY_ARRAY,
 	NO_LIST_DATA,
 	getSearchParams,
-	getSearchValue,
 } from './list-shared';
 import {
 	getErrorMessage,
@@ -158,7 +157,7 @@ function getUniqueTemplatePartTitle( title, templateParts ) {
 function getTemplatePartDescription( templatePart ) {
 	return (
 		templatePart?.description ||
-		getTemplatePartAreaLabel( templatePart?.area )
+		getTemplatePartCreateAreaLabel( templatePart?.area )
 	);
 }
 
@@ -198,7 +197,8 @@ function getTemplatePartFields( activeArea ) {
 			type: 'text',
 		},
 		{
-			getValue: ( { item } ) => getTemplatePartAreaLabel( item.area ),
+			getValue: ( { item } ) =>
+				getTemplatePartCreateAreaLabel( item.area ),
 			id: 'area',
 			label: __( 'Where it goes' ),
 			type: 'text',
@@ -235,21 +235,21 @@ function getTemplatePartFields( activeArea ) {
 	return fields;
 }
 
+function openTemplatePart( navigate, templatePart ) {
+	if ( templatePart?.id ) {
+		navigate( {
+			search: {
+				postId: templatePart.id,
+			},
+			to: '/wp_template_part',
+		} );
+	}
+}
+
 function getTemplatePartActions( navigate ) {
 	return [
 		{
-			callback: ( items ) => {
-				const item = items[ 0 ];
-
-				if ( item?.id ) {
-					navigate( {
-						search: {
-							postId: item.id,
-						},
-						to: '/wp_template_part',
-					} );
-				}
-			},
+			callback: ( items ) => openTemplatePart( navigate, items[ 0 ] ),
 			id: 'edit-template-part',
 			isPrimary: true,
 			label: __( 'Edit' ),
@@ -367,7 +367,6 @@ function TemplatePartsDataViewsLayout() {
 			</div>
 			<DataViews.Filters className="routes-template-part-list__dataviews-filters" />
 			<div className="routes-template-part-list__dataviews-scroll">
-				<DataViews.BulkActionToolbar />
 				<DataViews.Layout />
 				<DataViews.Pagination />
 			</div>
@@ -396,14 +395,6 @@ function getTemplatePartAreaFromSearch() {
 	return getSearchParams().get( 'area' ) || 'all';
 }
 
-function getSelectedTemplatePartIdFromSearch() {
-	const params = getSearchParams();
-
-	return (
-		getSearchValue( params.getAll( 'postIds[]' ) ) || params.get( 'postId' )
-	);
-}
-
 function getTemplatePartsForArea( templateParts, area ) {
 	if ( area === 'all' ) {
 		return templateParts;
@@ -424,9 +415,6 @@ export function TemplatePartsStage() {
 	const [ activeArea, setActiveArea ] = useState(
 		getTemplatePartAreaFromSearch()
 	);
-	const [ selectedTemplatePartId, setSelectedTemplatePartId ] = useState(
-		getSelectedTemplatePartIdFromSearch()
-	);
 	const [ isCreateModalOpen, setIsCreateModalOpen ] = useState( false );
 	const [ isCreatingTemplatePart, setIsCreatingTemplatePart ] =
 		useState( false );
@@ -439,6 +427,19 @@ export function TemplatePartsStage() {
 				name: 'wp_template_part',
 			} ),
 		[]
+	);
+	// Only the areas the site has parts for, so no tab opens on nothing.
+	const areaTabs = useMemo(
+		() =>
+			TEMPLATE_PART_AREAS.filter(
+				( area ) =>
+					area.value === 'all' ||
+					area.value === activeArea ||
+					templateParts.some(
+						( templatePart ) => templatePart.area === area.value
+					)
+			),
+		[ activeArea, templateParts ]
 	);
 	const visibleTemplateParts = useMemo(
 		() => getTemplatePartsForArea( templateParts, activeArea ),
@@ -463,27 +464,8 @@ export function TemplatePartsStage() {
 				: NO_LIST_DATA,
 		[ dataViews, fields, view, visibleTemplateParts ]
 	);
-	const selectedTemplatePart =
-		visibleTemplateParts.find(
-			( templatePart ) =>
-				String( templatePart.id ) === String( selectedTemplatePartId )
-		) || visibleTemplateParts[ 0 ];
-	const selection = selectedTemplatePart?.id
-		? [ String( selectedTemplatePart.id ) ]
-		: [];
-	const selectTemplatePart = ( templatePartId ) => {
-		setSelectedTemplatePartId( templatePartId );
-		navigate( {
-			search: {
-				area: activeArea === 'all' ? undefined : activeArea,
-				postId: templatePartId ? String( templatePartId ) : undefined,
-			},
-			to: '/template-parts',
-		} );
-	};
 	const selectArea = ( nextArea ) => {
 		setActiveArea( nextArea );
-		setSelectedTemplatePartId( null );
 		setView( ( currentView ) => ( {
 			...currentView,
 			page: 1,
@@ -491,7 +473,6 @@ export function TemplatePartsStage() {
 		navigate( {
 			search: {
 				area: nextArea === 'all' ? undefined : nextArea,
-				postId: undefined,
 				search: undefined,
 			},
 			to: '/template-parts',
@@ -506,9 +487,6 @@ export function TemplatePartsStage() {
 					nextView.page && nextView.page > 1
 						? nextView.page
 						: undefined,
-				postId: selectedTemplatePart?.id
-					? String( selectedTemplatePart.id )
-					: undefined,
 				search: nextView.search || undefined,
 			},
 			to: '/template-parts',
@@ -612,7 +590,7 @@ export function TemplatePartsStage() {
 			<div className="routes-template-part-list__tabs-wrapper">
 				<Tabs.Root onValueChange={ selectArea } value={ activeArea }>
 					<Tabs.List>
-						{ TEMPLATE_PART_AREAS.map( ( area ) => (
+						{ areaTabs.map( ( area ) => (
 							<Tabs.Tab key={ area.value } value={ area.value }>
 								{ area.label }
 							</Tabs.Tab>
@@ -630,13 +608,13 @@ export function TemplatePartsStage() {
 					fields={ fields }
 					getItemId={ ( item ) => String( item.id ) }
 					isLoading={ isLoading }
-					onChangeSelection={ ( items ) =>
-						selectTemplatePart( items[ 0 ] )
-					}
+					onChangeSelection={ () => {} }
 					onChangeView={ onChangeView }
-					onClickItem={ ( item ) => selectTemplatePart( item.id ) }
+					onClickItem={ ( item ) =>
+						openTemplatePart( navigate, item )
+					}
 					paginationInfo={ paginationInfo }
-					selection={ selection }
+					selection={ EMPTY_ARRAY }
 					view={ view }
 				>
 					<TemplatePartsDataViewsLayout />
@@ -658,95 +636,5 @@ export function TemplatePartsStage() {
 				/>
 			) }
 		</Page>
-	);
-}
-
-export function TemplatePartsCanvas() {
-	const navigate = useNavigate();
-	const { isLoading, templateParts } = useTemplatePartsData();
-	const activeArea = getTemplatePartAreaFromSearch();
-	const visibleTemplateParts = getTemplatePartsForArea(
-		templateParts,
-		activeArea
-	);
-	const selectedTemplatePartId = getSelectedTemplatePartIdFromSearch();
-	const selectedTemplatePart =
-		visibleTemplateParts.find(
-			( templatePart ) =>
-				String( templatePart.id ) === String( selectedTemplatePartId )
-		) || visibleTemplateParts[ 0 ];
-	let canvasContent = (
-		<div className="cnl-editor-canvas-placeholder">
-			<span
-				aria-hidden
-				className="cnl-editor-canvas-placeholder__icon dashicons dashicons-schedule"
-			/>
-			<h2 className="cnl-editor-canvas-placeholder__title">
-				{ __( 'No site part selected' ) }
-			</h2>
-			<p className="cnl-editor-canvas-placeholder__description">
-				{ __( 'Pick a site part, like your header, to preview it.' ) }
-			</p>
-		</div>
-	);
-
-	if ( selectedTemplatePart ) {
-		canvasContent = (
-			<div className="routes-template-part-list__canvas-preview">
-				<LazyEditorPreview
-					content={ selectedTemplatePart?.content?.raw }
-					description={ getTitleText( selectedTemplatePart.title ) }
-				/>
-			</div>
-		);
-	}
-
-	if ( isLoading ) {
-		canvasContent = (
-			<div className="cnl-editor-spinner">
-				<Spinner />
-			</div>
-		);
-	}
-
-	return (
-		<section className="cnl-editor-canvas">
-			<header className="cnl-editor-canvas__toolbar">
-				<div>
-					<div className="cnl-editor-canvas__label">
-						{ selectedTemplatePart
-							? getTitleText( selectedTemplatePart.title )
-							: __( 'Site parts' ) }
-					</div>
-					<div className="cnl-editor-canvas__status">
-						{ selectedTemplatePart
-							? getTemplatePartAreaLabel(
-									selectedTemplatePart.area
-								)
-							: __( 'Advanced' ) }
-					</div>
-				</div>
-				<div className="cnl-editor-canvas__actions">
-					{ selectedTemplatePart?.id && (
-						<Button
-							onClick={ () =>
-								navigate( {
-									search: {
-										postId: selectedTemplatePart.id,
-									},
-									to: '/wp_template_part',
-								} )
-							}
-							variant="primary"
-						>
-							{ __( 'Edit template part' ) }
-						</Button>
-					) }
-				</div>
-			</header>
-			<div className="cnl-editor-canvas__frame-wrap">
-				{ canvasContent }
-			</div>
-		</section>
 	);
 }
