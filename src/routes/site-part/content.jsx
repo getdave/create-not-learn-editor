@@ -1,5 +1,5 @@
 /**
- * The Header and Footer screens, reached from the "Your site" screen through
+ * The Header and Footer screens, reached from the "My site" screen through
  * a screen that offers the two, "Header & footer".
  *
  * Like a page on the Pages screen: the stage holds what can be changed about
@@ -682,7 +682,7 @@ function createStage( area ) {
 }
 
 /*
- * The screen "Your site" opens for the header and footer: a row for each,
+ * The screen "My site" opens for the header and footer: a row for each,
  * leading on to its own screen.
  */
 function SitePartsStage() {

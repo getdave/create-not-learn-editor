@@ -1259,7 +1259,7 @@ const PLACE_SUGGESTIONS = {
 };
 
 /*
- * What to ask for, grouped into the same places to start as "Your site"
+ * What to ask for, grouped into the same places to start as "My site"
  * offers, so the first thing seen is a short, familiar list. A group with
  * one thing in it is that thing.
  */
