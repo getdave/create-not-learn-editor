@@ -121,6 +121,10 @@ const BAR_ROW_GAP = 8;
 // Room either side of the "Add section" button, at the middle of the top
 // edge, that the section's name in its tab keeps clear of.
 const ADD_SECTION_CLEARANCE = 90;
+// The "Add section" buttons' height. Centred on a section's edges, they
+// reach half of it into the section, and the bar keeps clear of that.
+const ADD_SECTION_HEIGHT = 32;
+const BAR_GAP = 8;
 // The bar naming the mode sits inside a section at least this big, at its
 // top, the size of the bar over a section pointed at; a smaller section has
 // a smaller one outside it, so it hides none of what is being edited.
@@ -1816,15 +1820,20 @@ export function SectionModesLayer( {
 		 * what would be clicked.
 		 */
 		const isNarrow = box.width < NARROW_WIDTH;
+		const showsAddSection = ! isPart && ! active && ! inlineAdd;
+		// Clear of the "Add section" buttons on its edges, where they show.
+		const barInset = showsAddSection
+			? ADD_SECTION_HEIGHT / 2 + BAR_GAP
+			: INSET;
 		const isCompact =
 			box.height <
 			( isNarrow ? BAR_HEIGHT * 2 + BAR_ROW_GAP : BAR_HEIGHT ) +
-				INSET * 2;
+				barInset * 2;
 		const barHeight =
 			isNarrow && ! isCompact ? BAR_HEIGHT * 2 + BAR_ROW_GAP : BAR_HEIGHT;
 		const barTop = isCompact
 			? box.top + box.height + SHORT_BAR_GAP
-			: stickyTop( box, barHeight );
+			: stickyTop( box, barHeight, barInset );
 		const holdHover = {
 			onBlur: release,
 			onFocus: () => hold( shownHoverId ),
@@ -1860,9 +1869,7 @@ export function SectionModesLayer( {
 						title={ title }
 					/>
 					<div { ...holdHover }>
-						{ ! isPart &&
-							! active &&
-							! inlineAdd &&
+						{ showsAddSection &&
 							[
 								[ box.top, index ],
 								[ box.top + box.height, index + 1 ],

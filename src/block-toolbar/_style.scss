@@ -1,0 +1,484 @@
+/**
+ * The block toolbar's new look (`src/block-toolbar/`): a light toolbar with
+ * labelled entry points, core's own controls restyled or hidden where the
+ * options menu, the Layout menu or the floating format toolbar stands in for
+ * them.
+ *
+ * Core's controls are found by core's own classes where it has them, and by
+ * their labels where it doesn't. Labels aren't an API: if core rewords one,
+ * that control shows again. See "Drift canaries" in the README.
+ */
+
+// Scoped to the block popover's toolbar, as core's own rules are, so these
+// win over them.
+$toolbar: "html.cnl-has-block-toolbar .components-popover .block-editor-block-contextual-toolbar";
+
+// Core's style controls, which move to the options or Layout menu.
+$style-controls: (
+	"Align text",
+	"Align block",
+	"Align",
+	"Font size",
+	"Change items justification",
+	"Align content vertically",
+	"Change vertical alignment",
+	"Apply duotone filter",
+);
+
+$style-label: "";
+
+@each $label in $style-controls {
+
+	@if $style-label == "" {
+		$style-label: '[aria-label="#{$label}"]';
+	} @else {
+		$style-label: '#{$style-label}, [aria-label="#{$label}"]';
+	}
+}
+$style-control: "#{$style-label}, .components-dropdown:has(> :is(#{$style-label}))";
+
+// Icons people know from across the web, which keep their place.
+$well-known: ("Link", "Unlink", "Bold", "Italic", "Delete", "Remove");
+$well-known-label: "";
+
+@each $label in $well-known {
+
+	@if $well-known-label == "" {
+		$well-known-label: '[aria-label="#{$label}"]';
+	} @else {
+		$well-known-label: '#{$well-known-label}, [aria-label="#{$label}"]';
+	}
+}
+
+// Any other icon-only button, which the options menu takes instead, named.
+// `readToolbarTools()` in `core-menu-items.jsx` lists what this hides.
+$tool-button: ".block-editor-block-toolbar__slot > button.has-icon:not(.has-text, [aria-haspopup], .cnl-block-toolbar__keep, #{$well-known-label})";
+
+// Core's format buttons, which mark the format group.
+$format-buttons: '[aria-label="Bold"], [aria-label="Italic"], [aria-label="More"]';
+
+@function icon($path) {
+
+	@return url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5'%3E%3Cpath d='#{$path}'/%3E%3C/svg%3E");
+}
+
+$parent-gap: 8px;
+
+$chevron-down: icon("M7 11L12 15L17 11");
+$more-vertical: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='6' r='1.25'/%3E%3Ccircle cx='12' cy='12' r='1.25'/%3E%3Ccircle cx='12' cy='18' r='1.25'/%3E%3C/svg%3E");
+$arrows: (
+	"Move up": icon("M12 20L12 5M17 10L12 5L7 10"),
+	"Move down": icon("M12 4V19M7 14L12 19L17 14"),
+	"Move left": icon("M20 12L5 12M10 7L5 12L10 17"),
+	"Move right": icon("M4 12L19 12M14 17L19 12L14 7"),
+);
+
+// A light box, as the proposal draws the toolbar: a soft edge and shadow
+// instead of core's black border.
+@mixin box {
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-md);
+	box-shadow: 0 2px 6px rgb(0 0 0 / 6%), 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+$group-gap: 6px;
+
+// A divider before a group, a short light line rather than core's
+// full-height one.
+@mixin divider {
+	content: "";
+	position: absolute;
+	top: 25%;
+	bottom: 25%;
+	left: 0;
+	border-left: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+@mixin mask-icon($image, $size: 24px) {
+	content: "";
+	flex: none;
+	width: $size;
+	height: $size;
+	background: currentcolor;
+	mask: $image center / contain no-repeat;
+}
+
+#{$toolbar} {
+
+	&.components-accessible-toolbar {
+
+		@include box;
+		overflow: visible;
+	}
+
+	.block-editor-block-toolbar {
+		position: relative;
+		overflow: visible;
+	}
+
+	/*
+	 * Light dividers between groups, rather than core's full-height lines,
+	 * each with the same $group-gap of space either side of it.
+	 */
+	.components-toolbar-group {
+		border-right: 0;
+	}
+
+	.block-editor-block-toolbar > .components-toolbar-group + .components-toolbar-group,
+	.block-editor-block-toolbar > div + .components-toolbar-group,
+	.block-editor-block-toolbar__block-controls .block-editor-block-mover,
+	.block-editor-block-toolbar__slot > .cnl-block-toolbar__end:not(:first-child) {
+		position: relative;
+
+		&::before {
+
+			@include divider;
+		}
+	}
+
+	// The options menu and trash are their own group inside the slot they
+	// share with core's other tools, like an image's Replace.
+	.cnl-block-toolbar__end.components-toolbar-group {
+		padding: 0;
+
+		&:not(:first-child) {
+			margin-inline-start: $group-gap;
+			padding-inline-start: $group-gap;
+		}
+	}
+
+	// The block's name beside its icon, as the way to change it.
+	.block-editor-block-toolbar__block-controls :is(
+		.block-editor-block-switcher,
+		.block-editor-block-styles-dropdown
+	) .components-dropdown-menu__toggle,
+	.block-editor-block-toolbar__block-controls .block-editor-block-toolbar__block-icon-button {
+		gap: 6px;
+		width: auto;
+		padding-inline: 12px;
+		font-weight: 500;
+		white-space: nowrap;
+
+		&::before {
+			content: attr(aria-label);
+			order: 1;
+			position: static;
+			width: auto;
+			height: auto;
+			background: none;
+			box-shadow: none;
+		}
+	}
+
+	.block-editor-block-toolbar__block-controls :is(
+		.block-editor-block-switcher,
+		.block-editor-block-styles-dropdown
+	) .components-dropdown-menu__toggle {
+		padding-inline-end: 6px;
+
+		&::after {
+
+			@include mask-icon($chevron-down, 20px);
+			order: 2;
+			margin-inline-start: -2px;
+		}
+	}
+
+	/*
+	 * The movers, as one compact cluster: the drag handle and two arrows,
+	 * side by side and close together, quieter than the tools around them
+	 * until pointed at or focused. Each keeps the toolbar's full height as
+	 * its target, and core's labels, descriptions and shortcuts.
+	 */
+	.block-editor-block-mover {
+		display: flex;
+		gap: 0;
+		margin-inline-start: $group-gap;
+		padding-inline: $group-gap 0;
+	}
+
+	.block-editor-block-mover__drag-handle.components-button {
+		width: 20px;
+		min-width: 20px;
+		padding: 0;
+		justify-content: center;
+		color: var(--wpds-color-foreground-content-neutral-weak);
+
+		svg {
+			width: 20px;
+			height: 20px;
+		}
+	}
+
+	.block-editor-block-mover__move-button-container {
+		display: flex;
+		flex-direction: row;
+		width: auto;
+		height: auto;
+	}
+
+	.block-editor-block-mover .block-editor-block-mover-button.components-button {
+		width: 28px;
+		min-width: 28px;
+		height: 100%;
+		padding: 0;
+		justify-content: center;
+		color: var(--wpds-color-foreground-content-neutral-weak);
+
+		&::before {
+			display: none;
+		}
+
+		svg {
+			display: none;
+		}
+
+		@each $label, $image in $arrows {
+			&[aria-label^="#{$label}"]::after {
+
+				@include mask-icon($image, 20px);
+				position: static;
+				border: 0;
+				box-shadow: none;
+				transform: none;
+			}
+		}
+	}
+
+	.block-editor-block-mover :is(
+		.block-editor-block-mover__drag-handle,
+		.block-editor-block-mover-button
+	).components-button:is(:hover, :focus-visible):not([aria-disabled="true"]) {
+		color: var(--wpds-color-foreground-content-neutral);
+	}
+
+	.block-editor-block-mover .block-editor-block-mover-button.components-button[aria-disabled="true"] {
+		opacity: 0.4;
+	}
+
+	// Style controls, now in the options or Layout menu.
+	.block-editor-block-toolbar__slot > :is(#{$style-control}) {
+		display: none;
+	}
+
+	// Icon tools without a well-known icon, now in the options menu.
+	.block-editor-block-toolbar > .components-toolbar-group:not(:has(#{$format-buttons})) #{$tool-button} {
+		display: none;
+	}
+
+	// A group left with nothing in it. (`:has()` can't hold another.)
+	.block-editor-block-toolbar > .components-toolbar-group:has(> .block-editor-block-toolbar__slot):not(
+		:has(.block-editor-block-toolbar__slot :is(button, a):not(#{$style-label}):not(#{$tool-button}))
+	) {
+		display: none;
+	}
+
+	// The options menu stands in for core's.
+	.block-editor-block-toolbar:has(.cnl-block-options__toggle) .components-toolbar-group:has(> .block-editor-block-settings-menu),
+	.block-editor-block-toolbar:has(.cnl-block-options__toggle) > .block-editor-block-settings-menu {
+		display: none;
+	}
+
+	// Edit content's own Remove stands in for Delete, beside the options
+	// menu as Delete is, rather than after a divider of its own.
+	.block-editor-block-toolbar:has(.cnl-remove-control) .cnl-block-toolbar__trash {
+		display: none;
+	}
+
+	.block-editor-block-toolbar > .components-toolbar-group:has(.cnl-remove-control) {
+		padding-inline-start: 0;
+
+		&::before {
+			display: none;
+		}
+	}
+
+	.block-editor-block-toolbar > .components-toolbar-group:has(+ .components-toolbar-group .cnl-remove-control) {
+		padding-inline-end: 0;
+	}
+
+	// An open menu's button, pressed in grey rather than core's black.
+	.components-button:is(.is-pressed, [aria-expanded="true"]):not(:disabled) {
+		color: var(--wpds-color-foreground-content-neutral);
+		background: var(--wpds-color-background-surface-neutral-weak);
+
+		&::before {
+			display: none;
+		}
+	}
+
+	/*
+	 * The toolbar stays lined up with the block, whatever it sits in, and the
+	 * parent selector hangs outside it to the left, naming the parent, with
+	 * the chevron for blocks further up beside it. Core's own, icon-only
+	 * parent selector and its "+" give way to it.
+	 */
+	.block-editor-block-parent-selector {
+		display: none;
+	}
+
+	&.has-parent,
+	&.has-parent:has(.block-editor-block-parent-selector__inserter) {
+		margin-left: var(--cnl-toolbar-shift, 0);
+	}
+
+	.block-editor-block-toolbar > .components-toolbar-group:has(.cnl-block-parent__button) {
+		position: absolute;
+		top: -1px;
+		bottom: -1px;
+		right: calc(100% + #{$parent-gap});
+		margin: 0;
+		background: #fff;
+
+		@include box;
+
+		&::before {
+			display: none;
+		}
+
+		.block-editor-block-toolbar__slot {
+			height: 100%;
+		}
+	}
+
+	&:not(.has-parent) .components-toolbar-group:has(.cnl-block-parent__button) {
+		display: none;
+	}
+
+	.cnl-block-parent__button.components-button {
+		gap: 4px;
+		height: 100%;
+		padding-inline: 8px 12px;
+		font-weight: 500;
+		white-space: nowrap;
+	}
+
+	.cnl-block-parent__label {
+		max-width: 160px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.cnl-block-parent__lineage.components-button {
+		position: relative;
+		height: 100%;
+		min-width: 32px;
+		padding: 0 4px;
+		border-radius: 0;
+
+		&::after {
+
+			@include divider;
+		}
+	}
+
+	// The Layout menu's button, labelled, with a chevron like the name's.
+	.cnl-block-layout__toggle.components-button {
+		gap: 4px;
+		padding-inline: 12px 8px;
+		font-weight: 500;
+
+		&::after {
+
+			@include mask-icon($chevron-down, 20px);
+		}
+	}
+
+	/*
+	 * Formatting, out of sight until text is selected, then floating by the
+	 * selection. Drawn a size down from the block toolbar, as the proposal
+	 * draws it, so the two can't be mistaken for each other: 32px buttons
+	 * inset in a 40px bar, an active format filled in, and "More" as ⋮ after
+	 * a divider.
+	 */
+	.block-editor-block-toolbar > .components-toolbar-group:has(#{$format-buttons}) {
+		display: none;
+
+		&[data-cnl-format="floating"] {
+			display: flex;
+			position: absolute;
+			z-index: 1;
+			top: var(--cnl-format-top, 0);
+			left: var(--cnl-format-left, 0);
+			box-sizing: border-box;
+			height: 40px;
+			min-height: 0;
+			padding: 3px;
+			background: #fff;
+
+			@include box;
+
+			&::before {
+				display: none;
+			}
+
+			.block-editor-block-toolbar__slot {
+				display: flex;
+				gap: 2px;
+				align-items: center;
+				height: 32px;
+			}
+
+			.components-button {
+				width: 32px;
+				min-width: 32px;
+				height: 32px;
+				padding: 0;
+				justify-content: center;
+				border-radius: var(--wpds-border-radius-sm);
+
+				&::before {
+					display: none;
+				}
+
+				&.is-pressed:not(:disabled) {
+					color: var(--wpds-color-foreground-interactive-neutral-strong);
+					background: var(--wpds-color-background-interactive-neutral-strong);
+				}
+			}
+
+			.components-dropdown-menu:has(> [aria-label="More"]) {
+				display: flex;
+				align-items: center;
+				margin-inline-start: 2px;
+				padding-inline-start: 4px;
+				border-inline-start: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+			}
+
+			[aria-label="More"] {
+
+				svg {
+					display: none;
+				}
+
+				&::after {
+
+					@include mask-icon($more-vertical, 20px);
+				}
+			}
+		}
+	}
+}
+
+/**
+ * The options, Layout and lineage menus, at a width that fits a value
+ * beside each name.
+ */
+.cnl-block-options {
+	min-width: 240px;
+}
+
+.cnl-block-layout {
+	min-width: 220px;
+}
+
+.cnl-block-lineage {
+	min-width: 260px;
+}
+
+.cnl-block-lineage__label {
+	display: inline-flex;
+	gap: 8px;
+	align-items: center;
+	margin-inline-start: calc(var(--cnl-lineage-depth, 0) * 16px);
+}

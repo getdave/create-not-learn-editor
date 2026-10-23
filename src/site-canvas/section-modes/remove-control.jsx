@@ -30,6 +30,7 @@ export function RemoveControl( { onRemove } ) {
 		<BlockToolbarLastItem>
 			<ToolbarGroup>
 				<ToolbarButton
+					className="cnl-remove-control"
 					icon={ trashIcon }
 					label={ __( 'Remove' ) }
 					onClick={ onRemove }
