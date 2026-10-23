@@ -7,7 +7,7 @@
 export const SECTIONS_VIEW = 'sections';
 
 /**
- * The search string for a page's details, without its sections open.
+ * The search string for a page's details, without any view open.
  *
  * @param {Object} searchParams The route's search params.
  * @return {string} The search string, without a leading `?`.
