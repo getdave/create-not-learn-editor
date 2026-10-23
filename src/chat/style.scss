@@ -846,11 +846,19 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	background: var(--wpds-color-background-surface-neutral-weak);
 }
 
-// Under a picker, the screen it comes from, for those who want it.
+// Under a picker, a tip: the screen it comes from, for those who want it.
 .cnl-chat-widget__elsewhere {
+	display: flex;
+	align-items: flex-start;
+	gap: 4px;
 	margin: calc(var(--wpds-dimension-gap-md) * -1 + 6px) 0 0;
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	font-size: var(--wpds-typography-font-size-xs);
+
+	> svg {
+		flex: none;
+		fill: currentcolor;
+	}
 
 	.components-button.is-link {
 		font-size: inherit;

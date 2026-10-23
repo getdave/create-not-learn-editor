@@ -9,6 +9,7 @@ import { Button } from '@wordpress/components';
 import { store as coreDataStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
 import {
+	createInterpolateElement,
 	useEffect,
 	useLayoutEffect,
 	useRef,
@@ -29,6 +30,7 @@ import {
 	siteLogo as siteLogoIcon,
 	title as titleIcon,
 	styles as stylesIcon,
+	tip as tipIcon,
 	typography as typographyIcon,
 	undo as undoIcon,
 } from '@wordpress/icons';
@@ -377,8 +379,8 @@ function Widget( { message, scrollRef } ) {
 }
 
 /*
- * Under a picker: the screen it comes from, for anyone who wants that
- * screen's fuller controls. Following it closes the chat.
+ * Under a picker: the screen it comes from, as a tip, for anyone who wants
+ * that screen's fuller controls. Following it closes the chat.
  */
 function ScreenLink( { message, skill } ) {
 	const screen = skill.screen?.( message );
@@ -389,10 +391,24 @@ function ScreenLink( { message, skill } ) {
 
 	return (
 		<p className="cnl-chat-widget__elsewhere">
-			{ __( 'Or do this in' ) }{ ' ' }
-			<Button onClick={ () => openScreen( screen ) } variant="link">
-				{ screen.name }
-			</Button>
+			<Icon icon={ tipIcon } size={ 16 } />
+			<span>
+				{ createInterpolateElement(
+					sprintf(
+						/* translators: %s: screen name, like "Menus". */
+						__( 'Did you know you can also do this in <a>%s</a>?' ),
+						screen.name
+					),
+					{
+						a: (
+							<Button
+								onClick={ () => openScreen( screen ) }
+								variant="link"
+							/>
+						),
+					}
+				) }
+			</span>
 		</p>
 	);
 }
