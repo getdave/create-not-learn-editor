@@ -64,8 +64,8 @@ import {
 	InputLayout,
 	MenuGroup,
 	MenuItem,
+	Page,
 	Spinner,
-	Stack,
 	Text,
 	__,
 	_n,
@@ -639,8 +639,8 @@ function createStage( area ) {
 			: null;
 
 		return (
-			<div className="cnl-editor-stage routes-styles cnl-site-part">
-				<Stack direction="column" gap="xs">
+			<Page
+				breadcrumbs={
 					<Breadcrumbs
 						items={
 							view
@@ -660,21 +660,25 @@ function createStage( area ) {
 									]
 						}
 					/>
-					<Note>
-						{ view ? view.description() : part.description }
-					</Note>
-				</Stack>
-				{ ! isEditorReady && <Loading /> }
-				{ isEditorReady && ! id && <Note>{ part.missing }</Note> }
-				{ id && (
-					<SitePartView
-						area={ area }
-						clientId={ clientId }
-						id={ id }
-						view={ view && viewName }
-					/>
-				) }
-			</div>
+				}
+				className="cnl-editor-stage cnl-editor-content-page"
+				hasPadding={ false }
+				headingLevel={ 2 }
+				subTitle={ view ? view.description() : part.description }
+			>
+				<div className="cnl-editor-stage routes-styles cnl-site-part">
+					{ ! isEditorReady && <Loading /> }
+					{ isEditorReady && ! id && <Note>{ part.missing }</Note> }
+					{ id && (
+						<SitePartView
+							area={ area }
+							clientId={ clientId }
+							id={ id }
+							view={ view && viewName }
+						/>
+					) }
+				</div>
+			</Page>
 		);
 	};
 }
@@ -692,19 +696,23 @@ function SitePartsStage() {
 	} ) );
 
 	return (
-		<div className="cnl-editor-stage routes-styles cnl-site-part">
-			<Stack direction="column" gap="xs">
+		<Page
+			breadcrumbs={
 				<Breadcrumbs
 					items={ [ getSiteCrumb(), { label: SITE_PARTS_TITLE } ] }
 				/>
-				<Note>
-					{ __(
-						'Every page shares the same header and footer. Pick one to change it.'
-					) }
-				</Note>
-			</Stack>
-			<ScreenLinks label={ SITE_PARTS_TITLE } links={ links } />
-		</div>
+			}
+			className="cnl-editor-stage cnl-editor-content-page"
+			hasPadding={ false }
+			headingLevel={ 2 }
+			subTitle={ __(
+				'Every page shares the same header and footer. Pick one to change it.'
+			) }
+		>
+			<div className="cnl-editor-stage routes-styles cnl-site-part">
+				<ScreenLinks label={ SITE_PARTS_TITLE } links={ links } />
+			</div>
+		</Page>
 	);
 }
 
