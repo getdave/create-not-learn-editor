@@ -54,6 +54,12 @@ const ADVANCED_LINKS = [
 async function openSidebarLink( page, name ) {
 	const advanced = page.getByRole( 'button', { name: 'Advanced' } );
 	const back = page.getByRole( 'button', { name: 'Back', exact: true } );
+	const expand = page.getByRole( 'button', { name: 'Expand sidebar' } );
+
+	// Picking a screen folds the sidebar to a strip of icons, without Back.
+	if ( await expand.isVisible() ) {
+		await expand.click();
+	}
 
 	if ( ADVANCED_LINKS.includes( name ) ) {
 		if ( ! ( await back.isVisible() ) ) {
@@ -83,7 +89,7 @@ function getStage( page ) {
  */
 async function openPageLayouts( page ) {
 	await getStage( page )
-		.getByRole( 'button', { name: 'Page Options', exact: true } )
+		.getByRole( 'button', { name: 'Page options', exact: true } )
 		.click();
 	await page.getByRole( 'menuitem', { name: 'Manage layouts' } ).click();
 }
@@ -297,6 +303,11 @@ async function pickSectionMode( page, target, mode ) {
 			await done.first().click();
 		}
 
+		// Edit design has no Done: Escape steps out, a level at a time.
+		while ( await page.locator( '.cnl-section-modes__design' ).count() ) {
+			await page.keyboard.press( 'Escape' );
+		}
+
 		await pointAtSection( page, target, { timeout: 1000 } );
 		await page
 			.locator( '.cnl-section-modes__bar' )
@@ -436,6 +447,34 @@ async function openReviewChanges( page ) {
 }
 
 /**
+ * Add one of the plugin's section templates from the Add a section picker,
+ * already open, in place on the canvas or as a modal. The picker in place
+ * only shows a few at random, so it goes on to View all sections.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string}                          name The template's title.
+ */
+async function pickSectionTemplate( page, name ) {
+	const inline = page.getByRole( 'region', { name: 'Add a section' } );
+	const modal = page.getByRole( 'dialog', { name: 'Add a section' } );
+
+	await expect( inline.or( modal ) ).toBeVisible();
+
+	if ( await inline.isVisible() ) {
+		await inline
+			.getByRole( 'button', { name: 'View all sections' } )
+			.click();
+	}
+
+	await expect( modal ).toBeVisible();
+	await modal.getByText( 'Templates', { exact: true } ).click();
+	await modal
+		.getByRole( 'button', { name: `Add ${ name }`, exact: true } )
+		.click();
+	await expect( modal ).toBeHidden();
+}
+
+/**
  * Save a screenshot for comparing against the prototype by eye. These are
  * not asserted on.
  *
@@ -474,6 +513,7 @@ module.exports = {
 	openSidebarLink,
 	pickCanvasMode,
 	pickSectionMode,
+	pickSectionTemplate,
 	pointAtSection,
 	setCanvasMode,
 	visitEditor,

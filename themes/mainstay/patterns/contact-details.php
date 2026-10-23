@@ -11,8 +11,8 @@
  */
 
 ?>
-<!-- wp:group {"metadata":{"name":"Contact details"},"align":"full","style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60"}}},"layout":{"type":"constrained"}} -->
-<div class="wp-block-group alignfull" style="padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)"><!-- wp:columns {"align":"wide","style":{"spacing":{"blockGap":{"top":"var:preset|spacing|50","left":"var:preset|spacing|60"}}}} -->
+<!-- wp:group {"metadata":{"name":"Contact details"},"anchor":"find-us","align":"full","style":{"spacing":{"padding":{"top":"var:preset|spacing|60","bottom":"var:preset|spacing|60"}}},"layout":{"type":"constrained"}} -->
+<div id="find-us" class="wp-block-group alignfull" style="padding-top:var(--wp--preset--spacing--60);padding-bottom:var(--wp--preset--spacing--60)"><!-- wp:columns {"align":"wide","style":{"spacing":{"blockGap":{"top":"var:preset|spacing|50","left":"var:preset|spacing|60"}}}} -->
 <div class="wp-block-columns alignwide"><!-- wp:column {"width":"55%","style":{"spacing":{"blockGap":"var:preset|spacing|30"}}} -->
 <div class="wp-block-column" style="flex-basis:55%"><!-- wp:heading -->
 <h2 class="wp-block-heading">Find us on Mill Lane</h2>
@@ -27,8 +27,8 @@
 <!-- /wp:image --></div>
 <!-- /wp:column -->
 
-<!-- wp:column {"width":"45%","style":{"spacing":{"blockGap":"var:preset|spacing|50"}}} -->
-<div class="wp-block-column" style="flex-basis:45%"><!-- wp:group {"style":{"spacing":{"blockGap":"var:preset|spacing|30"}},"layout":{"type":"default"}} -->
+<!-- wp:column {"width":"45%","anchor":"opening-hours","style":{"spacing":{"blockGap":"var:preset|spacing|50"}}} -->
+<div id="opening-hours" class="wp-block-column" style="flex-basis:45%"><!-- wp:group {"style":{"spacing":{"blockGap":"var:preset|spacing|30"}},"layout":{"type":"default"}} -->
 <div class="wp-block-group"><!-- wp:heading {"level":3} -->
 <h3 class="wp-block-heading">Opening hours</h3>
 <!-- /wp:heading -->
@@ -88,7 +88,7 @@
 
 <!-- wp:buttons -->
 <div class="wp-block-buttons"><!-- wp:button -->
-<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="#">Get directions</a></div>
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="<?php echo esc_url( 'https://www.google.com/maps/search/?api=1&query=14+Mill+Lane+Hebden+Bridge+HX7+8AD' ); ?>">Get directions</a></div>
 <!-- /wp:button --></div>
 <!-- /wp:buttons --></div>
 <!-- /wp:column --></div>

@@ -232,9 +232,14 @@ test.describe( 'Pages interactions', () => {
 			.getByRole( 'link', { name: 'Pages' } )
 			.click();
 		await openPageLayouts( page );
-		await canvas
-			.getByRole( 'button', { name: 'Edit', exact: true } )
-			.click();
+		await canvas.getByRole( 'button', { name: 'More options' } ).click();
+
+		const openFull = page.getByRole( 'menuitem', {
+			name: 'Open in full editor',
+		} );
+
+		await expect( openFull ).toBeEnabled( { timeout: 15000 } );
+		await openFull.click();
 
 		await expect
 			.poll( () => getRoute( page ), { timeout: 15000 } )

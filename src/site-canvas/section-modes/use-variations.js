@@ -88,12 +88,19 @@ export function usePartDesigns( part, color ) {
 	const colorName = color?.name;
 	const choices = color?.choices;
 
-	return useMemo( () => {
-		const layouts = getSitePartPatterns( patterns, part.area );
-		const options = layouts.map( ( pattern ) => {
-			const blocks = parseBlocks( pattern.content );
-
-			return {
+	// Parsed once, rather than again with every change to the part. Options
+	// are cloned as they go in, so the same blocks can be offered again.
+	const layouts = useMemo(
+		() =>
+			getSitePartPatterns( patterns, part.area ).map( ( pattern ) => ( {
+				blocks: parseBlocks( pattern.content ),
+				pattern,
+			} ) ),
+		[ part.area, patterns ]
+	);
+	const options = useMemo(
+		() =>
+			layouts.map( ( { blocks, pattern } ) => ( {
 				blocks: choices
 					? withPartColor(
 							blocks,
@@ -105,22 +112,17 @@ export function usePartDesigns( part, color ) {
 					: blocks,
 				label: pattern.title,
 				name: pattern.name,
-			};
-		} );
-
-		return {
-			current: getCurrentPatternName(
+			} ) ),
+		[ choices, colorBlockName, colorName, layouts ]
+	);
+	const current = useMemo(
+		() =>
+			getCurrentPatternName(
 				partBlocks ? serialize( partBlocks ) : '',
-				layouts
+				layouts.map( ( { pattern } ) => pattern )
 			),
-			options,
-		};
-	}, [
-		colorBlockName,
-		colorName,
-		choices,
-		part.area,
-		partBlocks,
-		patterns,
-	] );
+		[ layouts, partBlocks ]
+	);
+
+	return useMemo( () => ( { current, options } ), [ current, options ] );
 }

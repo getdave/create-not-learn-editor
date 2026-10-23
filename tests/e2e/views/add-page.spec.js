@@ -10,7 +10,7 @@ test.describe( 'Add a page view', () => {
 
 	test.beforeEach( async ( { page } ) => {
 		await visitEditor( page, '/types/page' );
-		await page.getByRole( 'button', { name: 'Add Page' } ).click();
+		await page.getByRole( 'button', { name: 'Add page' } ).click();
 
 		picker = page.getByRole( 'dialog', { name: 'Add a page' } );
 		await expect( picker ).toBeVisible();

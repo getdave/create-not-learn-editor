@@ -43,24 +43,34 @@ function hasMarker( value ) {
 }
 
 /**
- * Whether a mutation could have changed the answer.
+ * Whether a class change could have changed the answer.
  *
  * Class changes are frequent in the admin document, on every selection and
  * toolbar render, and almost none of them are boot's layout gaining or losing
- * the marker. Comparing the old and new values skips the rest. Changes to the
- * tree always count, because boot is free to replace its layout element.
+ * the marker. Comparing the old and new values skips the rest.
  *
- * @param {MutationRecord} record Mutation record.
- * @return {boolean} Whether to read the DOM again.
+ * @param {MutationRecord} record Attribute mutation record.
+ * @return {boolean} Whether the marker came or went.
  */
-function mayChangeEditCanvas( record ) {
-	if ( record.type === 'childList' ) {
-		return true;
-	}
-
+function changesMarker( record ) {
 	return (
 		hasMarker( record.oldValue ) !==
 		hasMarker( record.target.getAttribute( 'class' ) )
+	);
+}
+
+/**
+ * Whether a tree change brought in an element with the marker.
+ *
+ * @param {MutationRecord} record Child list mutation record.
+ * @return {boolean} Whether any node added has the marker, or holds one.
+ */
+function addsMarker( record ) {
+	return Array.from( record.addedNodes ).some(
+		( node ) =>
+			node.nodeType === node.ELEMENT_NODE &&
+			( hasMarker( node.getAttribute( 'class' ) ) ||
+				!! node.querySelector( EDIT_CANVAS_SELECTOR ) )
 	);
 }
 
@@ -71,19 +81,50 @@ function mayChangeEditCanvas( record ) {
  * its layout, and boot moves between modes client-side through its router, so
  * the tree is watched for the life of the subscription rather than read once.
  *
+ * React changes the admin document all the time, so the whole of it is only
+ * searched when it has to be. While the edit canvas is on screen the element
+ * with the marker is kept, and checked; while it isn't, only what was added
+ * is searched. Boot is free to replace its layout element, and both cases
+ * follow that.
+ *
  * @param {Function} onChange Called with the new value when it changes.
  * @param {Node}     root     Tree to watch. Injectable for tests.
  * @return {Function} Unsubscribe function.
  */
 export function subscribeToEditCanvas( onChange, root = document ) {
-	let last = isEditCanvas( root );
+	let marked = root.querySelector( EDIT_CANVAS_SELECTOR );
+	let last = !! marked;
+
+	const read = () => {
+		if (
+			marked &&
+			root.contains( marked ) &&
+			hasMarker( marked.getAttribute( 'class' ) )
+		) {
+			return true;
+		}
+
+		marked = root.querySelector( EDIT_CANVAS_SELECTOR );
+
+		return !! marked;
+	};
 
 	const observer = new window.MutationObserver( ( records ) => {
-		if ( ! records.some( mayChangeEditCanvas ) ) {
+		const mayChange = records.some( ( record ) => {
+			if ( record.type === 'childList' ) {
+				// The marked element may have gone, which `read` checks
+				// cheaply, or one may have been added.
+				return last || addsMarker( record );
+			}
+
+			return changesMarker( record );
+		} );
+
+		if ( ! mayChange ) {
 			return;
 		}
 
-		const next = isEditCanvas( root );
+		const next = read();
 
 		if ( next === last ) {
 			return;

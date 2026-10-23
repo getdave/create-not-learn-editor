@@ -263,7 +263,9 @@ export function SiteCanvas( {
 					) : (
 						emptyPreview
 					) }
-					{ frame.frameProps.src && editorEntity && (
+					{ /* Only in Browse: out of it the hints draw nothing, and
+					mounted they would follow every edit. */ }
+					{ isPreviewing && frame.frameProps.src && editorEntity && (
 						<BrowseHints canvas={ canvas } />
 					) }
 				</div>

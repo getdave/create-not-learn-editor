@@ -4,18 +4,19 @@
  * edit it, and its moves. Nothing on the page can be clicked until one of
  * those is picked, and only one section is in a mode at a time.
  *
- * - Edit design opens a panel of the section's layouts and colours, and
- *   gives every item a bin. Its Freeform button unlocks the section with
- *   core's own unlock, for core's full block tools, and Back returns to the
- *   panel.
+ * - Edit design turns the bar into the section's design choices, Layout,
+ *   Colour, Width and More control, each drilled into in the same bar, and
+ *   applied as soon as it is picked. More control is Freeform: core's own
+ *   unlock, for core's full block tools, left with Done as Edit content is.
  * - Edit content lets clicks through to the section, so its words and
  *   pictures can be changed with core's own tools, and lays nothing over
  *   it.
  *
  * A double click on a section opens it in Edit content, with the caret
- * where the click landed. Done, Escape, or a click anywhere else on the page
- * leaves the mode, the section staying picked. From Freeform, Escape steps
- * back to the panel.
+ * where the click landed. Escape, or a click anywhere else, leaves Edit
+ * design, its changes kept, the section staying picked; so do Done in Edit
+ * content and Freeform. In Edit design, Escape steps back from a design
+ * choice to the choices first.
  *
  * Compose uses the same layer over the editor zoomed out. Sections are
  * dragged there to reorder them, and their layouts, colours and place on
@@ -31,7 +32,7 @@
  */
 import { BlockPreview } from '@wordpress/block-editor';
 import { createPortal, Fragment } from '@wordpress/element';
-import { plus as plusIcon, trash as trashIcon } from '@wordpress/icons';
+import { plus as plusIcon } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -49,11 +50,9 @@ import {
 	__,
 	blockEditorStore,
 	Button,
-	cloneBlock,
 	coreDataStore,
 	MediaUpload,
 	noticesStore,
-	serialize,
 	sprintf,
 	useCallback,
 	useDispatch,
@@ -83,8 +82,7 @@ import { useCanvasStyles } from '../use-canvas-styles';
 import { createBlankSection, InlineSectionPicker } from '../../section-picker';
 import { EmptyPage } from './empty-page';
 import { RemoveControl } from './remove-control';
-import { getItems } from './items';
-import LayoutsPanel, { MAX_PER_SLIDE } from './layouts-panel';
+import DesignBar, { MAX_PER_SLIDE } from './design-bar';
 import {
 	getSitewideText,
 	HoverBar,
@@ -100,7 +98,7 @@ import {
 	useCanvasHover,
 } from './use-canvas-events';
 import { useSectionDrag } from './use-section-drag';
-import { getOwnerBlock, useSectionItems } from './use-section-items';
+import { useSectionItems } from './use-section-items';
 
 const CONTENT_REGION = '.interface-interface-skeleton__content';
 
@@ -125,16 +123,17 @@ const SMALL_MODE_BAR_HEIGHT = 40;
 // Between the small bar and the section's edge.
 const MODE_BAR_GAP = 6;
 const TAB_HEIGHT = 24;
-const BIN_CLEARANCE = 20;
-// Half a bin, which is drawn centred on its spot.
-const BIN_HALF = 16;
-const PANEL_MIN_HEIGHT = 200;
+// Edit design's bar is never narrower than this, even on a narrow section.
+const DESIGN_BAR_MIN_WIDTH = 360;
+// Edit design's bar is never shorter than this, scrolling its tray rather
+// than running off the canvas.
+const DESIGN_BAR_MIN_HEIGHT = 200;
 // Between a section and what is placed against it, outside.
 const PLACE_GAP = 8;
-// A layout card and the gap after it, and the panel's room around its cards
-// for its margins, padding and the carousel's arrows.
+// A layout card and the gap after it, and the tray's room around its cards
+// for its padding and the carousel's arrows.
 const LAYOUT_CARD_WIDTH = 144;
-const PANEL_CHROME_WIDTH = 132;
+const TRAY_CHROME_WIDTH = 132;
 // Room kept for the placeholder on an empty page.
 const EMPTY_SPACE = 320;
 // The gap opened for adding a section in place: room around its picker,
@@ -152,6 +151,22 @@ const FOCUS_FRAMES = 30;
 const FRESH_MS = 900;
 
 const EMPTY_ARRAY = [];
+
+/*
+ * Section titles, by block. Working one out walks the whole section, and the
+ * layer asks for several on every render. The editor's blocks are replaced,
+ * never changed, when they're edited, so a block's title stays right for as
+ * long as the block is around.
+ */
+const sectionTitles = new WeakMap();
+
+function getCachedSectionTitle( block ) {
+	if ( ! sectionTitles.has( block ) ) {
+		sectionTitles.set( block, getSectionTitle( block ) );
+	}
+
+	return sectionTitles.get( block );
+}
 
 /**
  * Position a box relative to the canvas it is clipped to.
@@ -275,25 +290,6 @@ function placeAtEdge( box, height, canvasHeight ) {
 }
 
 /**
- * How many layouts a slide of Edit design's carousel holds on a canvas this
- * wide: as many cards as fit beside its arrows, up to the most it takes.
- *
- * @param {number} canvasWidth The canvas's width.
- * @return {number} Layouts a slide.
- */
-function getLayoutsPerSlide( canvasWidth ) {
-	return Math.max(
-		1,
-		Math.min(
-			MAX_PER_SLIDE,
-			Math.floor(
-				( canvasWidth - PANEL_CHROME_WIDTH ) / LAYOUT_CARD_WIDTH
-			)
-		)
-	);
-}
-
-/**
  * Where something placed against a section goes, outside it so the section
  * stays in view: under its bottom edge if it fits on the canvas there, else
  * over its top edge if it fits there, else wherever on the canvas it is
@@ -322,42 +318,22 @@ function placeOutside( box, height, canvasHeight, isBelow = false ) {
 }
 
 /**
- * Where an item's bin goes: its top-right corner, unless the panel or bar
- * at the top of the section covers it, then another corner, then beside
- * the panel.
+ * How many layouts a slide of Edit design's carousel holds on a canvas this
+ * wide: as many cards as fit beside its arrows, up to the most it takes.
  *
- * @param {Object}  item     The item, on the canvas.
- * @param {?Object} obstacle The panel or bar, on the canvas.
- * @return {Object} `{ left, top }` of the bin's centre.
+ * @param {number} canvasWidth The canvas's width.
+ * @return {number} Layouts a slide.
  */
-function placeBin( item, obstacle ) {
-	const right = item.left + item.width;
-	const bottom = item.top + item.height;
-	const middle = item.top + item.height / 2;
-	const corners = [
-		[ right, item.top ],
-		[ item.left, item.top ],
-		[ right, bottom ],
-		[ item.left, bottom ],
-	];
-
-	if ( obstacle ) {
-		corners.push(
-			[ obstacle.left + obstacle.width + BIN_CLEARANCE + 2, middle ],
-			[ obstacle.left - BIN_CLEARANCE - 2, middle ]
-		);
-	}
-
-	const isCovered = ( [ x, y ] ) =>
-		obstacle &&
-		x > obstacle.left - BIN_CLEARANCE &&
-		x < obstacle.left + obstacle.width + BIN_CLEARANCE &&
-		y > obstacle.top - BIN_CLEARANCE &&
-		y < obstacle.top + obstacle.height + BIN_CLEARANCE;
-	const [ left, top ] =
-		corners.find( ( corner ) => ! isCovered( corner ) ) || corners[ 0 ];
-
-	return { left, top };
+function getLayoutsPerSlide( canvasWidth ) {
+	return Math.max(
+		1,
+		Math.min(
+			MAX_PER_SLIDE,
+			Math.floor(
+				( canvasWidth - TRAY_CHROME_WIDTH ) / LAYOUT_CARD_WIDTH
+			)
+		)
+	);
 }
 
 /**
@@ -573,13 +549,13 @@ export function SectionModesLayer( {
 	const host = useContentHost( editorRef );
 	const { parts, rootClientId, sectionIds } = useComposeStructure();
 	const items = useSectionItems();
-	// `{ id, mode, snapshot, removedFrom }` for the section in a mode.
+	// `{ id, mode, view }` for the section in a mode, `view` being the
+	// design choice drilled into in Edit design.
 	const [ active, setActive ] = useState( null );
 	const [ menuOpenFor, setMenuOpenFor ] = useState( null );
 	// The section picked, by a click or by leaving a mode, shown as if it
 	// were pointed at while nothing else is.
 	const [ pickedSection, setPickedSection ] = useState( null );
-	const [ doomedId, setDoomedId ] = useState( null );
 	const [ freshId, setFreshId ] = useState( null );
 	const [ chromeNode, setChromeNode ] = useState( null );
 	const [ chromeSize, setChromeSize ] = useState( null );
@@ -638,7 +614,6 @@ export function SectionModesLayer( {
 		}
 
 		actions.clearSelectedBlock();
-		setDoomedId( null );
 		// The section stays picked, ready for the other mode.
 		setPickedSection( activeRef.current?.id ?? null );
 		setActive( null );
@@ -648,18 +623,12 @@ export function SectionModesLayer( {
 		const store = unlock( registry.select( blockEditorStore ) );
 		const actions = unlock( registry.dispatch( blockEditorStore ) );
 		const part = partsById[ clientId ];
-		let snapshot = null;
 
 		if ( store.getEditedContentOnlySection() ) {
 			actions.stopEditingContentOnlySection();
 		}
 
 		actions.clearSelectedBlock();
-
-		// How it is now, for Reset.
-		if ( mode === MODE_DESIGN ) {
-			snapshot = getOwnerBlock( store, clientId );
-		}
 
 		// A header's or footer's blocks can't be changed until core opens it,
 		// for their words and images only.
@@ -669,14 +638,8 @@ export function SectionModesLayer( {
 		}
 
 		setMenuOpenFor( null );
-		setDoomedId( null );
 		setInlineAdd( null );
-		setActive( {
-			id: clientId,
-			mode,
-			removedFrom: items.removed.length,
-			snapshot,
-		} );
+		setActive( { id: clientId, mode, view: null } );
 	};
 
 	// Composing, anything but a section's layout, colours or place on the
@@ -691,44 +654,45 @@ export function SectionModesLayer( {
 		onExitCompose();
 	};
 
-	// Between Edit design's panel and Freeform, keeping what Reset puts
-	// back.
-	const setFreeform = useCallback(
-		( isFreeform ) => {
-			const actions = unlock( registry.dispatch( blockEditorStore ) );
+	// From Edit design's More control into Freeform, which Done, Escape or a
+	// click elsewhere leaves, as Edit content.
+	const enterFreeform = useCallback( () => {
+		const actions = unlock( registry.dispatch( blockEditorStore ) );
+		const { id } = activeRef.current;
 
-			actions.clearSelectedBlock();
+		actions.clearSelectedBlock();
 
-			if ( isFreeform ) {
-				const { id } = activeRef.current;
+		// A header or footer opens completely, as a section does.
+		if ( partsById[ id ] ) {
+			setOpenPart( id, PART_FREEFORM );
+		}
 
-				// A header or footer opens completely, as a section does.
-				if ( partsById[ id ] ) {
-					setOpenPart( id, PART_FREEFORM );
-				}
+		actions.editContentOnlySection( id );
+		setActive( ( current ) => ( {
+			...current,
+			mode: MODE_FREEFORM,
+			view: null,
+		} ) );
+	}, [ partsById, registry ] );
 
-				actions.editContentOnlySection( id );
-			} else {
-				actions.stopEditingContentOnlySection();
-			}
+	// The design choice drilled into in Edit design's bar, or null for the
+	// choices.
+	const setDesignView = useCallback( ( view ) => {
+		setActive( ( current ) => current && { ...current, view } );
+	}, [] );
 
-			setDoomedId( null );
-			setActive( ( current ) => ( {
-				...current,
-				mode: isFreeform ? MODE_FREEFORM : MODE_DESIGN,
-			} ) );
-		},
-		[ partsById, registry ]
-	);
-
-	// Escape leaves the mode, or steps back from Freeform to the panel.
+	// Escape leaves the mode, or steps back from a design choice to the
+	// choices.
 	const escapeMode = useCallback( () => {
-		if ( activeRef.current?.mode === MODE_FREEFORM ) {
-			setFreeform( false );
+		if (
+			activeRef.current?.mode === MODE_DESIGN &&
+			activeRef.current.view
+		) {
+			setDesignView( null );
 		} else {
 			exitMode();
 		}
-	}, [ exitMode, setFreeform ] );
+	}, [ exitMode, setDesignView ] );
 
 	// Select a block, or the nearest one around it that can be, and put the
 	// caret in it if it has text.
@@ -863,7 +827,7 @@ export function SectionModesLayer( {
 			);
 		},
 		// Escape leaves Edit content or Edit design, the section staying
-		// picked, and steps back from Freeform to Edit design's panel.
+		// picked, and steps back from a design choice to the choices.
 		onEscape: ( event ) => {
 			const current = activeRef.current;
 
@@ -894,19 +858,11 @@ export function SectionModesLayer( {
 		},
 	} );
 
-	const {
-		activeBlockOnly,
-		activeInnerBlocks,
-		editedSection,
-		exists,
-		selectedId,
-	} = useSelect(
+	const { editedSection, exists, selectedId } = useSelect(
 		( select ) => {
 			const store = unlock( select( blockEditorStore ) );
 
 			return {
-				activeBlockOnly: active ? store.getBlock( active.id ) : null,
-				activeInnerBlocks: active ? store.getBlocks( active.id ) : null,
 				editedSection: store.getEditedContentOnlySection(),
 				exists: active
 					? Boolean( store.getBlockName( active.id ) )
@@ -916,21 +872,12 @@ export function SectionModesLayer( {
 		},
 		[ active ]
 	);
-	// With its blocks read as `getOwnerBlock` reads them.
-	const activeBlock = useMemo(
-		() =>
-			activeBlockOnly && {
-				...activeBlockOnly,
-				innerBlocks: activeInnerBlocks,
-			},
-		[ activeBlockOnly, activeInnerBlocks ]
-	);
 	const activePart = active ? partsById[ active.id ] : null;
 
 	/*
 	 * The header or footer open in Edit content or Freeform, for the editor
 	 * extension that opens its blocks. Noted just before core opens it, in
-	 * `enterMode` and `setFreeform`, and cleared here once it closes, however
+	 * `enterMode` and `enterFreeform`, and cleared here once it closes, however
 	 * it does, after core has closed it.
 	 */
 	const openPartId =
@@ -959,19 +906,19 @@ export function SectionModesLayer( {
 		}
 	}, [ active, exists ] );
 
-	// Core's own Done on a section it opened ends Freeform, back to the
-	// panel, and Edit content on a header or footer.
+	// Core's own Done on a section it opened ends Freeform, the section
+	// staying picked, and Edit content on a header or footer.
 	useEffect( () => {
 		if ( ! active || editedSection === active.id ) {
 			return;
 		}
 
 		if ( active.mode === MODE_FREEFORM ) {
-			setActive( { ...active, mode: MODE_DESIGN } );
+			exitMode();
 		} else if ( activePart && active.mode === MODE_CONTENT ) {
 			setActive( null );
 		}
-	}, [ active, activePart, editedSection ] );
+	}, [ active, activePart, editedSection, exitMode ] );
 
 	/*
 	 * Nothing outside the section being edited in place stays selected in
@@ -1017,32 +964,6 @@ export function SectionModesLayer( {
 		// `isOpen` reads the latest mode from its ref, set as `active` is.
 	}, [ active, editorRef, findTarget, registry, selectedId ] );
 
-	// Bins are part of Edit design. Edit content leaves the words and
-	// pictures clear of anything laid over them.
-	const activeItems = useMemo(
-		() =>
-			active?.mode === MODE_DESIGN && activeBlock
-				? getItems( activeBlock )
-				: EMPTY_ARRAY,
-		[ active, activeBlock ]
-	);
-	const canReset = useMemo( () => {
-		if ( active?.mode !== MODE_DESIGN || ! active.snapshot ) {
-			return false;
-		}
-
-		if ( ! activeBlock ) {
-			return false;
-		}
-
-		// A header's or footer's block saves as a reference to its part, so
-		// its blocks are compared instead.
-		return activePart
-			? serialize( activeBlock.innerBlocks ) !==
-					serialize( active.snapshot.innerBlocks )
-			: serialize( activeBlock ) !== serialize( active.snapshot );
-	}, [ active, activeBlock, activePart ] );
-
 	// In Edit content, a block of the section selected can be removed from
 	// core's toolbar; Restore on the small bar puts it back.
 	const canRemoveSelected =
@@ -1079,10 +1000,9 @@ export function SectionModesLayer( {
 		() => [
 			...( rootClientId ? [ rootClientId ] : EMPTY_ARRAY ),
 			...targets,
-			...activeItems.map( ( item ) => item.clientId ),
 			...( freshId ? [ freshId ] : EMPTY_ARRAY ),
 		],
-		[ activeItems, freshId, rootClientId, targets ]
+		[ freshId, rootClientId, targets ]
 	);
 	const { frame, rects } = useBlockRects( {
 		clientIds: measuredIds,
@@ -1257,7 +1177,7 @@ export function SectionModesLayer( {
 	/*
 	 * Escape leaves Edit content or Edit design from wherever focus was left,
 	 * as when the button that opened the mode went and took focus with it,
-	 * the section staying picked. From Freeform it steps back to the panel.
+	 * the section staying picked, or steps back a level, as `escapeMode` does.
 	 * Not from a dialog or popover's own Escape.
 	 */
 	const isInMode = Boolean( active );
@@ -1286,6 +1206,35 @@ export function SectionModesLayer( {
 
 		return () => window.removeEventListener( 'keydown', onKeyDown );
 	}, [ escapeMode, isInMode ] );
+
+	/*
+	 * Edit design has nothing to confirm, so a click anywhere off its bar
+	 * leaves it, its changes kept: on the page, as for every mode, and
+	 * anywhere else in the editor too. Not from a popover, like a tooltip.
+	 */
+	const isDesigning = active?.mode === MODE_DESIGN;
+
+	useEffect( () => {
+		if ( ! isDesigning ) {
+			return undefined;
+		}
+
+		const doc = layerRef.current?.ownerDocument;
+		const onPointerDown = ( event ) => {
+			if (
+				layerRef.current?.contains( event.target ) ||
+				event.target.closest?.( '.components-popover' )
+			) {
+				return;
+			}
+
+			exitMode();
+		};
+
+		doc?.addEventListener( 'pointerdown', onPointerDown );
+
+		return () => doc?.removeEventListener( 'pointerdown', onPointerDown );
+	}, [ exitMode, isDesigning ] );
 
 	// Escape un-picks the section from wherever focus was left, as on the
 	// page after Done, but not from a dialog or popover's own Escape.
@@ -1403,12 +1352,12 @@ export function SectionModesLayer( {
 		const onWheel = ( event ) => {
 			const view = getCanvasFrame( editorRef.current )?.contentWindow;
 
-			const panel = event.target.closest( '.cnl-section-modes__panel' );
+			const bar = event.target.closest( '.cnl-section-modes__design' );
 
 			if (
 				! view ||
 				event.target.closest( '.components-popover' ) ||
-				( panel && panel.scrollHeight > panel.clientHeight )
+				( bar && bar.scrollHeight > bar.clientHeight )
 			) {
 				return;
 			}
@@ -1444,7 +1393,7 @@ export function SectionModesLayer( {
 
 		const block = registry.select( blockEditorStore ).getBlock( clientId );
 
-		return block ? getSectionTitle( block ) : __( 'Section' );
+		return block ? getCachedSectionTitle( block ) : __( 'Section' );
 	};
 
 	/*
@@ -1577,31 +1526,6 @@ export function SectionModesLayer( {
 		window.requestAnimationFrame( () =>
 			scrollCanvasTo( editorRef, clientId )
 		);
-	};
-
-	const reset = () => {
-		if ( ! active?.snapshot ) {
-			return;
-		}
-
-		items.forget( active.id, active.removedFrom );
-
-		// A header's or footer's blocks go back into its part.
-		if ( activePart ) {
-			registry.dispatch( blockEditorStore ).replaceInnerBlocks(
-				active.id,
-				active.snapshot.innerBlocks.map( ( block ) =>
-					cloneBlock( block )
-				)
-			);
-			return;
-		}
-
-		const next = cloneBlock( active.snapshot );
-
-		registry.dispatch( blockEditorStore ).replaceBlock( active.id, next );
-		items.rename( active.id, next.clientId );
-		setActive( { ...active, id: next.clientId } );
 	};
 
 	const onLayoutReplace = ( next ) => {
@@ -1944,57 +1868,60 @@ export function SectionModesLayer( {
 			( entry ) => entry.ownerId === active.id
 		).length;
 		const restore = () => items.restore( active.id );
-		let obstacle = null;
 		let chrome = null;
 
 		if ( active.mode === MODE_DESIGN ) {
-			const height = chromeSize?.height || 0;
-			const width = chromeSize?.width || 0;
+			const height = chromeSize?.height || BAR_HEIGHT;
 			/*
-			 * Inside the section, at the top of it in view, as the bar in
-			 * Edit content is, so the panel reads as the section's own. A
-			 * section too small to hold it has it outside, under it or
-			 * over it.
+			 * Where the bar over the section was, its modes giving way to
+			 * the design choices in the same place: at the top of the
+			 * section in view, a tray opened under it kept on the canvas,
+			 * moving the bar up if it has to. A section too short to hold
+			 * it, with its tray, has it outside, under it or over it, so
+			 * what is picked can be seen.
 			 */
-			const fitsInside =
-				box.height >= height + INSET * 2 &&
-				box.width >= width + INSET * 2;
-			const top = fitsInside
-				? placeAtEdge( box, height, frame.height )
-				: placeOutside( outerBox, height, frame.height, isHeader );
+			let top;
 
-			obstacle = {
-				height,
-				left: box.left + box.width / 2 - width / 2,
-				top,
-				width,
-			};
+			if ( box.height >= height + INSET * 2 ) {
+				top = stickyTop( box, height );
+
+				if (
+					top < frame.height &&
+					top + height > frame.height - INSET
+				) {
+					top = Math.max( INSET, frame.height - height - INSET );
+				}
+			} else {
+				top = placeOutside( outerBox, height, frame.height, isHeader );
+			}
+
+			const maxWidth = Math.min(
+				Math.max( DESIGN_BAR_MIN_WIDTH, box.width - INSET * 2 ),
+				frame.width - INSET * 2
+			);
+
 			chrome = (
-				<LayoutsPanel
-					canReset={ canReset }
+				<DesignBar
 					clientId={ active.id }
-					onDone={ exitMode }
-					onFreeform={ () =>
-						leaveCompose( () => setFreeform( true ) )
-					}
+					onClose={ exitMode }
+					onFreeform={ () => leaveCompose( enterFreeform ) }
 					onReplace={ onLayoutReplace }
-					onReset={ reset }
-					onRestore={ restore }
+					onView={ setDesignView }
 					part={ activePart }
-					perSlide={ getLayoutsPerSlide( frame.width ) }
+					perSlide={ getLayoutsPerSlide( maxWidth ) }
 					ref={ setChromeNode }
-					removedCount={ removedCount }
 					style={ {
 						left: box.left + box.width / 2,
 						// Scrolls rather than run off the canvas.
 						maxHeight: Math.max(
-							PANEL_MIN_HEIGHT,
+							DESIGN_BAR_MIN_HEIGHT,
 							frame.height - Math.max( top, 0 ) - INSET
 						),
+						maxWidth,
 						top,
-						visibility: chromeSize ? undefined : 'hidden',
 					} }
 					title={ title }
+					view={ active.view }
 				/>
 			);
 		} else {
@@ -2032,16 +1959,6 @@ export function SectionModesLayer( {
 					transform: 'translateX(-100%)',
 				};
 			}
-
-			obstacle =
-				isSmall || ! chromeSize
-					? null
-					: {
-							height: chromeSize.height,
-							left: place.left - chromeSize.width / 2,
-							top: place.top,
-							width: chromeSize.width,
-						};
 			chrome = (
 				<ModeBar
 					isSmall={ isSmall }
@@ -2049,11 +1966,6 @@ export function SectionModesLayer( {
 						active.mode === MODE_FREEFORM
 							? __( 'Freeform' )
 							: __( 'Edit content' )
-					}
-					onBack={
-						active.mode === MODE_FREEFORM
-							? () => setFreeform( false )
-							: null
 					}
 					onDone={ exitMode }
 					onRestore={ restore }
@@ -2073,69 +1985,6 @@ export function SectionModesLayer( {
 					isPart={ Boolean( activePart ) }
 					title={ title }
 				/>
-				{ activeItems.map( ( item ) => {
-					const itemRect = rects[ item.clientId ];
-
-					return (
-						itemRect && (
-							<div
-								className={ `cnl-section-modes__item${
-									item.clientId === doomedId
-										? ' is-doomed'
-										: ''
-								}` }
-								key={ item.clientId }
-								style={ local( itemRect, frame ) }
-							/>
-						)
-					);
-				} ) }
-				{ activeItems.map( ( item ) => {
-					const itemRect = rects[ item.clientId ];
-
-					if ( ! itemRect ) {
-						return null;
-					}
-
-					const itemBox = local( itemRect, frame );
-					const corner = placeBin( itemBox, obstacle );
-					// Kept on the canvas, beside its item, while any of the
-					// item is in view.
-					const spot = {
-						left: corner.left,
-						top: Math.min(
-							Math.max( corner.top, BIN_HALF ),
-							frame.height - BIN_HALF
-						),
-					};
-
-					return (
-						<Button
-							className="cnl-section-modes__bin"
-							icon={ trashIcon }
-							label={ sprintf(
-								/* translators: %s: what is removed. */
-								__( 'Remove %s' ),
-								getTitle( item.clientId )
-							) }
-							key={ item.clientId }
-							onBlur={ () => setDoomedId( null ) }
-							onClick={ () => {
-								setDoomedId( null );
-								items.remove( active.id, item.clientId );
-								leaveCompose();
-							} }
-							onFocus={ () => setDoomedId( item.clientId ) }
-							onPointerEnter={ () =>
-								setDoomedId( item.clientId )
-							}
-							onPointerLeave={ () => setDoomedId( null ) }
-							style={ spot }
-							showTooltip
-							size="compact"
-						/>
-					);
-				} ) }
 				{ chrome }
 			</Scope>
 		);

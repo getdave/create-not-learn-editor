@@ -273,6 +273,8 @@ export function useSiteCanvas( {
 	const [ savedVersion, setSavedVersion ] = useState( 0 );
 	const savedVersionRef = useRef( 0 );
 	const waitRef = useRef( 0 );
+	// Whether the editor is on show only for a change the preview can't show.
+	const isShowingChangeRef = useRef( false );
 	const { changes, isSaving, save, discardAll } = useChanges();
 	/*
 	 * Counted in a selector so that it follows a record's own edits: a page
@@ -381,6 +383,7 @@ export function useSiteCanvas( {
 	 */
 	useEffect( () => {
 		if ( isPreviewing ) {
+			isShowingChangeRef.current = false;
 			dispatch( blockEditorStore ).clearSelectedBlock();
 			unlock(
 				dispatch( blockEditorStore )
@@ -411,7 +414,8 @@ export function useSiteCanvas( {
 	);
 
 	// Changes made while browsing that the preview can't show can only be
-	// seen in the editor.
+	// seen in the editor. Nobody asked for the switch, so a screen that
+	// follows the mode can leave the user where they are.
 	const changeCountRef = useRef( unseenChangeCount );
 	useEffect( () => {
 		if (
@@ -419,6 +423,7 @@ export function useSiteCanvas( {
 			isPreviewing &&
 			editorEntity
 		) {
+			isShowingChangeRef.current = true;
 			showEditor();
 		}
 
@@ -496,6 +501,8 @@ export function useSiteCanvas( {
 	 * @param {string} next `MODE_BROWSE`, `MODE_EDIT` or `MODE_COMPOSE`.
 	 */
 	const requestMode = ( next ) => {
+		isShowingChangeRef.current = false;
+
 		if ( next !== MODE_BROWSE ) {
 			if ( canvasEntity ) {
 				showEditor( next );
@@ -569,6 +576,7 @@ export function useSiteCanvas( {
 		isComposing: mode === MODE_COMPOSE,
 		isLoadingContext,
 		isPreviewing,
+		isShowingChange: () => isShowingChangeRef.current,
 		liveUrl: getLiveUrl( frame.location ) || url,
 		mode,
 		previewContext,

@@ -35,11 +35,17 @@ vi.mock( '@wordpress/blocks', async () => {
 		createBlock: vi.fn(),
 		parse,
 		serialize: ( blocks ) => JSON.stringify( strip( blocks ) ),
+		store: 'core/blocks',
 	};
 } );
 
 vi.mock( '@wordpress/core-data', () => ( { store: {} } ) );
-vi.mock( '@wordpress/data', () => ( { useSelect: () => ( {} ) } ) );
+const BLOCK_TYPES = [];
+
+vi.mock( '@wordpress/data', () => ( {
+	select: () => ( { getBlockTypes: () => BLOCK_TYPES } ),
+	useSelect: () => ( {} ),
+} ) );
 vi.mock( '@wordpress/element', () => ( { useMemo: ( fn ) => fn() } ) );
 
 vi.mock( '../../../wordpress-packages', () => ( {

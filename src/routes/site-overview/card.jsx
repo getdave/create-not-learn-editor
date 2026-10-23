@@ -13,7 +13,7 @@ import {
 	THUMBNAIL_VIEWPORT_HEIGHT,
 	THUMBNAIL_VIEWPORT_WIDTH,
 } from './layout';
-import { useHasBeenVisible } from './hooks';
+import { useHasBeenVisible, useThumbnailTurn } from './hooks';
 import {
 	Badge,
 	Icon,
@@ -52,6 +52,10 @@ function Thumbnail( { node, rootRef } ) {
 	const ref = useRef();
 	const hasBeenVisible = useHasBeenVisible( ref, rootRef );
 	const [ isLoaded, setIsLoaded ] = useState( false );
+	const hasTurn = useThumbnailTurn(
+		Boolean( node.previewUrl ) && hasBeenVisible,
+		isLoaded
+	);
 	const placeholderText = getPlaceholderText( node );
 
 	return (
@@ -70,7 +74,7 @@ function Thumbnail( { node, rootRef } ) {
 					</span>
 				) }
 			</div>
-			{ node.previewUrl && hasBeenVisible && (
+			{ node.previewUrl && hasTurn && (
 				<iframe
 					className="cnl-site-overview-card__frame"
 					onLoad={ () => setIsLoaded( true ) }

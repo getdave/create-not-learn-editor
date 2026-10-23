@@ -260,6 +260,24 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 }
 
 /*
+ * In place of the conversation while it loads, or if it didn't.
+ */
+.cnl-chat-loading {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--wpds-dimension-gap-md);
+	padding: var(--wpds-dimension-padding-lg);
+	text-align: center;
+
+	p {
+		margin: 0;
+	}
+}
+
+/*
  * The empty conversation: a greeting and things to ask for.
  */
 .cnl-chat-empty {

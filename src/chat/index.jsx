@@ -8,6 +8,11 @@
  * language model: see `engine.js` for how requests are understood, and
  * `skills.jsx` for what it can do.
  *
+ * Only the ways in to the chat, the panel's frame and where it sits load with
+ * the page. The panel's body, the conversation and the skills and pickers
+ * behind it, comes from the app-init-deferred module, fetched once the page
+ * has settled. See `src/app-init-deferred.js` and `panel.jsx`.
+ *
  * Imported package by package rather than through `src/wordpress-packages`.
  * That barrel reaches `@wordpress/lazy-editor`, and this module is mounted from
  * app init, so going through it would make the editor a static dependency of
@@ -17,15 +22,9 @@
 /**
  * WordPress dependencies
  */
-import { Button } from '@wordpress/components';
+import { Button, Spinner, VisuallyHidden } from '@wordpress/components';
 import { subscribe } from '@wordpress/data';
-import {
-	createRoot,
-	useEffect,
-	useLayoutEffect,
-	useRef,
-	useState,
-} from '@wordpress/element';
+import { createRoot, useEffect, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import {
 	closeSmall as closeIcon,
@@ -34,15 +33,13 @@ import {
 	plus as plusIcon,
 } from '@wordpress/icons';
 import { ThemeProvider } from '@wordpress/theme';
-import { Icon, Text } from '@wordpress/ui';
+import { Icon } from '@wordpress/ui';
 
 /**
  * Internal dependencies
  */
-import { startNewChat } from './conversation';
-import { Composer } from './composer';
+import { preloadDeferred, useDeferred } from '../app-init-deferred';
 import { sparkleIcon } from './icons';
-import { Message, Suggestions } from './message';
 import {
 	PLACEMENT_DOCK,
 	PLACEMENT_STAGE,
@@ -51,6 +48,7 @@ import {
 	getChat,
 	savePlacement,
 	useChat,
+	useIsChatOpen,
 } from './store';
 
 // How long the prompt at the foot of a screen shows the chat starting up.
@@ -64,6 +62,15 @@ const IN_STAGE_CLASS = 'cnl-chat-in-stage';
 const LAYOUT = '#create-not-learn-editor-app [class*="__layout"]';
 const SURFACES = `${ LAYOUT } > [class*="__surfaces"]`;
 const STAGE = `${ SURFACES } > [class*="__wrapper"] > [class*="__stage"]`;
+
+/*
+ * Pointing at or tabbing to a way in to the chat fetches the panel's body,
+ * in case the page hasn't yet.
+ */
+const PRELOAD_PROPS = {
+	onFocus: preloadDeferred,
+	onPointerEnter: preloadDeferred,
+};
 
 function setPlacement( placement ) {
 	savePlacement( placement );
@@ -109,98 +116,36 @@ function getSurfaceColors() {
 	};
 }
 
-function EmptyConversation() {
+/*
+ * Stands in for the panel's body while it loads, which it rarely has to, and
+ * says so if it didn't load.
+ */
+function ChatBodyFallback( { error, retry } ) {
+	if ( error ) {
+		return (
+			<div className="cnl-chat-loading" role="alert">
+				<p>{ __( 'The assistant didn’t load.' ) }</p>
+				<Button onClick={ retry } size="compact" variant="secondary">
+					{ __( 'Try again' ) }
+				</Button>
+			</div>
+		);
+	}
+
 	return (
-		<div className="cnl-chat-empty">
-			<span aria-hidden className="cnl-chat-empty__icon">
-				<Icon icon={ sparkleIcon } size={ 24 } />
-			</span>
-			<Text
-				className="cnl-chat-empty__title"
-				render={ <h2 /> }
-				variant="heading-lg"
-			>
-				{ __( 'What would you like to change?' ) }
-			</Text>
-			<Text className="cnl-chat-empty__description" variant="body-md">
-				{ __(
-					'Ask in your own words. I’ll show you the options, and you’ll see each one on your site before you keep it.'
-				) }
-			</Text>
-			<Suggestions isLarge />
+		<div className="cnl-chat-loading" role="status">
+			<Spinner />
+			<VisuallyHidden>{ __( 'Loading the assistant…' ) }</VisuallyHidden>
 		</div>
 	);
 }
 
-function ChatPanel() {
-	const { isOpen, messages, pending, placement } = useChat();
-	const scrollRef = useRef();
-
-	useEffect( () => {
-		document.body.classList.toggle( OPEN_CLASS, isOpen );
-		document.body.classList.toggle(
-			IN_STAGE_CLASS,
-			placement === PLACEMENT_STAGE
-		);
-	}, [ isOpen, placement ] );
-
-	const logRef = useRef();
-	// Whether the view follows the end of the conversation.
-	const isPinnedRef = useRef( true );
-	const hasMessages = messages.length > 0;
-
-	const scrollToEnd = () => {
-		const node = scrollRef.current;
-
-		if ( node ) {
-			// At once, not smoothly, so a scroll never lags behind growth.
-			node.scrollTop = node.scrollHeight;
-		}
-	};
-
-	/*
-	 * Always show the latest: a new message brings the view to the end, and
-	 * while it is there it stays there as replies stream in and pickers load
-	 * their previews. Scrolling up to read leaves it be until the next
-	 * message.
-	 */
-	useLayoutEffect( () => {
-		isPinnedRef.current = true;
-		scrollToEnd();
-	}, [ isOpen, messages.length ] );
-
-	useEffect( () => {
-		const log = logRef.current;
-
-		if (
-			! isOpen ||
-			! log ||
-			typeof window.ResizeObserver === 'undefined'
-		) {
-			return undefined;
-		}
-
-		const observer = new window.ResizeObserver( () => {
-			if ( isPinnedRef.current ) {
-				scrollToEnd();
-			}
-		} );
-
-		observer.observe( log );
-
-		return () => observer.disconnect();
-	}, [ isOpen, hasMessages ] );
-
-	const onScroll = () => {
-		const node = scrollRef.current;
-
-		isPinnedRef.current =
-			node.scrollHeight - node.scrollTop - node.clientHeight < 48;
-	};
-
-	if ( ! isOpen ) {
-		return null;
-	}
+/*
+ * The open panel: its header here, and its body from the app-init-deferred
+ * module.
+ */
+function OpenChatPanel( { hasMessages, placement } ) {
+	const { deferred, error, retry } = useDeferred();
 
 	return (
 		<ThemeProvider color={ getSurfaceColors() }>
@@ -211,10 +156,10 @@ function ChatPanel() {
 						{ __( 'Assistant' ) }
 					</span>
 					<div className="cnl-chat__header-actions">
-						{ messages.length > 0 && (
+						{ hasMessages && deferred && (
 							<Button
 								icon={ plusIcon }
-								onClick={ startNewChat }
+								onClick={ deferred.startNewChat }
 								size="compact"
 							>
 								{ __( 'New chat' ) }
@@ -229,33 +174,36 @@ function ChatPanel() {
 						/>
 					</div>
 				</header>
-				<div
-					className="cnl-chat__messages"
-					onScroll={ onScroll }
-					ref={ scrollRef }
-				>
-					{ messages.length ? (
-						<div
-							aria-live="polite"
-							className="cnl-chat__log"
-							ref={ logRef }
-						>
-							{ messages.map( ( message, index ) => (
-								<Message
-									isLast={ index === messages.length - 1 }
-									key={ message.id }
-									message={ message }
-									scrollRef={ scrollRef }
-								/>
-							) ) }
-						</div>
-					) : (
-						<EmptyConversation />
-					) }
-				</div>
-				<Composer pending={ pending } />
+				{ deferred ? (
+					<deferred.ChatBody />
+				) : (
+					<ChatBodyFallback error={ error } retry={ retry } />
+				) }
 			</aside>
 		</ThemeProvider>
+	);
+}
+
+function ChatPanel() {
+	const { isOpen, messages, placement } = useChat();
+
+	useEffect( () => {
+		document.body.classList.toggle( OPEN_CLASS, isOpen );
+		document.body.classList.toggle(
+			IN_STAGE_CLASS,
+			placement === PLACEMENT_STAGE
+		);
+	}, [ isOpen, placement ] );
+
+	if ( ! isOpen ) {
+		return null;
+	}
+
+	return (
+		<OpenChatPanel
+			hasMessages={ messages.length > 0 }
+			placement={ placement }
+		/>
 	);
 }
 
@@ -265,10 +213,11 @@ function ChatPanel() {
  * @return {Element} The button.
  */
 export function ChatToggle() {
-	const { isOpen } = useChat();
+	const isOpen = useIsChatOpen();
 
 	return (
 		<Button
+			{ ...PRELOAD_PROPS }
 			aria-expanded={ isOpen }
 			className="cnl-chat-toggle"
 			icon={ sparkleIcon }
@@ -289,7 +238,7 @@ export function ChatToggle() {
  * @return {?Element} The prompt.
  */
 function StageHelp() {
-	const { isOpen } = useChat();
+	const isOpen = useIsChatOpen();
 	const [ isOpening, setIsOpening ] = useState( false );
 
 	// Ready to open again once the chat has been closed.
@@ -305,7 +254,8 @@ function StageHelp() {
 
 	/*
 	 * A moment of starting up before the chat opens, so the click reads as
-	 * the assistant getting ready rather than a panel swapping in.
+	 * the assistant getting ready rather than a panel swapping in. The
+	 * panel's body loads meanwhile, if it hasn't.
 	 */
 	const open = () => {
 		if ( isOpening ) {
@@ -313,12 +263,14 @@ function StageHelp() {
 		}
 
 		setIsOpening( true );
+		preloadDeferred();
 		window.setTimeout( () => chatActions().setOpen( true ), OPENING_MS );
 	};
 
 	return (
 		<ThemeProvider color={ getSurfaceColors() }>
 			<button
+				{ ...PRELOAD_PROPS }
 				aria-busy={ isOpening || undefined }
 				className={ `cnl-stage-help${
 					isOpening ? ' is-opening' : ''

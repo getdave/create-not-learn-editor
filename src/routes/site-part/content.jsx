@@ -33,6 +33,8 @@ import { withCanvasRecovery } from '../../canvas-recovery';
 import { GlobalScope } from '../../global-scope';
 import { withUiTheme } from '../../theme';
 import { getPatternTitle } from '../content/page-layouts';
+import { getCurrentEditorPath } from '../static/screens';
+import { withScreenKey } from '../../screen-key';
 import { useMenuItemsEditor } from '../navigation-edit/menu-items-editor';
 import { SiteIdentityFields, useSiteIdentity } from '../../pickers/identity';
 import { SitePartLayouts } from '../../pickers/site-part-layouts';
@@ -837,3 +839,62 @@ export const footerStage = withUiTheme(
 export const footerCanvas = withCanvasRecovery(
 	withUiTheme( withGlobalScope( createCanvas( 'footer' ) ) )
 );
+
+/**
+ * The Header, Footer, and Header & footer screens share one module, so each
+ * screen's stage and canvas is picked by its path.
+ *
+ * @param {Object} screens Components keyed by screen path.
+ * @return {string} The path of the screen on show.
+ */
+function getScreenPath( screens ) {
+	const path = getCurrentEditorPath();
+
+	return screens[ path ] ? path : SITE_PARTS_PATH;
+}
+
+/**
+ * Each screen's route mounts its own stage, so the stage keeps the screen
+ * it was mounted for, even while it makes way for the next one.
+ *
+ * @param {Object} screens Stages keyed by screen path.
+ * @return {Function} The stage.
+ */
+function stageByScreen( screens ) {
+	return function SitePartStage() {
+		const [ Screen ] = useState(
+			() => screens[ getScreenPath( screens ) ]
+		);
+
+		return <Screen />;
+	};
+}
+
+/**
+ * Boot keeps the canvas mounted from one of these screens to the next, so
+ * it follows the path, and is mounted afresh for each screen.
+ *
+ * @param {Object} screens Canvases keyed by screen path.
+ * @return {Function} The canvas.
+ */
+function canvasByScreen( screens ) {
+	return withScreenKey(
+		function SitePartCanvas() {
+			const Screen = screens[ getScreenPath( screens ) ];
+
+			return <Screen />;
+		},
+		() => getScreenPath( screens )
+	);
+}
+
+export const stage = stageByScreen( {
+	[ SITE_PARTS_PATH ]: sitePartsStage,
+	[ SITE_PART_PATHS.header ]: headerStage,
+	[ SITE_PART_PATHS.footer ]: footerStage,
+} );
+export const canvas = canvasByScreen( {
+	[ SITE_PARTS_PATH ]: sitePartsCanvas,
+	[ SITE_PART_PATHS.header ]: headerCanvas,
+	[ SITE_PART_PATHS.footer ]: footerCanvas,
+} );

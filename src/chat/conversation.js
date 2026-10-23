@@ -29,8 +29,9 @@ import {
 	saveEntity,
 	takeSnapshot,
 } from './entity-changes';
+import { openRoute } from '../open-route';
 import { setCanvasMode } from '../site-canvas/mode';
-import { FALLBACK_REPLY, SKILLS, openRoute } from './skills';
+import { FALLBACK_REPLY, SKILLS } from './skills';
 import { chatActions, createMessageId, getChat } from './store';
 
 // How long the chat seems to think before it answers.

@@ -81,6 +81,47 @@ describe( 'subscribeToEditCanvas', () => {
 		unsubscribe();
 	} );
 
+	it( 'finds the marker in a subtree that is added', async () => {
+		const { root } = createRoot();
+		const onChange = vi.fn();
+		const unsubscribe = subscribeToEditCanvas( onChange, root );
+
+		const wrapper = document.createElement( 'div' );
+		const layout = document.createElement( 'div' );
+		layout.className = `${ LAYOUT } ${ FULL_CANVAS }`;
+		wrapper.appendChild( layout );
+		root.appendChild( wrapper );
+		await flush();
+
+		expect( onChange.mock.calls ).toEqual( [ [ true ] ] );
+		unsubscribe();
+	} );
+
+	it( 'reports leaving when the marked layout is removed', async () => {
+		const { root, layout } = createRoot( `${ LAYOUT } ${ FULL_CANVAS }` );
+		const onChange = vi.fn();
+		const unsubscribe = subscribeToEditCanvas( onChange, root );
+
+		layout.remove();
+		await flush();
+
+		expect( onChange.mock.calls ).toEqual( [ [ false ] ] );
+		unsubscribe();
+	} );
+
+	it( 'ignores tree changes that add no marker', async () => {
+		const { root } = createRoot();
+		const onChange = vi.fn();
+		const unsubscribe = subscribeToEditCanvas( onChange, root );
+
+		root.appendChild( document.createElement( 'div' ) );
+		root.appendChild( document.createTextNode( 'text' ) );
+		await flush();
+
+		expect( onChange ).not.toHaveBeenCalled();
+		unsubscribe();
+	} );
+
 	it( 'stops reporting once unsubscribed', async () => {
 		const { root, layout } = createRoot();
 		const onChange = vi.fn();

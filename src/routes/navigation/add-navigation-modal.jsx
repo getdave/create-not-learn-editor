@@ -149,7 +149,7 @@ export function AddNavigationModal( { onClose } ) {
 							type="submit"
 							variant="primary"
 						>
-							{ __( 'Create Menu' ) }
+							{ __( 'Create menu' ) }
 						</Button>
 					</Stack>
 				</Stack>

@@ -1,0 +1,6 @@
+{
+	"name": "@create-not-learn-editor/app-init-deferred",
+	"version": "0.1.0",
+	"private": true,
+	"wpScriptModuleExports": "./src/index.js"
+}

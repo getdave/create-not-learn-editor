@@ -17,7 +17,9 @@ import {
 /**
  * Internal dependencies
  */
+import { preloadDeferredWhenIdle } from '../../../src/app-init-deferred';
 import { mountChat } from '../../../src/chat';
+import { mountCommands } from '../../../src/commands';
 import { registerFontSizeToolbar } from '../../../src/editor-extensions/font-size-toolbar';
 import { registerSectionMenu } from '../../../src/editor-extensions/section-menu';
 import { registerSectionPatterns } from '../../../src/editor-extensions/section-patterns';
@@ -53,6 +55,10 @@ export async function init() {
 
 	mountWorkspaces();
 	mountTopBar();
+	mountCommands();
 	mountChat();
 	enhanceSidebar( { userName: window.createNotLearnEditor?.userName } );
+
+	// The chat's panel and the section picker, ready before they're opened.
+	preloadDeferredWhenIdle();
 }

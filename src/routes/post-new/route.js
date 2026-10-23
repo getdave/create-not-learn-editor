@@ -34,7 +34,7 @@ export const route = {
 		return sprintf(
 			/* translators: %s: post type singular label. */
 			__( 'New %s' ),
-			type?.singular || params.type
+			( type?.singular || params.type ).toLowerCase()
 		);
 	},
 	async canvas() {
