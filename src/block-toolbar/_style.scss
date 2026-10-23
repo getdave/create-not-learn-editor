@@ -256,6 +256,13 @@ $group-gap: 6px;
 		opacity: 0.4;
 	}
 
+	// Options with nothing in them, faded as a mover with nowhere to go is.
+	.cnl-block-options__toggle.components-button[aria-disabled="true"] {
+		color: var(--wpds-color-foreground-content-neutral-weak);
+		background: none;
+		opacity: 0.4;
+	}
+
 	// Style controls, now in the options or Layout menu.
 	.block-editor-block-toolbar__slot > :is(#{$style-control}) {
 		display: none;

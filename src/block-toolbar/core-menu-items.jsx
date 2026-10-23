@@ -132,9 +132,10 @@ export function readToolbarTools( toolbar ) {
 }
 
 /**
- * The host's ref, and a way to read what is in it now.
+ * The host's ref, a way to read what is in it now, and a way to hear when
+ * that, or the toolbar's own buttons, may have changed.
  *
- * @return {{ hostRef: Object, read: Function }} Ref and reader.
+ * @return {{ hostRef: Object, read: Function, observe: Function }} Ref, reader and observer.
  */
 export function useCoreMenuItems() {
 	const hostRef = useRef();
@@ -145,6 +146,25 @@ export function useCoreMenuItems() {
 		} ),
 		[]
 	);
+	const observe = useCallback( ( toolbar, onChange ) => {
+		const observer = new window.MutationObserver( onChange );
 
-	return { hostRef, read };
+		[ hostRef.current, toolbar ].filter( Boolean ).forEach( ( element ) =>
+			observer.observe( element, {
+				subtree: true,
+				childList: true,
+				attributes: true,
+				attributeFilter: [
+					'aria-label',
+					'aria-disabled',
+					'aria-pressed',
+					'disabled',
+				],
+			} )
+		);
+
+		return () => observer.disconnect();
+	}, [] );
+
+	return { hostRef, read, observe };
 }

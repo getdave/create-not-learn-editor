@@ -25,7 +25,7 @@ import {
 	store as blocksStore,
 } from '@wordpress/blocks';
 import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
-import { Fragment, useRef, useState } from '@wordpress/element';
+import { Fragment, useEffect, useRef, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import {
 	formatBold,
@@ -358,15 +358,32 @@ function useStyleSections( {
 }
 
 /**
+ * What the items read from core's menu and the toolbar are, for telling
+ * whether they have changed.
+ *
+ * @param {Object}   items          Items read.
+ * @param {Object[]} items.first    Core's first items.
+ * @param {Object[]} items.controls Core's other items.
+ * @param {Object[]} items.tools    The toolbar's tools.
+ * @return {string} The key.
+ */
+function getItemsKey( { first, controls, tools } ) {
+	return [ ...first, ...controls, ...tools ]
+		.map( ( item ) => `${ item.key }:${ item.disabled }:${ item.pressed }` )
+		.join();
+}
+
+/**
  * The options menu, on the block's toolbar.
  *
  * @param {Object}   props
- * @param {string}   props.clientId      Block client ID.
- * @param {string}   props.name          Block name.
- * @param {Object}   props.attributes    Block attributes.
- * @param {Function} props.setAttributes Block attribute setter.
- * @param {boolean}  props.isContainer   Whether the block has a Layout menu.
- * @param {Function} props.readCoreItems Reads core's menu items.
+ * @param {string}   props.clientId         Block client ID.
+ * @param {string}   props.name             Block name.
+ * @param {Object}   props.attributes       Block attributes.
+ * @param {Function} props.setAttributes    Block attribute setter.
+ * @param {boolean}  props.isContainer      Whether the block has a Layout menu.
+ * @param {Function} props.readCoreItems    Reads core's menu items.
+ * @param {Function} props.observeCoreItems Calls back when core's menu items may have changed.
  * @return {Element} The menu.
  */
 export function OptionsMenu( {
@@ -376,9 +393,11 @@ export function OptionsMenu( {
 	setAttributes,
 	isContainer,
 	readCoreItems,
+	observeCoreItems,
 } ) {
 	const registry = useRegistry();
 	const triggerRef = useRef();
+	const [ trigger, setTrigger ] = useState();
 	const shortcuts = useBlockShortcuts();
 	const isDefaultEditingMode = useBlockEditingMode() === 'default';
 	const [ coreItems, setCoreItems ] = useState( {
@@ -386,6 +405,39 @@ export function OptionsMenu( {
 		controls: [],
 		tools: [],
 	} );
+
+	const readAllItems = () => ( {
+		...readCoreItems(),
+		tools: readToolbarTools(
+			triggerRef.current?.closest( '.block-editor-block-toolbar' )
+		),
+	} );
+
+	/*
+	 * Core's items and the toolbar's tools are read as they change, not only
+	 * as the menu opens, so the button can tell the menu would be empty
+	 * before anyone opens it.
+	 */
+	useEffect( () => {
+		if ( ! trigger ) {
+			return;
+		}
+
+		const refresh = () =>
+			setCoreItems( ( current ) => {
+				const next = readAllItems();
+				return getItemsKey( next ) === getItemsKey( current )
+					? current
+					: next;
+			} );
+
+		refresh();
+		return observeCoreItems(
+			trigger.closest( '.block-editor-block-toolbar' ),
+			refresh
+		);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- Reads through refs and stable readers.
+	}, [ trigger, observeCoreItems ] );
 
 	const blockTitle = getBlockType( name )?.title;
 	const { canDuplicate, canInsert, canRemove, hasTextSelection } = useSelect(
@@ -543,36 +595,25 @@ export function OptionsMenu( {
 
 	return (
 		<ToolbarMenu
-			ref={ triggerRef }
+			ref={ ( node ) => {
+				triggerRef.current = node;
+				setTrigger( node );
+			} }
 			buttonProps={ {
 				className: 'cnl-block-options__toggle',
 				icon: optionsIcon,
 				label: __( 'Options' ),
 			} }
 			popupClassName="cnl-block-options"
-			onOpen={ () =>
-				setCoreItems( {
-					...readCoreItems(),
-					tools: readToolbarTools(
-						triggerRef.current?.closest(
-							'.block-editor-block-toolbar'
-						)
-					),
-				} )
-			}
+			disabled={ sections.length === 0 }
+			onOpen={ () => setCoreItems( readAllItems() ) }
 		>
-			{ sections.length > 0 ? (
-				sections.map( ( section, index ) => (
-					<Fragment key={ section.key ?? index }>
-						{ index > 0 && <Menu.Separator /> }
-						{ section }
-					</Fragment>
-				) )
-			) : (
-				<Menu.Item disabled>
-					<Menu.ItemLabel>{ __( 'No options' ) }</Menu.ItemLabel>
-				</Menu.Item>
-			) }
+			{ sections.map( ( section, index ) => (
+				<Fragment key={ section.key ?? index }>
+					{ index > 0 && <Menu.Separator /> }
+					{ section }
+				</Fragment>
+			) ) }
 		</ToolbarMenu>
 	);
 }

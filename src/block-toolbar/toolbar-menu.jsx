@@ -19,6 +19,7 @@ import {
 	createPortal,
 	forwardRef,
 	useContext,
+	useEffect,
 	useRef,
 	useState,
 } from '@wordpress/element';
@@ -59,17 +60,32 @@ function mergeRefs( ...refs ) {
  * @param {string}   [props.popupClassName] Class for the menu.
  * @param {Function} [props.onOpen]         Called as the menu opens.
  * @param {string}   [props.side]           Which side of the button the menu opens on, `bottom` unless set.
+ * @param {boolean}  [props.disabled]       Whether the menu has nothing in it. The button stays, and can be focused, but doesn't open it.
  * @param {Element}  props.children         The menu's items.
  * @param {Object}   ref                    Ref for the button.
  * @return {Element} The button and its menu.
  */
 function UnforwardedToolbarMenu(
-	{ buttonProps, popupClassName, onOpen, side = 'bottom', children },
+	{
+		buttonProps,
+		popupClassName,
+		onOpen,
+		side = 'bottom',
+		disabled = false,
+		children,
+	},
 	ref
 ) {
 	const [ isOpen, setIsOpen ] = useState( false );
 	const buttonRef = useRef();
 	const leavesFocusRef = useRef( false );
+
+	// A menu left with nothing in it closes.
+	useEffect( () => {
+		if ( disabled ) {
+			setIsOpen( false );
+		}
+	}, [ disabled ] );
 
 	const setOpen = ( open ) => {
 		if ( open ) {
@@ -84,8 +100,10 @@ function UnforwardedToolbarMenu(
 			<ToolbarButton
 				{ ...buttonProps }
 				ref={ mergeRefs( buttonRef, ref ) }
-				aria-haspopup="menu"
-				aria-expanded={ isOpen }
+				disabled={ disabled }
+				accessibleWhenDisabled
+				aria-haspopup={ disabled ? undefined : 'menu' }
+				aria-expanded={ disabled ? undefined : isOpen }
 				isPressed={ isOpen }
 				onClick={ () => setOpen( ! isOpen ) }
 				onKeyDown={ ( event ) => {
@@ -97,7 +115,7 @@ function UnforwardedToolbarMenu(
 			/>
 			{ createPortal(
 				<Menu.Root
-					open={ isOpen }
+					open={ isOpen && ! disabled }
 					onOpenChange={ ( open, details ) => {
 						// A press on the button toggles the menu itself.
 						if (

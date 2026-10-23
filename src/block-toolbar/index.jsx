@@ -88,7 +88,7 @@ function TrashButton( { clientId } ) {
  * @return {Element} The fills.
  */
 function BlockToolbarFills( { clientId, name, attributes, setAttributes } ) {
-	const { hostRef, read } = useCoreMenuItems();
+	const { hostRef, read, observe } = useCoreMenuItems();
 	const isDefaultEditingMode = useBlockEditingMode() === 'default';
 	const isContainer = isDefaultEditingMode && isContainerBlock( name );
 
@@ -119,6 +119,7 @@ function BlockToolbarFills( { clientId, name, attributes, setAttributes } ) {
 						setAttributes={ setAttributes }
 						isContainer={ isContainer }
 						readCoreItems={ read }
+						observeCoreItems={ observe }
 					/>
 					<TrashButton clientId={ clientId } />
 				</ToolbarGroup>
