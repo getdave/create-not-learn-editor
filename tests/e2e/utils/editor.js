@@ -283,7 +283,7 @@ async function setCanvasMode( page, mode ) {
 
 /**
  * In Edit, point at a section and pick one of the ways to edit it from the
- * bar over it: Edit design or Edit content.
+ * bar over it: Edit design, or Edit header or Edit footer.
  *
  * @param {import('@playwright/test').Page}    page
  * @param {import('@playwright/test').Locator} target Something in the
@@ -316,6 +316,34 @@ async function pickSectionMode( page, target, mode ) {
 		expect(
 			await isWithin( page, target, '.cnl-section-modes__outline' )
 		).toBe( true );
+	} ).toPass( { timeout: 20000 } );
+}
+
+/**
+ * In Edit, click into a section until the blocks in it are reached: the
+ * first click picks the section, a click on a row of cards opens the row,
+ * and the next reaches the block, with the caret in its text.
+ *
+ * @param {import('@playwright/test').Page}    page
+ * @param {import('@playwright/test').Locator} target A block in the section,
+ *                                                    in the canvas.
+ */
+async function clickIntoSection( page, target ) {
+	const layer = page.locator( '.cnl-section-modes' );
+
+	await pointAtSection( page, target );
+	await expect( async () => {
+		const level = await layer.getAttribute( 'data-level' );
+
+		// Near the start of the words, clear of "Add section" in the middle
+		// of a short section's edges.
+		if ( level !== 'blocks' ) {
+			await target.click( { position: { x: 8, y: 8 } } );
+		}
+
+		await expect( layer ).toHaveAttribute( 'data-level', 'blocks', {
+			timeout: 1000,
+		} );
 	} ).toPass( { timeout: 20000 } );
 }
 
@@ -512,6 +540,7 @@ module.exports = {
 	openReviewChanges,
 	openSidebarLink,
 	pickCanvasMode,
+	clickIntoSection,
 	pickSectionMode,
 	pickSectionTemplate,
 	pointAtSection,
