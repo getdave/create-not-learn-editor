@@ -239,7 +239,21 @@ function cnl_editor_get_app_settings() {
 		'navigationRestBase' => $navigation_post_type && $navigation_post_type->rest_base
 			? $navigation_post_type->rest_base
 			: 'navigation',
+		'assistantCanType'   => cnl_editor_assistant_can_type(),
 	);
+}
+
+/**
+ * Whether people can type to the assistant.
+ *
+ * The assistant answers from a script, so it can only follow its own
+ * choices. Typing stays off until a language model is connected, which a
+ * settings screen in WP Admin will do by turning this on.
+ *
+ * @return bool Whether the assistant's message box shows.
+ */
+function cnl_editor_assistant_can_type() {
+	return (bool) apply_filters( CNL_EDITOR_SLUG . '_assistant_can_type', false );
 }
 
 /**

@@ -1,6 +1,10 @@
 /**
  * Where a message is typed. Only for typing: a change picked in a reply is
  * kept with the button under its picker.
+ *
+ * The assistant answers from a script, so there is no box until a language
+ * model is connected, and people pick from its choices instead. See
+ * `cnl_editor_assistant_can_type()`.
  */
 
 /**
@@ -21,6 +25,7 @@ import { arrowUp as arrowUpIcon } from '@wordpress/icons';
 /**
  * Internal dependencies
  */
+import { settings } from '../settings';
 import { dropStalePending, isBusy, sendMessage } from './conversation';
 import { STORE_NAME } from './store';
 
@@ -49,7 +54,22 @@ function useDropStalePending( pending ) {
 	}, [ isDirty ] );
 }
 
+/**
+ * Whether people can type to the assistant.
+ *
+ * @return {boolean} Whether the message box shows.
+ */
+export function canType() {
+	return !! settings.assistantCanType;
+}
+
 export function Composer( { pending } ) {
+	useDropStalePending( pending );
+
+	return canType() ? <MessageBox /> : null;
+}
+
+function MessageBox() {
 	const [ text, setText ] = useState( '' );
 	const textareaRef = useRef();
 	const busy = useSelect(
@@ -57,8 +77,6 @@ export function Composer( { pending } ) {
 		[]
 	);
 	const canSend = ! busy && !! text.trim();
-
-	useDropStalePending( pending );
 
 	// Grow with what is typed.
 	useLayoutEffect( () => {
