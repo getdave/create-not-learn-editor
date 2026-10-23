@@ -94,7 +94,7 @@ function SuggestionButton( { suggestion } ) {
 	return (
 		<button
 			className="cnl-chat-suggestions__item"
-			onClick={ () => sendMessage( text ) }
+			onClick={ () => sendMessage( text, { isChoice: true } ) }
 			type="button"
 		>
 			<Icon icon={ SUGGESTION_ICONS[ suggestion.icon ] } size={ 20 } />
@@ -115,7 +115,9 @@ function SuggestionGroup( { group, onOpen } ) {
 			className="cnl-chat-suggestions__group"
 			onClick={ () =>
 				isSingle
-					? sendMessage( getText( group.suggestions[ 0 ] ) )
+					? sendMessage( getText( group.suggestions[ 0 ] ), {
+							isChoice: true,
+						} )
 					: onOpen()
 			}
 			type="button"

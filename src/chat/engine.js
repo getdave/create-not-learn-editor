@@ -14,9 +14,9 @@
  */
 
 // Words about a section's colours, and about how it is laid out.
-const SECTION_COLOR =
+export const SECTION_COLOR =
 	/\b(colou?rs?|palettes?|backgrounds?|darker|lighter|dark|light|brighter|warmer|cooler|bolder|muted|shades?)\b/i;
-const SECTION_LAYOUT =
+export const SECTION_LAYOUT =
 	/\b(layouts?|arrangements?|arrange|rearrange|re-arrange|lay (it |this |that )?out|laid out|alignment|align|flip|mirror|swap sides|other side|left|right|centre|center|centred|centered|above|below)\b/i;
 const ADDS_SECTION = /\b(add|insert|include)\b/i;
 const NEW_SECTION = /\b(new|another|extra)\s+(?:\S+\s+){0,2}sections?\b/i;

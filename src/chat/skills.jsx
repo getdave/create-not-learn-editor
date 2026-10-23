@@ -43,6 +43,7 @@ import {
 	dispatch,
 	resolveSelect,
 	select as selectFromRegistry,
+	subscribe,
 	useDispatch,
 	useSelect,
 } from '@wordpress/data';
@@ -96,6 +97,7 @@ import {
 	PAGES_QUERY,
 	findNamedPage,
 	findTargetPage,
+	getPages,
 	toPages,
 } from './target-page';
 import {
@@ -404,12 +406,26 @@ function PageNameStep( { onContinue, onStep, title, setTitle } ) {
 	);
 }
 
+/*
+ * Designs a language model wrote for the request, which come first and are
+ * not ranked. See `written-designs.js`.
+ */
+const NO_WRITTEN_DESIGNS = [];
+
+function getWrittenDesigns( message ) {
+	return message.params?.designs || NO_WRITTEN_DESIGNS;
+}
+
 function PageWidget( { message, onPick, onStep } ) {
 	const Preview = useLazyPreview();
 	const { isResolving, patterns } = usePageLayoutPatterns();
+	const written = getWrittenDesigns( message );
 	const [ title, setTitle ] = useState( message.params?.title || '' );
 	const [ isNaming, setIsNaming ] = useState( ! message.params?.title );
-	const [ choice, setChoice ] = useState();
+	// A design written for the page starts picked, ready to create.
+	const [ choice, setChoice ] = useState( () =>
+		message.params?.title ? written[ 0 ] : undefined
+	);
 	const name = title.trim();
 	// Ranked once named, so the order holds while the name is edited.
 	const [ rankedFor, setRankedFor ] = useState( name );
@@ -421,6 +437,13 @@ function PageWidget( { message, onPick, onStep } ) {
 		setChoice( nextChoice );
 		onPick( name, { pattern: nextChoice, title: name } );
 	};
+
+	useEffect( () => {
+		if ( choice ) {
+			onPick( name, { pattern: choice, title: name } );
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [] );
 
 	if ( isNaming ) {
 		return (
@@ -467,10 +490,10 @@ function PageWidget( { message, onPick, onStep } ) {
 				</Button>
 			</div>
 			{ isResolving && ! patterns.length && <Loading /> }
-			{ designs.length > 0 && (
+			{ designs.length + written.length > 0 && (
 				<Carousel label={ __( 'Page designs' ) }>
 					<div className="cnl-chat-widget__designs">
-						{ designs.map( ( pattern ) => (
+						{ [ ...written, ...designs ].map( ( pattern ) => (
 							<PageLayoutCard
 								isSelected={ choice === pattern }
 								key={ pattern.name }
@@ -599,6 +622,7 @@ function SectionWidget( { entity, message, onChoosePage, onPick, scrollRef } ) {
 	const Preview = useLazyPreview();
 	const { editEntityRecord } = useDispatch( coreDataStore );
 	const { isLoading, patterns } = useSectionDesigns();
+	const written = getWrittenDesigns( message );
 	const search = message.params?.search || '';
 	const { designs, hasMatches, more, showAll } = useSuitableDesigns(
 		patterns,
@@ -636,7 +660,7 @@ function SectionWidget( { entity, message, onChoosePage, onPick, scrollRef } ) {
 
 	return (
 		<div className="cnl-chat-widget__stack">
-			{ search && ! isLoading && ! hasMatches && (
+			{ search && ! isLoading && ! hasMatches && ! written.length && (
 				<Text className="routes-styles__muted" variant="body-sm">
 					{ sprintf(
 						/* translators: %s: what was asked for. */
@@ -648,10 +672,10 @@ function SectionWidget( { entity, message, onChoosePage, onPick, scrollRef } ) {
 				</Text>
 			) }
 			{ isLoading && ! patterns.length && <Loading /> }
-			{ designs.length > 0 && (
+			{ designs.length + written.length > 0 && (
 				<Carousel label={ __( 'Section designs' ) }>
 					<ul className="cnl-chat-widget__sections" role="list">
-						{ designs.map( ( pattern ) => (
+						{ [ ...written, ...designs ].map( ( pattern ) => (
 							<SectionDesignCard
 								isSelected={
 									message.pickedPayload?.patternName ===
@@ -1082,19 +1106,98 @@ export function getSectionsReply( search, pageTitle ) {
 			);
 }
 
+// How long to wait for the editor to open a page the chat has shown.
+const PAGE_OPEN_TIMEOUT_MS = 8000;
+
+/**
+ * Wait for the editor to have a page open, with its sections, once the
+ * patterns it refers to have been put in their place.
+ *
+ * @param {number} pageId The page.
+ * @return {Promise<boolean>} Whether it opened in time.
+ */
+function waitForPageSections( pageId ) {
+	const isOpen = () => {
+		const sectionIds = getSectionIds();
+
+		return (
+			isEditingPage( selectFromRegistry, pageId ) &&
+			sectionIds.length > 0 &&
+			! selectFromRegistry( blockEditorStore )
+				.getBlocksByClientId( sectionIds )
+				.some( ( block ) => ! block || block.name === 'core/pattern' )
+		);
+	};
+
+	if ( isOpen() ) {
+		return Promise.resolve( true );
+	}
+
+	return new Promise( ( resolve ) => {
+		const finish = ( opened ) => {
+			window.clearTimeout( timeout );
+			unsubscribe();
+			resolve( opened );
+		};
+		const timeout = window.setTimeout(
+			() => finish( false ),
+			PAGE_OPEN_TIMEOUT_MS
+		);
+		const unsubscribe = subscribe( () => {
+			if ( isOpen() ) {
+				finish( true );
+			}
+		} );
+	} );
+}
+
+/**
+ * Pick a section on the canvas, in Compose, as the chat's list of sections
+ * does.
+ *
+ * @param {number} pageId The page it is on.
+ * @param {number} index  Where it is, top first.
+ * @return {Promise<?string>} The section's client ID, or null.
+ */
+async function pickSectionOnCanvas( pageId, index ) {
+	const sectionId =
+		( await waitForPageSections( pageId ) ) && getSectionIds()[ index ];
+
+	if ( ! sectionId ) {
+		return null;
+	}
+
+	setCanvasMode( MODE_COMPOSE );
+	dispatch( blockEditorStore ).selectBlock( sectionId, null );
+
+	return sectionId;
+}
+
 /**
  * What the chat says over a section's layouts and colours, and what its
  * picker needs: the section selected on the page, or none, to ask which.
  * Asking which shows Compose, where a section can be picked.
  *
- * @param {Object} params       The request's params.
- * @param {string} params.focus What it is about: `color`, `layout` or `both`.
- * @param {Object} page         `{ id, title }`, the page the section is on.
- * @param {string} request      What was asked.
- * @return {Object} `{ params, text }`.
+ * @param {Object} params              The request's params.
+ * @param {string} params.focus        What it is about: `color`, `layout` or
+ *                                     `both`.
+ * @param {number} params.sectionIndex The section meant, top first, when a
+ *                                     decision model has worked it out.
+ *                                     It is picked on the canvas first.
+ * @param {Object} page                `{ id, title }`, the page the section
+ *                                     is on.
+ * @param {string} request             What was asked.
+ * @return {Promise<Object>} `{ params, text }`.
  */
-function getSectionDesignReply( { focus = 'both' }, page, request ) {
-	const sectionId = getSelectedSection( selectFromRegistry, page.id );
+async function getSectionDesignReply(
+	{ focus = 'both', sectionIndex },
+	page,
+	request
+) {
+	const sectionId =
+		( Number.isInteger( sectionIndex ) &&
+			( await pickSectionOnCanvas( page.id, sectionIndex ) ) ) ||
+		getSelectedSection( selectFromRegistry, page.id );
 	const base = {
 		focus,
 		pageId: page.id,
@@ -1205,10 +1308,11 @@ function getSectionDesignDone( payload ) {
  * The page a request about a section is about: one it names, or the one
  * being worked on, shown on the canvas. Waits for the pages to load.
  *
- * @param {string} text The request.
+ * @param {string}  text   The request.
+ * @param {?number} pageId The page, when a decision model has worked it out.
  * @return {Promise<?Object>} `{ id, title }`, or null when there is none.
  */
-async function findRequestedPage( text ) {
+async function findRequestedPage( text, pageId = null ) {
 	await Promise.all( [
 		resolveSelect( coreDataStore ).getEntityRecords(
 			'postType',
@@ -1218,12 +1322,20 @@ async function findRequestedPage( text ) {
 		resolveSelect( coreDataStore ).getEntityRecord( 'root', 'site' ),
 	] );
 
-	const named = findNamedPage( text );
+	const named =
+		getPages().find( ( page ) => page.id === pageId ) ||
+		findNamedPage( text );
 	const current = findTargetPage();
 
-	// Show the page named on the canvas, to see the change.
+	/*
+	 * Show the page named on the canvas, to see the change. The Pages
+	 * screen keeps the page it has open in `postId`, so that changes too.
+	 */
 	if ( named && named.id !== current?.id ) {
-		openRoute( '/types/page/list/all', { previewId: named.id } );
+		openRoute( '/types/page/list/all', {
+			postId: named.id,
+			previewId: named.id,
+		} );
 	}
 
 	return named || current;
@@ -1585,7 +1697,7 @@ export const SKILLS = {
 		// Asking which page comes before any page is changed.
 		needsRecord: ( { choosePage } ) => ! choosePage,
 		async reply( params, text ) {
-			const page = await findRequestedPage( text );
+			const page = await findRequestedPage( text, params.pageId );
 
 			if ( ! page ) {
 				return {
