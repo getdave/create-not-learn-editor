@@ -11,6 +11,12 @@
  * from `thinking` to `streaming` to `ready`, and one with a picker then to
  * `committed` once its pick is sent, or `expired` when the conversation
  * moves on without one.
+ *
+ * What is typed is answered from a script, unless a language model is
+ * connected. Then the model answers it, showing the same pickers, except
+ * where a decision model is sure a picker answers it in full, like "change
+ * my colours", as that is quicker. Choices are always answered from the
+ * script. See `model.js` and `router.js`.
  */
 
 /**
@@ -22,6 +28,9 @@ import { __, sprintf } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { isConfirmation, matchRequest } from './engine';
+import { buildHistory } from './model-tools';
+import { hasModel, runModelTurn, stopModel } from './model';
+import { getRecentConversation, routeRequest } from './router';
 import {
 	hasEdits,
 	restoreSnapshot,
@@ -30,6 +39,7 @@ import {
 	takeSnapshot,
 } from './entity-changes';
 import { openRoute } from '../open-route';
+import { getPatternTitle } from '../routes/content/page-layouts';
 import { setCanvasMode } from '../site-canvas/mode';
 import { FALLBACK_REPLY, SKILLS } from './skills';
 import { chatActions, createMessageId, getChat } from './store';
@@ -95,11 +105,44 @@ function expireOpenPickers() {
 		} );
 }
 
-async function respond( text ) {
-	const match = matchRequest( text );
-	const id = addMessage( { role: 'assistant', status: 'thinking' } );
+/**
+ * Show a skill's reply, and its picker if it has one, in a message.
+ *
+ * @param {string}  id      The message.
+ * @param {?string} skillId The skill, if one matched.
+ * @param {Object}  params  What the request said.
+ * @param {Object}  reply   The skill's reply.
+ */
+function showReply( id, skillId, params, reply ) {
+	const skill = SKILLS[ skillId ];
 
-	await wait( THINKING_MS );
+	update( id, {
+		actions: reply.actions,
+		hasWidget: !! skill?.Widget && reply.widget !== false,
+		params: { ...params, ...reply.params },
+		skillId,
+		status: 'streaming',
+		suggestions: reply.suggestions,
+		text: reply.text,
+	} );
+}
+
+/**
+ * Answer from the script.
+ *
+ * @param {string}  text          What was typed, or the choice made.
+ * @param {?Object} match         What it asks for, from `matchRequest()`.
+ * @param {Object}  options       Options.
+ * @param {string}  options.id    A message already thinking, to answer in.
+ * @param {number}  options.since When it started thinking.
+ */
+async function respond( text, match, { id: thinkingId, since } = {} ) {
+	const id =
+		thinkingId || addMessage( { role: 'assistant', status: 'thinking' } );
+
+	await wait(
+		Math.max( 0, ( since || Date.now() ) + THINKING_MS - Date.now() )
+	);
 
 	if ( match?.skill === 'undo' ) {
 		await undoLatest( id );
@@ -111,14 +154,222 @@ async function respond( text ) {
 		? await skill.reply( match.params, text )
 		: FALLBACK_REPLY;
 
+	showReply( id, match?.skill, match?.params, reply );
+}
+
+/**
+ * Answer what was typed when a language model is connected: with a
+ * picker, when a decision model is sure the request only asks for one, as
+ * that is quicker, and otherwise with the language model.
+ *
+ * @param {string} text    What was typed.
+ * @param {Object} context What it might refer to, for `routeRequest()`.
+ */
+async function respondToTyped( text, context ) {
+	const since = Date.now();
+	const id = addMessage( { role: 'assistant', status: 'thinking' } );
+	const route = await routeRequest( text, context );
+
+	if ( route ) {
+		await respond( text, route, { id, since } );
+	} else {
+		await respondWithModel( text, context.picked, id );
+	}
+}
+
+/**
+ * Answer what was typed with the language model.
+ *
+ * The model can say something, change the canvas, and show a skill's
+ * picker, over several rounds. Each thing it says, and each picker, is a
+ * message of its own. The turn is kept on its first message for the model
+ * to see next time, and its messages are marked `fromModel` so they aren't
+ * sent twice.
+ *
+ * @param {string} text    What was typed.
+ * @param {string} picked  What was picked in the chat, from `describePick()`.
+ * @param {string} firstId A message already thinking, to answer in.
+ */
+async function respondWithModel( text, picked, firstId ) {
+	const history = buildHistory( getChat().getMessages() );
+
+	update( firstId, { fromModel: true } );
+	// The message thinking, waiting for whatever the model does next.
+	let thinkingId = firstId;
+
+	const takeMessage = () => {
+		const id =
+			thinkingId || addMessage( { fromModel: true, role: 'assistant' } );
+		thinkingId = null;
+		return id;
+	};
+
+	try {
+		const wire = await runModelTurn( {
+			history,
+			typed: text,
+			picked,
+			onRound: () => {
+				thinkingId ||= addMessage( {
+					fromModel: true,
+					role: 'assistant',
+					status: 'thinking',
+				} );
+			},
+			onText: ( said ) =>
+				update( takeMessage(), { status: 'streaming', text: said } ),
+			showSkill: async ( skillId, params, request ) => {
+				const id = takeMessage();
+
+				expireOpenPickers();
+
+				if ( skillId === 'undo' ) {
+					await undoLatest( id );
+					return getChat().getMessage( id )?.text;
+				}
+
+				const reply = await SKILLS[ skillId ].reply( params, request );
+
+				showReply( id, skillId, params, reply );
+
+				if ( params.designs ) {
+					showWrittenDesign( id );
+				}
+
+				return getChat().getMessage( id ).text;
+			},
+		} );
+
+		if ( ! wire ) {
+			return;
+		}
+
+		update( firstId, { wire } );
+
+		// The model finished without a word, having only changed the canvas.
+		if ( thinkingId ) {
+			update( thinkingId, { status: 'streaming', text: __( 'Done.' ) } );
+		}
+	} catch ( error ) {
+		update( takeMessage(), {
+			status: 'error',
+			text: sprintf(
+				/* translators: %s: error message. */
+				__( 'I couldn’t answer that. %s' ),
+				getErrorText( error )
+			),
+		} );
+	}
+}
+
+/**
+ * What the newest picker has picked, for the model to know what "this" is
+ * in "make this about sock puppets". Read before the conversation moves on,
+ * which puts back or folds away what is picked.
+ *
+ * @return {string} What was picked, or ''.
+ */
+function describePick() {
+	const message = [ ...getChat().getMessages() ]
+		.reverse()
+		.find( ( candidate ) => candidate.hasWidget );
+
+	if ( message?.status !== 'ready' || ! message.pickedLabel ) {
+		return '';
+	}
+
+	const { params = {}, pickedLabel, pickedPayload = {}, skillId } = message;
+
+	if ( skillId === 'add-page' ) {
+		return pickedPayload.pattern
+			? `In the chat, the user picked the page design "${ getPatternTitle(
+					pickedPayload.pattern
+				) }" (design name: ${
+					pickedPayload.pattern.name
+				}) for a new page called "${
+					pickedPayload.title
+				}", and hasn't created the page yet.`
+			: `In the chat, the user chose to start a new page called "${ pickedPayload.title }" blank, and hasn't created it yet.`;
+	}
+
+	if ( skillId === 'add-section' ) {
+		return `In the chat, the user just added the section design "${ pickedLabel }" (design name: ${ pickedPayload.patternName }) to the page "${ params.pageTitle }".`;
+	}
+
+	return `In the chat, the user picked "${ pickedLabel }" in a picker, and hasn't kept it yet.`;
+}
+
+/**
+ * Show a design the model wrote, first in a page or section picker.
+ *
+ * When the picker before it is the same, for the same page, as when the
+ * model has rewritten what was picked there, it carries on from that one:
+ * the designs written before stay, and a section already added is swapped
+ * by the next pick, as picking again in that picker would.
+ *
+ * @param {string} id The message showing the picker.
+ */
+function showWrittenDesign( id ) {
+	const message = getChat().getMessage( id );
+	const { params, skillId } = message;
+
+	if ( params.choosePage ) {
+		return;
+	}
+
+	const previous = [ ...getChat().getMessages() ]
+		.reverse()
+		.find( ( candidate ) => candidate.id !== id && candidate.hasWidget );
+	const isSame =
+		previous?.skillId === skillId &&
+		previous.params?.pageId === params.pageId;
+	const carried = {};
+
+	if ( isSame ) {
+		carried.params = {
+			...params,
+			designs: [
+				...params.designs,
+				...( previous.params.designs || [] ),
+			],
+		};
+
+		if ( skillId === 'add-section' && previous.undo ) {
+			Object.assign( carried, {
+				entity: previous.entity,
+				pickedLabel: previous.pickedLabel,
+				pickedPayload: previous.pickedPayload,
+				snapshot: previous.snapshot,
+				undo: previous.undo,
+			} );
+		}
+
+		update( previous.id, {
+			isNotKept: false,
+			status: 'expired',
+			summary: null,
+			undo: null,
+		} );
+	}
+
 	update( id, {
-		actions: reply.actions,
-		hasWidget: !! skill?.Widget && reply.widget !== false,
-		params: { ...match?.params, ...reply.params },
-		skillId: match?.skill,
-		status: 'streaming',
-		suggestions: reply.suggestions,
-		text: reply.text,
+		...carried,
+		text:
+			skillId === 'add-page'
+				? sprintf(
+						/* translators: %s: page name. */
+						__(
+							'I’ve written a “%s” page for you. It’s first below, ready to create, or pick another design.'
+						),
+						params.title
+					)
+				: sprintf(
+						/* translators: %s: page name. */
+						__(
+							'I’ve written a section for you. It’s first below. Pick it to put it on “%s”.'
+						),
+						params.pageTitle
+					),
 	} );
 }
 
@@ -228,9 +479,12 @@ export async function commitPending() {
  * "yes" or "save it". Asking for something else puts it back, as moving on
  * from it without keeping it.
  *
- * @param {string} text What was typed.
+ * @param {string}  text             What was typed, or the choice made.
+ * @param {Object}  options          Options.
+ * @param {boolean} options.isChoice Whether it is one of the chat's choices,
+ *                                   which the script always answers.
  */
-export async function sendMessage( text ) {
+export async function sendMessage( text, { isChoice = false } = {} ) {
 	const typed = String( text || '' ).trim();
 
 	if ( isBusy() || ! typed ) {
@@ -245,6 +499,10 @@ export async function sendMessage( text ) {
 		return;
 	}
 
+	const conversation = getRecentConversation( getChat().getMessages() );
+	// Before the pick is put back below.
+	const picked = describePick();
+
 	if ( pending ) {
 		cancelPending();
 		update( pending.messageId, { isNotKept: true } );
@@ -252,7 +510,12 @@ export async function sendMessage( text ) {
 
 	addMessage( { role: 'user', text: typed } );
 	expireOpenPickers();
-	await respond( typed );
+
+	if ( hasModel() && ! isChoice ) {
+		await respondToTyped( typed, { conversation, picked } );
+	} else {
+		await respond( typed, matchRequest( typed ) );
+	}
 }
 
 /**
@@ -605,6 +868,7 @@ export function runAction( action, id ) {
  * Start again, putting back anything picked and not sent.
  */
 export function startNewChat() {
+	stopModel();
 	cancelPending();
 	chatActions().reset();
 }

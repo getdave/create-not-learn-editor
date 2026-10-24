@@ -23,8 +23,14 @@ describe( 'matchRequest', () => {
 		[ 'I want different fonts', 'fonts' ],
 		[ 'Try a new look', 'look' ],
 		[ 'restyle my site', 'look' ],
-		[ 'change my header', 'header' ],
+		[ 'change my header', 'site-part' ],
+		[ 'Edit footer', 'site-part' ],
 		[ 'a new footer please', 'footer' ],
+		[ 'show me header layouts', 'header' ],
+		[ 'Change my footer layout', 'footer' ],
+		[ 'update my socials', 'social-links' ],
+		[ 'Change the social links in my footer', 'social-links' ],
+		[ 'add my Instagram', 'social-links' ],
 		[ 'Rename my site to Fernhouse', 'site-title' ],
 		[ 'change my site title', 'site-title' ],
 		[ 'add a logo', 'logo' ],
@@ -58,7 +64,7 @@ describe( 'matchRequest', () => {
 		[ "I'm done", 'exit' ],
 		[ "that's all, thanks", 'exit' ],
 		[ 'thanks!', 'thanks' ],
-		[ 'close my footer', 'footer' ],
+		[ 'close my footer', 'site-part' ],
 	] )( '"%s" asks for %s', ( text, skill ) => {
 		expect( matchRequest( text )?.skill ).toBe( skill );
 	} );
@@ -100,6 +106,18 @@ describe( 'getSiteNameFromText', () => {
 		[ 'add a logo', '' ],
 	] )( '"%s" names the site "%s"', ( text, name ) => {
 		expect( getSiteNameFromText( text ) ).toBe( name );
+	} );
+} );
+
+describe( 'header and footer requests', () => {
+	test.each( [
+		[ 'Edit footer', 'footer' ],
+		[ 'change my header', 'header' ],
+		[ 'what is at the top of my site?', 'header' ],
+		[ 'update my socials', 'footer' ],
+		[ 'put my Instagram in the header', 'header' ],
+	] )( '"%s" is about the %s', ( text, area ) => {
+		expect( matchRequest( text ).params.area ).toBe( area );
 	} );
 } );
 

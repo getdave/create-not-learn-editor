@@ -31,7 +31,7 @@ function getTitle( page ) {
 	return decodeEntities( title || '' );
 }
 
-function getHomepageId( select ) {
+export function getHomepageId( select ) {
 	const site = select( coreDataStore ).getEntityRecord( 'root', 'site' );
 
 	return site?.show_on_front === 'page' ? site.page_on_front || null : null;

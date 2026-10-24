@@ -9,6 +9,7 @@ import { Button } from '@wordpress/components';
 import { store as coreDataStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
 import {
+	createInterpolateElement,
 	useEffect,
 	useLayoutEffect,
 	useRef,
@@ -29,6 +30,7 @@ import {
 	siteLogo as siteLogoIcon,
 	title as titleIcon,
 	styles as stylesIcon,
+	tip as tipIcon,
 	typography as typographyIcon,
 	undo as undoIcon,
 } from '@wordpress/icons';
@@ -52,7 +54,9 @@ import {
 	undoChange,
 	undoSavedPick,
 } from './conversation';
+import { GlobalNote } from '../global-scope';
 import { sparkleIcon } from './icons';
+import { isSiteWide } from './scope';
 import { PAGE_SUGGESTIONS, SKILLS, SUGGESTION_GROUPS } from './skills';
 import { findTargetPage } from './target-page';
 import { getSelectedSection } from './target-section';
@@ -94,7 +98,7 @@ function SuggestionButton( { suggestion } ) {
 	return (
 		<button
 			className="cnl-chat-suggestions__item"
-			onClick={ () => sendMessage( text ) }
+			onClick={ () => sendMessage( text, { isChoice: true } ) }
 			type="button"
 		>
 			<Icon icon={ SUGGESTION_ICONS[ suggestion.icon ] } size={ 20 } />
@@ -115,7 +119,9 @@ function SuggestionGroup( { group, onOpen } ) {
 			className="cnl-chat-suggestions__group"
 			onClick={ () =>
 				isSingle
-					? sendMessage( getText( group.suggestions[ 0 ] ) )
+					? sendMessage( getText( group.suggestions[ 0 ] ), {
+							isChoice: true,
+						} )
 					: onOpen()
 			}
 			type="button"
@@ -333,6 +339,11 @@ function Widget( { message, scrollRef } ) {
 			ref={ widgetRef }
 		>
 			<div className="cnl-chat-widget__body">
+				{ isSiteWide( message.skillId ) && (
+					<GlobalNote className="cnl-chat-widget__scope">
+						{ __( 'Changes every page of your site' ) }
+					</GlobalNote>
+				) }
 				{ isReady ? (
 					<skill.Widget
 						entity={ entity }
@@ -375,8 +386,10 @@ function Widget( { message, scrollRef } ) {
 }
 
 /*
- * Under a picker: the screen it comes from, for anyone who wants that
- * screen's fuller controls. Following it closes the chat.
+ * Under a picker: the screen it comes from, as a tip, for anyone who wants
+ * that screen's fuller controls. Following it closes the chat. A screen
+ * that isn't somewhere to go "in", like zooming out on the canvas, gives
+ * its own sentence, with the link in `<a>`.
  */
 function ScreenLink( { message, skill } ) {
 	const screen = skill.screen?.( message );
@@ -387,10 +400,27 @@ function ScreenLink( { message, skill } ) {
 
 	return (
 		<p className="cnl-chat-widget__elsewhere">
-			{ __( 'Or do this in' ) }{ ' ' }
-			<Button onClick={ () => openScreen( screen ) } variant="link">
-				{ screen.name }
-			</Button>
+			<Icon icon={ tipIcon } size={ 16 } />
+			<span>
+				{ createInterpolateElement(
+					screen.tip ||
+						sprintf(
+							/* translators: %s: screen name, like "Menus". */
+							__(
+								'Did you know you can also do this in <a>%s</a>?'
+							),
+							screen.name
+						),
+					{
+						a: (
+							<Button
+								onClick={ () => openScreen( screen ) }
+								variant="link"
+							/>
+						),
+					}
+				) }
+			</span>
 		</p>
 	);
 }

@@ -78,6 +78,8 @@ import { afterZoomIn, whenZoomSettles } from '../compose/use-compose-zoom';
 import {
 	PART_CONTENT,
 	PART_FREEFORM,
+	STORE_NAME as CANVAS_STORE,
+	requestOpenPart,
 	setOpenPart,
 	setPickedSection as setSharedPickedSection,
 } from '../mode';
@@ -1024,6 +1026,39 @@ export function SectionModesLayer( {
 		}
 	}, [ openPartId ] );
 	useEffect( () => () => setOpenPart( null ), [] );
+
+	/*
+	 * The chat asked for the header or footer to be opened, as Edit header
+	 * or Edit footer does, so a language model can change its words. Taken
+	 * up once the part is on this canvas, in Edit, where it can open.
+	 */
+	const partRequest = useSelect(
+		( select ) => select( CANVAS_STORE ).getPartRequest(),
+		[]
+	);
+	const requestedPartId =
+		( partRequest &&
+			! isComposing &&
+			parts.find(
+				( part ) =>
+					part.area === partRequest && targets.has( part.clientId )
+			)?.clientId ) ||
+		null;
+	useEffect( () => {
+		if ( ! requestedPartId ) {
+			return;
+		}
+
+		requestOpenPart( null );
+
+		if ( activeRef.current?.id !== requestedPartId ) {
+			enterMode( requestedPartId, MODE_CONTENT );
+		}
+
+		// Nobody clicked it, so it may be out of sight.
+		scrollCanvasTo( editorRef, requestedPartId );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ requestedPartId ] );
 
 	// Compose works on layouts, colours and the page's order: Edit content
 	// and Freeform give way to it, the section staying picked.

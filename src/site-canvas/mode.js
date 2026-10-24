@@ -11,7 +11,9 @@
  * The section Compose has picked is kept beside it, for the chat: Compose's
  * pick is its own, not core's block selection. So is the header or footer
  * open in Edit content or Freeform, for the editor extension that opens a
- * template part's blocks: how far they open depends on which.
+ * template part's blocks: how far they open depends on which. And so is a
+ * request from outside the canvas, the chat's, to open the header or footer
+ * as Edit header or Edit footer does, for the canvas to take up.
  *
  * Kept in a data store, registered once by name, rather than in this module:
  * app init and each route are built separately, each with its own copy of
@@ -51,6 +53,7 @@ if ( ! select( STORE_NAME ) ) {
 				state = {
 					mode: MODE_BROWSE,
 					openPart: null,
+					partRequest: null,
 					pickedSection: null,
 				},
 				action
@@ -62,6 +65,8 @@ if ( ! select( STORE_NAME ) ) {
 						return { ...state, openPart: action.openPart };
 					case 'SET_PICKED_SECTION':
 						return { ...state, pickedSection: action.clientId };
+					case 'SET_PART_REQUEST':
+						return { ...state, partRequest: action.area };
 				}
 
 				return state;
@@ -79,11 +84,16 @@ if ( ! select( STORE_NAME ) ) {
 					clientId,
 					type: 'SET_PICKED_SECTION',
 				} ),
+				setPartRequest: ( area ) => ( {
+					area,
+					type: 'SET_PART_REQUEST',
+				} ),
 			},
 			selectors: {
 				getCanvasMode: ( state ) => state.mode,
 				getOpenPart: ( state ) => state.openPart,
 				getPickedSection: ( state ) => state.pickedSection,
+				getPartRequest: ( state ) => state.partRequest,
 			},
 		} )
 	);
@@ -127,6 +137,19 @@ export function useCanvasMode() {
 export function setPickedSection( clientId ) {
 	if ( clientId !== select( STORE_NAME ).getPickedSection() ) {
 		dispatch( STORE_NAME ).setPickedSection( clientId );
+	}
+}
+
+/**
+ * Ask the canvas to open the header or footer, as Edit header or Edit
+ * footer does, or stop asking. The canvas takes the request up, and clears
+ * it, once it is in Edit or Compose with that part on it.
+ *
+ * @param {?string} area `header` or `footer`, or null.
+ */
+export function requestOpenPart( area ) {
+	if ( area !== select( STORE_NAME ).getPartRequest() ) {
+		dispatch( STORE_NAME ).setPartRequest( area );
 	}
 }
 
