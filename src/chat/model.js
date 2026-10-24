@@ -33,6 +33,8 @@ import {
 	getModelToolDeclarations,
 	getSkillRequest,
 } from './model-tools';
+import { isSiteWide } from './scope';
+import { openSitePart } from './site-parts';
 import { listDesigns, readDesign, writeDesign } from './written-designs';
 
 const CHAT_PATH = '/agentic-editor/v1/chat';
@@ -129,6 +131,7 @@ function getContext( picked ) {
 
 const ACTIONS = {
 	'list-designs': listDesigns,
+	'open-site-part': openSitePart,
 	'read-design': readDesign,
 };
 
@@ -169,6 +172,9 @@ async function runToolCall( call, editor, showSkill, typed ) {
 			shown,
 			response: {
 				shown: shown || '',
+				changes: isSiteWide( tool.skill )
+					? 'Every page of the site. The chat marks it so.'
+					: 'Only the page it is on, named in the chat.',
 				note: 'The user sees this in the chat now and finishes the change there.',
 			},
 		};

@@ -14,9 +14,9 @@
  *
  * What is typed is answered from a script, unless a language model is
  * connected. Then the model answers it, showing the same pickers, except
- * where a picker answers it in full, like "change my colours", which the
- * script still answers, as it is quicker. Choices are always answered from
- * the script. See `model.js` and `router.js`.
+ * where a decision model is sure a picker answers it in full, like "change
+ * my colours", as that is quicker. Choices are always answered from the
+ * script. See `model.js` and `router.js`.
  */
 
 /**
@@ -158,9 +158,9 @@ async function respond( text, match, { id: thinkingId, since } = {} ) {
 }
 
 /**
- * Answer what was typed when a language model is connected: from the
- * script, or a decision model, when one is sure the request only asks for
- * a picker, as that is quicker, and otherwise with the language model.
+ * Answer what was typed when a language model is connected: with a
+ * picker, when a decision model is sure the request only asks for one, as
+ * that is quicker, and otherwise with the language model.
  *
  * @param {string} text    What was typed.
  * @param {Object} context What it might refer to, for `routeRequest()`.

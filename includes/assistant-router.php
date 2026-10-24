@@ -210,26 +210,94 @@ function cnl_editor_register_assistant_router_routes() {
 /**
  * What the chat can answer without the language model, for Jev to choose
  * from, keyed by the chat's skills. Each is a picker that answers the
- * request in full. Anything else is `other`, for the language model.
+ * request in full, so each says what it doesn't cover too, like a mobile
+ * menu for the menu picker, which only edits the main menu's links.
+ * Anything else is `other`, for the language model.
  *
- * @return array<string, string> Descriptions, keyed by skill.
+ * @return array<string, array> Descriptions, keyed by skill.
  */
 function cnl_editor_get_assistant_routes() {
 	return array(
-		'look'           => 'See or change the overall look of the whole site, which changes its colors, fonts and spacing together.',
-		'colors'         => 'See or change the color palette of the whole site.',
-		'fonts'          => 'See or change the fonts of the whole site.',
-		'logo'           => 'Add, change or remove the site logo.',
-		'site-title'     => 'Change the name or title of the site.',
-		'header'         => 'Change the layout of the header at the top of every page.',
-		'footer'         => 'Change the layout of the footer at the bottom of every page.',
-		'menu'           => 'Change the site menu: reorder, rename, add or remove its links.',
-		'section-design' => 'Change the layout or colors of a section already on a page, such as the one selected.',
-		'undo'           => 'Undo the last change kept in this chat.',
-		'exit'           => 'Finished, and wants to close the chat.',
-		'greeting'       => 'Only says hello.',
-		'thanks'         => 'Only says thanks, with nothing new to ask.',
-		'other'          => 'Anything else, such as adding a page or section, writing or changing the words or images on a page, changing one particular block, a question, or more than one request at once.',
+		'look'           => array(
+			'covers'   => 'Seeing or changing the overall look of the whole site, a theme style that changes its colors, fonts and spacing together.',
+			'excludes' => 'Changing one particular thing\'s look, like a section, the header or a button.',
+			'examples' => array( 'try a new look', 'give my site a different style' ),
+		),
+		'colors'         => array(
+			'covers'   => 'Seeing or changing the color palette of the whole site.',
+			'excludes' => 'The colors of one section, block or part of a page.',
+			'examples' => array( 'change my colours', 'show me some other palettes' ),
+		),
+		'fonts'          => array(
+			'covers'   => 'Seeing or changing the fonts of the whole site.',
+			'excludes' => 'The size or style of particular words.',
+			'examples' => array( 'pick new fonts', 'different typography' ),
+		),
+		'logo'           => array(
+			'covers'   => 'Adding, changing or removing the site logo.',
+			'examples' => array( 'add a logo', 'remove my logo' ),
+		),
+		'site-title'     => array(
+			'covers'   => 'Changing the name or title of the site.',
+			'excludes' => 'The title of a page or post.',
+			'examples' => array( 'rename my site', 'change the site title' ),
+		),
+		'header'         => array(
+			'covers'   => 'Choosing a different layout for the header at the top of every page.',
+			'excludes' => 'Changing the words, links, logo or social links in the header, or how it works on phones.',
+			'examples' => array( 'show me header layouts', 'a different header' ),
+		),
+		'edit-header'    => array(
+			'covers'   => 'Changing or editing the header, without saying what about it.',
+			'excludes' => 'Saying what to change, like its layout, its menu or a social link\'s address.',
+			'examples' => array( 'edit header', 'change my header', 'I want to update the top of my site' ),
+		),
+		'footer'         => array(
+			'covers'   => 'Choosing a different layout for the footer at the bottom of every page.',
+			'excludes' => 'Changing the words, links or social links in the footer.',
+			'examples' => array( 'a new footer', 'show me footer layouts' ),
+		),
+		'edit-footer'    => array(
+			'covers'   => 'Changing or editing the footer, without saying what about it.',
+			'excludes' => 'Saying what to change, like its layout, its words or a social link\'s address.',
+			'examples' => array( 'edit footer', 'change my footer', 'can I change the bottom of my pages?' ),
+		),
+		'social-links'   => array(
+			'covers'   => 'Changing the site\'s social links or social media profiles, without giving their addresses.',
+			'excludes' => 'Giving the address of a profile to put in, which is done for the user.',
+			'examples' => array( 'update my socials', 'add Instagram to my social links', 'remove Twitter' ),
+		),
+		'menu'           => array(
+			'covers'   => 'Editing the links in the site\'s main menu: reordering, renaming, adding or removing pages and links.',
+			'excludes' => 'A separate or second menu, a mobile menu, how the menu looks or behaves on phones, or the menu\'s design.',
+			'examples' => array( 'edit my menu', 'add the Café page to my menu', 'move About first in the menu' ),
+		),
+		'section-design' => array(
+			'covers'   => 'Changing the layout or colors of a section already on a page, such as the one selected.',
+			'excludes' => 'Changing the words or images in a section, adding a section, or the whole site\'s colors.',
+			'examples' => array( 'make this section darker', 'the testimonial looks too pale', 'lay this out differently' ),
+		),
+		'undo'           => array(
+			'covers'   => 'Undoing the last change kept in this chat.',
+			'excludes' => 'Undoing something done on the page outside the chat.',
+			'examples' => array( 'undo that', 'put it back' ),
+		),
+		'exit'           => array(
+			'covers'   => 'Being finished and wanting to close the chat.',
+			'examples' => array( 'I\'m done', 'close the chat' ),
+		),
+		'greeting'       => array(
+			'covers'   => 'Only saying hello, with nothing to ask.',
+			'examples' => array( 'hi', 'good morning' ),
+		),
+		'thanks'         => array(
+			'covers'   => 'Only saying thanks, with nothing new to ask.',
+			'examples' => array( 'thanks', 'perfect, cheers' ),
+		),
+		'other'          => array(
+			'covers'   => 'Anything else: adding a page or section, writing or changing the words, images or links on a page or in the header or footer, a mobile or second menu, how something works on phones, one particular block, a question, or more than one request at once.',
+			'examples' => array( 'add a mobile menu', 'my Facebook is facebook.com/fernhouse, put it in the footer', 'change the words in my footer', 'add a page about our team', 'what can you do?' ),
+		),
 	);
 }
 
@@ -433,7 +501,7 @@ function cnl_editor_rest_route_assistant_request( $request ) {
 		return $answers;
 	}
 
-	return rest_ensure_response( cnl_editor_get_assistant_route( $answers, $pages ) );
+	return rest_ensure_response( cnl_editor_get_assistant_route( $answers, $pages, $request['text'] ) );
 }
 
 /**
@@ -474,11 +542,12 @@ function cnl_editor_rest_route_assistant_section( $request ) {
 /**
  * Turn Jev's answers into the skill the chat shows, if it is sure enough.
  *
- * @param array $answers Jev's answers, keyed by question.
- * @param array $pages   The pages it chose from.
+ * @param array  $answers Jev's answers, keyed by question.
+ * @param array  $pages   The pages it chose from.
+ * @param string $text    The message.
  * @return array `{ skill, params, confidence }`.
  */
-function cnl_editor_get_assistant_route( $answers, $pages = array() ) {
+function cnl_editor_get_assistant_route( $answers, $pages = array(), $text = '' ) {
 	$choice     = $answers['request']['choice'] ?? 'other';
 	$confidence = (float) ( $answers['request']['confidence'] ?? 0 );
 	$threshold  = cnl_editor_get_assistant_router_threshold();
@@ -502,6 +571,19 @@ function cnl_editor_get_assistant_route( $answers, $pages = array() ) {
 	}
 
 	$route['skill'] = $choice;
+
+	// The header and footer as a whole are one skill, for either.
+	if ( 'edit-header' === $choice || 'edit-footer' === $choice ) {
+		$route['skill']  = 'site-part';
+		$route['params'] = array( 'area' => 'edit-header' === $choice ? 'header' : 'footer' );
+	}
+
+	// The social links are one list, in the header or footer.
+	if ( 'social-links' === $choice ) {
+		$route['params'] = array(
+			'area' => false !== stripos( $text, 'header' ) && false === stripos( $text, 'footer' ) ? 'header' : 'footer',
+		);
+	}
 
 	if ( 'site-title' === $choice ) {
 		$route['params'] = array( 'name' => '' );

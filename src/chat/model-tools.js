@@ -18,7 +18,9 @@
  * Adding a page or a section can show a design the model has written, from
  * the `WRITTEN_DESIGN` inputs, first among the theme's. See
  * `written-designs.js`. The tools with an `action` rather than a `skill`
- * only read, and the model carries on after them.
+ * show no picker, and the model carries on after them: they read, or, for
+ * the header and footer, open them for Agentic Editor's tools to change.
+ * See `site-parts.js`.
  */
 const PAGE_INPUT = {
 	type: 'string',
@@ -86,13 +88,46 @@ export const MODEL_TOOLS = [
 		name: 'cnl_show_header_layouts',
 		skill: 'header',
 		description:
-			'Show the layouts for the header at the top of every page, for the user to pick one.',
+			'Show the layouts for the header at the top of every page, for the user to pick one. Only changes its layout, not its words or links.',
 	},
 	{
 		name: 'cnl_show_footer_layouts',
 		skill: 'footer',
 		description:
-			'Show the layouts for the footer at the bottom of every page, for the user to pick one.',
+			'Show the layouts for the footer at the bottom of every page, for the user to pick one. Only changes its layout, not its words or links.',
+	},
+	{
+		name: 'cnl_show_site_part_options',
+		skill: 'site-part',
+		description:
+			'Show what can be changed about the header or footer, as its screen lists it: its layout, the site name, the logo, the menu and the social links. Use it when the user asks to edit or change the header or footer without saying what about it.',
+		properties: {
+			part: {
+				type: 'string',
+				enum: [ 'header', 'footer' ],
+				description: 'Which one.',
+			},
+		},
+		getParams: ( { part } ) => ( {
+			area: part === 'header' ? 'header' : 'footer',
+		} ),
+	},
+	{
+		name: 'cnl_edit_social_links',
+		skill: 'social-links',
+		description:
+			"Show the site's social links, for the user to add, remove, reorder or fill in their addresses. Use it when the user wants to change their social links without giving the addresses.",
+		properties: {
+			part: {
+				type: 'string',
+				enum: [ 'header', 'footer' ],
+				description:
+					'Where the user asked about them. They are the same list in both.',
+			},
+		},
+		getParams: ( { part } ) => ( {
+			area: part === 'header' ? 'header' : 'footer',
+		} ),
 	},
 	{
 		name: 'cnl_edit_menu',
@@ -147,6 +182,19 @@ export const MODEL_TOOLS = [
 		getParams: ( { focus } ) => ( {
 			focus: [ 'color', 'layout' ].includes( focus ) ? focus : 'both',
 		} ),
+	},
+	{
+		name: 'cnl_open_site_part',
+		action: 'open-site-part',
+		description:
+			'Open the header or footer on the canvas, as the user would with Edit header or Edit footer, so the editor tools can change its words, links, images or social links. Its blocks are locked until it is open. Returns the blocks that can be changed.',
+		properties: {
+			part: {
+				type: 'string',
+				enum: [ 'header', 'footer' ],
+				description: 'Which to open.',
+			},
+		},
 	},
 	{
 		name: 'cnl_get_designs',

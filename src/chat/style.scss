@@ -832,6 +832,11 @@ $layout: '#create-not-learn-editor-app [class*="__layout"]:not([class*="__has-fu
 	padding: var(--wpds-dimension-padding-md);
 }
 
+// Over a picker that changes the whole site, not only the page beside it.
+.cnl-chat-widget__scope {
+	margin-block-end: var(--wpds-dimension-gap-md);
+}
+
 /*
  * Under a picker: what is picked, and the button that keeps it.
  */

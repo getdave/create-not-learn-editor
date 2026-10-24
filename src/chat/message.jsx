@@ -54,7 +54,9 @@ import {
 	undoChange,
 	undoSavedPick,
 } from './conversation';
+import { GlobalNote } from '../global-scope';
 import { sparkleIcon } from './icons';
+import { isSiteWide } from './scope';
 import { PAGE_SUGGESTIONS, SKILLS, SUGGESTION_GROUPS } from './skills';
 import { findTargetPage } from './target-page';
 import { getSelectedSection } from './target-section';
@@ -337,6 +339,11 @@ function Widget( { message, scrollRef } ) {
 			ref={ widgetRef }
 		>
 			<div className="cnl-chat-widget__body">
+				{ isSiteWide( message.skillId ) && (
+					<GlobalNote className="cnl-chat-widget__scope">
+						{ __( 'Changes every page of your site' ) }
+					</GlobalNote>
+				) }
 				{ isReady ? (
 					<skill.Widget
 						entity={ entity }
@@ -380,7 +387,9 @@ function Widget( { message, scrollRef } ) {
 
 /*
  * Under a picker: the screen it comes from, as a tip, for anyone who wants
- * that screen's fuller controls. Following it closes the chat.
+ * that screen's fuller controls. Following it closes the chat. A screen
+ * that isn't somewhere to go "in", like zooming out on the canvas, gives
+ * its own sentence, with the link in `<a>`.
  */
 function ScreenLink( { message, skill } ) {
 	const screen = skill.screen?.( message );
@@ -394,11 +403,14 @@ function ScreenLink( { message, skill } ) {
 			<Icon icon={ tipIcon } size={ 16 } />
 			<span>
 				{ createInterpolateElement(
-					sprintf(
-						/* translators: %s: screen name, like "Menus". */
-						__( 'Did you know you can also do this in <a>%s</a>?' ),
-						screen.name
-					),
+					screen.tip ||
+						sprintf(
+							/* translators: %s: screen name, like "Menus". */
+							__(
+								'Did you know you can also do this in <a>%s</a>?'
+							),
+							screen.name
+						),
 					{
 						a: (
 							<Button

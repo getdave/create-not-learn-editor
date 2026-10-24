@@ -14,9 +14,9 @@
  */
 
 // Words about a section's colours, and about how it is laid out.
-export const SECTION_COLOR =
+const SECTION_COLOR =
 	/\b(colou?rs?|palettes?|backgrounds?|darker|lighter|dark|light|brighter|warmer|cooler|bolder|muted|shades?)\b/i;
-export const SECTION_LAYOUT =
+const SECTION_LAYOUT =
 	/\b(layouts?|arrangements?|arrange|rearrange|re-arrange|lay (it |this |that )?out|laid out|alignment|align|flip|mirror|swap sides|other side|left|right|centre|center|centred|centered|above|below)\b/i;
 const ADDS_SECTION = /\b(add|insert|include)\b/i;
 const NEW_SECTION = /\b(new|another|extra)\s+(?:\S+\s+){0,2}sections?\b/i;
@@ -72,6 +72,23 @@ export function mentionsSectionLayout( text ) {
 	return SECTION_LAYOUT.test( text );
 }
 
+// The header and footer, and asking for another layout for one rather than
+// to change something in it.
+const HEADER = /\b(header|top of (the|my) (site|pages?))\b/i;
+const FOOTER = /\b(footer|bottom of (the|my) (site|pages?))\b/i;
+const PART_LAYOUT =
+	/\b(layouts?|designs?|styles?|looks?|new|different|another|other|swap|switch)\b/i;
+
+/**
+ * Which part a request about the header or footer means.
+ *
+ * @param {string} text Message.
+ * @return {string} `header`, or `footer` when it doesn't say.
+ */
+function getAreaFromText( text ) {
+	return HEADER.test( text ) && ! FOOTER.test( text ) ? 'header' : 'footer';
+}
+
 /**
  * The requests, most particular first. Each `test` is a pattern, or a
  * function, matched against the whole message.
@@ -84,6 +101,10 @@ const RULES = [
 	{
 		skill: 'exit',
 		test: /^\s*(?:please\s+)?(?:exit|close|quit|leave|stop|bye|goodbye|good bye|i'?m done|i am done|that'?s all|that is all|all done|finish|finished|end|(?:close|exit|quit|leave|hide|end)\s+(?:the\s+|this\s+)?(?:assistant|chat|ai))(?:[,\s]+(?:please|now|thanks|thank you))?[\s!.]*$/i,
+	},
+	{
+		skill: 'social-links',
+		test: /\b(social|socials|facebook|instagram|twitter|tiktok|linkedin|youtube|pinterest|mastodon|bluesky)\b/i,
 	},
 	{ skill: 'section-design', test: isSectionDesignRequest },
 	{ skill: 'add-section', test: /\bsections?\b/i },
@@ -111,10 +132,17 @@ const RULES = [
 		skill: 'fonts',
 		test: /\b(fonts?|typography|typefaces?|lettering|headings? font|text style)\b/i,
 	},
-	{ skill: 'header', test: /\b(header|top of (the|my) (site|pages?))\b/i },
+	{
+		skill: 'header',
+		test: ( text ) => HEADER.test( text ) && PART_LAYOUT.test( text ),
+	},
 	{
 		skill: 'footer',
-		test: /\b(footer|bottom of (the|my) (site|pages?))\b/i,
+		test: ( text ) => FOOTER.test( text ) && PART_LAYOUT.test( text ),
+	},
+	{
+		skill: 'site-part',
+		test: ( text ) => HEADER.test( text ) || FOOTER.test( text ),
 	},
 	{
 		skill: 'look',
@@ -313,6 +341,12 @@ export function matchRequest( text ) {
 			return {
 				skill: rule.skill,
 				params: { focus: getSectionFocusFromText( message ) },
+			};
+		case 'site-part':
+		case 'social-links':
+			return {
+				skill: rule.skill,
+				params: { area: getAreaFromText( message ) },
 			};
 	}
 

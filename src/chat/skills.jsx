@@ -90,7 +90,7 @@ import {
 } from '../section-picker';
 import { getStartPlaces } from '../start-places';
 import { Carousel } from './carousel';
-import { cancelPending } from './conversation';
+import { cancelPending, sendMessage } from './conversation';
 import { getBlocksEdit } from './entity-changes';
 import { mentionsSectionLayout } from './engine';
 import {
@@ -280,6 +280,51 @@ function Loading() {
  * The menu editor comes from the chat-extras module, which loads the first
  * time it is needed.
  */
+/*
+ * What can be changed about the header or footer, a row each, as on its
+ * screen. Each asks the chat for it, as a choice does.
+ */
+function SitePartOptionsWidget( { message } ) {
+	const extras = useChatExtras();
+
+	if ( ! extras ) {
+		return <Loading />;
+	}
+
+	return (
+		<extras.SitePartOptions
+			area={ message.params.area }
+			onChoose={ ( text ) => sendMessage( text, { isChoice: true } ) }
+		/>
+	);
+}
+
+function SocialLinksWidget( { message, onPick } ) {
+	const extras = useChatExtras();
+
+	if ( ! extras ) {
+		return <Loading />;
+	}
+
+	return (
+		<GlobalScope>
+			<extras.SocialLinksWidget
+				area={ message.params.area }
+				onPick={ onPick }
+			/>
+		</GlobalScope>
+	);
+}
+
+// The Header or Footer screen, or one of its views.
+function getSitePartScreen( area, view ) {
+	return {
+		name: area === 'header' ? __( 'Header' ) : __( 'Footer' ),
+		path: area === 'header' ? '/design/header' : '/design/footer',
+		search: view ? { view } : {},
+	};
+}
+
 function MenuWidget( { onEntity, onPick } ) {
 	const extras = useChatExtras();
 
@@ -1010,11 +1055,18 @@ function SectionDesignPicker( { message, onPick } ) {
 	return (
 		<div className="cnl-chat-widget__stack">
 			<Text variant="body-md">
-				{ sprintf(
-					/* translators: %s: section name. */
-					__( 'Changing “%s”' ),
-					title
-				) }
+				{ params.pageTitle
+					? sprintf(
+							/* translators: 1: section name, 2: page name. */
+							__( 'Changing “%1$s” on “%2$s”' ),
+							title,
+							params.pageTitle
+						)
+					: sprintf(
+							/* translators: %s: section name. */
+							__( 'Changing “%s”' ),
+							title
+						) }
 			</Text>
 			{ showLayouts && (
 				<div className="cnl-section-design__group">
@@ -1210,8 +1262,12 @@ async function getSectionDesignReply(
 
 		return {
 			params: base,
-			text: __(
-				'Which section would you like to change? Pick it here, or click it on your page.'
+			text: sprintf(
+				/* translators: %s: page name. */
+				__(
+					'Which section of “%s” would you like to change? Pick it here, or click it on the page.'
+				),
+				page.title
 			),
 		};
 	}
@@ -1561,6 +1617,41 @@ export const SKILLS = {
 				label
 			),
 	},
+	// The header or footer as a whole: what can be changed about it.
+	'site-part': {
+		screen: ( { params } ) => getSitePartScreen( params?.area ),
+		hasFooter: () => false,
+		reply: ( { area } ) => ( {
+			params: { area: area === 'header' ? 'header' : 'footer' },
+			text:
+				area === 'header'
+					? __(
+							'Your header is at the top of every page. What would you like to change about it?'
+						)
+					: __(
+							'Your footer is at the bottom of every page. What would you like to change about it?'
+						),
+		} ),
+		Widget: SitePartOptionsWidget,
+	},
+	'social-links': {
+		screen: ( { params } ) => getSitePartScreen( params?.area, 'social' ),
+		action: () => __( 'Save social links' ),
+		keys: [ 'blocks', 'content' ],
+		hasBlocks: true,
+		useEntity: useSitePartEntity,
+		reply: ( { area } ) => ( {
+			params: { area: area === 'header' ? 'header' : 'footer' },
+			text: __(
+				'Here are your social links. Add your addresses, and you’ll see them on your site as you type. They show on every page.'
+			),
+		} ),
+		Widget: SocialLinksWidget,
+		chip: ( { label } ) =>
+			/* translators: %s: social services, like "Facebook, Instagram". */
+			sprintf( __( 'Social links: %s' ), label ),
+		done: () => __( 'Done. Your social links are saved, on every page.' ),
+	},
 	'add-page': {
 		screen: () => ( {
 			name: __( 'Pages' ),
@@ -1684,7 +1775,11 @@ export const SKILLS = {
 			params?.pageId
 				? {
 						canvasMode: MODE_COMPOSE,
-						name: __( 'Compose' ),
+						name: __( 'Zoom out' ),
+						// Compose is only "Zoom out" on the canvas.
+						tip: __(
+							'Did you know you can also do this by <a>zooming out</a> on the page?'
+						),
 						path: '/types/page/list/all',
 						search: { previewId: params.pageId },
 					}
