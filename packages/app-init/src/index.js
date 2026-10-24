@@ -18,9 +18,9 @@ import {
  * Internal dependencies
  */
 import { preloadDeferredWhenIdle } from '../../../src/app-init-deferred';
+import { registerBlockToolbar } from '../../../src/block-toolbar';
 import { mountChat } from '../../../src/chat';
 import { mountCommands } from '../../../src/commands';
-import { registerFontSizeToolbar } from '../../../src/editor-extensions/font-size-toolbar';
 import { registerSectionMenu } from '../../../src/editor-extensions/section-menu';
 import { registerSectionPatterns } from '../../../src/editor-extensions/section-patterns';
 import { registerTemplatePartEditing } from '../../../src/editor-extensions/template-part-editing';
@@ -33,7 +33,7 @@ import { enhanceSidebar } from './sidebar';
 export async function init() {
 	registerSectionPatterns();
 	registerSectionMenu();
-	registerFontSizeToolbar();
+	registerBlockToolbar();
 	registerTemplatePartEditing();
 	registerLayoutWireframes();
 	mountEditorLayer();

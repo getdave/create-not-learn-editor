@@ -37,6 +37,7 @@ import {
 	putLayoutFirst,
 	useSitePartLayouts,
 } from '../routes/site-part/layouts';
+import { usePreviewBlocks } from './preview-blocks';
 
 const NO_LAYOUTS = {
 	footer: __( 'Your theme doesn’t offer any layouts for its footer.' ),
@@ -45,6 +46,7 @@ const NO_LAYOUTS = {
 
 function LayoutCard( { isCurrent, onSelect, pattern, Preview } ) {
 	const title = getPatternTitle( pattern );
+	const previewBlocks = usePreviewBlocks( getPatternContent( pattern ) );
 
 	return (
 		<li>
@@ -57,10 +59,7 @@ function LayoutCard( { isCurrent, onSelect, pattern, Preview } ) {
 				type="button"
 			>
 				<span aria-hidden className="cnl-site-part__layout-preview">
-					<Preview
-						content={ getPatternContent( pattern ) }
-						description={ title }
-					/>
+					<Preview blocks={ previewBlocks } description={ title } />
 				</span>
 				<span className="cnl-site-part__layout-footer">
 					<span className="cnl-site-part__layout-title">

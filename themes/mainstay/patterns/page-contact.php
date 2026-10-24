@@ -1,8 +1,8 @@
 <?php
 /**
- * Title: Contact page
+ * Title: Contact
  * Slug: mainstay/page-contact
- * Categories: mainstay/pages
+ * Categories: mainstay/pages, mainstay/pages-essentials
  * Keywords: contact, visit, find us, opening hours
  * Post Types: page
  * Block Types: core/post-content

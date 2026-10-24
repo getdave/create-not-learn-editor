@@ -1,8 +1,8 @@
 <?php
 /**
- * Title: About page
+ * Title: About
  * Slug: mainstay/page-about
- * Categories: mainstay/pages
+ * Categories: mainstay/pages, mainstay/pages-essentials
  * Keywords: about, story, team, who we are
  * Post Types: page
  * Block Types: core/post-content

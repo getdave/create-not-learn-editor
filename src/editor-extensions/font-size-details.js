@@ -1,11 +1,11 @@
 /**
- * Which blocks offer font sizes in their toolbar, and the attributes a choice
- * writes. Kept apart from `font-size-toolbar.js` so it can be tested without
- * the block editor.
+ * Which blocks offer font sizes in their options menu, and the attributes a
+ * choice writes. Kept apart from the menu (`src/block-toolbar/`) so it can be
+ * tested without the block editor.
  */
 
 /**
- * The blocks whose toolbar offers font sizes: those made of text.
+ * The blocks whose options menu offers font sizes: those made of text.
  *
  * Named rather than found by their support for font sizes, which containers
  * such as Group, and blocks such as Navigation and Calendar, share.

@@ -26,6 +26,7 @@ import { getPageTitle, usePages, usePageSections } from './data';
 import { getPageAncestorTitles } from './page-tree';
 import { getSectionTitle, insertItems } from './page-sections';
 import { sectionBridge } from './section-bridge';
+import { HOMEPAGE_VIEW } from './homepage-view';
 import { LIST_PATH } from './page-tree-list';
 import { getPageSearchString, SECTIONS_VIEW } from './sections-view';
 import { PageOptions } from './page-options';
@@ -43,6 +44,7 @@ import {
 	Page,
 	plusIcon,
 	select,
+	settingsIcon,
 	sprintf,
 	Stack,
 	Text,
@@ -132,19 +134,26 @@ function getSectionsDescription( isReady, count ) {
  * The homepage's page opens as the homepage, with what the homepage shows
  * above the page's own details.
  *
- * @param {Object}  props            Component props.
- * @param {Element} props.intro      Shown first, for the homepage.
- * @param {boolean} props.isHomepage Whether the page is the homepage.
- * @param {number}  props.pageId     Page ID.
+ * @param {Object}  props                Component props.
+ * @param {Element} props.configurePanel What the homepage shows, for the
+ *                                       homepage.
+ * @param {Element} props.intro          Shown first, for the homepage.
+ * @param {boolean} props.isHomepage     Whether the page is the homepage.
+ * @param {number}  props.pageId         Page ID.
  * @return {Element} The page stage.
  */
 export function PageDetailStage( {
+	configurePanel = null,
 	intro = null,
 	isHomepage = false,
 	pageId,
 } ) {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
+	const isConfiguringHomepage =
+		isHomepage &&
+		Boolean( configurePanel ) &&
+		searchParams.view === HOMEPAGE_VIEW;
 	const siteTrail = useSiteTrail();
 	const { pages } = usePages();
 	const { blocks, isReady, setBlocks } = usePageSections( pageId );
@@ -249,8 +258,9 @@ export function PageDetailStage( {
 								: LIST_PATH,
 						},
 						...ancestors.map( ( label ) => ( { label } ) ),
-						// The sections lead back to the page's details.
-						...( isComposing
+						// The sections, or the homepage's own settings, lead
+						// back to the page's details.
+						...( isComposing || isConfiguringHomepage
 							? [
 									{
 										label: title,
@@ -258,7 +268,11 @@ export function PageDetailStage( {
 											searchParams
 										) }`,
 									},
-									{ label: __( 'Sections' ) },
+									{
+										label: isComposing
+											? __( 'Sections' )
+											: __( 'Configure homepage' ),
+									},
 								]
 							: [ { label: title } ] ),
 					] }
@@ -269,8 +283,8 @@ export function PageDetailStage( {
 			headingLevel={ 2 }
 		>
 			<div className="cnl-pages-detail__body">
-				{ ! isComposing && intro }
-				{ ! isComposing && (
+				{ ! isComposing && ! isConfiguringHomepage && intro }
+				{ ! isComposing && ! isConfiguringHomepage && (
 					<MemoizedPageLayouts
 						isFrontPage={ isHomepage }
 						pageId={ pageId }
@@ -279,7 +293,7 @@ export function PageDetailStage( {
 						template={ page?.template }
 					/>
 				) }
-				{ ! isComposing && (
+				{ ! isComposing && ! isConfiguringHomepage && (
 					<ScreenLinks
 						label={ __( 'More about this page' ) }
 						links={ [
@@ -296,7 +310,19 @@ export function PageDetailStage( {
 								title: __( 'Edit sections' ),
 								to: LIST_PATH,
 							},
-						] }
+							configurePanel && {
+								description: __(
+									'Choose what visitors see first'
+								),
+								icon: settingsIcon,
+								search: {
+									...searchParams,
+									view: HOMEPAGE_VIEW,
+								},
+								title: __( 'Configure homepage' ),
+								to: LIST_PATH,
+							},
+						].filter( Boolean ) }
 					/>
 				) }
 				{ isComposing && (
@@ -339,6 +365,7 @@ export function PageDetailStage( {
 						/>
 					</section>
 				) }
+				{ isConfiguringHomepage && configurePanel }
 				{ insertAt !== null && (
 					<SectionPicker
 						onClose={ closeAdd }

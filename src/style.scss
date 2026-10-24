@@ -9,6 +9,7 @@
 @use "./design-picker/style" as design-picker;
 @use "./section-picker/style" as section-picker;
 @use "./editor-extensions/style" as editor-extensions;
+@use "./block-toolbar/style" as block-toolbar;
 @use "./global-scope/style" as global-scope;
 @use "./pickers/color-well" as color-well;
 
@@ -617,43 +618,36 @@
 	}
 }
 
-.cnl-add-page-layout-placeholder {
-	display: grid;
-	gap: var(--wpds-dimension-gap-lg);
-	box-sizing: border-box;
-	width: 100%;
-	height: 100%;
-	padding: 44px 48px;
-	background: var(--wpds-color-background-surface-neutral);
+/*
+ * A page in outline over a preview until it has drawn. It covers the preview,
+ * so it starts at the top of the card as the design will.
+ */
+.cnl-page-preview-loading {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	background: var(--wpds-color-background-surface-neutral-strong);
+	color: var(--wpds-color-background-track-neutral);
+	pointer-events: none;
 
-	div {
-		border-radius: var(--wpds-border-radius-xs);
-		background: var(--wpds-color-background-surface-neutral-weak);
+	svg {
+		display: block;
+		width: 100%;
+		height: 100%;
+		fill: currentcolor;
 	}
 }
 
-.cnl-add-page-layout-placeholder__brand {
-	width: 96px;
-	height: 14px;
-}
+.cnl-page-preview-loading__shapes {
+	animation: cnl-loading-pulse 1.6s ease-in-out infinite;
 
-.cnl-add-page-layout-placeholder__title {
-	width: 44%;
-	height: 42px;
-	margin-top: 48px;
-}
-
-.cnl-add-page-layout-placeholder__line {
-	width: 72%;
-	height: 14px;
-
-	&:nth-child(4) {
-		width: 54%;
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
 	}
 }
 
-.cnl-add-page-layout-placeholder__media {
-	min-height: 130px;
+.cnl-page-preview-loading__footer {
+	opacity: 0.7;
 }
 
 .cnl-add-page-layout-categories-placeholder {
@@ -713,6 +707,7 @@
 }
 
 .cnl-add-page-form__preview {
+	position: relative;
 	display: flex;
 	min-height: 0;
 	overflow: hidden;
@@ -1123,6 +1118,13 @@
 	border-radius: 50%;
 	background: conic-gradient(#f44, #fb3, #4c4, #3be, #46f, #c4e, #f44);
 	box-shadow: inset 0 0 0 1px var(--wpds-color-stroke-interactive-neutral);
+}
+
+// Its name beside it, until there are colours to show in its place.
+.routes-styles__palette-custom-label {
+	align-self: center;
+	padding: 0 var(--wpds-dimension-padding-xs);
+	font-size: var(--wpds-typography-font-size-sm);
 }
 
 // Open, but not necessarily in use: shaded rather than ringed, so it

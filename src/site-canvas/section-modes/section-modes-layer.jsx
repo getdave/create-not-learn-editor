@@ -74,7 +74,7 @@ import {
 	useBlockRects,
 } from '../compose/use-block-rects';
 import { useComposeStructure } from '../compose/use-compose-structure';
-import { afterZoomIn } from '../compose/use-compose-zoom';
+import { afterZoomIn, whenZoomSettles } from '../compose/use-compose-zoom';
 import {
 	PART_CONTENT,
 	PART_FREEFORM,
@@ -96,6 +96,7 @@ import {
 	MODE_CONTENT,
 	MODE_FREEFORM,
 	MODE_DESIGN,
+	MODE_ZOOM_IN,
 	ModeBar,
 	SectionTab,
 } from './section-chrome';
@@ -123,6 +124,10 @@ const BAR_ROW_GAP = 8;
 // Room either side of the "Add section" button, at the middle of the top
 // edge, that the section's name in its tab keeps clear of.
 const ADD_SECTION_CLEARANCE = 90;
+// The "Add section" buttons' height. Centred on a section's edges, they
+// reach half of it into the section, and the bar keeps clear of that.
+const ADD_SECTION_HEIGHT = 32;
+const BAR_GAP = 8;
 // The bar naming the mode sits inside a section at least this big, at its
 // top, the size of the bar over a section pointed at; a smaller section has
 // a smaller one outside it, so it hides none of what is being edited.
@@ -671,6 +676,20 @@ export function SectionModesLayer( {
 
 		afterZoomIn( () => then() );
 		onExitCompose();
+	};
+
+	// Compose's Edit content: back into Edit with the section picked, as a
+	// click there picks it, and in view, as the page moves as it zooms in.
+	const zoomInTo = ( clientId ) => {
+		setMenuOpenFor( null );
+		setInlineAdd( null );
+		setActiveRowId( null );
+		setPickedSection( clientId );
+		leaveCompose( () =>
+			whenZoomSettles( editorRef, () =>
+				scrollCanvasTo( editorRef, clientId )
+			)
+		);
 	};
 
 	// From Edit design's More control into Freeform, which Done, Escape or a
@@ -1851,15 +1870,20 @@ export function SectionModesLayer( {
 		 * what would be clicked.
 		 */
 		const isNarrow = box.width < NARROW_WIDTH;
+		const showsAddSection = ! isPart && ! active && ! inlineAdd;
+		// Clear of the "Add section" buttons on its edges, where they show.
+		const barInset = showsAddSection
+			? ADD_SECTION_HEIGHT / 2 + BAR_GAP
+			: INSET;
 		const isCompact =
 			box.height <
 			( isNarrow ? BAR_HEIGHT * 2 + BAR_ROW_GAP : BAR_HEIGHT ) +
-				INSET * 2;
+				barInset * 2;
 		const barHeight =
 			isNarrow && ! isCompact ? BAR_HEIGHT * 2 + BAR_ROW_GAP : BAR_HEIGHT;
 		const barTop = isCompact
 			? box.top + box.height + SHORT_BAR_GAP
-			: stickyTop( box, barHeight );
+			: stickyTop( box, barHeight, barInset );
 		const holdHover = {
 			onBlur: release,
 			onFocus: () => hold( shownHoverId ),
@@ -1895,9 +1919,7 @@ export function SectionModesLayer( {
 						title={ title }
 					/>
 					<div { ...holdHover }>
-						{ ! isPart &&
-							! active &&
-							! inlineAdd &&
+						{ showsAddSection &&
 							[
 								[ box.top, index ],
 								[ box.top + box.height, index + 1 ],
@@ -1921,6 +1943,7 @@ export function SectionModesLayer( {
 							canMoveDown={ index < sectionIds.length - 1 }
 							canMoveUp={ index > 0 }
 							isCompact={ isCompact }
+							isComposing={ isComposing }
 							isNarrow={ isNarrow && ! isCompact }
 							isPart={ isPart }
 							onAdd={ ( type ) =>
@@ -1939,13 +1962,17 @@ export function SectionModesLayer( {
 									isMenuOpen ? shownHoverId : null
 								)
 							}
-							onMode={ ( mode ) =>
-								mode === MODE_CONTENT
-									? leaveCompose( () =>
-											enterMode( shownHoverId, mode )
-										)
-									: enterMode( shownHoverId, mode )
-							}
+							onMode={ ( mode ) => {
+								if ( mode === MODE_ZOOM_IN ) {
+									zoomInTo( shownHoverId );
+								} else if ( mode === MODE_CONTENT ) {
+									leaveCompose( () =>
+										enterMode( shownHoverId, mode )
+									);
+								} else {
+									enterMode( shownHoverId, mode );
+								}
+							} }
 							onMove={ ( direction ) =>
 								moveSection( shownHoverId, direction )
 							}

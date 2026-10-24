@@ -39,6 +39,26 @@ function mainstay_register_pattern_categories() {
 			'description' => __( 'Whole pages built from Mainstay sections.', 'mainstay' ),
 		)
 	);
+
+	// Kinds of page, so a long list of page designs can be browsed by kind.
+	$page_kinds = array(
+		'mainstay/pages-essentials' => array(
+			'label'       => __( 'Essentials', 'mainstay' ),
+			'description' => __( 'The pages most sites start with.', 'mainstay' ),
+		),
+		'mainstay/pages-offer'      => array(
+			'label'       => __( 'What you offer', 'mainstay' ),
+			'description' => __( 'Pages that show what you make, sell or put on.', 'mainstay' ),
+		),
+		'mainstay/pages-more'       => array(
+			'label'       => __( 'More pages', 'mainstay' ),
+			'description' => __( 'Help, jobs, policies and pages for before you open.', 'mainstay' ),
+		),
+	);
+
+	foreach ( $page_kinds as $name => $properties ) {
+		register_block_pattern_category( $name, $properties );
+	}
 }
 add_action( 'init', 'mainstay_register_pattern_categories' );
 

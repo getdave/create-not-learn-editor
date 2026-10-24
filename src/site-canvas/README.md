@@ -4,7 +4,7 @@ The canvas beside Home, Pages and Design. A Browse | Edit toggle at the left of 
 
 - **Browse**, the default. The saved site in an iframe, as visitors see it. Links can be followed to other pages. Because it looks just like Edit, it hints at Edit where someone reaches for a change: the page's words have the arrow, not the text cursor, a section rested on for a moment is outlined faintly with an Edit tag (purple for the header and footer), a click on anything that isn't a link or button highlights its section the same way, and a second click on it asks "Want to change this?". Edit from the tag or the question, or a double click, opens Edit with that section picked. See "Browse's hints" below.
 - **Edit**. The page in core's editor, with our own layer over it. A section is worked on a click at a time: the first click picks it, a click on a row of cards opens the row, and the next reaches the words or picture clicked. See "Edit's section layer" below. Each section made of other blocks starts content-only. A layout, like Single Post, opens unlocked, as its sections are mostly a post's title, image and content. "Open in full editor", in the toolbar's More options menu, opens the full-screen editor for anything the canvas doesn't suit.
-- **Compose**. The same editor zoomed out, with the same section layer as Edit over it. Sections are dragged to reorder the page, a ghost of the section following the pointer, and a section's layout, colours and place on the page (move, duplicate, delete, add a section) change without leaving. Anything else, like Add, More control or a double click to reach a section's words, zooms back into Edit and does it there. It is editing from further away, so the toggle stays on Edit. The Compose button, or Escape with nothing picked, returns to Edit.
+- **Compose**. The same editor zoomed out, with the same section layer as Edit over it. Sections are dragged to reorder the page, a ghost of the section following the pointer, and a section's layout, colours and place on the page (move, duplicate, delete, add a section) change without leaving. Its bar has no Add. Instead, **Edit content**, beside Edit design, zooms back into Edit with the section picked and brought into view, ready to click into. Anything else, like More control or a double click to reach a section's words, zooms back into Edit and does it there. It is editing from further away, so the toggle stays on Edit. The Compose button, or Escape with nothing picked, returns to Edit.
 
 The mode is shared by every canvas, so it carries over from page to page and screen to screen. It lives in a small data store (`mode.js`), because app init and each route are built separately. Nothing is saved, so every visit starts in Browse.
 
@@ -76,7 +76,7 @@ Changes rewrite the blocks around an item with core's `replaceInnerBlocks`, whic
 | File | What it does |
 | --- | --- |
 | `section-modes-layer.jsx` | The layer: what is pointed at, the mode, and everything drawn over the canvas. |
-| `section-chrome.jsx` | The tab, the bar with Add, Edit design (and Edit header or Edit footer) and the section's moves, and the small bar naming the mode. |
+| `section-chrome.jsx` | The tab, the bar with Add, Edit design (and Edit header or Edit footer, or Edit content in Compose) and the section's moves, and the small bar naming the mode. |
 | `design-bar.jsx` | Edit design's bar: the design choices, and each one's options. |
 | `use-canvas-events.js` | The section under the pointer, and the clicks kept off the page, watched from inside the canvas. |
 | `use-section-items.js` | Removing, putting back and adding items. |
@@ -95,7 +95,7 @@ Core's zoom-out is used for its zoom alone. Core can't scale the canvas without 
 
 | File | What it does |
 | --- | --- |
-| `use-compose-zoom.js` | Zooms the editor out and back in. Widens the editor to a desktop's width while core measures it, so the page is laid out as on a desktop and shrinks to fit. |
+| `use-compose-zoom.js` | Zooms the editor out and back in. Widens the editor to a desktop's width while core measures it, so the page is laid out as on a desktop and shrinks to fit. Waits for core's zoom animation to end, for a scroll that would otherwise be lost. |
 | `use-compose-structure.js` | The page's sections, the blocks of core's section root, and what the template adds around them, like the header, title and footer. |
 | `use-block-rects.js` | Where those blocks are on screen, measured every frame, and scrolling the canvas to one. |
 | `section-styles.js` | The theme's section styles, as a section's colours. |

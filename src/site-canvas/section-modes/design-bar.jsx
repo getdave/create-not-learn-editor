@@ -378,7 +378,8 @@ function ColorOptions( { colors, isCustomOpen, onCustom } ) {
 					className="cnl-section-modes__swatch cnl-section-modes__custom"
 					label={ __( 'Custom' ) }
 					onClick={ onCustom }
-					showTooltip
+					// No tooltip to repeat the name while it is on the button.
+					showTooltip={ isCustom }
 					tooltipPosition="bottom"
 				>
 					<span
@@ -393,7 +394,12 @@ function ColorOptions( { colors, isCustomOpen, onCustom } ) {
 								/>
 							) )
 						) : (
-							<span className="cnl-section-modes__swatch-wheel" />
+							<>
+								<span className="cnl-section-modes__swatch-wheel" />
+								<span className="cnl-section-modes__swatch-custom-label">
+									{ __( 'Custom' ) }
+								</span>
+							</>
 						) }
 					</span>
 				</Button>

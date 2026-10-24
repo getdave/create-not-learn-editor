@@ -2,7 +2,7 @@
 Theme Name: Mainstay
 Description: A flexible block theme for any small website, built alongside the Create Not Learn editor. Pages are stacks of full-width sections, each with a choice of colour styles, and the theme ships with headers, footers, page layouts and a large set of ready-made sections.
 Author: Create Not Learn
-Version: 0.1.0
+Version: 0.2.0
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 7.4
@@ -23,10 +23,15 @@ Tags: block-patterns, block-styles, full-site-editing, style-variations, wide-bl
 	margin-block-start: 0;
 }
 
-/* Display type tightens up as it grows, using the font's optical sizes. */
+/*
+ * Display type tightens up as it grows, using the font's optical sizes.
+ * `pretty` rather than `balance`: in Chrome, balancing counts the outline
+ * the block editor draws on a block it points out, an absolutely positioned
+ * `::after`, and wraps the heading onto another line, so it jumps.
+ */
 :is(h1, h2, h3, .has-huge-font-size, .has-xx-large-font-size) {
 	font-optical-sizing: auto;
-	text-wrap: balance;
+	text-wrap: pretty;
 }
 
 p {

@@ -6,7 +6,7 @@ import { __ } from '@wordpress/i18n';
 
 export const EMPTY_ARRAY = [];
 export const OTHER_PAGE_LAYOUT_TYPE = 'other';
-export const DEFAULT_PAGE_LAYOUT_COLUMNS = 2;
+export const DEFAULT_PAGE_LAYOUT_COLUMNS = 3;
 
 export function getPatternTitle( pattern ) {
 	return decodeEntities(
@@ -307,28 +307,132 @@ export function isPageLayoutPattern( pattern ) {
 	return isPagePatternCategory( pattern.categories );
 }
 
-export function getPageLayoutGroups( patterns ) {
-	const groups = getPageLayoutTypes().map( ( type ) => ( {
-		...type,
-		patterns: [],
-	} ) );
-	const groupBySlug = new Map(
-		groups.map( ( group ) => [ group.slug, group ] )
+/**
+ * The kinds of page a theme sorts its page designs into: its own pattern
+ * categories that hold page designs and nothing else. A category that sections
+ * share (like "Featured"), or a catch-all for every page design (like a
+ * theme's "Pages"), doesn't help anyone choose between them.
+ *
+ * @param {Object[]} patterns   Every block pattern, sections included.
+ * @param {Object[]} categories Registered pattern categories, for labels and
+ *                              order.
+ * @return {Object[]} `{ slug, label }` for each kind, in registered order.
+ */
+export function getPageLayoutKinds( patterns, categories = EMPTY_ARRAY ) {
+	const pageLayouts = patterns.filter( isPageLayoutPattern );
+	const sharedSlugs = new Set(
+		patterns
+			.filter( ( pattern ) => ! isPageLayoutPattern( pattern ) )
+			.flatMap( ( pattern ) => getPatternTermTexts( pattern.categories ) )
+			.map( normalizeLayoutSlug )
 	);
+	const counts = new Map();
 
-	for ( const pattern of patterns ) {
-		for ( const pageType of inferPageLayoutTypes( pattern ) ) {
-			const group =
-				groupBySlug.get( pageType ) ||
-				groupBySlug.get( OTHER_PAGE_LAYOUT_TYPE );
+	for ( const pattern of pageLayouts ) {
+		const slugs = new Set(
+			getPatternTermTexts( pattern.categories ).map( normalizeLayoutSlug )
+		);
 
-			if ( group && ! group.patterns.includes( pattern ) ) {
-				group.patterns.push( pattern );
-			}
+		for ( const slug of slugs ) {
+			counts.set( slug, ( counts.get( slug ) || 0 ) + 1 );
 		}
 	}
 
-	return groups.filter( ( group ) => group.patterns.length );
+	const order = categories.map( ( category ) =>
+		normalizeLayoutSlug( category.name )
+	);
+	const getOrder = ( slug ) =>
+		order.includes( slug ) ? order.indexOf( slug ) : order.length;
+
+	return [ ...counts ]
+		.filter(
+			( [ slug, count ] ) =>
+				slug &&
+				count < pageLayouts.length &&
+				! sharedSlugs.has( slug ) &&
+				! isCatchAllPageCategory( slug ) &&
+				! getKnownPageLayoutType( slug )
+		)
+		.map( ( [ slug ] ) => slug )
+		.sort( ( a, b ) => getOrder( a ) - getOrder( b ) )
+		.map( ( slug ) => {
+			const registered = categories.find(
+				( category ) => normalizeLayoutSlug( category.name ) === slug
+			);
+
+			return {
+				label: registered?.label
+					? decodeEntities( registered.label )
+					: getCategoryLabel( slug ),
+				slug,
+			};
+		} );
+}
+
+// "page", "theme/pages" or "theme_page", but not "theme/pages-about".
+function isCatchAllPageCategory( slug ) {
+	return [ 'page', 'pages' ].includes( slug.split( /[/_-]/ ).at( -1 ) );
+}
+
+function getCategoryLabel( slug ) {
+	const name = slug.split( '/' ).filter( Boolean ).at( -1 ) || slug;
+	const words = name.replace( /-/g, ' ' );
+
+	return words.charAt( 0 ).toUpperCase() + words.slice( 1 );
+}
+
+/**
+ * Sort page designs into groups.
+ *
+ * A theme that sorts its page designs into kinds of its own (see
+ * `getPageLayoutKinds()`) gets those groups. Designs in none of them are
+ * sorted into the usual kinds of page, and anything left goes in "Other
+ * designs".
+ *
+ * @param {Object[]} patterns Page designs.
+ * @param {Object[]} kinds    The theme's kinds of page, `{ slug, label }`.
+ * @return {Object[]} `{ slug, label, patterns }` for each group with designs.
+ */
+export function getPageLayoutGroups( patterns, kinds = EMPTY_ARRAY ) {
+	const kindGroups = kinds.map( ( kind ) => ( { ...kind, patterns: [] } ) );
+	const typeGroups = getPageLayoutTypes().map( ( type ) => ( {
+		...type,
+		patterns: [],
+	} ) );
+	const typeGroupBySlug = new Map(
+		typeGroups.map( ( group ) => [ group.slug, group ] )
+	);
+	const addToGroup = ( group, pattern ) => {
+		if ( ! group.patterns.includes( pattern ) ) {
+			group.patterns.push( pattern );
+		}
+	};
+
+	for ( const pattern of patterns ) {
+		const slugs = getPatternTermTexts( pattern.categories ).map(
+			normalizeLayoutSlug
+		);
+		const ownGroups = kindGroups.filter( ( group ) =>
+			slugs.includes( group.slug )
+		);
+
+		if ( ownGroups.length ) {
+			ownGroups.forEach( ( group ) => addToGroup( group, pattern ) );
+			continue;
+		}
+
+		for ( const pageType of inferPageLayoutTypes( pattern ) ) {
+			addToGroup(
+				typeGroupBySlug.get( pageType ) ||
+					typeGroupBySlug.get( OTHER_PAGE_LAYOUT_TYPE ),
+				pattern
+			);
+		}
+	}
+
+	return [ ...kindGroups, ...typeGroups ].filter(
+		( group ) => group.patterns.length
+	);
 }
 
 export function getTemplateSlug( item ) {
