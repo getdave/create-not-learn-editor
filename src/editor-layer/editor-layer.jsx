@@ -20,6 +20,7 @@ import {
 } from './section-picker-request';
 import { useSectionWording } from './section-wording';
 import { EDITOR_STORE, useForcedBlockEditorSettings } from './settings-guard';
+import { useStartPatternsGate } from './start-patterns';
 
 /**
  * Block editor settings forced while the edit canvas is on screen, such as
@@ -68,8 +69,9 @@ function SectionPickerWhenAsked() {
  * section picker, opened from a section's options menu, or from Compose on the
  * site canvas, whose editor is open in Edit and Compose too. Otherwise, what it
  * owns is the editor state the layer's stylesheet keys off, published
- * as data attributes on its own element, the settings it forces, and the
- * section wording core's pattern strings take while a page is open. Custom
+ * as data attributes on its own element, the settings it forces, the
+ * section wording core's pattern strings take while a page is open, and where
+ * core's "Choose a pattern" modal may open (`start-patterns.js`). Custom
  * chrome is portalled from here into the editor's regions with
  * `usePortalHost`. Mount it only while `isEditCanvas` is true, so its hosts
  * are not watching for regions the rest of the time.
@@ -101,6 +103,7 @@ export function EditorLayer() {
 	);
 	useDistractionFreeEntry( isEditCanvas );
 	useSectionWording( postType === 'page' );
+	const canStartFromPattern = useStartPatternsGate( isEditCanvas );
 
 	const canvasMode = useCanvasMode();
 	const canPickSections = isEditCanvas || canvasMode !== MODE_BROWSE;
@@ -118,6 +121,7 @@ export function EditorLayer() {
 				className="cnl-editor-layer"
 				data-post-type={ postType || undefined }
 				data-selected-block={ selectedBlockName || undefined }
+				data-start-patterns={ canStartFromPattern ? 'allowed' : undefined }
 			/>
 			{ canPickSections && <SectionPickerWhenAsked /> }
 		</>
