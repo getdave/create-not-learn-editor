@@ -28,6 +28,10 @@
  * dragged there to reorder them, and their layouts, colours and place on
  * the page change without leaving. Anything else goes back to Edit to do it.
  *
+ * Writing, like a post, is edited without the layer, and only arranged with
+ * it, in Compose. Each of its containers is a section there, and each run of
+ * blocks between them one section of text. See `writing-mode.js`.
+ *
  * Drawn inside the editor's content region, as core's own toolbars are, so
  * it sits under core's block toolbars. Changes go to the editor's blocks, so
  * they are undone like any other edit.
@@ -88,6 +92,7 @@ import {
 import { useEditorSpotlight } from '../part-spotlight';
 import { useCanvasDocument } from '../use-canvas-document';
 import { useCanvasStyles } from '../use-canvas-styles';
+import { getBlockIndex, getWritingSections } from '../writing-mode';
 import { createBlankSection, InlineSectionPicker } from '../../section-picker';
 import { EmptyPage } from './empty-page';
 import { RemoveControl } from './remove-control';
@@ -574,6 +579,10 @@ function useNoSync() {
  *                                       anything but a section's layout,
  *                                       colours or place on the page done
  *                                       back in Edit.
+ * @param {boolean}  props.isWriting     Whether the canvas is writing, like
+ *                                       a post, arranged in Compose only.
+ *                                       Its runs of text are sections, and
+ *                                       it has no header or footer to open.
  * @param {Function} props.onExitCompose Leaves Compose for Edit.
  * @param {Function} props.useSync       A hook linking Compose to a list of
  *                                       the same sections elsewhere, like the
@@ -588,15 +597,76 @@ export function SectionModesLayer( {
 	entity,
 	focusId = null,
 	isComposing = false,
+	isWriting = false,
 	onExitCompose,
 	useSync = useNoSync,
 } ) {
 	const registry = useRegistry();
 	const syncHook = useSync();
-	const sync = isComposing ? syncHook : null;
+	const sync = isComposing && ! isWriting ? syncHook : null;
 	const layerRef = useRef();
 	const host = useContentHost( editorRef );
-	const { parts, rootClientId, sectionIds } = useComposeStructure();
+	const structure = useComposeStructure();
+	const { rootClientId } = structure;
+	const parts = isWriting ? EMPTY_ARRAY : structure.parts;
+	/*
+	 * Writing's sections, its runs of text grouped, each known by its first
+	 * block. Kept to a string, so the selector returns the same value until
+	 * they change.
+	 */
+	const writingKey = useSelect(
+		( select ) =>
+			isWriting
+				? getWritingSections(
+						structure.sectionIds,
+						select( blockEditorStore ).getBlockName
+					)
+						.map(
+							( { clientIds, isText } ) =>
+								`${ isText ? 'text' : 'block' }:${ clientIds.join(
+									','
+								) }`
+						)
+						.join( ' ' )
+				: '',
+		[ isWriting, structure.sectionIds ]
+	);
+	const writingSections = useMemo(
+		() =>
+			writingKey
+				? writingKey.split( ' ' ).map( ( entry ) => {
+						const [ kind, ids ] = entry.split( ':' );
+
+						return {
+							clientIds: ids.split( ',' ),
+							isText: kind === 'text',
+						};
+					} )
+				: null,
+		[ writingKey ]
+	);
+	const sectionIds = useMemo(
+		() =>
+			writingSections
+				? writingSections.map( ( section ) => section.clientIds[ 0 ] )
+				: structure.sectionIds,
+		[ structure.sectionIds, writingSections ]
+	);
+	const writingById = useMemo(
+		() =>
+			Object.fromEntries(
+				( writingSections || EMPTY_ARRAY ).map( ( section ) => [
+					section.clientIds[ 0 ],
+					section,
+				] )
+			),
+		[ writingSections ]
+	);
+	// The blocks a section is made of: one, but for writing's runs of text.
+	const getMembers = ( clientId ) =>
+		writingById[ clientId ]?.clientIds || [ clientId ];
+	const isTextSection = ( clientId ) =>
+		Boolean( writingById[ clientId ]?.isText );
 	const items = useSectionItems();
 	const rowActions = useRowActions();
 	// `{ id, mode, view }` for the section in a mode, `view` being the
@@ -653,14 +723,34 @@ export function SectionModesLayer( {
 			),
 		[ focusId, parts, sectionIds ]
 	);
+	// Every block of writing's runs of text, which stand for their run.
+	const memberTargets = useMemo(
+		() =>
+			writingSections
+				? new Set( [
+						...targets,
+						...writingSections.flatMap(
+							( section ) => section.clientIds
+						),
+					] )
+				: targets,
+		[ targets, writingSections ]
+	);
 	const findTarget = useCallback(
-		( clientId ) =>
-			getTargetOf(
+		( clientId ) => {
+			const target = getTargetOf(
 				registry.select( blockEditorStore ),
-				targets,
+				memberTargets,
 				clientId
-			),
-		[ registry, targets ]
+			);
+
+			return (
+				writingSections?.find( ( section ) =>
+					section.clientIds.includes( target )
+				)?.clientIds[ 0 ] ?? target
+			);
+		},
+		[ memberTargets, registry, writingSections ]
 	);
 
 	const exitMode = useCallback( () => {
@@ -971,7 +1061,11 @@ export function SectionModesLayer( {
 				const innerId = getBlockAtPoint( doc, x, y ) || blockId;
 
 				leaveCompose( () => {
-					enterMode( target, MODE_CONTENT );
+					// Writing is edited without the layer, so with no mode.
+					if ( ! isWriting ) {
+						enterMode( target, MODE_CONTENT );
+					}
+
 					window.requestAnimationFrame( () =>
 						window.requestAnimationFrame( () =>
 							selectSoon( innerId )
@@ -1188,9 +1282,11 @@ export function SectionModesLayer( {
 	// The section picked or in a mode, for the chat to change. A header or
 	// footer isn't one.
 	const sharedSectionId = active?.id || pickedId;
-	const chatSectionId = sectionIds.includes( sharedSectionId )
-		? sharedSectionId
-		: null;
+	const chatSectionId =
+		sectionIds.includes( sharedSectionId ) &&
+		! isTextSection( sharedSectionId )
+			? sharedSectionId
+			: null;
 	useEffect( () => {
 		setSharedPickedSection( chatSectionId );
 	}, [ chatSectionId ] );
@@ -1332,42 +1428,93 @@ export function SectionModesLayer( {
 	const measuredIds = useMemo(
 		() => [
 			...( rootClientId ? [ rootClientId ] : EMPTY_ARRAY ),
-			...targets,
+			...memberTargets,
 			...( freshId ? [ freshId ] : EMPTY_ARRAY ),
 			...rowIds,
 		],
-		[ freshId, rootClientId, rowIds, targets ]
+		[ freshId, memberTargets, rootClientId, rowIds ]
 	);
-	const { frame, rects } = useBlockRects( {
+	const { frame, rects: blockRects } = useBlockRects( {
 		clientIds: measuredIds,
 		editorRef,
 		isActive: true,
 		layerRef,
 	} );
+	// A run of text is drawn round all of its blocks, under its first's ID.
+	const rects = useMemo( () => {
+		if ( ! writingSections ) {
+			return blockRects;
+		}
+
+		const next = { ...blockRects };
+
+		writingSections.forEach( ( { clientIds } ) => {
+			const boxes = clientIds
+				.map( ( clientId ) => blockRects[ clientId ] )
+				.filter( Boolean );
+
+			if ( boxes.length < 2 ) {
+				return;
+			}
+
+			const top = Math.min( ...boxes.map( ( box ) => box.top ) );
+			const left = Math.min( ...boxes.map( ( box ) => box.left ) );
+
+			next[ clientIds[ 0 ] ] = {
+				height:
+					Math.max(
+						...boxes.map( ( box ) => box.top + box.height )
+					) - top,
+				left,
+				top,
+				width:
+					Math.max(
+						...boxes.map( ( box ) => box.left + box.width )
+					) - left,
+			};
+		} );
+
+		return next;
+	}, [ blockRects, writingSections ] );
 
 	const { moveBlocksToPosition } = useDispatch( blockEditorStore );
+
+	// Move a section to a new place among the sections.
+	const moveSectionTo = ( clientId, to ) => {
+		const from = sectionIds.indexOf( clientId );
+
+		moveBlocksToPosition(
+			getMembers( clientId ),
+			rootClientId || '',
+			rootClientId || '',
+			writingSections ? getBlockIndex( writingSections, from, to ) : to
+		);
+	};
+
+	// Where a section added at a place among the sections goes among the
+	// blocks.
+	const getInsertIndex = ( index ) =>
+		writingSections ? getBlockIndex( writingSections, -1, index ) : index;
+
 	const drag = useSectionDrag( {
 		canvasDocument,
 		getLatest: () => ( { findTarget, frame, rects, sectionIds } ),
 		isActive: isComposing && ! active,
-		onDrop: ( clientId, to ) =>
-			moveBlocksToPosition(
-				[ clientId ],
-				rootClientId || '',
-				rootClientId || '',
-				to
-			),
+		onDrop: moveSectionTo,
 	} );
 
-	const draggedSection = useSelect(
+	const draggedBlocks = useSelect(
 		( select ) =>
-			drag ? select( blockEditorStore ).getBlock( drag.clientId ) : null,
-		[ drag?.clientId ]
+			drag
+				? select( blockEditorStore )
+						.getBlocksByClientId( getMembers( drag.clientId ) )
+						.filter( Boolean )
+				: null,
+		// `getMembers` reads the sections, as `writingById` holds them.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[ drag?.clientId, writingById ]
 	);
-	const draggedBlock = useMemo(
-		() => ( draggedSection ? [ draggedSection ] : null ),
-		[ draggedSection ]
-	);
+	const draggedBlock = draggedBlocks?.length ? draggedBlocks : null;
 
 	/*
 	 * Composing, the layer and the list of sections elsewhere, like the Pages
@@ -1419,8 +1566,13 @@ export function SectionModesLayer( {
 			return { clientId: next, isAfter: false };
 		}
 
-		return previous ? { clientId: previous, isAfter: true } : null;
-	}, [ drag, inlineAdd, sectionIds ] );
+		// After a run of text, the gap opens after its last block.
+		return previous
+			? { clientId: getMembers( previous ).at( -1 ), isAfter: true }
+			: null;
+		// `getMembers` reads the sections, as `writingById` holds them.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ drag, inlineAdd, sectionIds, writingById ] );
 
 	useCanvasStyles(
 		true,
@@ -1730,6 +1882,10 @@ export function SectionModesLayer( {
 			return part.area === 'footer' ? __( 'Footer' ) : __( 'Header' );
 		}
 
+		if ( isTextSection( clientId ) ) {
+			return __( 'Text' );
+		}
+
 		const block = registry.select( blockEditorStore ).getBlock( clientId );
 
 		return block ? getCachedSectionTitle( block ) : __( 'Section' );
@@ -1814,7 +1970,7 @@ export function SectionModesLayer( {
 
 		registry
 			.dispatch( blockEditorStore )
-			.removeBlocks( [ clientId ], false );
+			.removeBlocks( getMembers( clientId ), false );
 		release();
 		registry.dispatch( noticesStore ).createSuccessNotice(
 			sprintf(
@@ -1839,7 +1995,13 @@ export function SectionModesLayer( {
 	const moveSection = ( clientId, direction ) => {
 		const actions = registry.dispatch( blockEditorStore );
 
-		if ( direction < 0 ) {
+		// Past a whole run of text, or a whole run past a section.
+		if ( writingSections ) {
+			moveSectionTo(
+				clientId,
+				sectionIds.indexOf( clientId ) + direction
+			);
+		} else if ( direction < 0 ) {
 			actions.moveBlocksUp( [ clientId ], rootClientId || '' );
 		} else {
 			actions.moveBlocksDown( [ clientId ], rootClientId || '' );
@@ -1888,13 +2050,13 @@ export function SectionModesLayer( {
 		onPick: ( pattern ) => {
 			setInlineAdd( null );
 			addPatternSection( registry, pattern, {
-				index: inlineAdd.index,
+				index: getInsertIndex( inlineAdd.index ),
 				rootClientId: rootClientId || '',
 			} );
 		},
 		// Typed into straight away, which is done in Edit.
 		onStartBlank: () => {
-			const { index } = inlineAdd;
+			const index = getInsertIndex( inlineAdd.index );
 
 			setInlineAdd( null );
 			leaveCompose( () => startBlank( index ) );
@@ -1902,7 +2064,7 @@ export function SectionModesLayer( {
 		onViewAll: () => {
 			setInlineAdd( null );
 			openSectionPicker( {
-				index: inlineAdd.index,
+				index: getInsertIndex( inlineAdd.index ),
 				rootClientId: rootClientId || '',
 			} );
 		},
@@ -1984,6 +2146,7 @@ export function SectionModesLayer( {
 
 		const box = local( rect, frame );
 		const isPart = Boolean( partsById[ shownHoverId ] );
+		const isText = isTextSection( shownHoverId );
 		const index = sectionIds.indexOf( shownHoverId );
 		const title = getTitle( shownHoverId );
 		/*
@@ -2070,6 +2233,7 @@ export function SectionModesLayer( {
 							isComposing={ isComposing }
 							isNarrow={ isNarrow && ! isCompact }
 							isPart={ isPart }
+							isText={ isText }
 							onAdd={ ( type ) =>
 								leaveCompose( () =>
 									addItem( shownHoverId, type )
@@ -2079,7 +2243,10 @@ export function SectionModesLayer( {
 							onDuplicate={ () =>
 								registry
 									.dispatch( blockEditorStore )
-									.duplicateBlocks( [ shownHoverId ], false )
+									.duplicateBlocks(
+										getMembers( shownHoverId ),
+										false
+									)
 							}
 							onMenuToggle={ ( isMenuOpen ) =>
 								setMenuOpenFor(
@@ -2258,7 +2425,20 @@ export function SectionModesLayer( {
 				<DesignBar
 					clientId={ active.id }
 					onClose={ exitMode }
-					onFreeform={ () => leaveCompose( enterFreeform ) }
+					onFreeform={ () => {
+						const { id } = active;
+
+						// Writing has no Freeform, as Edit hands its blocks
+						// to core's own tools: the section is selected there.
+						leaveCompose(
+							isWriting
+								? () =>
+										registry
+											.dispatch( blockEditorStore )
+											.selectBlock( id )
+								: enterFreeform
+						);
+					} }
 					onReplace={ onLayoutReplace }
 					onView={ setDesignView }
 					part={ activePart }

@@ -62,22 +62,31 @@ const ADD_ICONS = {
  * header or footer shows on every page, so it is opened on purpose, with
  * Edit header or Edit footer. Zoomed out in Compose, a section's words and
  * pictures are too small to click into, so it has Edit content too, which
- * zooms back into Edit with the section picked.
+ * zooms back into Edit with the section picked. A run of text in writing,
+ * like a post, has no design of its own, so it has Edit content only.
  *
  * @param {boolean} isPart      Whether it is the header or footer.
  * @param {string}  title       Its name, like Header.
  * @param {boolean} isComposing Whether the canvas is in Compose.
+ * @param {boolean} isText      Whether it is a run of text in writing.
  * @return {Object[]} `{ mode, label, description, icon }` for each.
  */
-export function getModes( isPart = false, title = '', isComposing = false ) {
-	const modes = [
-		{
-			description: __( 'Change the layout, colour and width' ),
-			icon: designIcon,
-			label: __( 'Edit design' ),
-			mode: MODE_DESIGN,
-		},
-	];
+export function getModes(
+	isPart = false,
+	title = '',
+	isComposing = false,
+	isText = false
+) {
+	const modes = isText
+		? []
+		: [
+				{
+					description: __( 'Change the layout, colour and width' ),
+					icon: designIcon,
+					label: __( 'Edit design' ),
+					mode: MODE_DESIGN,
+				},
+			];
 
 	if ( isPart ) {
 		modes.push( {
@@ -257,6 +266,8 @@ function AddMenu( { onAdd, onToggle, title } ) {
  * @param {string}   props.title         The section's name.
  * @param {boolean}  props.isPart        Whether it is the header or footer,
  *                                       which stay where they are.
+ * @param {boolean}  props.isText        Whether it is a run of text in
+ *                                       writing, which has no design.
  * @param {boolean}  props.isComposing   Whether the canvas is in Compose,
  *                                       which has Edit content in place of
  *                                       Add.
@@ -288,6 +299,7 @@ export function HoverBar( {
 	isComposing,
 	isNarrow,
 	isPart,
+	isText = false,
 	onAdd,
 	onDelete,
 	onDuplicate,
@@ -324,7 +336,7 @@ export function HoverBar( {
 				className="cnl-section-modes__group"
 				role="group"
 			>
-				{ getModes( isPart, title, isComposing ).map(
+				{ getModes( isPart, title, isComposing, isText ).map(
 					( { description, icon, label, mode } ) => (
 						<BarButton
 							icon={ icon }

@@ -111,6 +111,25 @@ class RestClient {
 	}
 
 	/**
+	 * Make a blog post, published, from block markup.
+	 *
+	 * @param {Object} options
+	 * @param {string} options.content Block markup.
+	 * @param {string} [options.title] Post title.
+	 * @return {Promise<Object>} The post's `id`, `link` and `title`.
+	 */
+	async createPost( { content, title = `Test post ${ Date.now() }` } ) {
+		const post = await this.fetch( '/wp/v2/posts', {
+			data: { content, status: 'publish', title },
+			method: 'POST',
+		} );
+
+		this.deleteLater( `/wp/v2/posts/${ post.id }` );
+
+		return { id: post.id, link: post.link, title };
+	}
+
+	/**
 	 * Make a synced pattern, which the editor calls a section.
 	 *
 	 * @return {Promise<Object>} The pattern's `id`, `title` and `body`.
