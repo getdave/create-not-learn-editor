@@ -2,7 +2,7 @@
  * Internal dependencies
  */
 import { settings } from '../../settings';
-import { SiteCanvas, useSiteCanvas } from '../../site-canvas';
+import { DocumentTitle, SiteCanvas, useSiteCanvas } from '../../site-canvas';
 import { getHomepageDocumentIconStatus } from '../home/preview';
 import { Icon, __, homeIcon, postListIcon } from '../../wordpress-packages';
 
@@ -50,9 +50,7 @@ function PreviewDocument( { canvas } ) {
 							icon={ documentIcon }
 						/>
 					) }
-					<h1 className="cnl-editor-homepage-document__title">
-						{ previewLabel }
-					</h1>
+					<DocumentTitle title={ previewLabel } />
 				</div>
 				{ previewMetaLabel && (
 					<p className="cnl-editor-homepage-document__meta">

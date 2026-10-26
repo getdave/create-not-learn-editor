@@ -25,6 +25,7 @@ import ScreenLinks from '../../screen-links';
 import { settings } from '../../settings';
 import { getSiteCrumb } from '../../site-trail';
 import {
+	DocumentTitle,
 	SiteCanvas,
 	useCanvasDocument,
 	useSiteCanvas,
@@ -480,9 +481,7 @@ function PartDocument( { icon, title } ) {
 						className="cnl-editor-homepage-document__icon"
 						icon={ icon }
 					/>
-					<h1 className="cnl-editor-homepage-document__title">
-						{ title }
-					</h1>
+					<DocumentTitle title={ title } />
 				</div>
 				<p className="cnl-editor-homepage-document__meta">
 					{ __( 'Same on every page' ) }

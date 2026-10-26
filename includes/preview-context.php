@@ -153,6 +153,22 @@ function cnl_editor_get_preview_status_label( $status ) {
 }
 
 /**
+ * Get a post's title as plain text. `get_the_title()` returns HTML, with
+ * curly quotes and dashes as entities like `&#8217;`, which the editor would
+ * show as they are.
+ *
+ * @param int|WP_Post $post Post or post ID.
+ * @return string Title, or an empty string for an untitled post.
+ */
+function cnl_editor_get_preview_title( $post ) {
+	return html_entity_decode(
+		trim( wp_strip_all_tags( get_the_title( $post ) ) ),
+		ENT_QUOTES,
+		get_bloginfo( 'charset' )
+	);
+}
+
+/**
  * Determine whether a title is effectively just "Home".
  *
  * @param string $title Page title.
@@ -191,7 +207,7 @@ function cnl_editor_get_post_preview_context( $post_id, $preview_type = '', $sta
 	}
 
 	$post_type = get_post_type_object( $post->post_type );
-	$title     = get_the_title( $post );
+	$title     = cnl_editor_get_preview_title( $post );
 	if ( '' === $title ) {
 		$title = $post_type ? $post_type->labels->singular_name : __( 'Untitled', 'create-not-learn-editor' );
 	}
@@ -229,7 +245,7 @@ function cnl_editor_get_static_front_page_preview_context( $post_id ) {
 		return array();
 	}
 
-	$page_title = get_the_title( $post_id );
+	$page_title = cnl_editor_get_preview_title( $post_id );
 	if ( '' === $page_title ) {
 		$page_title = __( 'Untitled', 'create-not-learn-editor' );
 	}

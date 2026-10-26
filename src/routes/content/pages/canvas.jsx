@@ -31,6 +31,7 @@ import {
 	useCanvasMode,
 } from '../../../site-canvas/mode';
 import {
+	DocumentTitle,
 	SiteCanvas,
 	useCanvasDocument,
 	useSiteCanvas,
@@ -67,7 +68,6 @@ import {
 	MenuItem,
 	noticesStore,
 	pageIcon,
-	Tooltip,
 	useCallback,
 	useDispatch,
 	useEffect,
@@ -569,15 +569,7 @@ function PageDocument( { homepage, page } ) {
 						className="cnl-editor-homepage-document__icon"
 						icon={ homepage ? homeIcon : pageIcon }
 					/>
-					<Tooltip.Root disabled={ ! path }>
-						<Tooltip.Trigger
-							className="cnl-editor-homepage-document__title"
-							render={ <h1 /> }
-						>
-							{ heading }
-						</Tooltip.Trigger>
-						<Tooltip.Popup>{ path }</Tooltip.Popup>
-					</Tooltip.Root>
+					<DocumentTitle hint={ path } title={ heading } />
 				</div>
 				<p className="cnl-editor-homepage-document__meta">{ meta }</p>
 			</div>

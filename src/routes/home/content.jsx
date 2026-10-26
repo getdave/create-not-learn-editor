@@ -9,7 +9,7 @@ import { useNavigate } from '@wordpress/route';
 import { withCanvasRecovery } from '../../canvas-recovery';
 import { withUiTheme } from '../../theme';
 import { settings } from '../../settings';
-import { SiteCanvas, useSiteCanvas } from '../../site-canvas';
+import { DocumentTitle, SiteCanvas, useSiteCanvas } from '../../site-canvas';
 import { getHomepageDocumentIconStatus } from './preview';
 import Stage from './stage';
 import {
@@ -125,9 +125,7 @@ function PreviewDocument( { canvas } ) {
 							icon={ documentIcon }
 						/>
 					) }
-					<h1 className="cnl-editor-homepage-document__title">
-						{ previewLabel }
-					</h1>
+					<DocumentTitle title={ previewLabel } />
 				</div>
 				{ previewMetaLabel && (
 					<p className="cnl-editor-homepage-document__meta">
