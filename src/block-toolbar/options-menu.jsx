@@ -53,6 +53,11 @@ import { Menu } from '@wordpress/ui';
  * Internal dependencies
  */
 import {
+	getActiveStyle,
+	getStyleChoices,
+	getStyleClassName,
+} from '../editor-extensions/block-style-details';
+import {
 	getActiveFontSizeSlug,
 	getFontSizeAttributes,
 	getFontSizeHint,
@@ -71,6 +76,7 @@ import {
 	cutBlocks,
 	pasteStyles,
 } from './block-actions';
+import { ColorPickerPopover, ColorSubmenu, useBlockColors } from './colors';
 import { readToolbarTools } from './core-menu-items';
 import { toShortcut, useBlockShortcuts } from './shortcuts';
 import { ToolbarMenu, useLeaveFocus } from './toolbar-menu';
@@ -259,8 +265,110 @@ function FormatSubmenu( { toolbarRef } ) {
 }
 
 /**
- * The text alignment and width flyouts, and the size flyout, as sections of
- * the menu, each null when the block has none of it.
+ * The block's styles, like a button's Fill and Outline, where they can be
+ * changed: wherever its content can be, as core's toolbar offers them.
+ *
+ * @param {string} name        Block name.
+ * @param {string} editingMode The block's editing mode.
+ * @return {Object[]} The styles, none when there are none to offer.
+ */
+function useStyleChoices( name, editingMode ) {
+	const styles = useSelect(
+		( select ) => select( blocksStore ).getBlockStyles( name ),
+		[ name ]
+	);
+
+	return editingMode === 'default' || editingMode === 'contentOnly'
+		? getStyleChoices( styles )
+		: [];
+}
+
+/**
+ * The Styles flyout: the block's styles, taken from the menu on its name so
+ * they are found with the rest of its look, then, apart from them, copying
+ * and pasting styles between blocks.
+ *
+ * @param {Object}   props
+ * @param {string}   props.clientId  Block client ID.
+ * @param {?string}  props.className The block's class name.
+ * @param {Object[]} props.styles    The block's styles.
+ * @param {boolean}  props.canCopy   Whether styles can be copied and pasted.
+ * @return {Element} The flyout.
+ */
+function StylesSubmenu( { clientId, className, styles, canCopy } ) {
+	const registry = useRegistry();
+	const { updateBlockAttributes } = useDispatch( blockEditorStore );
+	const active = getActiveStyle( styles, className );
+
+	return (
+		<Menu.SubmenuRoot>
+			<Menu.SubmenuTrigger suffix={ active?.label }>
+				<Menu.ItemLabel>{ __( 'Styles' ) }</Menu.ItemLabel>
+			</Menu.SubmenuTrigger>
+			<Menu.Popup>
+				{ styles.length > 0 && (
+					<Menu.RadioGroup
+						value={ active?.name }
+						onValueChange={ ( value ) =>
+							updateBlockAttributes( clientId, {
+								className: getStyleClassName(
+									className,
+									active,
+									styles.find(
+										( style ) => style.name === value
+									)
+								),
+							} )
+						}
+					>
+						{ styles.map( ( style ) => (
+							<Menu.RadioItem
+								key={ style.name }
+								value={ style.name }
+								closeOnClick
+							>
+								<Menu.ItemLabel>
+									{ style.label || style.name }
+								</Menu.ItemLabel>
+							</Menu.RadioItem>
+						) ) }
+					</Menu.RadioGroup>
+				) }
+				{ styles.length > 0 && canCopy && <Menu.Separator /> }
+				{ canCopy && (
+					<>
+						<Menu.Item
+							onClick={ () =>
+								copyStyles( registry, [ clientId ] )
+							}
+						>
+							<Menu.ItemLabel>
+								{ __( 'Copy styles' ) }
+							</Menu.ItemLabel>
+						</Menu.Item>
+						<Menu.Item
+							onClick={ () =>
+								pasteStyles( registry, [ clientId ] )
+							}
+						>
+							<Menu.ItemLabel>
+								{ __( 'Paste styles' ) }
+							</Menu.ItemLabel>
+						</Menu.Item>
+					</>
+				) }
+			</Menu.Popup>
+		</Menu.SubmenuRoot>
+	);
+}
+
+/**
+ * The text alignment and width flyouts, and the text size and colour
+ * flyouts, as sections of the menu, each null when the block has none of it.
+ *
+ * Text and colour are offered wherever the block's content can be changed,
+ * in a locked section too, as a word processor offers them. The block's
+ * width, which changes the section's layout, only where it can be moved.
  *
  * @param {Object}   props
  * @param {string}   props.clientId      Block client ID.
@@ -268,8 +376,10 @@ function FormatSubmenu( { toolbarRef } ) {
  * @param {Object}   props.attributes    Block attributes.
  * @param {Function} props.setAttributes Block attribute setter.
  * @param {boolean}  props.isContainer   Whether the block's width is in its Layout menu instead.
- * @param {boolean}  props.isEnabled     Whether the block can be styled here.
- * @return {Array<?Element>} The align section and the size section.
+ * @param {string}   props.editingMode   The block's editing mode.
+ * @param {?Object}  props.colors        The block's colours, from `useBlockColors()`.
+ * @param {Function} props.onCustomColor Opens the colour picker, with the kind of colour.
+ * @return {Array<?Element>} The align section and the text section.
  */
 function useStyleSections( {
 	clientId,
@@ -277,17 +387,20 @@ function useStyleSections( {
 	attributes,
 	setAttributes,
 	isContainer,
-	isEnabled,
+	editingMode,
+	colors,
+	onCustomColor,
 } ) {
 	const [ fontSizes ] = useSettings( 'typography.fontSizes' );
 	const widths = useBlockWidths( clientId, name );
 
-	if ( ! isEnabled ) {
+	if ( editingMode !== 'default' && editingMode !== 'contentOnly' ) {
 		return [ null, null ];
 	}
 
 	const textAlign = getTextAlignment( name, attributes, setAttributes );
-	const showWidths = ! isContainer && widths.length > 1;
+	const showWidths =
+		editingMode === 'default' && ! isContainer && widths.length > 1;
 	const width = attributes.align ?? NONE;
 	const sizes =
 		TEXT_BLOCKS.has( name ) &&
@@ -341,26 +454,43 @@ function useStyleSections( {
 		</Menu.Group>
 	);
 
-	const size = sizes.length > 0 && (
-		<Menu.Group key="size">
-			<ChoiceSubmenu
-				label={ __( 'Text size' ) }
-				icon={ typography }
-				options={ sizes }
-				value={ getActiveFontSizeSlug( fontSizes, attributes ) ?? NONE }
-				onChange={ ( value ) =>
-					setAttributes(
-						getFontSizeAttributes(
-							attributes,
-							fromRadio( value ) ?? null
+	const text = ( sizes.length > 0 || colors ) && (
+		<Menu.Group key="text">
+			{ sizes.length > 0 && (
+				<ChoiceSubmenu
+					label={ __( 'Text size' ) }
+					icon={ typography }
+					options={ sizes }
+					value={
+						getActiveFontSizeSlug( fontSizes, attributes ) ?? NONE
+					}
+					onChange={ ( value ) =>
+						setAttributes(
+							getFontSizeAttributes(
+								attributes,
+								fromRadio( value ) ?? null
+							)
 						)
-					)
-				}
-			/>
+					}
+				/>
+			) }
+			{ colors?.kinds.map( ( kind ) => (
+				<ColorSubmenu
+					key={ kind }
+					kind={ kind }
+					clientId={ clientId }
+					name={ name }
+					attributes={ attributes }
+					setAttributes={ setAttributes }
+					choices={ colors.choices }
+					canCustom={ colors.canCustom }
+					onCustom={ onCustomColor }
+				/>
+			) ) }
 		</Menu.Group>
 	);
 
-	return [ align || null, size || null ];
+	return [ align || null, text || null ];
 }
 
 /**
@@ -404,14 +534,16 @@ export function OptionsMenu( {
 	const registry = useRegistry();
 	const triggerRef = useRef();
 	const [ trigger, setTrigger ] = useState();
-	// The same callback every render, so it is only called as the button
-	// comes and goes. See `ToolbarMenu`.
-	const triggerCallbackRef = useCallback( ( node ) => {
+	// Stable, so React doesn't detach and attach it again with every render.
+	const setTriggerRef = useCallback( ( node ) => {
 		triggerRef.current = node;
 		setTrigger( node );
 	}, [] );
+	const [ pickingColor, setPickingColor ] = useState( null );
 	const shortcuts = useBlockShortcuts();
-	const isDefaultEditingMode = useBlockEditingMode() === 'default';
+	const editingMode = useBlockEditingMode();
+	const isDefaultEditingMode = editingMode === 'default';
+	const colors = useBlockColors( name );
 	const [ coreItems, setCoreItems ] = useState( {
 		first: [],
 		controls: [],
@@ -488,13 +620,21 @@ export function OptionsMenu( {
 		( item ) => ! TOP_LEVEL_CORE_ITEMS.has( item.label )
 	);
 
-	const [ alignSection, sizeSection ] = useStyleSections( {
+	const styleChoices = useStyleChoices( name, editingMode );
+	// Wherever its look can be changed, in a locked section too.
+	const canCopyStyles =
+		editingMode === 'default' || editingMode === 'contentOnly';
+	const hasStyles = styleChoices.length > 0 || canCopyStyles;
+
+	const [ alignSection, textSection ] = useStyleSections( {
 		clientId,
 		name,
 		attributes,
 		setAttributes,
 		isContainer,
-		isEnabled: isDefaultEditingMode,
+		editingMode,
+		colors,
+		onCustomColor: setPickingColor,
 	} );
 
 	/*
@@ -514,33 +654,19 @@ export function OptionsMenu( {
 			</Menu.Group>
 		),
 		alignSection,
-		sizeSection,
-		( hasTextSelection || isDefaultEditingMode || canInsert ) && (
+		textSection,
+		( hasTextSelection || hasStyles || canInsert ) && (
 			<Menu.Group key="edit">
 				{ hasTextSelection && (
 					<FormatSubmenu toolbarRef={ triggerRef } />
 				) }
-				{ isDefaultEditingMode && (
-					<Submenu label={ __( 'Styles' ) }>
-						<Menu.Item
-							onClick={ () =>
-								copyStyles( registry, [ clientId ] )
-							}
-						>
-							<Menu.ItemLabel>
-								{ __( 'Copy styles' ) }
-							</Menu.ItemLabel>
-						</Menu.Item>
-						<Menu.Item
-							onClick={ () =>
-								pasteStyles( registry, [ clientId ] )
-							}
-						>
-							<Menu.ItemLabel>
-								{ __( 'Paste styles' ) }
-							</Menu.ItemLabel>
-						</Menu.Item>
-					</Submenu>
+				{ hasStyles && (
+					<StylesSubmenu
+						clientId={ clientId }
+						className={ attributes.className }
+						styles={ styleChoices }
+						canCopy={ canCopyStyles }
+					/>
 				) }
 				{ canInsert && (
 					<Submenu label={ __( 'Insert' ) }>
@@ -606,23 +732,37 @@ export function OptionsMenu( {
 	].filter( Boolean );
 
 	return (
-		<ToolbarMenu
-			ref={ triggerCallbackRef }
-			buttonProps={ {
-				className: 'cnl-block-options__toggle',
-				icon: optionsIcon,
-				label: __( 'Options' ),
-			} }
-			popupClassName="cnl-block-options"
-			disabled={ sections.length === 0 }
-			onOpen={ () => setCoreItems( readAllItems() ) }
-		>
-			{ sections.map( ( section, index ) => (
-				<Fragment key={ section.key ?? index }>
-					{ index > 0 && <Menu.Separator /> }
-					{ section }
-				</Fragment>
-			) ) }
-		</ToolbarMenu>
+		<>
+			<ToolbarMenu
+				ref={ setTriggerRef }
+				buttonProps={ {
+					className: 'cnl-block-options__toggle',
+					icon: optionsIcon,
+					label: __( 'Options' ),
+				} }
+				popupClassName="cnl-block-options"
+				disabled={ sections.length === 0 }
+				onOpen={ () => setCoreItems( readAllItems() ) }
+			>
+				{ sections.map( ( section, index ) => (
+					<Fragment key={ section.key ?? index }>
+						{ index > 0 && <Menu.Separator /> }
+						{ section }
+					</Fragment>
+				) ) }
+			</ToolbarMenu>
+			{ pickingColor && colors && (
+				<ColorPickerPopover
+					kind={ pickingColor }
+					anchor={ trigger }
+					clientId={ clientId }
+					name={ name }
+					attributes={ attributes }
+					setAttributes={ setAttributes }
+					choices={ colors.choices }
+					onClose={ () => setPickingColor( null ) }
+				/>
+			) }
+		</>
 	);
 }

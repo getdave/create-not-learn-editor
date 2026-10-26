@@ -246,6 +246,7 @@ export function SiteCanvas( {
 					editorEntity && (
 						<SectionModesLayer
 							editorRef={ editorRef }
+							entity={ editorEntity }
 							focusId={ focusId }
 							isComposing={ isComposing }
 							isWriting={ isWriting }

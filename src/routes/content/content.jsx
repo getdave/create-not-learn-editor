@@ -8,6 +8,7 @@ import { withScreenKey } from '../../screen-key';
 import { getCurrentEditorPath } from '../static/screens';
 import { withUiTheme } from '../../theme';
 import { useSiteTrail } from '../../site-trail';
+import { usePostsTrip } from '../../site-canvas/mode';
 import { getTemplateAuthorText } from '../../records';
 import { EMPTY_ARRAY } from './page-layouts';
 import { requestDistractionFreeEntry } from '../../editor-layer/distraction-free';
@@ -154,6 +155,7 @@ function Stage() {
 	const navigate = useNavigate();
 	const searchParams = useSearch( { strict: false } );
 	const siteTrail = useSiteTrail();
+	const postsTrip = usePostsTrip();
 	// Where a page being added goes: in the menu, out of it, or the user picks.
 	const [ addingPage, setAddingPage ] = useState( null );
 	const {
@@ -519,9 +521,14 @@ function Stage() {
 	}
 
 	const title = type.menuName || type.label;
+	// Opened from a section's Edit posts, the list leads back to its page.
 	// Opened from the "My site" screen, or the Header or Footer screen,
 	// Pages leads back there.
-	const siteCrumbs = isPages ? siteTrail : [];
+	let siteCrumbs = isPages ? siteTrail : [];
+
+	if ( postsTrip?.postType === type.name ) {
+		siteCrumbs = [ { label: postsTrip.label, to: postsTrip.to } ];
+	}
 	const pageHeader = subScreenLabel
 		? {
 				ariaLabel: subScreenLabel,

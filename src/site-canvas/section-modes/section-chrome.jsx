@@ -1,7 +1,8 @@
 /**
  * The controls Edit lays over a section: its name, the bar over it while it
  * is pointed at or picked, with Add, Edit design (and Edit header or Edit
- * footer, or Edit content in Compose) and its own moves, and the small bar
+ * footer, or Edit content in Compose, and Manage posts on a section listing
+ * posts) and its own moves, and the small bar
  * on a header or footer being edited, or a section in Freeform.
  */
 
@@ -39,6 +40,7 @@ import {
 	sprintf,
 } from '../../wordpress-packages';
 import { getAddableTypes } from './items';
+import PostsMenu from './posts-menu';
 
 export const MODE_DESIGN = 'design';
 export const MODE_CONTENT = 'content';
@@ -261,32 +263,38 @@ function AddMenu( { onAdd, onToggle, title } ) {
  * The bar over a section while it is pointed at.
  *
  * @param {Object}   props
- * @param {string}   props.title        The section's name.
- * @param {boolean}  props.isPart       Whether it is the header or footer,
- *                                      which stay where they are.
- * @param {boolean}  props.isText       Whether it is a run of text in
- *                                      writing, which has no design.
- * @param {boolean}  props.isComposing  Whether the canvas is in Compose,
- *                                      which has Edit content in place of
- *                                      Add.
- * @param {boolean}  props.isNarrow     Whether the modes go on a row of
- *                                      their own, for a narrow section.
- * @param {boolean}  props.isCompact    Whether the modes are icons only,
- *                                      for a short section.
- * @param {boolean}  props.canMoveUp    Whether it can move up.
- * @param {boolean}  props.canMoveDown  Whether it can move down.
- * @param {Object}   props.style        Where the bar sits.
- * @param {Function} props.onAdd        Adds an item, called with its type.
- * @param {Function} props.onMenuToggle Called with whether Add is open.
- * @param {Function} props.onMode       Called with the mode picked.
- * @param {Function} props.onMove       Called with -1 or 1.
- * @param {Function} props.onDuplicate  Duplicates the section.
- * @param {Function} props.onDelete     Deletes the section.
+ * @param {string}   props.title         The section's name.
+ * @param {boolean}  props.isPart        Whether it is the header or footer,
+ *                                       which stay where they are.
+ * @param {boolean}  props.isText        Whether it is a run of text in
+ *                                       writing, which has no design.
+ * @param {boolean}  props.isComposing   Whether the canvas is in Compose,
+ *                                       which has Edit content in place of
+ *                                       Add.
+ * @param {boolean}  props.isNarrow      Whether the modes go on a row of
+ *                                       their own, for a narrow section.
+ * @param {boolean}  props.isCompact     Whether the modes are icons only,
+ *                                       for a short section.
+ * @param {boolean}  props.canMoveUp     Whether it can move up.
+ * @param {boolean}  props.canMoveDown   Whether it can move down.
+ * @param {string}   props.clientId      The section.
+ * @param {?Object}  props.posts         The posts it lists, if any, from
+ *                                       `usePostsSection`, for Manage posts.
+ * @param {Object}   props.style         Where the bar sits.
+ * @param {Function} props.onAdd         Adds an item, called with its type.
+ * @param {Function} props.onMenuToggle  Called with whether Add, or Manage
+ *                                       posts, is open.
+ * @param {Function} props.onManagePosts Leads to the posts' screen.
+ * @param {Function} props.onMode        Called with the mode picked.
+ * @param {Function} props.onMove        Called with -1 or 1.
+ * @param {Function} props.onDuplicate   Duplicates the section.
+ * @param {Function} props.onDelete      Deletes the section.
  * @return {Element} The bar.
  */
 export function HoverBar( {
 	canMoveDown,
 	canMoveUp,
+	clientId,
 	isCompact,
 	isComposing,
 	isNarrow,
@@ -295,9 +303,11 @@ export function HoverBar( {
 	onAdd,
 	onDelete,
 	onDuplicate,
+	onManagePosts,
 	onMenuToggle,
 	onMode,
 	onMove,
+	posts,
 	style,
 	title,
 } ) {
@@ -336,6 +346,15 @@ export function HoverBar( {
 							text={ isCompact ? null : label }
 						/>
 					)
+				) }
+				{ posts && ! isPart && (
+					<PostsMenu
+						clientId={ clientId }
+						isCompact={ isCompact }
+						onManageAll={ onManagePosts }
+						onToggle={ onMenuToggle }
+						posts={ posts }
+					/>
 				) }
 			</div>
 			<div className="cnl-section-modes__bar-end">
