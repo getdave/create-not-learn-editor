@@ -445,6 +445,26 @@ $group-gap: 6px;
 	}
 }
 
+// Core's styles leave the menu on the block's name for the options menu.
+html.cnl-has-block-toolbar .block-editor-block-switcher__styles__menugroup {
+	display: none;
+}
+
+// A name with nothing left in its menu is a label: no chevron, and it
+// doesn't open (`name-menu.js`).
+html.cnl-has-block-toolbar.cnl-block-name-is-label .components-popover .block-editor-block-contextual-toolbar .block-editor-block-toolbar__block-controls .block-editor-block-switcher .components-dropdown-menu__toggle {
+	padding-inline-end: 12px;
+	cursor: default;
+
+	&::after {
+		display: none;
+	}
+
+	&:hover:not(:focus-visible) {
+		background: none;
+	}
+}
+
 /**
  * The options, Layout and lineage menus, at a width that fits a value
  * beside each name.

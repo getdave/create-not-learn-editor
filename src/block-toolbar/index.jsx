@@ -7,7 +7,8 @@
  * pieces are restyled or hidden by the stylesheet, and what replaces them is
  * filled into its slots:
  *
- * - The block's name beside its icon, as the way to transform it.
+ * - The block's name beside its icon, as the way to transform it, or as a
+ *   label when there is nothing to turn it into.
  * - Full-size movers.
  * - A Layout menu and "+" for containers, in the block group.
  * - An options menu standing in for core's "⋮", with the style controls the
@@ -38,6 +39,7 @@ import { trash } from '@wordpress/icons';
  */
 import { CoreMenuItemsHost, useCoreMenuItems } from './core-menu-items';
 import { ContainerControls, isContainerBlock } from './layout-menu';
+import { registerNameMenu, useNameMenu } from './name-menu';
 import { OptionsMenu } from './options-menu';
 import { ParentSelector } from './parent-selector';
 import { useBlockShortcuts } from './shortcuts';
@@ -93,6 +95,7 @@ function BlockToolbarFills( { clientId, name, attributes, setAttributes } ) {
 	const isContainer = isDefaultEditingMode && isContainerBlock( name );
 
 	useFloatingFormatToolbar( clientId );
+	useNameMenu( clientId );
 	useParentSelectorFit( clientId );
 
 	return (
@@ -153,6 +156,7 @@ function withBlockToolbar( BlockEdit ) {
 export function registerBlockToolbar() {
 	document.documentElement.classList.add( 'cnl-has-block-toolbar' );
 	registerToolbarKeyboard();
+	registerNameMenu();
 
 	addFilter(
 		'editor.BlockEdit',

@@ -25,7 +25,13 @@ import {
 	store as blocksStore,
 } from '@wordpress/blocks';
 import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
-import { Fragment, useEffect, useRef, useState } from '@wordpress/element';
+import {
+	Fragment,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import {
 	formatBold,
@@ -46,6 +52,11 @@ import { Menu } from '@wordpress/ui';
 /**
  * Internal dependencies
  */
+import {
+	getActiveStyle,
+	getStyleChoices,
+	getStyleClassName,
+} from '../editor-extensions/block-style-details';
 import {
 	getActiveFontSizeSlug,
 	getFontSizeAttributes,
@@ -254,6 +265,104 @@ function FormatSubmenu( { toolbarRef } ) {
 }
 
 /**
+ * The block's styles, like a button's Fill and Outline, where they can be
+ * changed: wherever its content can be, as core's toolbar offers them.
+ *
+ * @param {string} name        Block name.
+ * @param {string} editingMode The block's editing mode.
+ * @return {Object[]} The styles, none when there are none to offer.
+ */
+function useStyleChoices( name, editingMode ) {
+	const styles = useSelect(
+		( select ) => select( blocksStore ).getBlockStyles( name ),
+		[ name ]
+	);
+
+	return editingMode === 'default' || editingMode === 'contentOnly'
+		? getStyleChoices( styles )
+		: [];
+}
+
+/**
+ * The Styles flyout: the block's styles, taken from the menu on its name so
+ * they are found with the rest of its look, then, apart from them, copying
+ * and pasting styles between blocks.
+ *
+ * @param {Object}   props
+ * @param {string}   props.clientId  Block client ID.
+ * @param {?string}  props.className The block's class name.
+ * @param {Object[]} props.styles    The block's styles.
+ * @param {boolean}  props.canCopy   Whether styles can be copied and pasted.
+ * @return {Element} The flyout.
+ */
+function StylesSubmenu( { clientId, className, styles, canCopy } ) {
+	const registry = useRegistry();
+	const { updateBlockAttributes } = useDispatch( blockEditorStore );
+	const active = getActiveStyle( styles, className );
+
+	return (
+		<Menu.SubmenuRoot>
+			<Menu.SubmenuTrigger suffix={ active?.label }>
+				<Menu.ItemLabel>{ __( 'Styles' ) }</Menu.ItemLabel>
+			</Menu.SubmenuTrigger>
+			<Menu.Popup>
+				{ styles.length > 0 && (
+					<Menu.RadioGroup
+						value={ active?.name }
+						onValueChange={ ( value ) =>
+							updateBlockAttributes( clientId, {
+								className: getStyleClassName(
+									className,
+									active,
+									styles.find(
+										( style ) => style.name === value
+									)
+								),
+							} )
+						}
+					>
+						{ styles.map( ( style ) => (
+							<Menu.RadioItem
+								key={ style.name }
+								value={ style.name }
+								closeOnClick
+							>
+								<Menu.ItemLabel>
+									{ style.label || style.name }
+								</Menu.ItemLabel>
+							</Menu.RadioItem>
+						) ) }
+					</Menu.RadioGroup>
+				) }
+				{ styles.length > 0 && canCopy && <Menu.Separator /> }
+				{ canCopy && (
+					<>
+						<Menu.Item
+							onClick={ () =>
+								copyStyles( registry, [ clientId ] )
+							}
+						>
+							<Menu.ItemLabel>
+								{ __( 'Copy styles' ) }
+							</Menu.ItemLabel>
+						</Menu.Item>
+						<Menu.Item
+							onClick={ () =>
+								pasteStyles( registry, [ clientId ] )
+							}
+						>
+							<Menu.ItemLabel>
+								{ __( 'Paste styles' ) }
+							</Menu.ItemLabel>
+						</Menu.Item>
+					</>
+				) }
+			</Menu.Popup>
+		</Menu.SubmenuRoot>
+	);
+}
+
+/**
  * The text alignment and width flyouts, and the text size and colour
  * flyouts, as sections of the menu, each null when the block has none of it.
  *
@@ -425,6 +534,11 @@ export function OptionsMenu( {
 	const registry = useRegistry();
 	const triggerRef = useRef();
 	const [ trigger, setTrigger ] = useState();
+	// Stable, so React doesn't detach and attach it again with every render.
+	const setTriggerRef = useCallback( ( node ) => {
+		triggerRef.current = node;
+		setTrigger( node );
+	}, [] );
 	const [ pickingColor, setPickingColor ] = useState( null );
 	const shortcuts = useBlockShortcuts();
 	const editingMode = useBlockEditingMode();
@@ -506,6 +620,12 @@ export function OptionsMenu( {
 		( item ) => ! TOP_LEVEL_CORE_ITEMS.has( item.label )
 	);
 
+	const styleChoices = useStyleChoices( name, editingMode );
+	// Wherever its look can be changed, in a locked section too.
+	const canCopyStyles =
+		editingMode === 'default' || editingMode === 'contentOnly';
+	const hasStyles = styleChoices.length > 0 || canCopyStyles;
+
 	const [ alignSection, textSection ] = useStyleSections( {
 		clientId,
 		name,
@@ -535,32 +655,18 @@ export function OptionsMenu( {
 		),
 		alignSection,
 		textSection,
-		( hasTextSelection || isDefaultEditingMode || canInsert ) && (
+		( hasTextSelection || hasStyles || canInsert ) && (
 			<Menu.Group key="edit">
 				{ hasTextSelection && (
 					<FormatSubmenu toolbarRef={ triggerRef } />
 				) }
-				{ isDefaultEditingMode && (
-					<Submenu label={ __( 'Styles' ) }>
-						<Menu.Item
-							onClick={ () =>
-								copyStyles( registry, [ clientId ] )
-							}
-						>
-							<Menu.ItemLabel>
-								{ __( 'Copy styles' ) }
-							</Menu.ItemLabel>
-						</Menu.Item>
-						<Menu.Item
-							onClick={ () =>
-								pasteStyles( registry, [ clientId ] )
-							}
-						>
-							<Menu.ItemLabel>
-								{ __( 'Paste styles' ) }
-							</Menu.ItemLabel>
-						</Menu.Item>
-					</Submenu>
+				{ hasStyles && (
+					<StylesSubmenu
+						clientId={ clientId }
+						className={ attributes.className }
+						styles={ styleChoices }
+						canCopy={ canCopyStyles }
+					/>
 				) }
 				{ canInsert && (
 					<Submenu label={ __( 'Insert' ) }>
@@ -628,10 +734,7 @@ export function OptionsMenu( {
 	return (
 		<>
 			<ToolbarMenu
-				ref={ ( node ) => {
-					triggerRef.current = node;
-					setTrigger( node );
-				} }
+				ref={ setTriggerRef }
 				buttonProps={ {
 					className: 'cnl-block-options__toggle',
 					icon: optionsIcon,
