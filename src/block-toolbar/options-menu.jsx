@@ -65,6 +65,7 @@ import {
 	cutBlocks,
 	pasteStyles,
 } from './block-actions';
+import { ColorPickerPopover, ColorSubmenu, useBlockColors } from './colors';
 import { readToolbarTools } from './core-menu-items';
 import { toShortcut, useBlockShortcuts } from './shortcuts';
 import { ToolbarMenu, useLeaveFocus } from './toolbar-menu';
@@ -253,8 +254,12 @@ function FormatSubmenu( { toolbarRef } ) {
 }
 
 /**
- * The text alignment and width flyouts, and the size flyout, as sections of
- * the menu, each null when the block has none of it.
+ * The text alignment and width flyouts, and the text size and colour
+ * flyouts, as sections of the menu, each null when the block has none of it.
+ *
+ * Text and colour are offered wherever the block's content can be changed,
+ * in a locked section too, as a word processor offers them. The block's
+ * width, which changes the section's layout, only where it can be moved.
  *
  * @param {Object}   props
  * @param {string}   props.clientId      Block client ID.
@@ -262,8 +267,10 @@ function FormatSubmenu( { toolbarRef } ) {
  * @param {Object}   props.attributes    Block attributes.
  * @param {Function} props.setAttributes Block attribute setter.
  * @param {boolean}  props.isContainer   Whether the block's width is in its Layout menu instead.
- * @param {boolean}  props.isEnabled     Whether the block can be styled here.
- * @return {Array<?Element>} The align section and the size section.
+ * @param {string}   props.editingMode   The block's editing mode.
+ * @param {?Object}  props.colors        The block's colours, from `useBlockColors()`.
+ * @param {Function} props.onCustomColor Opens the colour picker, with the kind of colour.
+ * @return {Array<?Element>} The align section and the text section.
  */
 function useStyleSections( {
 	clientId,
@@ -271,17 +278,20 @@ function useStyleSections( {
 	attributes,
 	setAttributes,
 	isContainer,
-	isEnabled,
+	editingMode,
+	colors,
+	onCustomColor,
 } ) {
 	const [ fontSizes ] = useSettings( 'typography.fontSizes' );
 	const widths = useBlockWidths( clientId, name );
 
-	if ( ! isEnabled ) {
+	if ( editingMode !== 'default' && editingMode !== 'contentOnly' ) {
 		return [ null, null ];
 	}
 
 	const textAlign = getTextAlignment( name, attributes, setAttributes );
-	const showWidths = ! isContainer && widths.length > 1;
+	const showWidths =
+		editingMode === 'default' && ! isContainer && widths.length > 1;
 	const width = attributes.align ?? NONE;
 	const sizes =
 		TEXT_BLOCKS.has( name ) &&
@@ -335,26 +345,43 @@ function useStyleSections( {
 		</Menu.Group>
 	);
 
-	const size = sizes.length > 0 && (
-		<Menu.Group key="size">
-			<ChoiceSubmenu
-				label={ __( 'Text size' ) }
-				icon={ typography }
-				options={ sizes }
-				value={ getActiveFontSizeSlug( fontSizes, attributes ) ?? NONE }
-				onChange={ ( value ) =>
-					setAttributes(
-						getFontSizeAttributes(
-							attributes,
-							fromRadio( value ) ?? null
+	const text = ( sizes.length > 0 || colors ) && (
+		<Menu.Group key="text">
+			{ sizes.length > 0 && (
+				<ChoiceSubmenu
+					label={ __( 'Text size' ) }
+					icon={ typography }
+					options={ sizes }
+					value={
+						getActiveFontSizeSlug( fontSizes, attributes ) ?? NONE
+					}
+					onChange={ ( value ) =>
+						setAttributes(
+							getFontSizeAttributes(
+								attributes,
+								fromRadio( value ) ?? null
+							)
 						)
-					)
-				}
-			/>
+					}
+				/>
+			) }
+			{ colors?.kinds.map( ( kind ) => (
+				<ColorSubmenu
+					key={ kind }
+					kind={ kind }
+					clientId={ clientId }
+					name={ name }
+					attributes={ attributes }
+					setAttributes={ setAttributes }
+					choices={ colors.choices }
+					canCustom={ colors.canCustom }
+					onCustom={ onCustomColor }
+				/>
+			) ) }
 		</Menu.Group>
 	);
 
-	return [ align || null, size || null ];
+	return [ align || null, text || null ];
 }
 
 /**
@@ -398,8 +425,11 @@ export function OptionsMenu( {
 	const registry = useRegistry();
 	const triggerRef = useRef();
 	const [ trigger, setTrigger ] = useState();
+	const [ pickingColor, setPickingColor ] = useState( null );
 	const shortcuts = useBlockShortcuts();
-	const isDefaultEditingMode = useBlockEditingMode() === 'default';
+	const editingMode = useBlockEditingMode();
+	const isDefaultEditingMode = editingMode === 'default';
+	const colors = useBlockColors( name );
 	const [ coreItems, setCoreItems ] = useState( {
 		first: [],
 		controls: [],
@@ -476,13 +506,15 @@ export function OptionsMenu( {
 		( item ) => ! TOP_LEVEL_CORE_ITEMS.has( item.label )
 	);
 
-	const [ alignSection, sizeSection ] = useStyleSections( {
+	const [ alignSection, textSection ] = useStyleSections( {
 		clientId,
 		name,
 		attributes,
 		setAttributes,
 		isContainer,
-		isEnabled: isDefaultEditingMode,
+		editingMode,
+		colors,
+		onCustomColor: setPickingColor,
 	} );
 
 	/*
@@ -502,7 +534,7 @@ export function OptionsMenu( {
 			</Menu.Group>
 		),
 		alignSection,
-		sizeSection,
+		textSection,
 		( hasTextSelection || isDefaultEditingMode || canInsert ) && (
 			<Menu.Group key="edit">
 				{ hasTextSelection && (
@@ -594,26 +626,40 @@ export function OptionsMenu( {
 	].filter( Boolean );
 
 	return (
-		<ToolbarMenu
-			ref={ ( node ) => {
-				triggerRef.current = node;
-				setTrigger( node );
-			} }
-			buttonProps={ {
-				className: 'cnl-block-options__toggle',
-				icon: optionsIcon,
-				label: __( 'Options' ),
-			} }
-			popupClassName="cnl-block-options"
-			disabled={ sections.length === 0 }
-			onOpen={ () => setCoreItems( readAllItems() ) }
-		>
-			{ sections.map( ( section, index ) => (
-				<Fragment key={ section.key ?? index }>
-					{ index > 0 && <Menu.Separator /> }
-					{ section }
-				</Fragment>
-			) ) }
-		</ToolbarMenu>
+		<>
+			<ToolbarMenu
+				ref={ ( node ) => {
+					triggerRef.current = node;
+					setTrigger( node );
+				} }
+				buttonProps={ {
+					className: 'cnl-block-options__toggle',
+					icon: optionsIcon,
+					label: __( 'Options' ),
+				} }
+				popupClassName="cnl-block-options"
+				disabled={ sections.length === 0 }
+				onOpen={ () => setCoreItems( readAllItems() ) }
+			>
+				{ sections.map( ( section, index ) => (
+					<Fragment key={ section.key ?? index }>
+						{ index > 0 && <Menu.Separator /> }
+						{ section }
+					</Fragment>
+				) ) }
+			</ToolbarMenu>
+			{ pickingColor && colors && (
+				<ColorPickerPopover
+					kind={ pickingColor }
+					anchor={ trigger }
+					clientId={ clientId }
+					name={ name }
+					attributes={ attributes }
+					setAttributes={ setAttributes }
+					choices={ colors.choices }
+					onClose={ () => setPickingColor( null ) }
+				/>
+			) }
+		</>
 	);
 }

@@ -79,6 +79,11 @@ function UnforwardedToolbarMenu(
 	const [ isOpen, setIsOpen ] = useState( false );
 	const buttonRef = useRef();
 	const leavesFocusRef = useRef( false );
+	const [ context ] = useState( () => ( {
+		leaveFocus: () => {
+			leavesFocusRef.current = true;
+		},
+	} ) );
 
 	// A menu left with nothing in it closes.
 	useEffect( () => {
@@ -143,7 +148,9 @@ function UnforwardedToolbarMenu(
 							/>
 						}
 					>
-						{ children }
+						<ToolbarMenuContext.Provider value={ context }>
+							{ children }
+						</ToolbarMenuContext.Provider>
 					</Menu.Popup>
 				</Menu.Root>,
 				document.body
