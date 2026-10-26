@@ -78,6 +78,12 @@ import {
 } from './block-actions';
 import { ColorPickerPopover, ColorSubmenu, useBlockColors } from './colors';
 import { readToolbarTools } from './core-menu-items';
+import {
+	Flyout,
+	MenuSearch,
+	MenuSearchProvider,
+	useSearchLabel,
+} from './menu-search';
 import { toShortcut, useBlockShortcuts } from './shortcuts';
 import { ToolbarMenu, useLeaveFocus } from './toolbar-menu';
 
@@ -109,42 +115,72 @@ const CORE_ITEM_ICONS = {
  * A flyout of choices, showing the one in use beside its name.
  *
  * @param {Object}   props
- * @param {string}   props.label    The flyout's name.
- * @param {Object}   [props.icon]   Its icon.
+ * @param {string}   props.label         The flyout's name.
+ * @param {string}   [props.searchLabel] Its name in search results, where it has no group around it to explain it.
+ * @param {Object}   [props.icon]        Its icon.
+ * @param {Object[]} props.options       Choices, `{ value, label, icon, hint }`.
+ * @param {string}   props.value         The choice in use.
+ * @param {Function} props.onChange      Called with the choice picked.
+ * @return {Element} The flyout.
+ */
+function ChoiceSubmenu( {
+	label,
+	searchLabel = label,
+	icon,
+	options,
+	value,
+	onChange,
+} ) {
+	return (
+		<Flyout
+			label={ searchLabel }
+			trigger={
+				<Menu.SubmenuTrigger
+					prefix={ icon && <Menu.PrefixIcon icon={ icon } /> }
+					suffix={ getChoiceLabel( options, value ) }
+				>
+					<Menu.ItemLabel>{ label }</Menu.ItemLabel>
+				</Menu.SubmenuTrigger>
+			}
+		>
+			<ChoiceItems
+				options={ options }
+				value={ value }
+				onChange={ onChange }
+			/>
+		</Flyout>
+	);
+}
+
+/**
+ * A flyout's choices.
+ *
+ * @param {Object}   props
  * @param {Object[]} props.options  Choices, `{ value, label, icon, hint }`.
  * @param {string}   props.value    The choice in use.
  * @param {Function} props.onChange Called with the choice picked.
- * @return {Element} The flyout.
+ * @return {Element} The choices.
  */
-function ChoiceSubmenu( { label, icon, options, value, onChange } ) {
+function ChoiceItems( { options, value, onChange } ) {
+	const searchLabel = useSearchLabel();
+
 	return (
-		<Menu.SubmenuRoot>
-			<Menu.SubmenuTrigger
-				prefix={ icon && <Menu.PrefixIcon icon={ icon } /> }
-				suffix={ getChoiceLabel( options, value ) }
-			>
-				<Menu.ItemLabel>{ label }</Menu.ItemLabel>
-			</Menu.SubmenuTrigger>
-			<Menu.Popup>
-				<Menu.RadioGroup value={ value } onValueChange={ onChange }>
-					{ options.map( ( option ) => (
-						<Menu.RadioItem
-							key={ option.value }
-							value={ option.value }
-							closeOnClick
-							prefix={
-								option.icon && (
-									<Menu.PrefixIcon icon={ option.icon } />
-								)
-							}
-							suffix={ option.hint }
-						>
-							<Menu.ItemLabel>{ option.label }</Menu.ItemLabel>
-						</Menu.RadioItem>
-					) ) }
-				</Menu.RadioGroup>
-			</Menu.Popup>
-		</Menu.SubmenuRoot>
+		<Menu.RadioGroup value={ value } onValueChange={ onChange }>
+			{ options.map( ( option ) => (
+				<Menu.RadioItem
+					key={ option.value }
+					value={ option.value }
+					label={ searchLabel( option.label ) }
+					closeOnClick
+					prefix={
+						option.icon && <Menu.PrefixIcon icon={ option.icon } />
+					}
+					suffix={ option.hint }
+				>
+					<Menu.ItemLabel>{ option.label }</Menu.ItemLabel>
+				</Menu.RadioItem>
+			) ) }
+		</Menu.RadioGroup>
 	);
 }
 
@@ -158,12 +194,16 @@ function ChoiceSubmenu( { label, icon, options, value, onChange } ) {
  */
 function Submenu( { label, children } ) {
 	return (
-		<Menu.SubmenuRoot>
-			<Menu.SubmenuTrigger>
-				<Menu.ItemLabel>{ label }</Menu.ItemLabel>
-			</Menu.SubmenuTrigger>
-			<Menu.Popup>{ children }</Menu.Popup>
-		</Menu.SubmenuRoot>
+		<Flyout
+			label={ label }
+			trigger={
+				<Menu.SubmenuTrigger>
+					<Menu.ItemLabel>{ label }</Menu.ItemLabel>
+				</Menu.SubmenuTrigger>
+			}
+		>
+			{ children }
+		</Flyout>
 	);
 }
 
@@ -179,10 +219,12 @@ function Submenu( { label, children } ) {
  */
 function CoreItems( { items } ) {
 	const leaveFocus = useLeaveFocus();
+	const searchLabel = useSearchLabel();
 
 	return items.map( ( item ) => (
 		<Menu.Item
 			key={ item.key }
+			label={ searchLabel( item.label ) }
 			disabled={ item.disabled }
 			onClick={ () => {
 				leaveFocus();
@@ -213,6 +255,7 @@ function ToolbarTools( { items } ) {
 	return items.map( ( item ) => (
 		<Menu.CheckboxItem
 			key={ item.key }
+			label={ item.label }
 			checked={ item.pressed }
 			disabled={ item.disabled }
 			closeOnClick
@@ -233,7 +276,23 @@ function ToolbarTools( { items } ) {
  * @return {Element} The flyout.
  */
 function FormatSubmenu( { toolbarRef } ) {
+	return (
+		<Submenu label={ __( 'Format' ) }>
+			<FormatItems toolbarRef={ toolbarRef } />
+		</Submenu>
+	);
+}
+
+/**
+ * The Format flyout's items.
+ *
+ * @param {Object} props
+ * @param {Object} props.toolbarRef Ref to an element in the block's toolbar.
+ * @return {Element} Bold and italic.
+ */
+function FormatItems( { toolbarRef } ) {
 	const leaveFocus = useLeaveFocus();
+	const searchLabel = useSearchLabel();
 	const press = ( label ) => () => {
 		leaveFocus();
 		window.setTimeout( () =>
@@ -245,8 +304,9 @@ function FormatSubmenu( { toolbarRef } ) {
 	};
 
 	return (
-		<Submenu label={ __( 'Format' ) }>
+		<>
 			<Menu.Item
+				label={ searchLabel( __( 'Bold' ) ) }
 				prefix={ <Menu.PrefixIcon icon={ formatBold } /> }
 				shortcut={ toShortcut( 'primary', 'b' ) }
 				onClick={ press( __( 'Bold' ) ) }
@@ -254,13 +314,62 @@ function FormatSubmenu( { toolbarRef } ) {
 				<Menu.ItemLabel>{ __( 'Bold' ) }</Menu.ItemLabel>
 			</Menu.Item>
 			<Menu.Item
+				label={ searchLabel( __( 'Italic' ) ) }
 				prefix={ <Menu.PrefixIcon icon={ formatItalic } /> }
 				shortcut={ toShortcut( 'primary', 'i' ) }
 				onClick={ press( __( 'Italic' ) ) }
 			>
 				<Menu.ItemLabel>{ __( 'Italic' ) }</Menu.ItemLabel>
 			</Menu.Item>
+		</>
+	);
+}
+
+/**
+ * The Insert flyout: a block before or after this one.
+ *
+ * @param {Object} props
+ * @param {string} props.clientId Block client ID.
+ * @return {Element} The flyout.
+ */
+function InsertSubmenu( { clientId } ) {
+	return (
+		<Submenu label={ __( 'Insert' ) }>
+			<InsertItems clientId={ clientId } />
 		</Submenu>
+	);
+}
+
+/**
+ * The Insert flyout's items.
+ *
+ * @param {Object} props
+ * @param {string} props.clientId Block client ID.
+ * @return {Element} Block before and Block after.
+ */
+function InsertItems( { clientId } ) {
+	const shortcuts = useBlockShortcuts();
+	const searchLabel = useSearchLabel();
+	const { insertAfterBlock, insertBeforeBlock } =
+		useDispatch( blockEditorStore );
+
+	return (
+		<>
+			<Menu.Item
+				label={ searchLabel( __( 'Block before' ) ) }
+				shortcut={ shortcuts[ 'insert-before' ] }
+				onClick={ () => insertBeforeBlock( clientId ) }
+			>
+				<Menu.ItemLabel>{ __( 'Block before' ) }</Menu.ItemLabel>
+			</Menu.Item>
+			<Menu.Item
+				label={ searchLabel( __( 'Block after' ) ) }
+				shortcut={ shortcuts[ 'insert-after' ] }
+				onClick={ () => insertAfterBlock( clientId ) }
+			>
+				<Menu.ItemLabel>{ __( 'Block after' ) }</Menu.ItemLabel>
+			</Menu.Item>
+		</>
 	);
 }
 
@@ -296,69 +405,92 @@ function useStyleChoices( name, editingMode ) {
  * @return {Element} The flyout.
  */
 function StylesSubmenu( { clientId, className, styles, canCopy } ) {
+	return (
+		<Flyout
+			label={ __( 'Styles' ) }
+			trigger={
+				<Menu.SubmenuTrigger
+					suffix={ getActiveStyle( styles, className )?.label }
+				>
+					<Menu.ItemLabel>{ __( 'Styles' ) }</Menu.ItemLabel>
+				</Menu.SubmenuTrigger>
+			}
+		>
+			<StylesItems
+				clientId={ clientId }
+				className={ className }
+				styles={ styles }
+				canCopy={ canCopy }
+			/>
+		</Flyout>
+	);
+}
+
+/**
+ * The Styles flyout's items.
+ *
+ * @param {Object}   props
+ * @param {string}   props.clientId  Block client ID.
+ * @param {?string}  props.className The block's class name.
+ * @param {Object[]} props.styles    The block's styles.
+ * @param {boolean}  props.canCopy   Whether styles can be copied and pasted.
+ * @return {Element} The items.
+ */
+function StylesItems( { clientId, className, styles, canCopy } ) {
 	const registry = useRegistry();
 	const { updateBlockAttributes } = useDispatch( blockEditorStore );
+	const searchLabel = useSearchLabel();
 	const active = getActiveStyle( styles, className );
 
 	return (
-		<Menu.SubmenuRoot>
-			<Menu.SubmenuTrigger suffix={ active?.label }>
-				<Menu.ItemLabel>{ __( 'Styles' ) }</Menu.ItemLabel>
-			</Menu.SubmenuTrigger>
-			<Menu.Popup>
-				{ styles.length > 0 && (
-					<Menu.RadioGroup
-						value={ active?.name }
-						onValueChange={ ( value ) =>
-							updateBlockAttributes( clientId, {
-								className: getStyleClassName(
-									className,
-									active,
-									styles.find(
-										( style ) => style.name === value
-									)
-								),
-							} )
-						}
+		<>
+			{ styles.length > 0 && (
+				<Menu.RadioGroup
+					value={ active?.name }
+					onValueChange={ ( value ) =>
+						updateBlockAttributes( clientId, {
+							className: getStyleClassName(
+								className,
+								active,
+								styles.find( ( style ) => style.name === value )
+							),
+						} )
+					}
+				>
+					{ styles.map( ( style ) => (
+						<Menu.RadioItem
+							key={ style.name }
+							value={ style.name }
+							label={ searchLabel( style.label || style.name ) }
+							closeOnClick
+						>
+							<Menu.ItemLabel>
+								{ style.label || style.name }
+							</Menu.ItemLabel>
+						</Menu.RadioItem>
+					) ) }
+				</Menu.RadioGroup>
+			) }
+			{ styles.length > 0 && canCopy && <Menu.Separator /> }
+			{ canCopy && (
+				<>
+					<Menu.Item
+						label={ searchLabel( __( 'Copy styles' ) ) }
+						onClick={ () => copyStyles( registry, [ clientId ] ) }
 					>
-						{ styles.map( ( style ) => (
-							<Menu.RadioItem
-								key={ style.name }
-								value={ style.name }
-								closeOnClick
-							>
-								<Menu.ItemLabel>
-									{ style.label || style.name }
-								</Menu.ItemLabel>
-							</Menu.RadioItem>
-						) ) }
-					</Menu.RadioGroup>
-				) }
-				{ styles.length > 0 && canCopy && <Menu.Separator /> }
-				{ canCopy && (
-					<>
-						<Menu.Item
-							onClick={ () =>
-								copyStyles( registry, [ clientId ] )
-							}
-						>
-							<Menu.ItemLabel>
-								{ __( 'Copy styles' ) }
-							</Menu.ItemLabel>
-						</Menu.Item>
-						<Menu.Item
-							onClick={ () =>
-								pasteStyles( registry, [ clientId ] )
-							}
-						>
-							<Menu.ItemLabel>
-								{ __( 'Paste styles' ) }
-							</Menu.ItemLabel>
-						</Menu.Item>
-					</>
-				) }
-			</Menu.Popup>
-		</Menu.SubmenuRoot>
+						<Menu.ItemLabel>{ __( 'Copy styles' ) }</Menu.ItemLabel>
+					</Menu.Item>
+					<Menu.Item
+						label={ searchLabel( __( 'Paste styles' ) ) }
+						onClick={ () => pasteStyles( registry, [ clientId ] ) }
+					>
+						<Menu.ItemLabel>
+							{ __( 'Paste styles' ) }
+						</Menu.ItemLabel>
+					</Menu.Item>
+				</>
+			) }
+		</>
 	);
 }
 
@@ -379,6 +511,7 @@ function StylesSubmenu( { clientId, className, styles, canCopy } ) {
  * @param {string}   props.editingMode   The block's editing mode.
  * @param {?Object}  props.colors        The block's colours, from `useBlockColors()`.
  * @param {Function} props.onCustomColor Opens the colour picker, with the kind of colour.
+ * @param {boolean}  props.isSearching   Whether the menu is being searched, when the flyouts are named in full instead of under Align.
  * @return {Array<?Element>} The align section and the text section.
  */
 function useStyleSections( {
@@ -390,6 +523,7 @@ function useStyleSections( {
 	editingMode,
 	colors,
 	onCustomColor,
+	isSearching,
 } ) {
 	const [ fontSizes ] = useSettings( 'typography.fontSizes' );
 	const widths = useBlockWidths( clientId, name );
@@ -418,10 +552,13 @@ function useStyleSections( {
 
 	const align = ( textAlign || showWidths ) && (
 		<Menu.Group key="align">
-			<Menu.GroupLabel>{ __( 'Align' ) }</Menu.GroupLabel>
+			{ ! isSearching && (
+				<Menu.GroupLabel>{ __( 'Align' ) }</Menu.GroupLabel>
+			) }
 			{ textAlign && (
 				<ChoiceSubmenu
 					label={ __( 'Text' ) }
+					searchLabel={ __( 'Text alignment' ) }
 					icon={
 						textAlign.options.find(
 							( option ) => option.value === textAlign.value
@@ -440,6 +577,7 @@ function useStyleSections( {
 			{ showWidths && (
 				<ChoiceSubmenu
 					label={ __( 'Block' ) }
+					searchLabel={ __( 'Block alignment' ) }
 					icon={
 						widths.find( ( option ) => option.value === width )
 							?.icon
@@ -540,6 +678,8 @@ export function OptionsMenu( {
 		setTrigger( node );
 	}, [] );
 	const [ pickingColor, setPickingColor ] = useState( null );
+	const [ query, setQuery ] = useState( '' );
+	const isSearching = !! query.trim();
 	const shortcuts = useBlockShortcuts();
 	const editingMode = useBlockEditingMode();
 	const isDefaultEditingMode = editingMode === 'default';
@@ -610,8 +750,7 @@ export function OptionsMenu( {
 		},
 		[ clientId, name ]
 	);
-	const { duplicateBlocks, insertAfterBlock, insertBeforeBlock } =
-		useDispatch( blockEditorStore );
+	const { duplicateBlocks } = useDispatch( blockEditorStore );
 
 	const topLevelCoreItems = coreItems.controls.filter( ( item ) =>
 		TOP_LEVEL_CORE_ITEMS.has( item.label )
@@ -635,6 +774,7 @@ export function OptionsMenu( {
 		editingMode,
 		colors,
 		onCustomColor: setPickingColor,
+		isSearching,
 	} );
 
 	/*
@@ -668,32 +808,14 @@ export function OptionsMenu( {
 						canCopy={ canCopyStyles }
 					/>
 				) }
-				{ canInsert && (
-					<Submenu label={ __( 'Insert' ) }>
-						<Menu.Item
-							shortcut={ shortcuts[ 'insert-before' ] }
-							onClick={ () => insertBeforeBlock( clientId ) }
-						>
-							<Menu.ItemLabel>
-								{ __( 'Block before' ) }
-							</Menu.ItemLabel>
-						</Menu.Item>
-						<Menu.Item
-							shortcut={ shortcuts[ 'insert-after' ] }
-							onClick={ () => insertAfterBlock( clientId ) }
-						>
-							<Menu.ItemLabel>
-								{ __( 'Block after' ) }
-							</Menu.ItemLabel>
-						</Menu.Item>
-					</Submenu>
-				) }
+				{ canInsert && <InsertSubmenu clientId={ clientId } /> }
 			</Menu.Group>
 		),
 		( isDefaultEditingMode || canDuplicate ) && (
 			<Menu.Group key="clipboard">
 				{ isDefaultEditingMode && (
 					<Menu.Item
+						label={ __( 'Copy' ) }
 						shortcut={ toShortcut( 'primary', 'c' ) }
 						onClick={ () => copyBlocks( registry, [ clientId ] ) }
 					>
@@ -702,6 +824,7 @@ export function OptionsMenu( {
 				) }
 				{ isDefaultEditingMode && canRemove && (
 					<Menu.Item
+						label={ __( 'Cut' ) }
 						shortcut={ toShortcut( 'primary', 'x' ) }
 						onClick={ () => cutBlocks( registry, [ clientId ] ) }
 					>
@@ -710,6 +833,7 @@ export function OptionsMenu( {
 				) }
 				{ canDuplicate && (
 					<Menu.Item
+						label={ __( 'Duplicate' ) }
 						shortcut={ shortcuts.duplicate }
 						onClick={ () => duplicateBlocks( [ clientId ] ) }
 					>
@@ -733,24 +857,32 @@ export function OptionsMenu( {
 
 	return (
 		<>
-			<ToolbarMenu
-				ref={ setTriggerRef }
-				buttonProps={ {
-					className: 'cnl-block-options__toggle',
-					icon: optionsIcon,
-					label: __( 'Options' ),
-				} }
-				popupClassName="cnl-block-options"
-				disabled={ sections.length === 0 }
-				onOpen={ () => setCoreItems( readAllItems() ) }
-			>
-				{ sections.map( ( section, index ) => (
-					<Fragment key={ section.key ?? index }>
-						{ index > 0 && <Menu.Separator /> }
-						{ section }
-					</Fragment>
-				) ) }
-			</ToolbarMenu>
+			<MenuSearchProvider value={ query } onValueChange={ setQuery }>
+				<ToolbarMenu
+					ref={ setTriggerRef }
+					buttonProps={ {
+						className: 'cnl-block-options__toggle',
+						icon: optionsIcon,
+						label: __( 'Options' ),
+					} }
+					popupClassName={
+						isSearching
+							? 'cnl-block-options is-searching'
+							: 'cnl-block-options'
+					}
+					disabled={ sections.length === 0 }
+					onOpen={ () => setCoreItems( readAllItems() ) }
+				>
+					<MenuSearch>
+						{ sections.map( ( section, index ) => (
+							<Fragment key={ section.key ?? index }>
+								{ index > 0 && <Menu.Separator /> }
+								{ section }
+							</Fragment>
+						) ) }
+					</MenuSearch>
+				</ToolbarMenu>
+			</MenuSearchProvider>
 			{ pickingColor && colors && (
 				<ColorPickerPopover
 					kind={ pickingColor }

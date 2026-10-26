@@ -33,6 +33,7 @@ import {
 } from '../editor-extensions/color-details';
 import { withBlackAndWhite } from '../pickers/color-well';
 import { NONE } from './alignment';
+import { Flyout, useSearchLabel } from './menu-search';
 import { useLeaveFocus } from './toolbar-menu';
 
 const LABELS = {
@@ -259,7 +260,6 @@ export function ColorSubmenu( {
 	canCustom,
 	onCustom,
 } ) {
-	const leaveFocus = useLeaveFocus();
 	const canvas = readCanvas( clientId, name, attributes, kind );
 	const value = getActiveColor( choices, attributes, kind ) ?? NONE;
 	const color = getColor( choices, attributes, kind );
@@ -274,76 +274,127 @@ export function ColorSubmenu( {
 	];
 
 	return (
-		<Menu.SubmenuRoot>
-			<Menu.SubmenuTrigger
-				prefix={ <Swatch color={ color ?? canvas.initial } /> }
-				suffix={
-					value === CUSTOM
-						? __( 'Custom' )
-						: options.find( ( option ) => option.value === value )
-								?.label
-				}
-			>
-				<Menu.ItemLabel>{ LABELS[ kind ] }</Menu.ItemLabel>
-			</Menu.SubmenuTrigger>
-			<Menu.Popup className="cnl-block-options__colors">
-				<Menu.RadioGroup
-					value={ value }
-					onValueChange={ ( next ) =>
-						setAttributes(
-							getColorAttributes(
-								attributes,
-								kind,
-								options.find(
-									( option ) => option.value === next
-								)?.choice ?? null
-							)
-						)
+		<Flyout
+			label={ LABELS[ kind ] }
+			popupClassName="cnl-block-options__colors"
+			trigger={
+				<Menu.SubmenuTrigger
+					prefix={ <Swatch color={ color ?? canvas.initial } /> }
+					suffix={
+						value === CUSTOM
+							? __( 'Custom' )
+							: options.find(
+									( option ) => option.value === value
+								)?.label
 					}
 				>
-					{ options.map( ( option ) => (
-						<Menu.RadioItem
-							key={ option.value }
-							value={ option.value }
-							closeOnClick
-							prefix={ <Swatch color={ option.color } /> }
-							suffix={
-								option.choice &&
-								isChoiceHardToRead( kind, option.color, canvas )
-									? __( 'Hard to read' )
-									: undefined
-							}
-						>
-							<Menu.ItemLabel>{ option.label }</Menu.ItemLabel>
-						</Menu.RadioItem>
-					) ) }
-				</Menu.RadioGroup>
-				{ canCustom && (
-					<>
-						<Menu.Separator />
-						<Menu.Item
-							prefix={
-								<span
-									className="cnl-block-options__swatch is-wheel"
-									aria-hidden="true"
-								/>
-							}
-							suffix={
-								value === CUSTOM ? (
-									<Swatch color={ color } />
-								) : undefined
-							}
-							onClick={ () => {
-								leaveFocus();
-								onCustom( kind );
-							} }
-						>
-							<Menu.ItemLabel>{ __( 'Custom…' ) }</Menu.ItemLabel>
-						</Menu.Item>
-					</>
-				) }
-			</Menu.Popup>
-		</Menu.SubmenuRoot>
+					<Menu.ItemLabel>{ LABELS[ kind ] }</Menu.ItemLabel>
+				</Menu.SubmenuTrigger>
+			}
+		>
+			<ColorItems
+				kind={ kind }
+				attributes={ attributes }
+				setAttributes={ setAttributes }
+				options={ options }
+				value={ value }
+				color={ color }
+				canvas={ canvas }
+				canCustom={ canCustom }
+				onCustom={ onCustom }
+			/>
+		</Flyout>
+	);
+}
+
+/**
+ * A colour flyout's items: the colours, then Custom.
+ *
+ * @param {Object}   props
+ * @param {string}   props.kind          `text` or `background`.
+ * @param {Object}   props.attributes    Block attributes.
+ * @param {Function} props.setAttributes Block attribute setter.
+ * @param {Object[]} props.options       The colours offered, with Default first.
+ * @param {string}   props.value         The choice in use.
+ * @param {?string}  props.color         The colour in use, as CSS.
+ * @param {Object}   props.canvas        What `readCanvas()` read.
+ * @param {boolean}  props.canCustom     Whether any colour can be picked.
+ * @param {Function} props.onCustom      Opens the colour picker, with the kind.
+ * @return {Element} The items.
+ */
+function ColorItems( {
+	kind,
+	attributes,
+	setAttributes,
+	options,
+	value,
+	color,
+	canvas,
+	canCustom,
+	onCustom,
+} ) {
+	const leaveFocus = useLeaveFocus();
+	const searchLabel = useSearchLabel();
+
+	return (
+		<>
+			<Menu.RadioGroup
+				value={ value }
+				onValueChange={ ( next ) =>
+					setAttributes(
+						getColorAttributes(
+							attributes,
+							kind,
+							options.find( ( option ) => option.value === next )
+								?.choice ?? null
+						)
+					)
+				}
+			>
+				{ options.map( ( option ) => (
+					<Menu.RadioItem
+						key={ option.value }
+						value={ option.value }
+						label={ searchLabel( option.label ) }
+						closeOnClick
+						prefix={ <Swatch color={ option.color } /> }
+						suffix={
+							option.choice &&
+							isChoiceHardToRead( kind, option.color, canvas )
+								? __( 'Hard to read' )
+								: undefined
+						}
+					>
+						<Menu.ItemLabel>{ option.label }</Menu.ItemLabel>
+					</Menu.RadioItem>
+				) ) }
+			</Menu.RadioGroup>
+			{ canCustom && (
+				<>
+					<Menu.Separator />
+					<Menu.Item
+						label={ searchLabel( __( 'Custom' ) ) }
+						prefix={
+							<span
+								className="cnl-block-options__swatch is-wheel"
+								aria-hidden="true"
+							/>
+						}
+						suffix={
+							value === CUSTOM ? (
+								<Swatch color={ color } />
+							) : undefined
+						}
+						onClick={ () => {
+							leaveFocus();
+							onCustom( kind );
+						} }
+					>
+						<Menu.ItemLabel>{ __( 'Custom…' ) }</Menu.ItemLabel>
+					</Menu.Item>
+				</>
+			) }
+		</>
 	);
 }
 
