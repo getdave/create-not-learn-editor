@@ -39,6 +39,7 @@
 import { BlockPreview } from '@wordpress/block-editor';
 import { createPortal, Fragment } from '@wordpress/element';
 import { plus as plusIcon } from '@wordpress/icons';
+import { useNavigate } from '@wordpress/route';
 
 /**
  * Internal dependencies
@@ -82,6 +83,7 @@ import {
 	requestOpenPart,
 	setOpenPart,
 	setPickedSection as setSharedPickedSection,
+	setPostsTrip,
 } from '../mode';
 import { useEditorSpotlight } from '../part-spotlight';
 import { useCanvasDocument } from '../use-canvas-document';
@@ -100,6 +102,8 @@ import {
 	ModeBar,
 	SectionTab,
 } from './section-chrome';
+import { PostsNotice, useHasReadPostsNotice } from './posts-notice';
+import { usePostsSection } from './posts-section';
 import {
 	getTargetOf,
 	useCanvasGuard,
@@ -163,6 +167,10 @@ const INLINE_ADD_MIN_WIDTH = 560;
 const INLINE_ADD_SETTLE_MS = 260;
 // How long a new block is kept focused while it settles, in frames.
 const FOCUS_FRAMES = 30;
+// The longest a page just opened is given to load its pictures, which move
+// what is under them, before a section on it is scrolled to.
+const LOAD_WAIT_MS = 2000;
+const LOAD_POLL_MS = 100;
 
 // How long a new item is highlighted.
 const FRESH_MS = 900;
@@ -183,6 +191,29 @@ function getCachedSectionTitle( block ) {
 	}
 
 	return sectionTitles.get( block );
+}
+
+/**
+ * The route the editor is on, as a link back to it would give it: the
+ * router keeps it in the admin page's `p`, its search beside it.
+ *
+ * @return {string} The route, with its search.
+ */
+function getCurrentRoute() {
+	const params = new URLSearchParams( window.location.search );
+	const [ path, pathSearch = '' ] = ( params.get( 'p' ) || '/' ).split( '?' );
+	// The route's own search can be in `p` too; it wins.
+	const search = new URLSearchParams( pathSearch );
+
+	params.forEach( ( value, key ) => {
+		if ( key !== 'p' && key !== 'page' && ! search.has( key ) ) {
+			search.set( key, value );
+		}
+	} );
+
+	const query = search.toString();
+
+	return query ? `${ path }?${ query }` : path;
 }
 
 /**
@@ -529,6 +560,8 @@ function useNoSync() {
 /**
  * @param {Object}   props
  * @param {Object}   props.editorRef     Ref to the editor's container.
+ * @param {Object}   props.entity        `{ postType, postId }`, what the
+ *                                       editor has open.
  * @param {?string}  props.focusId       The one section, header or footer a
  *                                       canvas about it works on, like the
  *                                       Header screen's. Only it can be
@@ -552,6 +585,7 @@ function useNoSync() {
  */
 export function SectionModesLayer( {
 	editorRef,
+	entity,
 	focusId = null,
 	isComposing = false,
 	onExitCompose,
@@ -1167,6 +1201,96 @@ export function SectionModesLayer( {
 		menuOpenFor ||
 		( pointedId && pointedId !== active?.id ? pointedId : null ) ||
 		pickedId;
+	const hoverPosts = usePostsSection(
+		shownHoverId && ! partsById[ shownHoverId ] ? shownHoverId : null
+	);
+
+	/*
+	 * Manage all posts: off to the screen of the posts the section lists, noting
+	 * the way back. The first time, the notice says why first.
+	 */
+	const navigate = useNavigate();
+	const hasReadPostsNotice = useHasReadPostsNotice();
+	const [ postsNotice, setPostsNotice ] = useState( null );
+	const entityKey = entity ? `${ entity.postType }:${ entity.postId }` : '';
+	const goToPosts = ( clientId, posts ) => {
+		const record =
+			entity &&
+			registry
+				.select( coreDataStore )
+				.getEditedEntityRecord(
+					'postType',
+					entity.postType,
+					entity.postId
+				);
+		const title =
+			typeof record?.title === 'string'
+				? record.title
+				: record?.title?.raw;
+
+		setPostsNotice( null );
+		setPostsTrip( {
+			entity: entityKey,
+			label: title || __( 'Your page' ),
+			postType: posts.name,
+			sectionIndex: sectionIds.indexOf( clientId ),
+			to: getCurrentRoute(),
+		} );
+		navigate( { to: `/types/${ posts.name }/list/all` } );
+	};
+	const editPosts = ( clientId, posts ) => {
+		if ( hasReadPostsNotice ) {
+			goToPosts( clientId, posts );
+		} else {
+			setPostsNotice( { clientId, posts } );
+		}
+	};
+
+	/*
+	 * Back from there, the section is picked again, as it was left. Only a
+	 * way back noted before this canvas opened counts: one noted on the way
+	 * out is for the next time it opens.
+	 */
+	const tripRef = useRef( registry.select( CANVAS_STORE ).getPostsTrip() );
+	const returnedId =
+		tripRef.current?.entity === entityKey
+			? sectionIds[ tripRef.current.sectionIndex ]
+			: null;
+	useEffect( () => {
+		if ( ! returnedId ) {
+			return;
+		}
+
+		tripRef.current = null;
+		setPostsTrip( null );
+		setPickedSection( returnedId );
+
+		// The page has only just opened: the pictures above the section move
+		// it down as they load, so it is scrolled to once they have.
+		let waited = 0;
+		let timer;
+		const scrollOnceLoaded = () => {
+			const doc = getCanvasFrame( editorRef.current )?.contentDocument;
+			const isLoading =
+				! doc ||
+				Array.from( doc.images ).some(
+					( image ) => image.loading !== 'lazy' && ! image.complete
+				);
+
+			if ( isLoading && waited < LOAD_WAIT_MS ) {
+				waited += LOAD_POLL_MS;
+				timer = setTimeout( scrollOnceLoaded, LOAD_POLL_MS );
+				return;
+			}
+
+			scrollCanvasTo( editorRef, returnedId );
+		};
+
+		scrollOnceLoaded();
+
+		return () => clearTimeout( timer );
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ returnedId ] );
 
 	const isEmpty =
 		! focusId && Boolean( rootClientId ) && sectionIds.length === 0;
@@ -1976,6 +2100,11 @@ export function SectionModesLayer( {
 							onMove={ ( direction ) =>
 								moveSection( shownHoverId, direction )
 							}
+							clientId={ shownHoverId }
+							onManagePosts={ () =>
+								editPosts( shownHoverId, hoverPosts )
+							}
+							posts={ hoverPosts }
 							style={ {
 								left: box.left + INSET,
 								top: barTop,
@@ -2228,7 +2357,7 @@ export function SectionModesLayer( {
 		return pickedId ? 'section' : 'none';
 	};
 
-	return createPortal(
+	const layer = createPortal(
 		<div
 			className="cnl-section-modes"
 			// How far into the section picked the clicks have gone.
@@ -2331,5 +2460,22 @@ export function SectionModesLayer( {
 			) }
 		</div>,
 		host
+	);
+
+	return (
+		<>
+			{ layer }
+			{ /* Outside the layer, so its keys aren't the layer's. */ }
+			{ postsNotice && (
+				<PostsNotice
+					label={ postsNotice.posts.label }
+					type={ postsNotice.posts.name }
+					onCancel={ () => setPostsNotice( null ) }
+					onGo={ () =>
+						goToPosts( postsNotice.clientId, postsNotice.posts )
+					}
+				/>
+			) }
+		</>
 	);
 }

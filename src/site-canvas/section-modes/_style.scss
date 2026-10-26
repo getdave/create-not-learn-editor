@@ -628,6 +628,31 @@ $easing-balanced: var(--wpds-motion-easing-balanced);
 	fill: currentcolor;
 }
 
+/*
+ * Manage posts' menu: its labelled dropdowns one above the other, then the
+ * way to every post, across the menu's width.
+ */
+.cnl-section-modes__posts-popover .components-popover__content {
+	width: 280px;
+}
+
+.cnl-section-modes__posts-menu {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-lg);
+	padding: var(--wpds-dimension-padding-lg);
+}
+
+.cnl-section-modes__posts-manage-all {
+	justify-content: center;
+}
+
+.cnl-section-modes__posts-notice-actions {
+	display: flex;
+	gap: 12px;
+	justify-content: flex-end;
+}
+
 // A width: its icon and name in the same pill.
 .cnl-section-modes .components-button.cnl-section-modes__width {
 	gap: var(--wpds-dimension-gap-xs);
