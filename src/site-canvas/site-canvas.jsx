@@ -16,6 +16,7 @@ import { useNavigate } from '@wordpress/route';
 /**
  * Internal dependencies
  */
+import { unlock } from '../lock-unlock';
 import { getErrorMessage } from '../records';
 import {
 	__,
@@ -42,6 +43,7 @@ import {
 } from './toolbar';
 import { UnsavedChangesDialog } from './unsaved-changes-dialog';
 import { useSectionLock } from './use-section-lock';
+import { isContainerBlock, isWritingType } from './writing-mode';
 import { useZoomGestures, ZoomControls } from './zoom-controls';
 
 /**
@@ -86,21 +88,43 @@ export function SiteCanvas( {
 	const { device, editorDevice, editorEntity, frame, mode } = canvas;
 	const isPreviewing = canvas.isPreviewing;
 	const isEditing = mode === MODE_EDIT;
-	const isComposing = canCompose && canvas.isComposing;
+	// Writing, like a post, has no sections to work on in Edit. See
+	// `writing-mode.js`.
+	const isWriting = isWritingType( editorEntity?.postType );
+	// Writing is only zoomed out to arrange its containers, if it has any.
+	const hasContainers = useSelect(
+		( select ) => {
+			if ( ! isWriting ) {
+				return false;
+			}
 
-	// A canvas without Compose, reached while composing, edits instead.
+			const store = unlock( select( blockEditorStore ) );
+
+			return store
+				.getBlockOrder( store.getSectionRootClientId() || '' )
+				.some( ( clientId ) =>
+					isContainerBlock( store.getBlockName( clientId ) )
+				);
+		},
+		[ isWriting ]
+	);
+	const canArrange = canCompose && ( ! isWriting || hasContainers );
+	const isComposing = canArrange && canvas.isComposing;
+
+	// A canvas without Compose, reached while composing, edits instead, as
+	// does writing once it has nothing left to arrange.
 	useEffect( () => {
-		if ( ! canCompose && canvas.isComposing ) {
+		if ( ! canArrange && canvas.isComposing ) {
 			canvas.requestMode( MODE_EDIT );
 		}
 		// Only arriving here composing should switch.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ canCompose, canvas.isComposing ] );
+	}, [ canArrange, canvas.isComposing ] );
 
 	useComposeZoom( isComposing && Boolean( editorEntity ), editorRef );
 
 	// Zooming out is Compose, offered wherever the toolbar offers it.
-	const canZoom = ! isPreviewing && canCompose && Boolean( editorEntity );
+	const canZoom = ! isPreviewing && canArrange && Boolean( editorEntity );
 	const zoomIn = () => isComposing && canvas.requestMode( MODE_EDIT );
 	const zoomOut = () => ! isComposing && canvas.requestMode( MODE_COMPOSE );
 
@@ -114,12 +138,13 @@ export function SiteCanvas( {
 	/*
 	 * A layout's sections are mostly the post's title, image and content,
 	 * filled in from each post. Locked to their content, they would leave
-	 * nothing to change.
+	 * nothing to change. Writing has no sections to lock.
 	 */
 	useSectionLock(
 		isEditing &&
 			Boolean( editorEntity ) &&
-			editorEntity.postType !== 'wp_template'
+			editorEntity.postType !== 'wp_template' &&
+			! isWriting
 	);
 	useEditSectionControls( isEditing && Boolean( editorEntity ) );
 
@@ -149,7 +174,7 @@ export function SiteCanvas( {
 						mode={ mode }
 						onChange={ canvas.requestMode }
 					/>
-					{ ! isPreviewing && canCompose && (
+					{ ! isPreviewing && canArrange && (
 						<ComposeButton
 							isComposing={ isComposing }
 							onToggle={ () =>
@@ -215,17 +240,22 @@ export function SiteCanvas( {
 					{ isEditing && editorChildren }
 				</div>
 				{ /* One layer for Edit and Compose, kept as the canvas moves
-				between them, so what is picked carries over. */ }
-				{ ( isEditing || isComposing ) && editorEntity && (
-					<SectionModesLayer
-						editorRef={ editorRef }
-						entity={ editorEntity }
-						focusId={ focusId }
-						isComposing={ isComposing }
-						onExitCompose={ () => canvas.requestMode( MODE_EDIT ) }
-						useSync={ useComposeSync }
-					/>
-				) }
+				between them, so what is picked carries over. Writing is
+				edited without it, and only arranged with it. */ }
+				{ ( ( isEditing && ! isWriting ) || isComposing ) &&
+					editorEntity && (
+						<SectionModesLayer
+							editorRef={ editorRef }
+							entity={ editorEntity }
+							focusId={ focusId }
+							isComposing={ isComposing }
+							isWriting={ isWriting }
+							onExitCompose={ () =>
+								canvas.requestMode( MODE_EDIT )
+							}
+							useSync={ useComposeSync }
+						/>
+					) }
 				{ canZoom && (
 					<ZoomControls
 						isComposing={ isComposing }
