@@ -1,0 +1,83 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "Create Not Learn Editor (getdave/query-loop-edit-posts)",
+		"author": "getdave",
+		"description": "Create Not Learn Editor from the getdave/query-loop-edit-posts branch, with Gutenberg, the Mainstay theme and the Fernhouse demo site."
+	},
+	"landingPage": "/wp-admin/admin.php?page=create-not-learn-editor",
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	},
+	"features": {
+		"networking": true
+	},
+	"steps": [
+		{
+			"step": "login"
+		},
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/mu-plugins/cnl-playground-canvas-fix.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/query-loop-edit-posts/playground-canvas-fix.php"
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://downloads.wordpress.org/plugin/gutenberg.24.0.0.zip"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing Gutenberg"
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/query-loop-edit-posts/create-not-learn-editor.zip"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing Create Not Learn Editor"
+			}
+		},
+		{
+			"step": "installTheme",
+			"themeData": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/query-loop-edit-posts/mainstay.zip"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing the Mainstay theme"
+			}
+		},
+		{
+			"step": "writeFile",
+			"path": "/tmp/cnl-demo-site-seed.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/query-loop-edit-posts/seed.php"
+			}
+		},
+		{
+			"step": "wp-cli",
+			"command": "wp eval-file /tmp/cnl-demo-site-seed.php",
+			"progress": {
+				"caption": "Setting up the Fernhouse demo site"
+			}
+		}
+	]
+}
