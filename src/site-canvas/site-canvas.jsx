@@ -219,6 +219,7 @@ export function SiteCanvas( {
 				{ ( isEditing || isComposing ) && editorEntity && (
 					<SectionModesLayer
 						editorRef={ editorRef }
+						entity={ editorEntity }
 						focusId={ focusId }
 						isComposing={ isComposing }
 						onExitCompose={ () => canvas.requestMode( MODE_EDIT ) }

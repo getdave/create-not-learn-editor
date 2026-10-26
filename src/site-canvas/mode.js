@@ -13,7 +13,9 @@
  * open in Edit content or Freeform, for the editor extension that opens a
  * template part's blocks: how far they open depends on which. And so is a
  * request from outside the canvas, the chat's, to open the header or footer
- * as Edit header or Edit footer does, for the canvas to take up.
+ * as Edit header or Edit footer does, for the canvas to take up. And so is
+ * the way back from the screen a section's Edit posts leads to, which
+ * another route's bundle shows and this canvas takes up on the way back.
  *
  * Kept in a data store, registered once by name, rather than in this module:
  * app init and each route are built separately, each with its own copy of
@@ -55,6 +57,7 @@ if ( ! select( STORE_NAME ) ) {
 					openPart: null,
 					partRequest: null,
 					pickedSection: null,
+					postsTrip: null,
 				},
 				action
 			) {
@@ -67,6 +70,8 @@ if ( ! select( STORE_NAME ) ) {
 						return { ...state, pickedSection: action.clientId };
 					case 'SET_PART_REQUEST':
 						return { ...state, partRequest: action.area };
+					case 'SET_POSTS_TRIP':
+						return { ...state, postsTrip: action.trip };
 				}
 
 				return state;
@@ -88,12 +93,17 @@ if ( ! select( STORE_NAME ) ) {
 					area,
 					type: 'SET_PART_REQUEST',
 				} ),
+				setPostsTrip: ( trip ) => ( {
+					trip,
+					type: 'SET_POSTS_TRIP',
+				} ),
 			},
 			selectors: {
 				getCanvasMode: ( state ) => state.mode,
 				getOpenPart: ( state ) => state.openPart,
 				getPickedSection: ( state ) => state.pickedSection,
 				getPartRequest: ( state ) => state.partRequest,
+				getPostsTrip: ( state ) => state.postsTrip,
 			},
 		} )
 	);
@@ -186,5 +196,30 @@ export function useOpenPart( clientId ) {
 			return openPart?.clientId === clientId ? openPart.how : null;
 		},
 		[ clientId ]
+	);
+}
+
+/**
+ * Note where a section's Edit posts was clicked, so the posts' screen can
+ * lead back there and the canvas can pick the section again, or forget it.
+ *
+ * @param {?Object} trip `{ entity, label, postType, sectionIndex, to }`:
+ *                       the page's editor entity, as `postType:postId`, its
+ *                       name, the post type whose screen it led to, where
+ *                       the section is on the page, top first, and the route
+ *                       back. Null to forget it.
+ */
+export function setPostsTrip( trip ) {
+	dispatch( STORE_NAME ).setPostsTrip( trip );
+}
+
+/**
+ * @return {?Object} The way back from the posts' screen, kept up to date.
+ *                   See `setPostsTrip`.
+ */
+export function usePostsTrip() {
+	return useSelect(
+		( selectStore ) => selectStore( STORE_NAME ).getPostsTrip(),
+		[]
 	);
 }
