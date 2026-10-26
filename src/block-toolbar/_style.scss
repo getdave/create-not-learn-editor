@@ -445,6 +445,26 @@ $group-gap: 6px;
 	}
 }
 
+// Core's styles leave the menu on the block's name for the options menu.
+html.cnl-has-block-toolbar .block-editor-block-switcher__styles__menugroup {
+	display: none;
+}
+
+// A name with nothing left in its menu is a label: no chevron, and it
+// doesn't open (`name-menu.js`).
+html.cnl-has-block-toolbar.cnl-block-name-is-label .components-popover .block-editor-block-contextual-toolbar .block-editor-block-toolbar__block-controls .block-editor-block-switcher .components-dropdown-menu__toggle {
+	padding-inline-end: 12px;
+	cursor: default;
+
+	&::after {
+		display: none;
+	}
+
+	&:hover:not(:focus-visible) {
+		background: none;
+	}
+}
+
 /**
  * The options, Layout and lineage menus, at a width that fits a value
  * beside each name.
@@ -455,6 +475,50 @@ $group-gap: 6px;
 
 .cnl-block-layout {
 	min-width: 220px;
+}
+
+// Text color: a swatch of each colour in place of an icon, as Word draws
+// its theme colours, and a colour wheel for Custom.
+.cnl-block-options__swatch {
+	flex: none;
+	width: 20px;
+	height: 20px;
+	margin: 2px;
+	border-radius: 50%;
+	background: currentcolor;
+	box-shadow: inset 0 0 0 1px rgb(0 0 0 / 20%);
+
+	// No colour that can be told: struck through, as core draws no colour.
+	&.is-unknown {
+		background: linear-gradient(-45deg, transparent 47%, currentcolor 47%, currentcolor 53%, transparent 53%);
+	}
+
+	&.is-wheel {
+		background: conic-gradient(#f44, #fb3, #4c4, #3be, #46f, #c4e, #f44);
+	}
+}
+
+.cnl-block-options__colors {
+	min-width: 220px;
+}
+
+.cnl-block-options__color-picker .components-popover__content {
+	padding: var(--wpds-dimension-padding-lg);
+}
+
+.cnl-block-options__color-picker-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpds-dimension-gap-md);
+	width: 216px;
+
+	h2 {
+		margin: 0;
+	}
+
+	.cnl-color-well__note {
+		max-width: 216px;
+	}
 }
 
 .cnl-block-lineage {

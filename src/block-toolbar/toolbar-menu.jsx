@@ -18,6 +18,7 @@ import {
 	createContext,
 	createPortal,
 	forwardRef,
+	useCallback,
 	useContext,
 	useEffect,
 	useRef,
@@ -35,23 +36,6 @@ const ToolbarMenuContext = createContext( { leaveFocus: () => {} } );
  */
 export function useLeaveFocus() {
 	return useContext( ToolbarMenuContext ).leaveFocus;
-}
-
-/**
- * Join refs into one callback ref.
- *
- * @param {...(Function|Object)} refs Refs.
- * @return {Function} The ref.
- */
-function mergeRefs( ...refs ) {
-	return ( node ) =>
-		refs.forEach( ( ref ) => {
-			if ( typeof ref === 'function' ) {
-				ref( node );
-			} else if ( ref ) {
-				ref.current = node;
-			}
-		} );
 }
 
 /**
@@ -78,7 +62,28 @@ function UnforwardedToolbarMenu(
 ) {
 	const [ isOpen, setIsOpen ] = useState( false );
 	const buttonRef = useRef();
+	/*
+	 * The same ref from one render to the next, as React detaches a new one
+	 * and attaches it again every time, and the options menu's sets state.
+	 */
+	const mergedRef = useCallback(
+		( node ) => {
+			buttonRef.current = node;
+
+			if ( typeof ref === 'function' ) {
+				ref( node );
+			} else if ( ref ) {
+				ref.current = node;
+			}
+		},
+		[ ref ]
+	);
 	const leavesFocusRef = useRef( false );
+	const [ context ] = useState( () => ( {
+		leaveFocus: () => {
+			leavesFocusRef.current = true;
+		},
+	} ) );
 
 	// A menu left with nothing in it closes.
 	useEffect( () => {
@@ -99,7 +104,7 @@ function UnforwardedToolbarMenu(
 		<>
 			<ToolbarButton
 				{ ...buttonProps }
-				ref={ mergeRefs( buttonRef, ref ) }
+				ref={ mergedRef }
 				disabled={ disabled }
 				accessibleWhenDisabled
 				aria-haspopup={ disabled ? undefined : 'menu' }
@@ -143,7 +148,9 @@ function UnforwardedToolbarMenu(
 							/>
 						}
 					>
-						{ children }
+						<ToolbarMenuContext.Provider value={ context }>
+							{ children }
+						</ToolbarMenuContext.Provider>
 					</Menu.Popup>
 				</Menu.Root>,
 				document.body
