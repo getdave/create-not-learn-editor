@@ -1627,12 +1627,12 @@
 	color: #1e1e1e;
 }
 
+// The title and meta clip their own text, so the title's focus ring isn't.
 .cnl-editor-homepage-document__text {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	min-width: 0;
-	overflow: hidden;
 	text-align: center;
 }
 
@@ -1659,6 +1659,13 @@
 	line-height: 18px;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+
+	// Focusable when clipped, to show the whole title in a tooltip.
+	&:focus-visible {
+		border-radius: 2px;
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: 2px;
+	}
 }
 
 .cnl-editor-homepage-document__meta {

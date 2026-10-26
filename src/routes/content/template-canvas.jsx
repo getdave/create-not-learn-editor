@@ -11,7 +11,7 @@
  * Internal dependencies
  */
 import { settings } from '../../settings';
-import { SiteCanvas, useSiteCanvas } from '../../site-canvas';
+import { DocumentTitle, SiteCanvas, useSiteCanvas } from '../../site-canvas';
 import { getTemplateIcon, getTemplateTitle } from './helpers';
 import { getTemplatePreviewUrl } from './template-preview-url';
 import { __, Icon, useMemo } from '../../wordpress-packages';
@@ -30,9 +30,7 @@ function TemplateDocument( { template } ) {
 						className="cnl-editor-homepage-document__icon"
 						icon={ getTemplateIcon( template ) }
 					/>
-					<h1 className="cnl-editor-homepage-document__title">
-						{ getTemplateTitle( template ) }
-					</h1>
+					<DocumentTitle title={ getTemplateTitle( template ) } />
 				</div>
 				<p className="cnl-editor-homepage-document__meta">
 					{ __( 'Layout · Changes everywhere it is used' ) }
