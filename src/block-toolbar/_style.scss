@@ -473,6 +473,59 @@ html.cnl-has-block-toolbar.cnl-block-name-is-label .components-popover .block-ed
 	min-width: 240px;
 }
 
+// The options menu's search field, kept in view as the menu scrolls.
+.cnl-menu-search {
+	position: sticky;
+	top: calc(-1 * var(--wp-ui-menu-popup-padding));
+	z-index: 1;
+	grid-column: 1 / -1;
+	margin: calc(-1 * var(--wp-ui-menu-popup-padding)) calc(-1 * var(--wp-ui-menu-popup-padding)) 0;
+	padding: var(--wp-ui-menu-popup-padding);
+	background: var(--wpds-color-background-surface-neutral-strong);
+}
+
+.cnl-menu-search__empty {
+	grid-column: 1 / -1;
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-xs);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+
+	&:empty {
+		display: none;
+	}
+}
+
+// Base UI's list of the menu's items, between the menu and its groups,
+// lined up on the menu's columns as they are.
+.cnl-menu-search__list {
+	display: grid;
+	grid-column: 1 / -1;
+	grid-template-columns: subgrid;
+	outline: none;
+
+	// Groups with nothing that matches are hidden, but the menu's styles
+	// would show them again.
+	[role="group"][hidden] {
+		display: none;
+	}
+}
+
+// Search results are grouped under their flyouts' names instead, with a
+// little room between them.
+.cnl-block-options.is-searching {
+
+	[role="separator"] {
+		display: none;
+	}
+
+	.cnl-menu-search__list {
+		padding-block-end: var(--wpds-dimension-padding-xs);
+	}
+}
+
+.cnl-menu-search__results {
+	margin-block-start: var(--wpds-dimension-gap-xs);
+}
+
 .cnl-block-layout {
 	min-width: 220px;
 }
