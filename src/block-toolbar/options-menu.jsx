@@ -25,7 +25,13 @@ import {
 	store as blocksStore,
 } from '@wordpress/blocks';
 import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
-import { Fragment, useEffect, useRef, useState } from '@wordpress/element';
+import {
+	Fragment,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import {
 	formatBold,
@@ -398,6 +404,12 @@ export function OptionsMenu( {
 	const registry = useRegistry();
 	const triggerRef = useRef();
 	const [ trigger, setTrigger ] = useState();
+	// The same callback every render, so it is only called as the button
+	// comes and goes. See `ToolbarMenu`.
+	const triggerCallbackRef = useCallback( ( node ) => {
+		triggerRef.current = node;
+		setTrigger( node );
+	}, [] );
 	const shortcuts = useBlockShortcuts();
 	const isDefaultEditingMode = useBlockEditingMode() === 'default';
 	const [ coreItems, setCoreItems ] = useState( {
@@ -595,10 +607,7 @@ export function OptionsMenu( {
 
 	return (
 		<ToolbarMenu
-			ref={ ( node ) => {
-				triggerRef.current = node;
-				setTrigger( node );
-			} }
+			ref={ triggerCallbackRef }
 			buttonProps={ {
 				className: 'cnl-block-options__toggle',
 				icon: optionsIcon,

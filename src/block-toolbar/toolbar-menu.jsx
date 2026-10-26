@@ -20,6 +20,7 @@ import {
 	forwardRef,
 	useContext,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from '@wordpress/element';
@@ -79,6 +80,12 @@ function UnforwardedToolbarMenu(
 	const [ isOpen, setIsOpen ] = useState( false );
 	const buttonRef = useRef();
 	const leavesFocusRef = useRef( false );
+	/*
+	 * Made once for each ref given. A new callback each render would be
+	 * called again each render, and a ref that sets state, as the options
+	 * menu's does, would render again for ever.
+	 */
+	const mergedRef = useMemo( () => mergeRefs( buttonRef, ref ), [ ref ] );
 
 	// A menu left with nothing in it closes.
 	useEffect( () => {
@@ -99,7 +106,7 @@ function UnforwardedToolbarMenu(
 		<>
 			<ToolbarButton
 				{ ...buttonProps }
-				ref={ mergeRefs( buttonRef, ref ) }
+				ref={ mergedRef }
 				disabled={ disabled }
 				accessibleWhenDisabled
 				aria-haspopup={ disabled ? undefined : 'menu' }
