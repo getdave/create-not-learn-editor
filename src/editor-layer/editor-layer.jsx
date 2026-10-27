@@ -121,7 +121,9 @@ export function EditorLayer() {
 				className="cnl-editor-layer"
 				data-post-type={ postType || undefined }
 				data-selected-block={ selectedBlockName || undefined }
-				data-start-patterns={ canStartFromPattern ? 'allowed' : undefined }
+				data-start-patterns={
+					canStartFromPattern ? 'allowed' : undefined
+				}
 			/>
 			{ canPickSections && <SectionPickerWhenAsked /> }
 		</>

@@ -8,8 +8,13 @@ import { describe, expect, it, vi } from 'vitest';
  */
 import {
 	closeStartPatterns,
+	isStartPatternsAllowed,
 	keepStartPatternsClosed,
 } from '../start-patterns';
+
+vi.mock( '@wordpress/block-editor', () => ( {
+	store: 'core/block-editor',
+} ) );
 
 /**
  * Let pending MutationObserver callbacks run.
@@ -63,5 +68,38 @@ describe( 'keepStartPatternsClosed', () => {
 		await flush();
 
 		expect( second.onClose ).not.toHaveBeenCalled();
+	} );
+} );
+
+describe( 'isStartPatternsAllowed', () => {
+	const selectFor =
+		( { postType = 'page', isNew = true } = {} ) =>
+		() => ( {
+			getCurrentPostType: () => postType,
+			isEditedPostNew: () => isNew,
+		} );
+
+	it( 'allows a new page in the full-screen editor', () => {
+		expect( isStartPatternsAllowed( selectFor(), true ) ).toBe( true );
+	} );
+
+	it( 'keeps it from a saved empty page', () => {
+		expect(
+			isStartPatternsAllowed( selectFor( { isNew: false } ), true )
+		).toBe( false );
+	} );
+
+	it( 'keeps it from new posts of other types', () => {
+		expect(
+			isStartPatternsAllowed( selectFor( { postType: 'post' } ), true )
+		).toBe( false );
+	} );
+
+	it( 'keeps it from the site canvas, even for a new page', () => {
+		expect( isStartPatternsAllowed( selectFor(), false ) ).toBe( false );
+	} );
+
+	it( 'keeps it closed before the editor store registers', () => {
+		expect( isStartPatternsAllowed( () => undefined, true ) ).toBe( false );
 	} );
 } );

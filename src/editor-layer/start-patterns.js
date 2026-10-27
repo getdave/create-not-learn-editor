@@ -71,6 +71,28 @@ export function keepStartPatternsClosed( root = document.body ) {
 }
 
 /**
+ * Whether core's "Choose a pattern" modal may open: only for a new page in the
+ * full-screen editor. Core offers it for other post types with starter
+ * patterns too, so a new post is not enough.
+ *
+ * @param {Function} select       Data registry `select`.
+ * @param {boolean}  isEditCanvas Whether the full-screen editor is on screen.
+ * @return {boolean} Whether the modal is allowed.
+ */
+export function isStartPatternsAllowed( select, isEditCanvas ) {
+	if ( ! isEditCanvas ) {
+		return false;
+	}
+
+	const editor = select( EDITOR_STORE );
+
+	return (
+		editor?.getCurrentPostType?.() === 'page' &&
+		!! editor.isEditedPostNew?.()
+	);
+}
+
+/**
  * Allow core's "Choose a pattern" modal only for a new page in the full-screen
  * editor, and close it anywhere else.
  *
@@ -79,8 +101,7 @@ export function keepStartPatternsClosed( root = document.body ) {
  */
 export function useStartPatternsGate( isEditCanvas ) {
 	const isAllowed = useSelect(
-		( select ) =>
-			isEditCanvas && !! select( EDITOR_STORE )?.isEditedPostNew?.(),
+		( select ) => isStartPatternsAllowed( select, isEditCanvas ),
 		[ isEditCanvas ]
 	);
 
