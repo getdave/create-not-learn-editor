@@ -1,0 +1,84 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "Create Not Learn Editor (getdave/gutenberg-pr-84894-grid)",
+		"author": "getdave",
+		"description": "Create Not Learn Editor from the getdave/gutenberg-pr-84894-grid branch, with Gutenberg, the Mainstay theme and the Fernhouse demo site."
+	},
+	"landingPage": "/wp-admin/admin.php?page=create-not-learn-editor",
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	},
+	"features": {
+		"networking": true
+	},
+	"steps": [
+		{
+			"step": "login"
+		},
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/mu-plugins/cnl-playground-canvas-fix.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/gutenberg-pr-84894-grid/playground-canvas-fix.php"
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg.zip&pr=85210"
+			},
+			"options": {
+				"activate": true,
+				"targetFolderName": "gutenberg"
+			},
+			"progress": {
+				"caption": "Installing Gutenberg from the grid stack (#85210)"
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/gutenberg-pr-84894-grid/create-not-learn-editor.zip"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing Create Not Learn Editor"
+			}
+		},
+		{
+			"step": "installTheme",
+			"themeData": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/gutenberg-pr-84894-grid/mainstay.zip"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing the Mainstay theme"
+			}
+		},
+		{
+			"step": "writeFile",
+			"path": "/tmp/cnl-demo-site-seed.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/getdave/create-not-learn-editor/refs/playground/getdave/gutenberg-pr-84894-grid/seed.php"
+			}
+		},
+		{
+			"step": "wp-cli",
+			"command": "wp eval-file /tmp/cnl-demo-site-seed.php",
+			"progress": {
+				"caption": "Setting up the Fernhouse demo site"
+			}
+		}
+	]
+}
