@@ -51,10 +51,18 @@ const WORDPRESS = {
 	url: 'https://wordpress.org/wordpress-7.1.zip',
 	link: 'wordpress',
 };
+/*
+ * The build of the pull request at the top of Gutenberg's grid stack
+ * (https://github.com/WordPress/gutenberg/stack/85397), from its CI, through
+ * the proxy WordPress Playground installs pull requests with. The proxy serves
+ * the PR's latest build, so `key` names the commit it was taken at.
+ * `scripts/update-grid-stack.sh` moves this, and `demos/blueprint.json`, to
+ * whichever PR is on top.
+ */
 const GUTENBERG = {
-	name: 'Gutenberg 24.0.0',
-	key: 'gutenberg-24.0.0',
-	url: 'https://downloads.wordpress.org/plugin/gutenberg.24.0.0.zip',
+	name: 'Gutenberg #85210 (grid stack)',
+	key: 'gutenberg-pr-85210-8e80005',
+	url: 'https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg.zip&pr=85210',
 	link: 'plugins/gutenberg',
 };
 const WORDPRESS_DEVELOP = 'https://github.com/WordPress/wordpress-develop.git';

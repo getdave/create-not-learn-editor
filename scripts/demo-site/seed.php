@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const CNL_DEMO_SITE_VERSION = 4;
+const CNL_DEMO_SITE_VERSION = 5;
 
 $cnl_demo_installed_version = (int) get_option( 'cnl_demo_site_version' );
 
@@ -535,6 +535,29 @@ function cnl_demo_post_authors() {
 	}
 }
 
+/**
+ * Version 5: a Grid layouts page, to try the grid stack of Gutenberg pull
+ * requests (https://github.com/WordPress/gutenberg/stack/85397) on. Its
+ * sections are grids with blocks placed by hand, which Gutenberg only offers
+ * with its grid interactivity and block rotation experiments on, so they are
+ * turned on too, keeping any other experiment as it was.
+ */
+function cnl_demo_grid_layouts() {
+	$experiments = get_option( 'gutenberg-experiments' );
+	$experiments = is_array( $experiments ) ? $experiments : array();
+
+	$experiments['gutenberg-grid-interactivity'] = '1';
+	$experiments['gutenberg-block-rotation']     = '1';
+	update_option( 'gutenberg-experiments', $experiments );
+
+	cnl_demo_page(
+		'grid-layouts',
+		'Grid layouts',
+		cnl_demo_patterns( array( 'grid-hero', 'grid-bento', 'grid-collage', 'grid-cards', 'grid-team' ) ),
+		count( cnl_demo_pages() )
+	);
+}
+
 if ( $cnl_demo_installed_version < 1 ) {
 	cnl_demo_content();
 }
@@ -549,6 +572,10 @@ if ( $cnl_demo_installed_version < 3 ) {
 
 if ( $cnl_demo_installed_version < 4 ) {
 	cnl_demo_post_authors();
+}
+
+if ( $cnl_demo_installed_version < 5 ) {
+	cnl_demo_grid_layouts();
 }
 
 update_option( 'cnl_demo_site_version', CNL_DEMO_SITE_VERSION );
