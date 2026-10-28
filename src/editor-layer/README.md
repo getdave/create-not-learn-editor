@@ -20,6 +20,7 @@ All of it is scoped to boot's full-screen edit canvas, so stage screens and prev
 | `canvas-mode.js` | `useIsEditCanvas()`: whether the full-screen edit canvas is on screen. |
 | `portal-host.js` | `usePortalHost()` and `EDITOR_REGIONS`. |
 | `settings-guard.js` | `useForcedBlockEditorSettings()`. |
+| `start-patterns.js` | `useStartPatternsGate()`: core's "Choose a pattern" modal, closed except for a new page in the full-screen editor. Core opens it for any empty page, so the site canvas, which keeps core's editor mounted under Browse, opened it on every visit to one. Applies to the site canvas too, which has its own empty state. |
 | `section-wording.js` | `useSectionWording()`: core's pattern strings, said as sections while a page is open. |
 | `section-picker.jsx` | `EditorSectionPicker`: the shared "Add a section" picker (`src/section-picker/`), opened from a section's options menu, or from the site canvas's View all sections. `addPatternSection()` and `EditorPreview` are shared with the site canvas's in-place picker. App init loads it from the app-init-deferred module (`src/app-init-deferred.js`) rather than with the page. |
 | `section-picker-request.js` | `openSectionPicker()` and `closeSectionPicker()`. The request lives in a data store, so routes, built separately from app init, can open it, and app init can take it without loading the picker. |
@@ -75,4 +76,5 @@ These are core's rendered markup, not APIs, so an upstream change can break them
 - Boot's full-canvas class is matched by its CSS-module suffix, `__has-full-canvas`. It appears in `canvas-mode.js` and as `$edit-canvas` in `style.scss`.
 - The region selectors in `EDITOR_REGIONS` rely on the editor's `interface-interface-skeleton__*` classes.
 - The "Edit original" rule relies on the block toolbar's group structure.
+- `start-patterns.js` finds core's "Choose a pattern" modal by its `editor-start-page-options__modal` class, and closes it with the only button in its header.
 - The rule hiding a section's "Detach" relies on core rendering it as the menu item right before its "Manage patterns" link, and finds that link by its URL.
