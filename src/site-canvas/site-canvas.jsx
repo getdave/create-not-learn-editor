@@ -65,6 +65,11 @@ import { useZoomGestures, ZoomControls } from './zoom-controls';
  * @param {boolean}  props.canCompose     Whether Compose is offered. A canvas
  *                                        about one part of the site, not a
  *                                        page's sections, does without.
+ * @param {boolean}  props.hasModeToggle  Whether Browse | Edit is offered. A
+ *                                        canvas that only ever edits, like the
+ *                                        Posts desk's, does without.
+ * @param {Element}  props.toolbarStart   Shown first in the toolbar, before
+ *                                        the mode toggle.
  * @param {Function} props.useComposeSync A hook linking Compose to a list of
  *                                        the same sections elsewhere, while
  *                                        composing. See `SectionModesLayer`.
@@ -79,6 +84,8 @@ export function SiteCanvas( {
 	editorRef: givenEditorRef,
 	emptyPreview = null,
 	focusId = null,
+	hasModeToggle = true,
+	toolbarStart = null,
 	useComposeSync,
 } ) {
 	const navigate = useNavigate();
@@ -169,11 +176,14 @@ export function SiteCanvas( {
 		>
 			<header className="cnl-editor-canvas__toolbar cnl-editor-homepage-toolbar">
 				<div className="cnl-editor-homepage-toolbar__left">
-					<ModeToggle
-						canEdit={ canvas.canEdit }
-						mode={ mode }
-						onChange={ canvas.requestMode }
-					/>
+					{ toolbarStart }
+					{ hasModeToggle && (
+						<ModeToggle
+							canEdit={ canvas.canEdit }
+							mode={ mode }
+							onChange={ canvas.requestMode }
+						/>
+					) }
 					{ ! isPreviewing && canArrange && (
 						<ComposeButton
 							isComposing={ isComposing }

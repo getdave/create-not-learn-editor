@@ -28,7 +28,8 @@ import {
 	getContentFields,
 	usePostAuthors,
 } from './content-fields';
-import { getPostViewEmpty, getPostViews } from './post-views';
+import { getPostViewEmpty } from './post-views';
+import PostsDesk from './posts-desk';
 import useCoreTrashActions from './use-core-trash-actions';
 import PostKindPicker from '../../pickers/post-kinds';
 import { isAskingPostKind } from '../../post-kinds-base';
@@ -56,8 +57,6 @@ import {
 	MenuItem,
 	Spinner,
 	Tabs,
-	ToggleGroupControl,
-	ToggleGroupControlOption,
 	__,
 	layoutIcon,
 	LegacyIcon,
@@ -126,6 +125,7 @@ function Stage() {
 		isLoading,
 		posts,
 		previewTemplates,
+		selectedPost,
 		selectedTemplateId,
 		setContentView,
 		templates,
@@ -162,7 +162,9 @@ function Stage() {
 	// actions.
 	const trashActions = useCoreTrashActions( statusView ? type?.name : null );
 	// Pages lists its pages in menu groups; every other type in DataViews.
-	const dataViews = useDataViews( !! type && ! isPages );
+	const dataViews = useDataViews(
+		!! type && ! isPages && type.name !== 'post'
+	);
 	const authors = usePostAuthors( isPages ? EMPTY_ARRAY : posts );
 	const contentFields = useMemo(
 		() =>
@@ -531,7 +533,22 @@ function Stage() {
 
 	let contentList = pagesList;
 
-	if ( ! isPages && ! dataViews ) {
+	if ( type.name === 'post' ) {
+		contentList = (
+			<PostsDesk
+				empty={ contentEmpty }
+				isLoading={ isLoading }
+				onChangeView={ onChangeContentView }
+				onSelect={ selectPost }
+				posts={ posts }
+				selectedPost={ selectedPost }
+				statusSlug={ statusView?.slug }
+				totalPages={ totalPages }
+				trashActions={ trashActions }
+				view={ contentView }
+			/>
+		);
+	} else if ( ! isPages && ! dataViews ) {
 		contentList = (
 			<div className="cnl-editor-spinner">
 				<Spinner />
@@ -630,7 +647,11 @@ function Stage() {
 							items={ [ ...siteCrumbs, { label: title } ] }
 						/>
 					) : undefined,
-				className: 'cnl-editor-stage cnl-editor-content-page',
+				className: `cnl-editor-stage cnl-editor-content-page${
+					type.name === 'post' && ! showTemplates
+						? ' cnl-posts-desk-page'
+						: ''
+				}`,
 				subTitle:
 					( type.name === 'page' &&
 						__(
@@ -669,34 +690,6 @@ function Stage() {
 							</Tabs.Tab>
 						</Tabs.List>
 					</Tabs.Root>
-				</div>
-			) }
-			{ statusView && ! showTemplates && (
-				<div className="routes-post-list__statuses">
-					<ToggleGroupControl
-						__next40pxDefaultSize
-						hideLabelFromVision
-						isBlock
-						label={ __( 'Show posts' ) }
-						onChange={ ( slug ) =>
-							navigate( {
-								// Keeps the way back to where the visit began.
-								search: searchParams.from
-									? { from: searchParams.from }
-									: undefined,
-								to: `/types/${ type.name }/list/${ slug }`,
-							} )
-						}
-						value={ statusView.slug }
-					>
-						{ getPostViews().map( ( view ) => (
-							<ToggleGroupControlOption
-								key={ view.slug }
-								label={ view.title }
-								value={ view.slug }
-							/>
-						) ) }
-					</ToggleGroupControl>
 				</div>
 			) }
 			{ showTemplates && (

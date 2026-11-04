@@ -1,0 +1,218 @@
+// The Posts desk: places, then the list, side by side in the stage, with the
+// post on the canvas beside them.
+
+.cnl-posts-desk {
+	display: grid;
+	grid-template-columns: 200px minmax(0, 1fr);
+	flex: 1;
+	min-height: 0;
+	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.cnl-posts-desk__places {
+	overflow-y: auto;
+	padding: 12px 8px 24px;
+	background: var(--wpds-color-background-surface-neutral-weak);
+	border-inline-end: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.cnl-posts-desk__places-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.cnl-posts-desk__places-heading {
+	margin: 20px 8px 6px;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.cnl-posts-desk__place {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	width: 100%;
+	min-height: 32px;
+	padding: 4px 8px;
+	border: 0;
+	border-radius: var(--wpds-border-radius-sm);
+	background: none;
+	color: var(--wpds-color-foreground-content-neutral);
+	font: inherit;
+	font-size: 13px;
+	text-align: start;
+	cursor: pointer;
+
+	&:hover {
+		background: var(--wpds-color-background-interactive-neutral-weak-active);
+	}
+
+	&:focus-visible {
+		outline: var(--wpds-border-width-focus) solid var(--wpds-color-stroke-focus);
+		outline-offset: -2px;
+	}
+
+	&[aria-current="page"] {
+		background: rgba(0, 0, 0, 0.06);
+		font-weight: 500;
+	}
+}
+
+.cnl-posts-desk__place-icon {
+	flex: none;
+	fill: currentcolor;
+	opacity: 0.7;
+}
+
+.cnl-posts-desk__place-label {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cnl-posts-desk__place-count {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.cnl-posts-desk__list {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+
+	> .dataviews-wrapper,
+	> div:not(.cnl-editor-spinner) {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		min-height: 0;
+	}
+}
+
+.cnl-posts-desk__search {
+	padding: 12px 12px 8px;
+
+	.dataviews-search,
+	.components-search-control {
+		width: 100%;
+	}
+}
+
+.cnl-posts-desk__scroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 0 8px 16px;
+
+	// Cards, as a notes app lists notes: no rules between them, the picked
+	// one filled in.
+	.dataviews-view-list {
+		gap: 2px;
+
+		div[role="row"] {
+			border: 0;
+			border-radius: var(--wpds-border-radius-md);
+
+			&:not(:first-child) {
+				border-top: 0;
+			}
+
+			&:hover {
+				background: rgba(0, 0, 0, 0.025);
+			}
+
+			.dataviews-view-list__item-wrapper {
+				padding: 12px;
+			}
+		}
+
+		.dataviews-view-list__item-actions {
+			opacity: 0;
+		}
+
+		div[role="row"]:hover .dataviews-view-list__item-actions,
+		div[role="row"].is-selected .dataviews-view-list__item-actions,
+		div[role="row"]:focus-within .dataviews-view-list__item-actions {
+			opacity: 1;
+		}
+
+		// Titles wrap rather than cut off, as the title is what a post is
+		// known by.
+		.dataviews-view-list__title-field {
+			overflow: visible;
+			text-overflow: clip;
+			white-space: normal;
+		}
+
+		.dataviews-view-list__fields {
+			display: flex;
+			gap: 8px;
+			align-items: center;
+			margin-top: 2px;
+		}
+	}
+}
+
+.cnl-posts-desk__title {
+	color: var(--wpds-color-foreground-content-neutral);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.cnl-posts-desk__excerpt {
+	display: -webkit-box;
+	overflow: hidden;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: 13px;
+	line-height: 1.5;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+
+.cnl-posts-desk__date {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: 12px;
+}
+
+.cnl-posts-desk-canvas--empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+}
+
+// Room for the places and the list side by side, where the stage beside a
+// canvas is otherwise kept to 400px.
+@media (min-width: 782px) {
+	// Boot keeps the stage to 400px with a rule on its layout, so this names
+	// the layout too to win.
+	[class*="__layout"][class*="has-canvas"] [class*="__stage"]:has(> .cnl-posts-desk-page) {
+		flex: 0 0 auto;
+		width: clamp(480px, 40vw, 600px);
+		max-width: none;
+	}
+}
+
+.cnl-posts-desk-page {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+// Expanded, the editor takes the stage's place too. Named in full to win over
+// the stage's own display, which the help bar under it sets.
+body.cnl-posts-desk-is-expanded #create-not-learn-editor-app [class*="__layout"][class*="has-canvas"] [class*="__stage"]:has(> .cnl-posts-desk-page) {
+	display: none;
+}

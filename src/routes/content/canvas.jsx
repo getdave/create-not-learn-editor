@@ -11,6 +11,7 @@ import { getEditablePostType } from '../../settings';
 import { getActiveTab, getTemplateTitle } from './helpers';
 import useContentRecords from './use-content-records';
 import PagesCanvas from './pages/canvas';
+import PostsDeskCanvas from './posts-desk/canvas';
 import TemplateCanvas from './template-canvas';
 import { Button, Spinner, __, sprintf } from '../../wordpress-packages';
 
@@ -87,6 +88,13 @@ export default function Canvas() {
 		getActiveTab( searchParams ) !== 'templates'
 	) {
 		return <PagesCanvas />;
+	}
+
+	if (
+		params.type === 'post' &&
+		getActiveTab( searchParams ) !== 'templates'
+	) {
+		return <PostsDeskCanvas />;
 	}
 
 	return <ContentCanvas />;

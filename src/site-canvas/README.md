@@ -10,6 +10,8 @@ Posts are written rather than designed, so they are in writing mode (`writing-mo
 
 Pages keep the section layer in Edit, but their runs of plain blocks are grouped the same way, so a page that is mostly words, like a privacy policy, is one "Text" section rather than a section for every paragraph. The first click picks it and the next reaches the words, as for any section. It has Add and its moves, but no Edit design. The Pages sidebar's list of sections groups them too. A layout's blocks aren't grouped, as they are mostly a post's title, image and content.
 
+A canvas that only ever edits can go without the toggle (`hasModeToggle`), as the Posts desk's does, and put a control of its own at the toolbar's start (`toolbarStart`), like the desk's button to widen the editor.
+
 The mode is shared by every canvas, so it carries over from page to page and screen to screen. It lives in a small data store (`mode.js`), because app init and each route are built separately. Nothing is saved, so every visit starts in Browse.
 
 Moving to Browse with unsaved changes asks to save or discard them, because the preview only shows what is saved. Moving between Edit and Compose never asks: they are the same editor.

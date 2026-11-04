@@ -7,8 +7,8 @@ import { useParams, useSearch } from '@wordpress/route';
  * Internal dependencies
  */
 import { getPostType } from '../../settings';
-import { getActiveWorkspace } from '../../workspaces/presets';
 import { getPostView } from './post-views';
+import { POSTS_DESK_VIEW } from './posts-desk/fields';
 import { getErrorMessage } from '../../records';
 import { EMPTY_ARRAY } from './page-layouts';
 import {
@@ -44,27 +44,50 @@ const TEMPLATE_QUERY = {
 
 const LISTED_STATUSES = [ 'publish', 'draft', 'pending', 'private', 'future' ];
 
-function getPostQuery( search, statuses = LISTED_STATUSES, withLinks ) {
+function getPostQuery(
+	search,
+	statuses = LISTED_STATUSES,
+	withLinks,
+	terms = {}
+) {
 	return {
+		categories: terms.category || undefined,
 		context: 'edit',
 		per_page: 20,
 		search: search || undefined,
+		tags: terms.tag || undefined,
 		_fields: withLinks ? POST_QUERY_FIELDS_WITH_LINKS : POST_QUERY_FIELDS,
 		status: statuses.join( ',' ),
 	};
 }
 
 /**
- * The status a list is showing, when its workspace lists posts by status.
+ * The category or tag the Posts desk is narrowed to, from the address.
+ *
+ * @param {?Object} type         Post type.
+ * @param {Object}  searchParams The address's search params.
+ * @return {Object} `{ category, tag }`, each a term ID or 0.
+ */
+export function getPickedTerms( type, searchParams ) {
+	if ( type?.name !== 'post' ) {
+		return { category: 0, tag: 0 };
+	}
+
+	return {
+		category: Number( searchParams.category ) || 0,
+		tag: Number( searchParams.tag ) || 0,
+	};
+}
+
+/**
+ * The status the Posts desk is showing. Other types aren't listed by status.
  *
  * @param {?Object} type Post type.
  * @param {string}  slug The address's view slug.
  * @return {?Object} The tab, from `getPostView`, or null.
  */
 function getStatusView( type, slug ) {
-	return type?.name === 'post' && getActiveWorkspace().posts.statusFilter
-		? getPostView( slug )
-		: null;
+	return type?.name === 'post' ? getPostView( slug ) : null;
 }
 
 function getSearchValue( value ) {
@@ -76,27 +99,19 @@ function getSearchValue( value ) {
 }
 
 /**
- * How a content type is listed to begin with. Posts follow the workspace:
- * a writer's are a list of what they wrote, drafts first, rather than a
- * table of records.
+ * How a content type is listed to begin with. Posts are a writer's list of
+ * what they wrote, rather than a table of records.
  *
  * @param {?Object} type Post type.
- * @return {Object} `{ fields, type }`, plus `groupBy` and
- *                  `descriptionField` for a list grouped by status.
+ * @return {Object} `{ fields, type }`, plus `descriptionField` for posts.
  */
 function getDefaultContentLayout( type ) {
 	if ( type?.name === 'page' ) {
 		return { fields: [ 'on-site' ], type: 'grid' };
 	}
 
-	const posts = getActiveWorkspace().posts;
-
-	if ( type?.name === 'post' && posts.layout === 'list' ) {
-		return {
-			descriptionField: 'excerpt',
-			fields: [ 'date' ],
-			type: 'list',
-		};
+	if ( type?.name === 'post' ) {
+		return POSTS_DESK_VIEW;
 	}
 
 	return { fields: DEFAULT_CONTENT_VIEW.fields, type: 'table' };
@@ -126,14 +141,16 @@ export default function useContentRecords() {
 	const statuses = statusView ? statusView.statuses : LISTED_STATUSES;
 	const statusesKey = statuses.join( ',' );
 	const hasStatusFilter = !! statusView;
+	const { category, tag } = getPickedTerms( type, searchParams );
 	const postQuery = useMemo(
 		() =>
 			getPostQuery(
 				contentView.search,
 				statusesKey.split( ',' ),
-				hasStatusFilter
+				hasStatusFilter,
+				{ category, tag }
 			),
-		[ contentView.search, hasStatusFilter, statusesKey ]
+		[ category, contentView.search, hasStatusFilter, statusesKey, tag ]
 	);
 
 	// Moving to another status starts its list afresh.

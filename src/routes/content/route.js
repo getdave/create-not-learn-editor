@@ -28,8 +28,13 @@ export const route = {
 			return undefined;
 		}
 
-		// Pages always show a page next to the list.
-		if ( params.type === 'page' || search.postId || search.postIds ) {
+		// Pages and posts always show one next to the list.
+		if (
+			params.type === 'page' ||
+			params.type === 'post' ||
+			search.postId ||
+			search.postIds
+		) {
 			return null;
 		}
 

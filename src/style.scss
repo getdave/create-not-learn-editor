@@ -4,6 +4,7 @@
 @use "./fonts" as *;
 @use "./theme/modern";
 @use "./routes/content/pages/style" as pages;
+@use "./routes/content/posts-desk/style" as posts-desk;
 @use "./site-canvas/style" as site-canvas;
 @use "./routes/site-overview/style" as site-overview;
 @use "./routes/site-part/style" as site-part;

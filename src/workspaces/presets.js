@@ -43,9 +43,7 @@ export const HIDDEN_PARENT = 'cnl-workspace-hidden';
  * - `home.viewLabel`: the link to the live site, under Home's title.
  * - `home.preview`: what Home's canvas opens on. `home` is the homepage;
  *   `posts` is wherever the blog's posts are listed.
- * - `posts`: how the Posts screen lists posts and says what it is for.
- *   `layout` is a DataViews layout; `statusFilter` puts a row of buttons for
- *   core's statuses (All, Published, Drafts, Trash...) under the Posts tab.
+ * - `posts`: what the Posts screen says it is for, and its add button.
  * - `writeInFocus`: whether writing a post opens the editor with everything
  *   but the writing out of the way.
  * - `writingAids`: whether a post open in the editor gets a writer's prompt
@@ -71,9 +69,7 @@ const DEFAULTS = {
 	},
 	posts: {
 		addLabel: null,
-		statusFilter: false,
 		description: __( 'Your blog posts, newest first.' ),
-		layout: 'table',
 	},
 	writeInFocus: false,
 	writingAids: false,
@@ -126,11 +122,9 @@ const PRESETS = [
 		},
 		posts: {
 			addLabel: __( 'Write a post' ),
-			statusFilter: true,
 			description: __(
 				'Everything you’ve written. Pick up a draft, or change something you’ve published.'
 			),
-			layout: 'list',
 		},
 		writeInFocus: true,
 		writingAids: true,

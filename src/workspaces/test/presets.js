@@ -29,7 +29,7 @@ describe( 'WORKSPACES', () => {
 		WORKSPACES.forEach( ( workspace ) => {
 			expect( workspace.home.places.length ).toBeGreaterThan( 0 );
 			expect( workspace.home.hint ).toBeTruthy();
-			expect( workspace.posts.layout ).toBeTruthy();
+			expect( workspace.posts.description ).toBeTruthy();
 			expect( typeof workspace.writingAids ).toBe( 'boolean' );
 		} );
 	} );
